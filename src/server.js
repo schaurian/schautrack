@@ -16,6 +16,28 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://schautrack:schautrack@localhost:5432/schautrack',
 });
 
+function parseAmount(input) {
+  if (input === undefined || input === null) {
+    return { ok: false, value: 0 };
+  }
+
+  const expr = String(input).replace(/,/g, '').trim();
+
+  if (!expr || expr.length > 120 || !/^[0-9+\-*/().\s]+$/.test(expr)) {
+    return { ok: false, value: 0 };
+  }
+
+  try {
+    const value = Function('"use strict"; return (' + expr + ')')();
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return { ok: false, value: 0 };
+    }
+    return { ok: true, value: Math.round(value) };
+  } catch (err) {
+    return { ok: false, value: 0 };
+  }
+}
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -267,11 +289,10 @@ app.post('/goal', requireAuth, async (req, res) => {
 });
 
 app.post('/entries', requireAuth, async (req, res) => {
-  const rawAmount = parseInt(req.body.amount, 10);
+  const { value: amount, ok } = parseAmount(req.body.amount);
   const entryDate = req.body.entry_date || new Date().toISOString().slice(0, 10);
-  const amount = Number.isNaN(rawAmount) ? 0 : rawAmount;
 
-  if (amount === 0) {
+  if (!ok || amount === 0) {
     return res.redirect('/dashboard');
   }
 
