@@ -1,0 +1,25 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://schautrack:schautrack@db:5432/schautrack
+      - SESSION_SECRET=change-me
+    depends_on:
+      - db
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=schautrack
+      - POSTGRES_USER=schautrack
+      - POSTGRES_PASSWORD=schautrack
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+
+volumes:
+  db-data:

@@ -1,0 +1,24 @@
+{
+  "name": "schautrack",
+  "version": "0.1.0",
+  "description": "Calorie tracking web app with registration, 2FA, and Postgres",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "connect-pg-simple": "^9.0.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "pg": "^8.11.5",
+    "qrcode": "^1.5.3",
+    "speakeasy": "^2.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

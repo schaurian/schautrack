@@ -1,0 +1,29 @@
+<%- include('partials/header', { title: 'Sign in' }) %>
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Welcome back</p>
+        <h1>Log in</h1>
+      </div>
+      <a href="/register" class="ghost">Create account</a>
+    </div>
+    <% if (error) { %>
+      <div class="alert danger"><%= error %></div>
+    <% } %>
+    <form action="/login" method="POST" class="stack">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" value="<%= email || '' %>" required autocomplete="email">
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <label class="field">
+        <span>2FA code <% if (!requireToken) { %><span class="muted">(only if enabled)</span><% } %></span>
+        <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" placeholder="123456" <%= requireToken ? 'required' : '' %>>
+      </label>
+      <button type="submit" class="primary">Log in</button>
+    </form>
+  </section>
+<%- include('partials/footer') %>

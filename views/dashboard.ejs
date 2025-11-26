@@ -1,0 +1,81 @@
+<%- include('partials/header', { title: 'Dashboard' }) %>
+  <section class="grid two">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Today</p>
+          <h2>Calorie balance</h2>
+        </div>
+        <a class="ghost" href="/settings">Settings</a>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Goal</div>
+          <div class="stat-value"><%= user.daily_goal ? `${user.daily_goal} kcal` : 'Not set' %></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Logged today</div>
+          <div class="stat-value"><%= todayTotal %> kcal</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Status</div>
+          <% if (!user.daily_goal) { %>
+            <div class="chip">Set a goal</div>
+          <% } else if (goalStatus === 'under') { %>
+            <div class="chip success">Under goal</div>
+            <div class="muted small">Room left: <%= goalDelta %> kcal</div>
+          <% } else { %>
+            <div class="chip danger">Over goal</div>
+            <div class="muted small">Over by <%= goalDelta %> kcal</div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Log</p>
+        <h2>Add calories</h2>
+      </div>
+    </div>
+    <form action="/entries" method="POST" class="stack horizontal">
+      <label class="field">
+        <span>Amount (use negative to subtract)</span>
+        <input type="number" name="amount" required placeholder="250 or -200">
+      </label>
+      <label class="field">
+        <span>Date</span>
+        <input type="date" name="entry_date" value="<%= new Date().toISOString().slice(0,10) %>">
+      </label>
+      <button type="submit" class="primary">Record</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Recent</p>
+        <h2>Last 14 days</h2>
+      </div>
+    </div>
+    <div class="dot-row">
+      <% dailyStats.forEach((day) => { %>
+        <div class="dot-wrap" data-tip="<%= day.date %> · <%= day.total %> kcal">
+          <% if (!user.daily_goal) { %>
+            <div class="dot muted"></div>
+          <% } else if (day.status === 'zero') { %>
+            <div class="dot zero"></div>
+          <% } else if (day.status === 'under') { %>
+            <div class="dot success"></div>
+          <% } else if (day.status === 'over_threshold') { %>
+            <div class="dot danger"></div>
+          <% } else { %>
+            <div class="dot warn"></div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+<%- include('partials/footer') %>

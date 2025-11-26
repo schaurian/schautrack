@@ -1,0 +1,25 @@
+<%- include('partials/header', { title: 'Create account' }) %>
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Start tracking</p>
+        <h1>Create your account</h1>
+      </div>
+      <a href="/login" class="ghost">Already have one?</a>
+    </div>
+    <% if (error) { %>
+      <div class="alert danger"><%= error %></div>
+    <% } %>
+    <form action="/register" method="POST" class="stack">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" name="password" required autocomplete="new-password">
+      </label>
+      <button type="submit" class="primary">Create account</button>
+    </form>
+  </section>
+<%- include('partials/footer') %>

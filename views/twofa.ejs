@@ -1,0 +1,45 @@
+<%- include('partials/header', { title: 'Security' }) %>
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Two-factor</p>
+        <h2>Protect your account</h2>
+      </div>
+      <a href="/dashboard" class="ghost">Back to dashboard</a>
+    </div>
+
+    <% if (user.totp_enabled) { %>
+      <div class="alert success">2FA is enabled for <%= user.email %>.</div>
+      <p class="muted">Use your authenticator app to generate codes. To disable, confirm with a current code.</p>
+      <form action="/2fa/disable" method="POST" class="stack compact">
+        <label class="field">
+          <span>Current 2FA code</span>
+          <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
+        </label>
+        <button type="submit" class="ghost danger">Disable 2FA</button>
+      </form>
+    <% } else if (hasTempSecret) { %>
+      <div class="alert">Scan the QR code or copy the setup link, then confirm with a 6-digit code.</div>
+      <div class="grid two">
+        <div class="qr">
+          <% if (qrDataUrl) { %>
+            <img src="<%= qrDataUrl %>" alt="2FA QR code">
+          <% } %>
+          <% if (otpauthUrl) { %>
+            <code class="muted break"><%= otpauthUrl %></code>
+          <% } %>
+        </div>
+        <form action="/2fa/enable" method="POST" class="stack compact">
+          <label class="field">
+            <span>6-digit code</span>
+            <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
+          </label>
+          <button type="submit" class="primary">Activate 2FA</button>
+        </form>
+      </div>
+    <% } else { %>
+      <div class="alert">Add an authenticator app (like 1Password, Authy, Google Authenticator) for stronger protection.</div>
+      <a class="primary" href="/2fa/setup">Start setup</a>
+    <% } %>
+  </section>
+<%- include('partials/footer') %>
