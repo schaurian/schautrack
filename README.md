@@ -41,11 +41,6 @@ Create the tables using `db/init.sql` or let Docker Compose apply it automatical
 - Verify a 6-digit code from your authenticator to activate.
 - To disable, confirm with a current code.
 
-## Android app (WebView wrapper)
-- Code lives in `android/` (Kotlin, SDK 34, minSdk 24).
-- Open the `android` folder in Android Studio or run `./gradlew :app:assembleRelease` to produce an APK that opens https://schautrack.schauer.to/.
-- If the site domain changes, update `START_URL` in `android/app/src/main/java/to/schauer/schautrack/MainActivity.kt` and the domain in `android/app/src/main/res/xml/network_security_config.xml`.
-
 ## Project layout
 - `src/server.js` – Express server, routes, auth + 2FA, dashboard logic
 - `views/` – EJS templates for auth, dashboard, 2FA
