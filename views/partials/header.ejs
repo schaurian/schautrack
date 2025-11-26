@@ -20,8 +20,8 @@
     </div>
   <nav class="nav">
     <% if (currentUser) { %>
-      <a href="/dashboard" class="nav-link">Dashboard</a>
-      <a href="/settings" class="nav-link">Settings</a>
+      <a href="/dashboard" class="nav-link <%= activePage === 'dashboard' ? 'active' : '' %>">Dashboard</a>
+      <a href="/settings" class="nav-link <%= activePage === 'settings' ? 'active' : '' %>">Settings</a>
       <form action="/logout" method="POST" class="inline-form">
         <button type="submit" class="ghost">Logout</button>
       </form>

@@ -21,9 +21,14 @@ function parseAmount(input) {
     return { ok: false, value: 0 };
   }
 
-  const expr = String(input).replace(/,/g, '').trim();
+  const expr = String(input)
+    .replace(/\s+/g, '')
+    .replace(/,/g, '')
+    .replace(/[x×]/gi, '*')
+    .replace(/÷/g, '/')
+    .trim();
 
-  if (!expr || expr.length > 120 || !/^[0-9+\-*/().\s]+$/.test(expr)) {
+  if (!expr || expr.length > 120 || !/^[0-9+\-*/().]+$/.test(expr)) {
     return { ok: false, value: 0 };
   }
 
@@ -103,6 +108,7 @@ const renderSettings = async (req, res) => {
     hasTempSecret: Boolean(tempSecret),
     qrDataUrl,
     otpauthUrl: tempUrl || null,
+    activePage: 'settings',
   });
 };
 
@@ -236,8 +242,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   });
 
   const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
   const dailyStats = [];
-  for (let i = 0; i < daysToShow; i += 1) {
+  for (let i = 1; i <= daysToShow; i += 1) {
     const current = new Date(today);
     current.setDate(today.getDate() - i);
     const dateStr = current.toISOString().slice(0, 10);
@@ -260,7 +267,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     dailyStats.push({ date: dateStr, total, status, overThreshold });
   }
 
-  const todayTotal = dailyStats.find((d) => d.date === today.toISOString().slice(0, 10))?.total || 0;
+  const todayTotal = totalsByDate.get(todayStr) || 0;
   const goalStatus = !user.daily_goal ? 'unset' : todayTotal <= user.daily_goal ? 'under' : 'over';
   const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
 
@@ -270,6 +277,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     goalStatus,
     goalDelta,
     dailyStats,
+    activePage: 'dashboard',
   });
 });
 
