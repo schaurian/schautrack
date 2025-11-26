@@ -53,15 +53,23 @@ a {
 }
 
 .brand-mark {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  padding: 0;
+  overflow: hidden;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  color: #0b0f1c;
-  letter-spacing: 1px;
+}
+
+.brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .brand-name {
