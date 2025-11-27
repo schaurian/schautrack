@@ -33,7 +33,8 @@ container-build:
 
 deploy:
   stage: deploy
-  image: registry.k8s.io/kubectl:v1.31.0
+  image: bitnami/kubectl:latest
+  entrypoint: [""]
   needs:
     - container-build
   variables:
