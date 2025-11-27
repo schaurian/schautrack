@@ -500,9 +500,9 @@ button:active,
 }
 
 .dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   margin: 0 auto;
   transition: box-shadow 120ms ease, transform 120ms ease;
@@ -535,9 +535,9 @@ button:active,
 
 .dot-wrap.active .dot {
   box-shadow:
-    0 0 0 3px rgba(255, 255, 255, 0.12),
-    0 0 0 6px rgba(14, 165, 233, 0.45),
-    0 10px 20px rgba(14, 165, 233, 0.2);
+    0 0 0 4px rgba(255, 255, 255, 0.12),
+    0 0 0 8px rgba(14, 165, 233, 0.45),
+    0 12px 22px rgba(14, 165, 233, 0.2);
   transform: translateY(-3px) scale(1.08);
 }
 
