@@ -65,7 +65,7 @@
     </div>
     <div class="dot-row">
       <% dailyStats.forEach((day) => { %>
-        <div class="dot-wrap" data-tip="<%= day.date %> · <%= day.total %> kcal">
+        <div class="dot-wrap" role="button" tabindex="0" data-day-dot data-date="<%= day.date %>" data-tip="<%= day.date %>">
           <% if (!user.daily_goal) { %>
             <div class="dot muted"></div>
           <% } else if (day.status === 'zero') { %>
@@ -80,19 +80,9 @@
         </div>
       <% }) %>
     </div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Log</p>
-        <h2>Recent entries</h2>
-      </div>
-    </div>
-    <% if (!recentEntries || recentEntries.length === 0) { %>
-      <div class="muted">No entries yet.</div>
-    <% } else { %>
-      <div class="entry-list">
+    <div class="day-selected" data-day-selected>Showing <%= selectedDate === new Date().toISOString().slice(0,10) ? 'today' : selectedDate %></div>
+    <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
+      <% if (recentEntries && recentEntries.length > 0) { %>
         <% recentEntries.forEach((entry) => { %>
           <div class="entry-row">
             <div>
@@ -101,13 +91,124 @@
             </div>
             <div class="entry-actions">
               <div class="entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>"><%= entry.amount %> kcal</div>
-              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form">
-                <button type="submit" class="ghost danger small">Delete</button>
+              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
+                <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
               </form>
             </div>
           </div>
         <% }) %>
-      </div>
-    <% } %>
+      <% } %>
+    </div>
+    <div class="muted <%= (!recentEntries || recentEntries.length === 0) ? '' : 'hidden' %>" data-entry-empty>No entries yet.</div>
   </section>
+
+  <script>
+    (() => {
+      const dots = Array.from(document.querySelectorAll('[data-day-dot]'));
+      const entryLists = Array.from(document.querySelectorAll('[data-entry-list]'));
+      const emptyState = document.querySelector('[data-entry-empty]');
+      const daySelected = document.querySelector('[data-day-selected]');
+      let currentDate = '<%= selectedDate %>';
+
+      const renderEntries = (entries) => {
+        const list = entryLists[0];
+        if (!list) return;
+        list.innerHTML = '';
+
+        if (!entries || entries.length === 0) {
+          list.classList.add('hidden');
+          if (emptyState) {
+            emptyState.textContent = 'No entries yet.';
+            emptyState.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (emptyState) emptyState.classList.add('hidden');
+        list.classList.remove('hidden');
+
+        list.innerHTML = entries
+          .map(
+            (entry) => `
+            <div class="entry-row">
+              <div>
+                <div class="entry-name">${entry.name ? entry.name : 'Untitled'}</div>
+                <div class="muted small">${entry.date}</div>
+              </div>
+              <div class="entry-actions">
+                <div class="entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}">${entry.amount} kcal</div>
+                <form action="/entries/${entry.id}/delete" method="POST" class="inline-form" data-delete-form>
+                  <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
+                </form>
+              </div>
+            </div>
+          `
+          )
+          .join('');
+      };
+
+      const setActiveDay = (date) => {
+        dots.forEach((dot) => {
+          dot.classList.toggle('active', dot.dataset.date === date);
+        });
+        if (daySelected) {
+          const today = new Date().toISOString().slice(0, 10);
+          daySelected.textContent = `Showing ${date === today ? 'today' : date}`;
+        }
+      };
+
+      const loadEntries = async (date) => {
+        try {
+          const res = await fetch(`/entries/day?date=${encodeURIComponent(date)}`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.ok) {
+            renderEntries(data.entries);
+          }
+        } catch (err) {
+          console.error('Failed to load entries', err);
+        }
+      };
+
+      dots.forEach((dot) => {
+        dot.addEventListener('click', () => {
+          const date = dot.dataset.date;
+          if (!date || date === currentDate) return;
+          currentDate = date;
+          setActiveDay(date);
+          loadEntries(date);
+        });
+        dot.addEventListener('keypress', (evt) => {
+          if (evt.key === 'Enter' || evt.key === ' ') {
+            evt.preventDefault();
+            dot.click();
+          }
+        });
+      });
+
+      document.addEventListener('submit', async (evt) => {
+        const form = evt.target.closest('[data-delete-form]');
+        if (!form) return;
+        evt.preventDefault();
+        const btn = form.querySelector('[data-delete-entry]');
+        const entryId = btn?.dataset.entryId;
+        if (!entryId) return;
+        try {
+          const res = await fetch(`/entries/${entryId}/delete`, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+          });
+          if (res.ok) {
+            loadEntries(currentDate);
+          }
+        } catch (err) {
+          console.error('Delete failed', err);
+        }
+      });
+
+      setActiveDay(currentDate);
+    })();
+  </script>
 <%- include('partials/footer') %>

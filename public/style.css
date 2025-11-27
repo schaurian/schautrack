@@ -324,6 +324,7 @@ button:active,
   grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));
   gap: 10px 12px;
   align-items: end;
+  margin-bottom: 14px;
 }
 
 .entry-list {
@@ -362,6 +363,43 @@ button:active,
 
 .entry-amount.neg {
   color: var(--danger);
+}
+
+.day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.day-chip {
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 120ms ease, border 120ms ease;
+}
+
+.day-chip:hover {
+  border-color: rgba(14, 165, 233, 0.5);
+}
+
+.day-chip.active {
+  background: rgba(14, 165, 233, 0.14);
+  border-color: rgba(14, 165, 233, 0.6);
+}
+
+.day-selected {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .data-actions {
@@ -446,7 +484,7 @@ button:active,
 .dot-wrap {
   text-align: center;
   position: relative;
-  cursor: help;
+  cursor: pointer;
 }
 
 .dot {
@@ -455,6 +493,7 @@ button:active,
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.06);
   margin: 0 auto;
+  transition: box-shadow 120ms ease, transform 120ms ease;
 }
 
 .dot.success {
@@ -480,6 +519,11 @@ button:active,
 .dot.zero {
   background: linear-gradient(135deg, #4b5563, #6b7280);
   box-shadow: 0 6px 16px rgba(107, 114, 128, 0.35);
+}
+
+.dot-wrap.active .dot {
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.55), 0 8px 18px rgba(14, 165, 233, 0.25);
+  transform: translateY(-2px);
 }
 
 .dot-wrap::after {

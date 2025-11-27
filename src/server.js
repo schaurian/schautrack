@@ -264,8 +264,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
+  const dayOptions = [];
+  for (let i = 0; i < daysToShow; i += 1) {
+    const current = new Date(today);
+    current.setDate(today.getDate() - i);
+    dayOptions.push(current.toISOString().slice(0, 10));
+  }
+  const requestedDate = (req.query.day || '').trim();
+  const selectedDate = dayOptions.includes(requestedDate) ? requestedDate : todayStr;
+
   const dailyStats = [];
-  for (let i = 1; i <= daysToShow; i += 1) {
+  for (let i = 0; i < daysToShow; i += 1) {
     const current = new Date(today);
     current.setDate(today.getDate() - i);
     const dateStr = current.toISOString().slice(0, 10);
@@ -293,8 +302,8 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
 
   const { rows: recentEntries } = await pool.query(
-    'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20',
-    [user.id]
+    'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
+    [user.id, selectedDate]
   );
 
   res.render('dashboard', {
@@ -303,9 +312,39 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     goalStatus,
     goalDelta,
     dailyStats,
+    dayOptions,
+    selectedDate,
     recentEntries,
     activePage: 'dashboard',
   });
+});
+
+app.get('/entries/day', requireAuth, async (req, res) => {
+  const dateStr = (req.query.date || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return res.status(400).json({ ok: false, error: 'Invalid date' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
+      [req.currentUser.id, dateStr]
+    );
+
+    return res.json({
+      ok: true,
+      date: dateStr,
+      entries: rows.map((row) => ({
+        id: row.id,
+        date: row.entry_date.toISOString().slice(0, 10),
+        amount: row.amount,
+        name: row.entry_name || null,
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to fetch entries for date', err);
+    return res.status(500).json({ ok: false, error: 'Failed to load entries' });
+  }
 });
 
 app.get('/settings/export', requireAuth, async (req, res) => {
@@ -425,8 +464,9 @@ app.post('/entries', requireAuth, async (req, res) => {
 
 app.post('/entries/:id/delete', requireAuth, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
+  const wantsJson = (req.headers.accept || '').includes('application/json');
   if (Number.isNaN(entryId)) {
-    return res.redirect('/dashboard');
+    return wantsJson ? res.status(400).json({ ok: false }) : res.redirect('/dashboard');
   }
 
   try {
@@ -436,8 +476,14 @@ app.post('/entries/:id/delete', requireAuth, async (req, res) => {
     ]);
   } catch (err) {
     console.error('Failed to delete entry', err);
+    if (wantsJson) {
+      return res.status(500).json({ ok: false });
+    }
   }
 
+  if (wantsJson) {
+    return res.json({ ok: true });
+  }
   res.redirect('/dashboard');
 });
 
