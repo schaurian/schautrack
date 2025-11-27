@@ -1,5 +1,6 @@
 stages:
   - build
+  - deploy
 
 variables:
   DOCKER_DRIVER: overlay2
@@ -28,4 +29,20 @@ container-build:
       fi
   rules:
     - if: $CI_COMMIT_BRANCH
+      when: on_success
+
+deploy:
+  stage: deploy
+  image: bitnami/kubectl:1.30
+  needs:
+    - container-build
+  variables:
+    KUBECONFIG: "$CI_PROJECT_DIR/schautrack-gitlab.kubeconfig"
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - kubectl config get-contexts
+    - kubectl set image deployment/schautrack schautrack="$IMAGE" -n schautrack
+    - kubectl rollout status deployment/schautrack -n schautrack --timeout=180s
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success
