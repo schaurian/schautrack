@@ -33,7 +33,7 @@ container-build:
 
 deploy:
   stage: deploy
-  image: bitnami/kubectl:1.29
+  image: registry.k8s.io/kubectl:v1.31.0
   needs:
     - container-build
   variables:
