@@ -7,10 +7,15 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const sessionCookieSecure = process.env.COOKIE_SECURE === 'true';
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://schautrack:schautrack@localhost:5432/schautrack',
@@ -287,14 +292,98 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const goalStatus = !user.daily_goal ? 'unset' : todayTotal <= user.daily_goal ? 'under' : 'over';
   const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
 
+  const { rows: recentEntries } = await pool.query(
+    'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20',
+    [user.id]
+  );
+
   res.render('dashboard', {
     user,
     todayTotal,
     goalStatus,
     goalDelta,
     dailyStats,
+    recentEntries,
     activePage: 'dashboard',
   });
+});
+
+app.get('/settings/export', requireAuth, async (req, res) => {
+  const user = req.currentUser;
+  const { rows: entries } = await pool.query(
+    'SELECT entry_date, amount, entry_name FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
+    [user.id]
+  );
+
+  const payload = {
+    exported_at: new Date().toISOString(),
+    user: {
+      email: user.email,
+      daily_goal: user.daily_goal,
+    },
+    entries: entries.map((row) => ({
+      date: row.entry_date.toISOString().slice(0, 10),
+      amount: row.amount,
+      name: row.entry_name || null,
+    })),
+  };
+
+  const filename = `schautrack-export-${new Date().toISOString().slice(0, 10)}.json`;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(JSON.stringify(payload, null, 2));
+});
+
+app.post('/settings/import', requireAuth, upload.single('import_file'), async (req, res) => {
+  if (!req.file || !req.file.buffer) {
+    return res.redirect('/settings');
+  }
+
+  let parsed;
+  try {
+    const raw = req.file.buffer.toString('utf8');
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    return res.redirect('/settings');
+  }
+
+  const goalCandidate =
+    parsed.daily_goal !== undefined ? parsed.daily_goal : parsed.user?.daily_goal;
+  const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 500) : [];
+
+  const toInsert = [];
+  entries.forEach((entry) => {
+    const dateStr = (entry.date || entry.entry_date || '').toString();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
+    const { value: amount, ok } = parseAmount(entry.amount);
+    if (!ok || amount === 0) return;
+    const nameRaw = entry.name || entry.entry_name || '';
+    const nameSafe = nameRaw ? String(nameRaw).trim().slice(0, 120) : null;
+    toInsert.push({ date: dateStr, amount, name: nameSafe });
+  });
+
+  try {
+    await pool.query('BEGIN');
+    if (Number.isInteger(goalCandidate) && goalCandidate >= 0) {
+      await pool.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [
+        goalCandidate,
+        req.currentUser.id,
+      ]);
+    }
+
+    for (const entry of toInsert) {
+      await pool.query(
+        'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
+        [req.currentUser.id, entry.date, entry.amount, entry.name]
+      );
+    }
+    await pool.query('COMMIT');
+  } catch (err) {
+    console.error('Import failed', err);
+    await pool.query('ROLLBACK');
+  }
+
+  res.redirect('/settings');
 });
 
 app.post('/goal', requireAuth, async (req, res) => {
@@ -315,6 +404,8 @@ app.post('/goal', requireAuth, async (req, res) => {
 app.post('/entries', requireAuth, async (req, res) => {
   const { value: amount, ok } = parseAmount(req.body.amount);
   const entryDate = req.body.entry_date || new Date().toISOString().slice(0, 10);
+  const entryName = (req.body.entry_name || '').trim();
+  const entryNameSafe = entryName ? entryName.slice(0, 120) : null;
 
   if (!ok || amount === 0) {
     return res.redirect('/dashboard');
@@ -322,11 +413,29 @@ app.post('/entries', requireAuth, async (req, res) => {
 
   try {
     await pool.query(
-      'INSERT INTO calorie_entries (user_id, entry_date, amount) VALUES ($1, $2, $3)',
-      [req.currentUser.id, entryDate, amount]
+      'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
+      [req.currentUser.id, entryDate, amount, entryNameSafe]
     );
   } catch (err) {
     console.error('Failed to add entry', err);
+  }
+
+  res.redirect('/dashboard');
+});
+
+app.post('/entries/:id/delete', requireAuth, async (req, res) => {
+  const entryId = parseInt(req.params.id, 10);
+  if (Number.isNaN(entryId)) {
+    return res.redirect('/dashboard');
+  }
+
+  try {
+    await pool.query('DELETE FROM calorie_entries WHERE id = $1 AND user_id = $2', [
+      entryId,
+      req.currentUser.id,
+    ]);
+  } catch (err) {
+    console.error('Failed to delete entry', err);
   }
 
   res.redirect('/dashboard');

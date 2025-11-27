@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS calorie_entries (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   entry_date DATE NOT NULL DEFAULT CURRENT_DATE,
   amount INTEGER NOT NULL,
+  entry_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

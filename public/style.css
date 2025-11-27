@@ -326,6 +326,123 @@ button:active,
   align-items: end;
 }
 
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.entry-name {
+  font-weight: 600;
+}
+
+.entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.entry-amount {
+  font-weight: 700;
+}
+
+.entry-amount.pos {
+  color: var(--accent);
+}
+
+.entry-amount.neg {
+  color: var(--danger);
+}
+
+.data-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.data-card {
+  padding: 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.file-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+}
+
+.file-input::file-selector-button {
+  padding: 8px 12px;
+  margin-right: 12px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(14, 165, 233, 0.14);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.file-input:hover {
+  border-color: rgba(14, 165, 233, 0.5);
+}
+
+.upload-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--stroke);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 120ms ease, border 120ms ease;
+}
+
+.upload-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(14, 165, 233, 0.5);
+}
+
+.upload-trigger input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.primary.full {
+  width: 100%;
+  text-align: center;
+  margin-top: auto;
+}
+
 .dot-wrap {
   text-align: center;
   position: relative;

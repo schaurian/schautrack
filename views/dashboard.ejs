@@ -45,6 +45,10 @@
         <input type="text" name="amount" inputmode="decimal" autocomplete="off" required placeholder="e.g. 250, -200, (3*4)/6">
       </label>
       <label class="field">
+        <span>Name (optional)</span>
+        <input type="text" name="entry_name" maxlength="120" placeholder="e.g. Breakfast, Run, Snack">
+      </label>
+      <label class="field">
         <span>Date</span>
         <input type="date" name="entry_date" value="<%= new Date().toISOString().slice(0,10) %>">
       </label>
@@ -76,5 +80,34 @@
         </div>
       <% }) %>
     </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Log</p>
+        <h2>Recent entries</h2>
+      </div>
+    </div>
+    <% if (!recentEntries || recentEntries.length === 0) { %>
+      <div class="muted">No entries yet.</div>
+    <% } else { %>
+      <div class="entry-list">
+        <% recentEntries.forEach((entry) => { %>
+          <div class="entry-row">
+            <div>
+              <div class="entry-name"><%= entry.entry_name || 'Untitled' %></div>
+              <div class="muted small"><%= entry.entry_date.toISOString().slice(0,10) %></div>
+            </div>
+            <div class="entry-actions">
+              <div class="entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>"><%= entry.amount %> kcal</div>
+              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form">
+                <button type="submit" class="ghost danger small">Delete</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
   </section>
 <%- include('partials/footer') %>

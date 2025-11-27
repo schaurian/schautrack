@@ -62,4 +62,24 @@
       </div>
     </div>
   </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Data</p>
+        <h2>Backup &amp; restore</h2>
+      </div>
+    </div>
+    <div class="data-actions">
+      <form action="/settings/export" method="GET" class="data-card stack">
+        <p class="muted">Download your entries and goal as JSON.</p>
+        <button type="submit" class="primary full">Export JSON</button>
+      </form>
+      <form id="import-form" action="/settings/import" method="POST" enctype="multipart/form-data" class="data-card stack">
+        <p class="muted">Import a saved export (.json). Adds entries; keeps existing data.</p>
+        <input class="file-input" type="file" name="import_file" accept="application/json" required>
+        <button type="submit" class="primary full">Import JSON</button>
+      </form>
+    </div>
+  </section>
 <%- include('partials/footer') %>
