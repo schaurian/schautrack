@@ -365,6 +365,16 @@ button:active,
   color: var(--danger);
 }
 
+.input-keypad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.input-keypad .ghost.small {
+  padding: 6px 10px;
+}
+
 .panel-toggle {
   display: flex;
   align-items: center;
