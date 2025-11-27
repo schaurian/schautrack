@@ -33,7 +33,9 @@ container-build:
 
 deploy:
   stage: deploy
-  image: bitnami/kubectl:latest
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
   needs:
     - container-build
   variables:
