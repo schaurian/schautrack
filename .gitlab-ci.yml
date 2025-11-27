@@ -33,7 +33,7 @@ container-build:
 
 deploy:
   stage: deploy
-  image: bitnami/kubectl:latest
+  image: registry.gitlab.com/gitlab-org/cloud-native/k8s-kubectl:latest
   needs:
     - container-build
   variables:
@@ -41,6 +41,7 @@ deploy:
   script:
     - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - kubectl config get-contexts
+    - kubectl apply -f schautrack/schautrack.yaml
     - kubectl set image deployment/schautrack schautrack="$IMAGE" -n schautrack
     - kubectl rollout status deployment/schautrack -n schautrack --timeout=180s
   rules:
