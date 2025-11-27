@@ -109,7 +109,7 @@ a {
 }
 
 main.shell {
-  padding-bottom: 48px;
+  padding-bottom: 16px;
 }
 
 .panel {
@@ -521,7 +521,7 @@ button:active,
 }
 
 .footer {
-  padding: 20px 0 40px;
+  padding: 10px 0 12px;
 }
 
 @media (max-width: 640px) {
