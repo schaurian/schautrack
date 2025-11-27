@@ -43,18 +43,16 @@
       <label class="field">
         <span>Amount</span>
         <input
-          type="text"
+          type="tel"
           name="amount"
-          inputmode="decimal"
+          inputmode="tel"
           autocomplete="off"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
           required
           placeholder="e.g. 250, -200, (3*4)/6">
       </label>
-      <div class="input-keypad" data-keypad>
-        <% ['(', ')', '+', '-', '*', '/'].forEach((key) => { %>
-          <button type="button" class="ghost small" data-keypad-key="<%= key %>"><%= key %></button>
-        <% }) %>
-      </div>
       <label class="field">
         <span>Name (optional)</span>
         <input type="text" name="entry_name" maxlength="120" placeholder="e.g. Breakfast, Run, Snack">
@@ -120,8 +118,6 @@
       const emptyState = document.querySelector('[data-entry-empty]');
       const daySelected = document.querySelector('[data-day-selected]');
       let currentDate = '<%= selectedDate %>';
-      const keypad = document.querySelector('[data-keypad]');
-      const amountInput = document.querySelector('input[name="amount"]');
 
       const renderEntries = (entries) => {
         const list = entryLists[0];
@@ -184,21 +180,6 @@
           console.error('Failed to load entries', err);
         }
       };
-
-      if (keypad && amountInput) {
-        keypad.addEventListener('click', (evt) => {
-          const key = evt.target.getAttribute('data-keypad-key');
-          if (!key) return;
-          amountInput.focus();
-          const start = amountInput.selectionStart ?? amountInput.value.length;
-          const end = amountInput.selectionEnd ?? amountInput.value.length;
-          const before = amountInput.value.slice(0, start);
-          const after = amountInput.value.slice(end);
-          amountInput.value = `${before}${key}${after}`;
-          const pos = start + key.length;
-          amountInput.setSelectionRange(pos, pos);
-        });
-      }
 
       dots.forEach((dot) => {
         dot.addEventListener('click', () => {
