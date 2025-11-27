@@ -25,7 +25,12 @@
         </div>
       </div>
 
-      <div class="stack">
+      <div class="panel-toggle">
+        <p class="muted small">Manage authenticator setup and 2FA status.</p>
+        <button type="button" class="ghost" data-totp-toggle aria-expanded="false">Show details</button>
+      </div>
+
+      <div class="stack hidden" data-totp-body>
         <% if (user.totp_enabled) { %>
           <div class="alert success">2FA is enabled for <%= user.email %>.</div>
           <p class="muted">Use your authenticator app to generate codes. To disable, confirm with a current code.</p>
@@ -82,4 +87,24 @@
       </form>
     </div>
   </section>
+  <script>
+    (() => {
+      const toggle = document.querySelector('[data-totp-toggle]');
+      const body = document.querySelector('[data-totp-body]');
+      if (!toggle || !body) return;
+
+      const updateLabel = () => {
+        const hidden = body.classList.contains('hidden');
+        toggle.textContent = hidden ? 'Show details' : 'Hide details';
+        toggle.setAttribute('aria-expanded', String(!hidden));
+      };
+
+      toggle.addEventListener('click', () => {
+        body.classList.toggle('hidden');
+        updateLabel();
+      });
+
+      updateLabel();
+    })();
+  </script>
 <%- include('partials/footer') %>
