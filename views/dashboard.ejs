@@ -42,7 +42,14 @@
     <form action="/entries" method="POST" class="stack horizontal">
       <label class="field">
         <span>Amount</span>
-        <input type="text" name="amount" inputmode="text" autocomplete="off" required placeholder="e.g. 250, -200, (3*4)/6">
+        <input
+          type="text"
+          name="amount"
+          inputmode="numeric"
+          pattern="[-+*/()0-9.\\s]*"
+          autocomplete="off"
+          required
+          placeholder="e.g. 250, -200, (3*4)/6">
       </label>
       <label class="field">
         <span>Name (optional)</span>
