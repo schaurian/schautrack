@@ -534,8 +534,11 @@ button:active,
 }
 
 .dot-wrap.active .dot {
-  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.55), 0 8px 18px rgba(14, 165, 233, 0.25);
-  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.12),
+    0 0 0 6px rgba(14, 165, 233, 0.45),
+    0 10px 20px rgba(14, 165, 233, 0.2);
+  transform: translateY(-3px) scale(1.08);
 }
 
 .dot-wrap::after {
