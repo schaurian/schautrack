@@ -24,6 +24,7 @@ function parseAmount(input) {
   const expr = String(input)
     .replace(/\s+/g, '')
     .replace(/,/g, '')
+    .replace(/[–—−]/g, '-')
     .replace(/[x×]/gi, '*')
     .replace(/÷/g, '/')
     .trim();
@@ -168,15 +169,41 @@ app.get('/login', (req, res) => {
 
 app.post('/login', async (req, res) => {
   const { email, password, token } = req.body;
-  if (!email || !password) {
-    return res.render('login', {
-      error: 'Email and password are required.',
-      requireToken: false,
-      email: email || '',
-    });
-  }
+  const pendingUserId = req.session.pendingUserId;
 
   try {
+    // Second step: pending login waiting for TOTP only
+    if (token && pendingUserId) {
+      const pendingUser = await getUserById(pendingUserId);
+      if (!pendingUser || !pendingUser.totp_enabled || !pendingUser.totp_secret) {
+        delete req.session.pendingUserId;
+        return res.render('login', { error: 'Invalid 2FA session.', requireToken: false, email: '' });
+      }
+
+      const ok = speakeasy.totp.verify({
+        secret: pendingUser.totp_secret,
+        encoding: 'base32',
+        token,
+        window: 1,
+      });
+
+      if (!ok) {
+        return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email: pendingUser.email });
+      }
+
+      req.session.userId = pendingUser.id;
+      delete req.session.pendingUserId;
+      return res.redirect('/dashboard');
+    }
+
+    if (!email || !password) {
+      return res.render('login', {
+        error: 'Email and password are required.',
+        requireToken: false,
+        email: email || '',
+      });
+    }
+
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = rows[0];
     if (!user) {
@@ -187,34 +214,23 @@ app.post('/login', async (req, res) => {
     if (!validPassword) {
       return res.render('login', {
         error: 'Invalid credentials.',
-        requireToken: user.totp_enabled,
+        requireToken: false,
         email,
       });
     }
 
     if (user.totp_enabled) {
-      if (!token) {
-        return res.render('login', {
-          error: 'Enter your 2FA code.',
-          requireToken: true,
-          email,
-        });
-      }
-
-      const ok = speakeasy.totp.verify({
-        secret: user.totp_secret,
-        encoding: 'base32',
-        token,
-        window: 1,
+      // Require TOTP as a second step without re-entering password
+      req.session.pendingUserId = user.id;
+      return res.render('login', {
+        error: null,
+        requireToken: true,
+        email,
       });
-
-      if (!ok) {
-        return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email });
-      }
     }
 
     req.session.userId = user.id;
-    res.redirect('/dashboard');
+    return res.redirect('/dashboard');
   } catch (err) {
     console.error('Login error', err);
     res.render('login', { error: 'Could not log in.', requireToken: false, email: email || '' });

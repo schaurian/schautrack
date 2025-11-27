@@ -11,18 +11,24 @@
       <div class="alert danger"><%= error %></div>
     <% } %>
     <form action="/login" method="POST" class="stack">
-      <label class="field">
-        <span>Email</span>
-        <input type="email" name="email" value="<%= email || '' %>" required autocomplete="email">
-      </label>
-      <label class="field">
-        <span>Password</span>
-        <input type="password" name="password" required autocomplete="current-password">
-      </label>
-      <label class="field">
-        <span>2FA code <% if (!requireToken) { %><span class="muted">(only if enabled)</span><% } %></span>
-        <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" placeholder="123456" <%= requireToken ? 'required' : '' %>>
-      </label>
+      <% if (!requireToken) { %>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" name="email" value="<%= email || '' %>" required autocomplete="email">
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+      <% } else { %>
+        <div class="muted">Signed in as <%= email %>. Enter your 2FA code to finish.</div>
+      <% } %>
+      <% if (requireToken) { %>
+        <label class="field">
+          <span>2FA code</span>
+          <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" placeholder="123456" required>
+        </label>
+      <% } %>
       <button type="submit" class="primary">Log in</button>
     </form>
   </section>
