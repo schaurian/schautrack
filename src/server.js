@@ -55,6 +55,11 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
+app.use((req, res, next) => {
+  res.locals.buildVersion = process.env.BUILD_VERSION || null;
+  next();
+});
+
 app.use(
   session({
     store: new PgSession({

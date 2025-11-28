@@ -10,6 +10,8 @@ COPY src ./src
 COPY views ./views
 COPY public ./public
 
+ARG BUILD_VERSION=dev
+ENV BUILD_VERSION=$BUILD_VERSION
 ENV NODE_ENV=production
 ENV PORT=3000
 

@@ -1,12 +1,72 @@
 stages:
+  - release
   - build
   - deploy
 
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
+  GIT_DEPTH: "0"
 
-container-build:
+semver-tag:
+  stage: release
+  image: alpine:3.19
+  before_script:
+    - apk add --no-cache git curl
+  script:
+    - chmod +x scripts/bump-version.sh scripts/generate-changelog.sh
+    - VERSION=$(scripts/bump-version.sh)
+    - echo "$VERSION" > version.txt
+    - scripts/generate-changelog.sh "$VERSION" > changelog.md
+    - |
+      git config --global user.email "${GITLAB_USER_EMAIL:-ci@example.com}"
+      git config --global user.name "${GITLAB_USER_NAME:-GitLab CI}"
+    - git tag -a "$VERSION" -m "Release $VERSION"
+    - git push "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "$VERSION"
+    - |
+      if [ -n "${GL_RELEASE_TOKEN:-}" ]; then
+        curl --header "PRIVATE-TOKEN: ${GL_RELEASE_TOKEN}" \
+          --data-urlencode "name=$VERSION" \
+          --data-urlencode "tag_name=$VERSION" \
+          --data-urlencode "description=$(cat changelog.md)" \
+          --request POST "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
+      fi
+  artifacts:
+    paths:
+      - version.txt
+      - changelog.md
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+
+container-build-default:
+  stage: build
+  image: docker:25.0.3
+  services:
+    - name: docker:25.0.3-dind
+      command: ["--tls=false", "--registry-mirror=https://registry-1.docker.io"]
+  needs:
+    - semver-tag
+  script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - VERSION=$(cat version.txt)
+    - |
+      docker build \
+        -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
+        -t "$CI_REGISTRY_IMAGE:$VERSION" \
+        -t "$CI_REGISTRY_IMAGE:latest" \
+        --build-arg BUILD_VERSION="${VERSION#v}" \
+        .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE:$VERSION"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+
+container-build-branch:
   stage: build
   image: docker:25.0.3
   services:
@@ -19,16 +79,12 @@ container-build:
       docker build \
         -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
         -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" \
+        --build-arg BUILD_VERSION="$CI_COMMIT_REF_SLUG" \
         .
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
-        docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:latest"
-        docker push "$CI_REGISTRY_IMAGE:latest"
-      fi
   rules:
-    - if: $CI_COMMIT_BRANCH
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
       when: on_success
 
 deploy:
@@ -37,7 +93,7 @@ deploy:
     name: bitnami/kubectl:latest
     entrypoint: [""]
   needs:
-    - container-build
+    - container-build-default
   variables:
     KUBECONFIG: "$CI_PROJECT_DIR/schautrack-gitlab.kubeconfig"
   script:

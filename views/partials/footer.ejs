@@ -2,5 +2,8 @@
   <footer class="shell footer">
     <div class="muted">You got this. Trust me.</div>
   </footer>
+  <% if (buildVersion) { %>
+    <div class="build-tag muted small">v<%= buildVersion %></div>
+  <% } %>
 </body>
 </html>
