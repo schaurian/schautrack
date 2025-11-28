@@ -81,7 +81,7 @@
         <button type="submit" class="primary full">Export JSON</button>
       </form>
       <form id="import-form" action="/settings/import" method="POST" enctype="multipart/form-data" class="data-card stack">
-        <p class="muted">Import a saved export (.json). Adds entries; keeps existing data.</p>
+        <p class="muted danger-text">Import a saved export (.json). This will delete all current entries and replace them with the file.</p>
         <input class="file-input" type="file" name="import_file" accept="application/json" required>
         <button type="submit" class="primary full">Import JSON</button>
       </form>
@@ -91,6 +91,16 @@
     (() => {
       const toggle = document.querySelector('[data-totp-toggle]');
       const body = document.querySelector('[data-totp-body]');
+      const importForm = document.getElementById('import-form');
+      if (importForm) {
+        importForm.addEventListener('submit', (evt) => {
+          const ok = confirm('Importing will DELETE all current entries and replace them with the backup file. Continue?');
+          if (!ok) {
+            evt.preventDefault();
+          }
+        });
+      }
+
       if (!toggle || !body) return;
 
       const updateLabel = () => {

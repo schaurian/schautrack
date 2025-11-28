@@ -405,6 +405,7 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
 
   try {
     await pool.query('BEGIN');
+    await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
     if (Number.isInteger(goalCandidate) && goalCandidate >= 0) {
       await pool.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [
         goalCandidate,

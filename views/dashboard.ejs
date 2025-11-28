@@ -96,10 +96,12 @@
           <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
             <div>
               <button type="button" class="edit-trigger entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              <div class="muted small"><%= entry.created_at ? entry.created_at.toISOString().slice(11,16) : '' %></div>
             </div>
             <div class="entry-actions">
-              <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
+              <div class="entry-amount-wrap">
+                <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
+              </div>
+              <span class="entry-time muted small" data-entry-time><%= entry.created_at ? entry.created_at.toISOString().slice(11,16) : '' %></span>
               <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
                 <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
               </form>
@@ -142,10 +144,12 @@
             <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
               <div>
                 <button type="button" class="edit-trigger entry-name" data-edit-name>${entry.name ? entry.name : 'Untitled'}</button>
-                <div class="muted small">${entry.time || ''}</div>
               </div>
               <div class="entry-actions">
-                <button type="button" class="edit-trigger entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>
+                <div class="entry-amount-wrap">
+                  <button type="button" class="edit-trigger entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>
+                </div>
+                <span class="entry-time muted small" data-entry-time>${entry.time || ''}</span>
                 <form action="/entries/${entry.id}/delete" method="POST" class="inline-form" data-delete-form>
                   <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
                 </form>
@@ -236,45 +240,131 @@
         return data.entry;
       };
 
-      const handleEditName = async (btn) => {
-        const row = btn.closest('[data-entry-id]');
-        const entryId = row?.dataset.entryId;
-        if (!entryId) return;
-        const current = btn.textContent.trim();
-        const next = prompt('Update entry name', current === 'Untitled' ? '' : current);
-        if (next === null) return;
-        try {
-          await updateEntry(entryId, { name: next });
-          await loadEntries(currentDate);
-        } catch (err) {
-          console.error('Rename failed', err);
+      let activeInlineEdit = null;
+
+      const applyEntryUpdate = (row, entry) => {
+        const nameBtn = row.querySelector('[data-edit-name]');
+        const amountBtn = row.querySelector('[data-edit-amount]');
+        const timeEl = row.querySelector('[data-entry-time]');
+        if (nameBtn) {
+          nameBtn.textContent = entry.name || 'Untitled';
+        }
+        if (amountBtn) {
+          amountBtn.textContent = `${entry.amount} kcal`;
+          amountBtn.classList.toggle('pos', entry.amount >= 0);
+          amountBtn.classList.toggle('neg', entry.amount < 0);
+        }
+        if (timeEl && entry.time) {
+          timeEl.textContent = entry.time;
         }
       };
 
-      const handleEditAmount = async (btn) => {
+      const createInlineEditor = ({ btn, type, placeholder }) => {
         const row = btn.closest('[data-entry-id]');
         const entryId = row?.dataset.entryId;
-        if (!entryId) return;
-        const current = btn.textContent.replace('kcal', '').trim();
-        const next = prompt('Update calories', current);
-        if (next === null || next.trim() === '') return;
-        try {
-          await updateEntry(entryId, { amount: next });
-          await loadEntries(currentDate);
-        } catch (err) {
-          console.error('Amount update failed', err);
+        if (!row || !entryId) return null;
+        if (row.querySelector('[data-inline-editing]')) {
+          return null;
         }
+        if (activeInlineEdit) {
+          const { form, btn: openBtn } = activeInlineEdit;
+          form.remove();
+          openBtn.classList.remove('hidden');
+          activeInlineEdit = null;
+        }
+
+        const currentValue =
+          type === 'amount'
+            ? btn.textContent.replace('kcal', '').trim()
+            : btn.textContent.trim() === 'Untitled'
+            ? ''
+            : btn.textContent.trim();
+
+        btn.classList.add('hidden');
+
+        const form = document.createElement('form');
+        form.className = 'inline-edit';
+        form.dataset.inlineEditing = 'true';
+
+        const input = document.createElement('input');
+        input.type = type === 'amount' ? 'tel' : 'text';
+        if (type === 'amount') input.inputMode = 'tel';
+        input.autocomplete = 'off';
+        input.className = 'inline-edit-input';
+        input.placeholder = placeholder;
+        input.value = currentValue;
+
+        form.append(input);
+
+        const tearDown = () => {
+          form.remove();
+          btn.classList.remove('hidden');
+          if (activeInlineEdit && activeInlineEdit.form === form) {
+            activeInlineEdit = null;
+          }
+        };
+
+        let submitting = false;
+        const handleSubmit = async () => {
+          if (submitting) return;
+          const value = input.value.trim();
+          if (!value && type === 'amount') {
+            tearDown();
+            return;
+          }
+          submitting = true;
+          try {
+            const updated = await updateEntry(entryId, type === 'amount' ? { amount: value } : { name: value });
+            applyEntryUpdate(row, updated);
+            tearDown();
+          } catch (err) {
+            console.error('Update failed', err);
+            submitting = false;
+          }
+        };
+
+        form.addEventListener('submit', (evt) => {
+          evt.preventDefault();
+          handleSubmit();
+        });
+
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Escape') {
+            tearDown();
+          } else if (evt.key === 'Enter') {
+            evt.preventDefault();
+            handleSubmit();
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          handleSubmit();
+        });
+
+        btn.insertAdjacentElement('afterend', form);
+        input.focus();
+        input.select();
+        activeInlineEdit = { form, btn };
+        return form;
       };
 
       document.addEventListener('click', (evt) => {
         const nameBtn = evt.target.closest('[data-edit-name]');
         if (nameBtn) {
-          handleEditName(nameBtn);
+          createInlineEditor({
+            btn: nameBtn,
+            type: 'name',
+            placeholder: 'e.g. Breakfast',
+          });
           return;
         }
         const amountBtn = evt.target.closest('[data-edit-amount]');
         if (amountBtn) {
-          handleEditAmount(amountBtn);
+          createInlineEditor({
+            btn: amountBtn,
+            type: 'amount',
+            placeholder: 'e.g. 250, -120',
+          });
         }
       });
 
