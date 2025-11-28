@@ -353,6 +353,20 @@ button:active,
   gap: 10px;
 }
 
+.edit-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.edit-trigger:hover {
+  color: var(--accent);
+}
+
 .entry-amount {
   font-weight: 700;
 }

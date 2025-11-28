@@ -53,6 +53,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 app.use(
   session({
@@ -337,6 +338,7 @@ app.get('/entries/day', requireAuth, async (req, res) => {
       entries: rows.map((row) => ({
         id: row.id,
         date: row.entry_date.toISOString().slice(0, 10),
+        time: row.created_at ? row.created_at.toISOString().slice(11, 16) : '',
         amount: row.amount,
         name: row.entry_name || null,
       })),
@@ -460,6 +462,76 @@ app.post('/entries', requireAuth, async (req, res) => {
   }
 
   res.redirect('/dashboard');
+});
+
+app.post('/entries/:id/update', requireAuth, async (req, res) => {
+  const entryId = parseInt(req.params.id, 10);
+  const wantsJson = (req.headers.accept || '').includes('application/json');
+
+  if (Number.isNaN(entryId)) {
+    return wantsJson ? res.status(400).json({ ok: false, error: 'Invalid entry id' }) : res.redirect('/dashboard');
+  }
+
+  const updates = [];
+  const values = [];
+  let idx = 1;
+
+  if (req.body.name !== undefined) {
+    const rawName = (req.body.name || '').toString().trim();
+    const safeName = rawName ? rawName.slice(0, 120) : null;
+    updates.push(`entry_name = $${idx}`);
+    values.push(safeName);
+    idx += 1;
+  }
+
+  if (req.body.amount !== undefined) {
+    const { value: amount, ok } = parseAmount(req.body.amount);
+    if (!ok || amount === 0) {
+      return wantsJson
+        ? res.status(400).json({ ok: false, error: 'Invalid amount' })
+        : res.redirect('/dashboard');
+    }
+    updates.push(`amount = $${idx}`);
+    values.push(amount);
+    idx += 1;
+  }
+
+  if (updates.length === 0) {
+    return wantsJson
+      ? res.status(400).json({ ok: false, error: 'No updates provided' })
+      : res.redirect('/dashboard');
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE calorie_entries SET ${updates.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING id, entry_date, amount, entry_name, created_at`,
+      [...values, entryId, req.currentUser.id]
+    );
+
+    if (rows.length === 0) {
+      return wantsJson ? res.status(404).json({ ok: false, error: 'Entry not found' }) : res.redirect('/dashboard');
+    }
+
+    const updated = rows[0];
+    const payload = {
+      id: updated.id,
+      date: updated.entry_date.toISOString().slice(0, 10),
+      time: updated.created_at ? updated.created_at.toISOString().slice(11, 16) : '',
+      amount: updated.amount,
+      name: updated.entry_name || null,
+    };
+
+    if (wantsJson) {
+      return res.json({ ok: true, entry: payload });
+    }
+  } catch (err) {
+    console.error('Failed to update entry', err);
+    if (wantsJson) {
+      return res.status(500).json({ ok: false, error: 'Update failed' });
+    }
+  }
+
+  return res.redirect('/dashboard');
 });
 
 app.post('/entries/:id/delete', requireAuth, async (req, res) => {

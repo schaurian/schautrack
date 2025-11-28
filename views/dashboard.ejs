@@ -93,13 +93,13 @@
     <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
       <% if (recentEntries && recentEntries.length > 0) { %>
         <% recentEntries.forEach((entry) => { %>
-          <div class="entry-row">
+          <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
             <div>
-              <div class="entry-name"><%= entry.entry_name || 'Untitled' %></div>
-              <div class="muted small"><%= entry.entry_date.toISOString().slice(0,10) %></div>
+              <button type="button" class="edit-trigger entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
+              <div class="muted small"><%= entry.created_at ? entry.created_at.toISOString().slice(11,16) : '' %></div>
             </div>
             <div class="entry-actions">
-              <div class="entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>"><%= entry.amount %> kcal</div>
+              <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
               <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
                 <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
               </form>
@@ -139,13 +139,13 @@
         list.innerHTML = entries
           .map(
             (entry) => `
-            <div class="entry-row">
+            <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
               <div>
-                <div class="entry-name">${entry.name ? entry.name : 'Untitled'}</div>
-                <div class="muted small">${entry.date}</div>
+                <button type="button" class="edit-trigger entry-name" data-edit-name>${entry.name ? entry.name : 'Untitled'}</button>
+                <div class="muted small">${entry.time || ''}</div>
               </div>
               <div class="entry-actions">
-                <div class="entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}">${entry.amount} kcal</div>
+                <button type="button" class="edit-trigger entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>
                 <form action="/entries/${entry.id}/delete" method="POST" class="inline-form" data-delete-form>
                   <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
                 </form>
@@ -214,6 +214,67 @@
           }
         } catch (err) {
           console.error('Delete failed', err);
+        }
+      });
+
+      const updateEntry = async (entryId, payload) => {
+        const res = await fetch(`/entries/${entryId}/update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          throw new Error('Request failed');
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error('Update failed');
+        }
+        return data.entry;
+      };
+
+      const handleEditName = async (btn) => {
+        const row = btn.closest('[data-entry-id]');
+        const entryId = row?.dataset.entryId;
+        if (!entryId) return;
+        const current = btn.textContent.trim();
+        const next = prompt('Update entry name', current === 'Untitled' ? '' : current);
+        if (next === null) return;
+        try {
+          await updateEntry(entryId, { name: next });
+          await loadEntries(currentDate);
+        } catch (err) {
+          console.error('Rename failed', err);
+        }
+      };
+
+      const handleEditAmount = async (btn) => {
+        const row = btn.closest('[data-entry-id]');
+        const entryId = row?.dataset.entryId;
+        if (!entryId) return;
+        const current = btn.textContent.replace('kcal', '').trim();
+        const next = prompt('Update calories', current);
+        if (next === null || next.trim() === '') return;
+        try {
+          await updateEntry(entryId, { amount: next });
+          await loadEntries(currentDate);
+        } catch (err) {
+          console.error('Amount update failed', err);
+        }
+      };
+
+      document.addEventListener('click', (evt) => {
+        const nameBtn = evt.target.closest('[data-edit-name]');
+        if (nameBtn) {
+          handleEditName(nameBtn);
+          return;
+        }
+        const amountBtn = evt.target.closest('[data-edit-amount]');
+        if (amountBtn) {
+          handleEditAmount(amountBtn);
         }
       });
 
