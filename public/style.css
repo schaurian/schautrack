@@ -722,7 +722,7 @@ button:active,
   border-radius: 6px;
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-top-color: #fff;
-  animation: spin 1s linear infinite;
+  animation: spin 2.2s linear infinite;
 }
 
 .dot-wrap::after {
