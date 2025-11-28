@@ -35,6 +35,13 @@ Create the tables using `db/init.sql` or let Docker Compose apply it automatical
 
 - `COOKIE_SECURE=false` keeps cookies usable on plain HTTP (Docker/dev). Set to `true` only when serving over HTTPS.
 
+## CI versioning & tagging
+- The GitLab pipeline bumps SemVer on the default branch using Conventional Commits, tags the repo, and pushes container images.
+- To allow tag pushes, set CI/CD variables (keep them masked/protected):
+  - `GIT_PUSH_TOKEN`: Personal Access Token with `write_repository` (or `api`) scope.
+  - `GIT_PUSH_USER` (optional): Username for the token; defaults to `gitlab-ci-token`. Use your PAT username if preferred.
+- Without these variables the semver job cannot push tags and will fail.
+
 ## Two-factor setup
 - Visit `/2fa` after logging in.
 - Click “Start setup” to get a QR code / otpauth URL.
