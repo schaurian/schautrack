@@ -73,18 +73,19 @@
       </div>
     </div>
     <div class="dot-row">
+      <% const todayStr = new Date().toISOString().slice(0,10); %>
       <% dailyStats.forEach((day) => { %>
         <div class="dot-wrap" role="button" tabindex="0" data-day-dot data-date="<%= day.date %>" data-tip="<%= day.date %>">
           <% if (!user.daily_goal) { %>
-            <div class="dot muted"></div>
+            <div class="dot muted <%= day.date === todayStr ? 'today' : '' %>"></div>
           <% } else if (day.status === 'zero') { %>
-            <div class="dot zero"></div>
+            <div class="dot zero <%= day.date === todayStr ? 'today' : '' %>"></div>
           <% } else if (day.status === 'under') { %>
-            <div class="dot success"></div>
+            <div class="dot success <%= day.date === todayStr ? 'today' : '' %>"></div>
           <% } else if (day.status === 'over_threshold') { %>
-            <div class="dot danger"></div>
+            <div class="dot danger <%= day.date === todayStr ? 'today' : '' %>"></div>
           <% } else { %>
-            <div class="dot warn"></div>
+            <div class="dot warn <%= day.date === todayStr ? 'today' : '' %>"></div>
           <% } %>
         </div>
       <% }) %>
@@ -294,14 +295,20 @@
         input.placeholder = placeholder;
         input.value = currentValue;
 
-        form.append(input);
+        const spinner = document.createElement('span');
+        spinner.className = 'inline-edit-spinner hidden';
+
+        form.append(input, spinner);
 
         const tearDown = () => {
           form.remove();
           btn.classList.remove('hidden');
+          row.classList.remove('is-editing');
           if (activeInlineEdit && activeInlineEdit.form === form) {
             activeInlineEdit = null;
           }
+          form.classList.remove('is-saving');
+          spinner.classList.add('hidden');
         };
 
         let submitting = false;
@@ -313,6 +320,9 @@
             return;
           }
           submitting = true;
+          form.classList.add('is-saving');
+          spinner.classList.remove('hidden');
+          row.classList.add('is-editing');
           try {
             const updated = await updateEntry(entryId, type === 'amount' ? { amount: value } : { name: value });
             applyEntryUpdate(row, updated);
@@ -320,6 +330,8 @@
           } catch (err) {
             console.error('Update failed', err);
             submitting = false;
+            form.classList.remove('is-saving');
+            spinner.classList.add('hidden');
           }
         };
 

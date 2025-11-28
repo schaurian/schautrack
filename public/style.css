@@ -396,9 +396,8 @@ button:active,
   margin-top: 2px;
 }
 
-.inline-edit--tight {
-  flex-wrap: nowrap;
-  gap: 8px;
+.inline-edit.is-saving {
+  opacity: 0.7;
 }
 
 .inline-edit-input {
@@ -428,6 +427,27 @@ button:active,
   flex-direction: row-reverse;
 }
 
+.inline-edit-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+.inline-edit-spinner.hidden {
+  display: none;
+}
+
+.entry-row.is-editing {
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+.entry-row.is-editing .entry-amount {
+  color: var(--text);
+}
+
 .danger-text {
   color: #fca5a5;
 }
@@ -446,7 +466,17 @@ button:active,
   text-align: left;
   font-variant-numeric: tabular-nums;
   font-size: 15px;
+  color: var(--text);
 }
+
+.entry-amount.pos {
+  color: var(--accent);
+}
+
+.entry-amount.neg {
+  color: var(--danger);
+}
+
 
 @media (max-width: 640px) {
   .entry-row {
@@ -493,12 +523,13 @@ button:active,
   }
 }
 
-.entry-amount.pos {
-  color: var(--accent);
-}
-
-.entry-amount.neg {
-  color: var(--danger);
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .panel-toggle {
@@ -675,6 +706,22 @@ button:active,
     0 0 0 8px rgba(14, 165, 233, 0.45),
     0 12px 22px rgba(14, 165, 233, 0.2);
   transform: translateY(-3px) scale(1.08);
+}
+
+.dot.today {
+  position: relative;
+  background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.35);
+}
+
+.dot.today::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  animation: spin 1s linear infinite;
 }
 
 .dot-wrap::after {
