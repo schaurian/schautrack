@@ -381,6 +381,14 @@
       });
 
       setActiveDay(currentDate);
+
+      const initialDay = new Date().toISOString().slice(0, 10);
+      setInterval(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        if (today !== initialDay) {
+          window.location.reload();
+        }
+      }, 60_000);
     })();
   </script>
 <%- include('partials/footer') %>
