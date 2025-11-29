@@ -304,6 +304,17 @@ button:disabled,
   border-color: var(--stroke);
 }
 
+.beta-badge {
+  margin-left: 8px;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: #f5f6f8;
+  border-color: var(--stroke);
+  color: #111;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
 .table {
   border: 1px solid var(--stroke);
   border-radius: 12px;
