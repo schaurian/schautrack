@@ -71,6 +71,121 @@
   <section class="panel">
     <div class="panel-header">
       <div>
+        <p class="eyebrow">Sharing</p>
+        <h2>Link accounts</h2>
+      </div>
+      <div class="chip muted">Up to <%= maxLinks %></div>
+    </div>
+
+    <% if (linkFeedback) { %>
+      <div class="alert <%= linkFeedback.type === 'error' ? 'danger' : 'success' %>"><%= linkFeedback.message %></div>
+    <% } %>
+
+    <form action="/settings/link/request" method="POST" class="stack link-form">
+      <label class="field">
+        <span>Invite by email</span>
+        <input type="email" name="email" placeholder="friend@example.com" required <%= availableSlots === 0 ? 'disabled' : '' %>>
+      </label>
+      <div class="muted small">
+        Linked accounts: <%= maxLinks - availableSlots %>/<%= maxLinks %>. <%= availableSlots === 0 ? 'Remove one to invite another.' : `You can invite ${availableSlots} more.` %>
+      </div>
+      <div>
+        <button type="submit" class="primary" <%= availableSlots === 0 ? 'disabled' : '' %>>Send request</button>
+      </div>
+    </form>
+
+    <div class="grid two">
+      <div class="data-card stack">
+        <div class="table-row header">
+          <div>Incoming requests</div>
+          <div></div>
+          <div></div>
+        </div>
+        <% if (!incomingRequests || incomingRequests.length === 0) { %>
+          <p class="muted small">No incoming requests.</p>
+        <% } else { %>
+          <% incomingRequests.forEach((req) => { %>
+            <div class="link-row">
+              <div>
+                <div class="link-email"><%= req.email %></div>
+                <div class="muted small">Requested <%= req.created_at ? req.created_at.toISOString().slice(0,10) : '' %></div>
+              </div>
+              <div class="link-actions">
+                <form action="/settings/link/respond" method="POST" class="inline-form">
+                  <input type="hidden" name="request_id" value="<%= req.id %>">
+                  <input type="hidden" name="action" value="accept">
+                  <button type="submit" class="primary">Accept</button>
+                </form>
+                <form action="/settings/link/respond" method="POST" class="inline-form">
+                  <input type="hidden" name="request_id" value="<%= req.id %>">
+                  <input type="hidden" name="action" value="decline">
+                  <button type="submit" class="ghost danger">Decline</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+
+      <div class="data-card stack">
+        <div class="table-row header">
+          <div>Sent requests</div>
+          <div></div>
+          <div></div>
+        </div>
+        <% if (!outgoingRequests || outgoingRequests.length === 0) { %>
+          <p class="muted small">No pending requests.</p>
+        <% } else { %>
+          <% outgoingRequests.forEach((req) => { %>
+            <div class="link-row">
+              <div>
+                <div class="link-email"><%= req.email %></div>
+                <div class="muted small">Sent <%= req.created_at ? req.created_at.toISOString().slice(0,10) : '' %></div>
+              </div>
+              <div class="link-actions">
+                <form action="/settings/link/remove" method="POST" class="inline-form">
+                  <input type="hidden" name="link_id" value="<%= req.id %>">
+                  <button type="submit" class="ghost danger">Cancel</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="table" style="margin-top: 14px;">
+      <div class="table-row header">
+        <div>Linked accounts</div>
+        <div>Linked since</div>
+        <div></div>
+      </div>
+      <% if (!acceptedLinks || acceptedLinks.length === 0) { %>
+        <div class="table-row">
+          <div class="muted">No linked accounts yet.</div>
+          <div></div>
+          <div></div>
+        </div>
+      <% } else { %>
+        <% acceptedLinks.forEach((link) => { %>
+          <div class="table-row">
+            <div><%= link.email %></div>
+            <div><%= link.since ? link.since.toISOString().slice(0,10) : '' %></div>
+            <div style="text-align: right;">
+              <form action="/settings/link/remove" method="POST" class="inline-form">
+                <input type="hidden" name="link_id" value="<%= link.linkId %>">
+                <button type="submit" class="ghost danger">Remove</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
         <p class="eyebrow">Data</p>
         <h2>Backup &amp; restore</h2>
       </div>

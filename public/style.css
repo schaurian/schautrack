@@ -216,6 +216,13 @@ button:active,
   color: #fca5a5;
 }
 
+button:disabled,
+.ghost:disabled,
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .alert {
   padding: 12px 14px;
   border-radius: 10px;
@@ -343,6 +350,10 @@ button:active,
   border: 1px solid var(--stroke);
   background: rgba(255, 255, 255, 0.02);
   transition: border-color 140ms ease, background 140ms ease;
+}
+
+.entry-row.view-only {
+  grid-template-columns: 1fr auto;
 }
 
 .entry-row:hover {
@@ -661,6 +672,35 @@ button:active,
   margin-top: auto;
 }
 
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.share-card {
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px 6px;
+}
+
+.share-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.share-title {
+  margin: 0;
+}
+
+.share-card .dot-row {
+  margin-top: 10px;
+}
+
 .dot-wrap {
   text-align: center;
   position: relative;
@@ -778,6 +818,32 @@ button:active,
   font-size: 12px;
   backdrop-filter: blur(4px);
   z-index: 20;
+}
+
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.link-email {
+  font-weight: 600;
+}
+
+.link-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.link-form {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 640px) {

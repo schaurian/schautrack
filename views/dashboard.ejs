@@ -72,25 +72,51 @@
         <h2>Last 14 days</h2>
       </div>
     </div>
-    <div class="dot-row">
+    <div class="share-grid">
       <% const todayStr = new Date().toISOString().slice(0,10); %>
-      <% dailyStats.forEach((day) => { %>
-        <div class="dot-wrap" role="button" tabindex="0" data-day-dot data-date="<%= day.date %>" data-tip="<%= day.date %>">
-          <% if (!user.daily_goal) { %>
-            <div class="dot muted <%= day.date === todayStr ? 'today' : '' %>"></div>
-          <% } else if (day.status === 'zero') { %>
-            <div class="dot zero <%= day.date === todayStr ? 'today' : '' %>"></div>
-          <% } else if (day.status === 'under') { %>
-            <div class="dot success <%= day.date === todayStr ? 'today' : '' %>"></div>
-          <% } else if (day.status === 'over_threshold') { %>
-            <div class="dot danger <%= day.date === todayStr ? 'today' : '' %>"></div>
-          <% } else { %>
-            <div class="dot warn <%= day.date === todayStr ? 'today' : '' %>"></div>
-          <% } %>
+      <% sharedViews.forEach((view) => { %>
+        <div class="share-card" data-share-block data-user-id="<%= view.userId %>" data-user-label="<%= view.label %>" data-is-self="<%= view.isSelf %>">
+          <div class="share-card-head">
+            <div>
+              <p class="eyebrow"><%= view.isSelf ? 'You' : 'Shared' %></p>
+              <h3 class="share-title"><%= view.label %></h3>
+              <p class="muted small"><%= view.isSelf ? 'Your log' : 'View only' %></p>
+            </div>
+            <div class="chip <%= view.dailyGoal ? '' : 'muted' %>">
+              <%= view.dailyGoal ? `${view.dailyGoal} kcal goal` : 'Goal not set' %>
+            </div>
+          </div>
+          <div class="dot-row">
+            <% view.dailyStats.forEach((day) => { %>
+              <div
+                class="dot-wrap"
+                role="button"
+                tabindex="0"
+                data-day-dot
+                data-user-id="<%= view.userId %>"
+                data-user-label="<%= view.label %>"
+                data-is-self="<%= view.isSelf %>"
+                data-date="<%= day.date %>"
+                data-tip="<%= day.date %>"
+              >
+                <% if (!view.dailyGoal) { %>
+                  <div class="dot muted <%= day.date === todayStr ? 'today' : '' %>"></div>
+                <% } else if (day.status === 'zero') { %>
+                  <div class="dot zero <%= day.date === todayStr ? 'today' : '' %>"></div>
+                <% } else if (day.status === 'under') { %>
+                  <div class="dot success <%= day.date === todayStr ? 'today' : '' %>"></div>
+                <% } else if (day.status === 'over_threshold') { %>
+                  <div class="dot danger <%= day.date === todayStr ? 'today' : '' %>"></div>
+                <% } else { %>
+                  <div class="dot warn <%= day.date === todayStr ? 'today' : '' %>"></div>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
         </div>
       <% }) %>
     </div>
-    <div class="day-selected" data-day-selected>Showing <%= selectedDate === new Date().toISOString().slice(0,10) ? 'today' : selectedDate %></div>
+    <div class="day-selected" data-day-selected>Showing <%= selectedDate === new Date().toISOString().slice(0,10) ? 'today' : selectedDate %> · You</div>
     <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
       <% if (recentEntries && recentEntries.length > 0) { %>
         <% recentEntries.forEach((entry) => { %>
@@ -117,34 +143,64 @@
   <script>
     (() => {
       const dots = Array.from(document.querySelectorAll('[data-day-dot]'));
-      const entryLists = Array.from(document.querySelectorAll('[data-entry-list]'));
+      const entryList = document.querySelector('[data-entry-list]');
       const emptyState = document.querySelector('[data-entry-empty]');
       const daySelected = document.querySelector('[data-day-selected]');
+      const selfUserId = '<%= user.id %>';
+      const todayStr = new Date().toISOString().slice(0, 10);
       let currentDate = '<%= selectedDate %>';
+      let currentUserId = selfUserId;
+      let currentLabel = 'You';
+      let currentCanEdit = true;
+      let activeInlineEdit = null;
+      const initialEntries = <%- JSON.stringify(recentEntries.map((entry) => ({
+        id: entry.id,
+        date: entry.entry_date ? entry.entry_date.toISOString().slice(0, 10) : selectedDate,
+        time: entry.created_at ? entry.created_at.toISOString().slice(11, 16) : '',
+        amount: entry.amount,
+        name: entry.entry_name || null,
+      }))) %>;
 
-      const renderEntries = (entries) => {
-        const list = entryLists[0];
-        if (!list) return;
-        list.innerHTML = '';
+      const escapeHtml = (value) =>
+        String(value || '').replace(
+          /[&<>"']/g,
+          (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])
+        );
 
+      const renderEntries = (entries, canEdit) => {
+        if (!entryList) return;
+        entryList.innerHTML = '';
         if (!entries || entries.length === 0) {
-          list.classList.add('hidden');
+          entryList.classList.add('hidden');
           if (emptyState) {
-            emptyState.textContent = 'No entries yet.';
+            emptyState.textContent = canEdit ? 'No entries yet.' : 'No shared entries yet.';
             emptyState.classList.remove('hidden');
           }
           return;
         }
 
         if (emptyState) emptyState.classList.add('hidden');
-        list.classList.remove('hidden');
-
-        list.innerHTML = entries
-          .map(
-            (entry) => `
+        entryList.classList.remove('hidden');
+        entryList.innerHTML = entries
+          .map((entry) => {
+            const safeName = escapeHtml(entry.name || 'Untitled');
+            if (!canEdit) {
+              return `
+              <div class="entry-row view-only">
+                <div class="entry-name">${safeName}</div>
+                <div class="entry-actions">
+                  <div class="entry-amount-wrap">
+                    <span class="entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}">${entry.amount} kcal</span>
+                  </div>
+                  <span class="entry-time muted small">${entry.time || ''}</span>
+                </div>
+              </div>
+            `;
+            }
+            return `
             <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
               <div>
-                <button type="button" class="edit-trigger entry-name" data-edit-name>${entry.name ? entry.name : 'Untitled'}</button>
+                <button type="button" class="edit-trigger entry-name" data-edit-name>${safeName}</button>
               </div>
               <div class="entry-actions">
                 <div class="entry-amount-wrap">
@@ -156,53 +212,43 @@
                 </form>
               </div>
             </div>
-          `
-          )
+          `;
+          })
           .join('');
       };
 
-      const setActiveDay = (date) => {
+      const setActiveDay = (userId, date, label) => {
         dots.forEach((dot) => {
-          dot.classList.toggle('active', dot.dataset.date === date);
+          const active = dot.dataset.userId === String(userId) && dot.dataset.date === date;
+          dot.classList.toggle('active', active);
         });
         if (daySelected) {
-          const today = new Date().toISOString().slice(0, 10);
-          daySelected.textContent = `Showing ${date === today ? 'today' : date}`;
+          const labelDate = date === todayStr ? 'today' : date;
+          daySelected.textContent = `Showing ${labelDate} · ${label}`;
         }
       };
 
-      const loadEntries = async (date) => {
+      const loadEntries = async (userId, date, canEdit) => {
+        const params = new URLSearchParams({ date });
+        if (String(userId) !== String(selfUserId)) {
+          params.set('user', userId);
+        }
         try {
-          const res = await fetch(`/entries/day?date=${encodeURIComponent(date)}`, {
+          const res = await fetch(`/entries/day?${params.toString()}`, {
             headers: { Accept: 'application/json' },
           });
           if (!res.ok) return;
           const data = await res.json();
           if (data.ok) {
-            renderEntries(data.entries);
+            renderEntries(data.entries, canEdit);
           }
         } catch (err) {
           console.error('Failed to load entries', err);
         }
       };
 
-      dots.forEach((dot) => {
-        dot.addEventListener('click', () => {
-          const date = dot.dataset.date;
-          if (!date || date === currentDate) return;
-          currentDate = date;
-          setActiveDay(date);
-          loadEntries(date);
-        });
-        dot.addEventListener('keypress', (evt) => {
-          if (evt.key === 'Enter' || evt.key === ' ') {
-            evt.preventDefault();
-            dot.click();
-          }
-        });
-      });
-
       document.addEventListener('submit', async (evt) => {
+        if (!currentCanEdit) return;
         const form = evt.target.closest('[data-delete-form]');
         if (!form) return;
         evt.preventDefault();
@@ -215,7 +261,7 @@
             headers: { Accept: 'application/json' },
           });
           if (res.ok) {
-            loadEntries(currentDate);
+            loadEntries(currentUserId, currentDate, currentCanEdit);
           }
         } catch (err) {
           console.error('Delete failed', err);
@@ -240,8 +286,6 @@
         }
         return data.entry;
       };
-
-      let activeInlineEdit = null;
 
       const applyEntryUpdate = (row, entry) => {
         const nameBtn = row.querySelector('[data-edit-name]');
@@ -361,6 +405,7 @@
       };
 
       document.addEventListener('click', (evt) => {
+        if (!currentCanEdit) return;
         const nameBtn = evt.target.closest('[data-edit-name]');
         if (nameBtn) {
           createInlineEditor({
@@ -380,9 +425,31 @@
         }
       });
 
-      setActiveDay(currentDate);
+      dots.forEach((dot) => {
+        const handle = () => {
+          const date = dot.dataset.date;
+          const userId = dot.dataset.userId;
+          if (!date || !userId) return;
+          currentDate = date;
+          currentUserId = userId;
+          currentLabel = dot.dataset.userLabel || 'Shared';
+          currentCanEdit = dot.dataset.isSelf === 'true';
+          setActiveDay(userId, date, currentLabel);
+          loadEntries(userId, date, currentCanEdit);
+        };
+        dot.addEventListener('click', handle);
+        dot.addEventListener('keypress', (evt) => {
+          if (evt.key === 'Enter' || evt.key === ' ') {
+            evt.preventDefault();
+            handle();
+          }
+        });
+      });
 
-      const initialDay = new Date().toISOString().slice(0, 10);
+      renderEntries(initialEntries, true);
+      setActiveDay(currentUserId, currentDate, currentLabel);
+
+      const initialDay = todayStr;
       setInterval(() => {
         const today = new Date().toISOString().slice(0, 10);
         if (today !== initialDay) {

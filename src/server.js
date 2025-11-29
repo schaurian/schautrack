@@ -16,10 +16,35 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
 });
+const MAX_LINKS = 3;
+
+const toInt = (value) => {
+  const num = parseInt(value, 10);
+  return Number.isNaN(num) ? null : num;
+};
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://schautrack:schautrack@localhost:5432/schautrack',
 });
+
+async function ensureAccountLinksSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS account_links (
+      id SERIAL PRIMARY KEY,
+      requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted')),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      CONSTRAINT account_links_not_self CHECK (requester_id <> target_id)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS account_links_pair_idx
+      ON account_links (LEAST(requester_id, target_id), GREATEST(requester_id, target_id));
+    CREATE INDEX IF NOT EXISTS account_links_requester_idx ON account_links (requester_id);
+    CREATE INDEX IF NOT EXISTS account_links_target_idx ON account_links (target_id);
+    CREATE INDEX IF NOT EXISTS account_links_status_idx ON account_links (status);
+  `);
+}
 
 function parseAmount(input) {
   if (input === undefined || input === null) {
@@ -47,6 +72,174 @@ function parseAmount(input) {
   } catch (err) {
     return { ok: false, value: 0 };
   }
+}
+
+async function countAcceptedLinks(userId) {
+  const uid = toInt(userId);
+  if (uid === null) return 0;
+  const { rows } = await pool.query(
+    'SELECT COUNT(*) AS count FROM account_links WHERE status = $1 AND (requester_id = $2 OR target_id = $2)',
+    ['accepted', uid]
+  );
+  return parseInt(rows[0]?.count || 0, 10);
+}
+
+async function getLinkBetween(userId, otherUserId) {
+  const uid = toInt(userId);
+  const oid = toInt(otherUserId);
+  if (uid === null || oid === null) return null;
+  const { rows } = await pool.query(
+    `SELECT *
+       FROM account_links
+      WHERE LEAST(requester_id, target_id) = LEAST($1::int, $2::int)
+        AND GREATEST(requester_id, target_id) = GREATEST($1::int, $2::int)
+      LIMIT 1`,
+    [uid, oid]
+  );
+  return rows[0] || null;
+}
+
+async function getAcceptedLinkUsers(userId) {
+  const uid = toInt(userId);
+  if (uid === null) return [];
+  const { rows } = await pool.query(
+    `SELECT al.id AS link_id,
+            al.created_at,
+            CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END AS other_id,
+            u.email AS other_email,
+            u.daily_goal AS other_daily_goal
+       FROM account_links al
+        JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
+      WHERE al.status = 'accepted'
+        AND ($1 = al.requester_id OR $1 = al.target_id)
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  return rows.map((row) => ({
+    linkId: row.link_id,
+    userId: row.other_id,
+    email: row.other_email,
+    daily_goal: row.other_daily_goal,
+    since: row.created_at,
+  }));
+}
+
+async function getLinkRequests(userId) {
+  const uid = toInt(userId);
+  if (uid === null) {
+    return { incoming: [], outgoing: [], accepted: [] };
+  }
+  const { rows: incomingRows } = await pool.query(
+    `SELECT al.id, al.created_at, u.email
+       FROM account_links al
+       JOIN users u ON u.id = al.requester_id
+      WHERE al.target_id = $1
+        AND al.status = 'pending'
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  const { rows: outgoingRows } = await pool.query(
+    `SELECT al.id, al.created_at, u.email
+       FROM account_links al
+       JOIN users u ON u.id = al.target_id
+      WHERE al.requester_id = $1
+        AND al.status = 'pending'
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  const { rows: acceptedRows } = await pool.query(
+    `SELECT al.id, al.created_at, u.email
+       FROM account_links al
+       JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
+      WHERE al.status = 'accepted'
+        AND ($1 = al.requester_id OR $1 = al.target_id)
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  return {
+    incoming: incomingRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      created_at: row.created_at,
+    })),
+    outgoing: outgoingRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      created_at: row.created_at,
+    })),
+    accepted: acceptedRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      created_at: row.created_at,
+    })),
+  };
+}
+
+function setLinkFeedback(req, type, message) {
+  req.session.linkFeedback = { type, message };
+}
+
+function buildDayOptions(daysToShow) {
+  const today = new Date();
+  const dayOptions = [];
+  for (let i = 0; i < daysToShow; i += 1) {
+    const current = new Date(today);
+    current.setDate(today.getDate() - i);
+    dayOptions.push(current.toISOString().slice(0, 10));
+  }
+  return dayOptions;
+}
+
+function getDateBounds(dayOptions) {
+  return {
+    newest: dayOptions[0],
+    oldest: dayOptions[dayOptions.length - 1],
+  };
+}
+
+async function getTotalsByDate(userId, oldestDate, newestDate) {
+  const { rows } = await pool.query(
+    `SELECT entry_date, SUM(amount) AS total
+       FROM calorie_entries
+      WHERE user_id = $1
+        AND entry_date BETWEEN $2 AND $3
+      GROUP BY entry_date
+      ORDER BY entry_date DESC`,
+    [userId, oldestDate, newestDate]
+  );
+
+  const totalsByDate = new Map();
+  rows.forEach((row) => {
+    const dateStr = row.entry_date.toISOString().slice(0, 10);
+    totalsByDate.set(dateStr, parseInt(row.total, 10));
+  });
+  return totalsByDate;
+}
+
+function buildDailyStats(dayOptions, totalsByDate, dailyGoal) {
+  const goalThreshold = dailyGoal ? Math.round(dailyGoal * 1.1) : null;
+  return dayOptions.map((dateStr) => {
+    const total = totalsByDate.get(dateStr) || 0;
+    let status = 'none';
+    let overThreshold = false;
+    if (dailyGoal) {
+      if (total === 0) {
+        status = 'zero';
+      } else if (total <= dailyGoal) {
+        status = 'under';
+      } else if (goalThreshold && total > goalThreshold) {
+        status = 'over_threshold';
+        overThreshold = true;
+      } else {
+        status = 'over';
+      }
+    }
+    return { date: dateStr, total, status, overThreshold };
+  });
 }
 
 app.set('view engine', 'ejs');
@@ -102,9 +295,21 @@ const requireAuth = (req, res, next) => {
 };
 
 const renderSettings = async (req, res) => {
-  const user = req.currentUser;
+  const user = req.currentUser ? { ...req.currentUser, id: toInt(req.currentUser.id) } : null;
   const tempSecret = req.session.tempSecret;
   const tempUrl = req.session.tempUrl;
+  const feedback = req.session.linkFeedback || null;
+  delete req.session.linkFeedback;
+
+  let linkState = { incoming: [], outgoing: [] };
+  let acceptedLinks = [];
+
+  try {
+    linkState = await getLinkRequests(user.id);
+    acceptedLinks = await getAcceptedLinkUsers(user.id);
+  } catch (err) {
+    console.error('Failed to load link state', err);
+  }
 
   let qrDataUrl = null;
   if (tempUrl) {
@@ -121,6 +326,12 @@ const renderSettings = async (req, res) => {
     qrDataUrl,
     otpauthUrl: tempUrl || null,
     activePage: 'settings',
+    incomingRequests: linkState.incoming,
+    outgoingRequests: linkState.outgoing,
+    acceptedLinks,
+    linkFeedback: feedback,
+    maxLinks: MAX_LINKS,
+    availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
   });
 };
 
@@ -129,7 +340,9 @@ async function getUserById(id) {
     'SELECT id, email, daily_goal, totp_enabled, totp_secret FROM users WHERE id = $1',
     [id]
   );
-  return rows[0];
+  const user = rows[0];
+  if (!user) return null;
+  return { ...user, id: toInt(user.id) };
 }
 
 app.get('/', (req, res) => {
@@ -253,55 +466,16 @@ app.post('/logout', requireAuth, (req, res) => {
 });
 
 app.get('/dashboard', requireAuth, async (req, res) => {
-  const user = req.currentUser;
+  const user = { ...req.currentUser, id: toInt(req.currentUser.id) };
   const daysToShow = 14;
-  const goalThreshold = user.daily_goal ? Math.round(user.daily_goal * 1.1) : null;
-
-  const { rows } = await pool.query(
-    'SELECT entry_date, SUM(amount) AS total FROM calorie_entries WHERE user_id = $1 GROUP BY entry_date ORDER BY entry_date DESC LIMIT $2',
-    [user.id, daysToShow]
-  );
-
-  const totalsByDate = new Map();
-  rows.forEach((row) => {
-    const dateStr = row.entry_date.toISOString().slice(0, 10);
-    totalsByDate.set(dateStr, parseInt(row.total, 10));
-  });
-
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const dayOptions = [];
-  for (let i = 0; i < daysToShow; i += 1) {
-    const current = new Date(today);
-    current.setDate(today.getDate() - i);
-    dayOptions.push(current.toISOString().slice(0, 10));
-  }
+  const dayOptions = buildDayOptions(daysToShow);
+  const { oldest, newest } = getDateBounds(dayOptions);
+  const todayStr = dayOptions[0];
   const requestedDate = (req.query.day || '').trim();
   const selectedDate = dayOptions.includes(requestedDate) ? requestedDate : todayStr;
 
-  const dailyStats = [];
-  for (let i = 0; i < daysToShow; i += 1) {
-    const current = new Date(today);
-    current.setDate(today.getDate() - i);
-    const dateStr = current.toISOString().slice(0, 10);
-    const total = totalsByDate.get(dateStr) || 0;
-    let status = 'none';
-    let overThreshold = false;
-    if (user.daily_goal) {
-      if (total === 0) {
-        status = 'zero';
-      } else if (total <= user.daily_goal) {
-        status = 'under';
-      } else if (goalThreshold && total > goalThreshold) {
-        status = 'over_threshold';
-        overThreshold = true;
-      } else {
-        status = 'over';
-      }
-    }
-
-    dailyStats.push({ date: dateStr, total, status, overThreshold });
-  }
+  const totalsByDate = await getTotalsByDate(user.id, oldest, newest);
+  const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal);
 
   const todayTotal = totalsByDate.get(todayStr) || 0;
   const goalStatus = !user.daily_goal ? 'unset' : todayTotal <= user.daily_goal ? 'under' : 'over';
@@ -312,6 +486,41 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     [user.id, selectedDate]
   );
 
+  let acceptedLinks = [];
+  try {
+    acceptedLinks = await getAcceptedLinkUsers(user.id);
+  } catch (err) {
+    console.error('Failed to load linked users', err);
+  }
+
+  const sharedViews = [
+    {
+      userId: user.id,
+      email: user.email,
+      label: 'You',
+      isSelf: true,
+      dailyGoal: user.daily_goal,
+      dailyStats,
+    },
+  ];
+
+  for (const link of acceptedLinks) {
+    try {
+      const totals = await getTotalsByDate(link.userId, oldest, newest);
+      const stats = buildDailyStats(dayOptions, totals, link.daily_goal);
+      sharedViews.push({
+        userId: link.userId,
+        email: link.email,
+        label: link.email,
+        isSelf: false,
+        dailyGoal: link.daily_goal,
+        dailyStats: stats,
+      });
+    } catch (err) {
+      console.error('Failed to build stats for linked user', err);
+    }
+  }
+
   res.render('dashboard', {
     user,
     todayTotal,
@@ -321,6 +530,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     dayOptions,
     selectedDate,
     recentEntries,
+    sharedViews,
     activePage: 'dashboard',
   });
 });
@@ -331,10 +541,41 @@ app.get('/entries/day', requireAuth, async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Invalid date' });
   }
 
+  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
+  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
+
+  const today = new Date();
+  const oldest = new Date(today);
+  oldest.setDate(today.getDate() - 13);
+  const oldestStr = oldest.toISOString().slice(0, 10);
+  const todayStr = today.toISOString().slice(0, 10);
+
+  if (dateStr < oldestStr || dateStr > todayStr) {
+    return res.status(400).json({ ok: false, error: 'Date must be within the last 14 days' });
+  }
+
+  if (targetUserId !== req.currentUser.id) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM account_links
+          WHERE status = 'accepted'
+            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
+          LIMIT 1`,
+        [req.currentUser.id, targetUserId]
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ ok: false, error: 'Not authorized to view entries' });
+      }
+    } catch (err) {
+      console.error('Link check failed', err);
+      return res.status(500).json({ ok: false, error: 'Failed to load entries' });
+    }
+  }
+
   try {
     const { rows } = await pool.query(
       'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
-      [req.currentUser.id, dateStr]
+      [targetUserId, dateStr]
     );
 
     return res.json({
@@ -431,6 +672,157 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
   }
 
   res.redirect('/settings');
+});
+
+app.post('/settings/link/request', requireAuth, async (req, res) => {
+  const emailRaw = (req.body.email || '').trim();
+  if (!emailRaw) {
+    setLinkFeedback(req, 'error', 'Email is required.');
+    return res.redirect('/settings');
+  }
+
+  try {
+    const { rows } = await pool.query('SELECT id, email FROM users WHERE LOWER(email) = LOWER($1)', [
+      emailRaw,
+    ]);
+    const target = rows[0];
+    if (!target) {
+      setLinkFeedback(req, 'error', 'No account found for that email.');
+      return res.redirect('/settings');
+    }
+    const currentId = toInt(req.currentUser.id);
+    const targetId = toInt(target.id);
+    if (currentId === null || targetId === null) {
+      setLinkFeedback(req, 'error', 'Could not send link request.');
+      return res.redirect('/settings');
+    }
+    if (targetId === currentId) {
+      setLinkFeedback(req, 'error', 'You cannot link to your own account.');
+      return res.redirect('/settings');
+    }
+
+    const existing = await getLinkBetween(currentId, targetId);
+    if (existing) {
+      if (existing.status === 'accepted') {
+        setLinkFeedback(req, 'error', 'You are already linked with this account.');
+      } else if (existing.requester_id === req.currentUser.id) {
+        setLinkFeedback(req, 'error', 'Request already sent and pending approval.');
+      } else {
+        setLinkFeedback(req, 'error', 'They already sent you a request. Check incoming requests below.');
+      }
+      return res.redirect('/settings');
+    }
+
+    const myAccepted = await countAcceptedLinks(currentId);
+    if (myAccepted >= MAX_LINKS) {
+      setLinkFeedback(req, 'error', `You already have ${MAX_LINKS} linked accounts.`);
+      return res.redirect('/settings');
+    }
+
+    const targetAccepted = await countAcceptedLinks(targetId);
+    if (targetAccepted >= MAX_LINKS) {
+      setLinkFeedback(req, 'error', 'The other account already reached the linking limit.');
+      return res.redirect('/settings');
+    }
+
+    await pool.query('INSERT INTO account_links (requester_id, target_id, status) VALUES ($1, $2, $3)', [
+      currentId,
+      targetId,
+      'pending',
+    ]);
+    setLinkFeedback(req, 'success', `Request sent to ${target.email}.`);
+  } catch (err) {
+    console.error('Link request error', err);
+    setLinkFeedback(req, 'error', 'Could not send link request.');
+  }
+
+  return res.redirect('/settings');
+});
+
+app.post('/settings/link/respond', requireAuth, async (req, res) => {
+  const requestId = parseInt(req.body.request_id, 10);
+  const action = (req.body.action || '').trim();
+  if (Number.isNaN(requestId) || !['accept', 'decline'].includes(action)) {
+    return res.redirect('/settings');
+  }
+
+  try {
+    const currentId = toInt(req.currentUser.id);
+    if (currentId === null) {
+      setLinkFeedback(req, 'error', 'Could not update request.');
+      return res.redirect('/settings');
+    }
+    const { rows } = await pool.query(
+      'SELECT * FROM account_links WHERE id = $1 AND status = $2 LIMIT 1',
+      [requestId, 'pending']
+    );
+    const request = rows[0];
+    if (!request || request.target_id !== currentId) {
+      setLinkFeedback(req, 'error', 'Request not found.');
+      return res.redirect('/settings');
+    }
+
+    if (action === 'accept') {
+      const myAccepted = await countAcceptedLinks(currentId);
+      if (myAccepted >= MAX_LINKS) {
+        setLinkFeedback(req, 'error', `You already have ${MAX_LINKS} linked accounts.`);
+        return res.redirect('/settings');
+      }
+      const requesterAccepted = await countAcceptedLinks(request.requester_id);
+      if (requesterAccepted >= MAX_LINKS) {
+        setLinkFeedback(req, 'error', 'The requester is already at the link limit.');
+        return res.redirect('/settings');
+      }
+
+      await pool.query('UPDATE account_links SET status = $1, updated_at = NOW() WHERE id = $2', [
+        'accepted',
+        requestId,
+      ]);
+      setLinkFeedback(req, 'success', 'Link request accepted.');
+    } else {
+      await pool.query('DELETE FROM account_links WHERE id = $1 AND target_id = $2', [
+        requestId,
+        req.currentUser.id,
+      ]);
+      setLinkFeedback(req, 'success', 'Request declined.');
+    }
+  } catch (err) {
+    console.error('Link respond error', err);
+    setLinkFeedback(req, 'error', 'Could not update request.');
+  }
+
+  return res.redirect('/settings');
+});
+
+app.post('/settings/link/remove', requireAuth, async (req, res) => {
+  const linkId = parseInt(req.body.link_id, 10);
+  if (Number.isNaN(linkId)) {
+    return res.redirect('/settings');
+  }
+
+  try {
+    const currentId = toInt(req.currentUser.id);
+    if (currentId === null) {
+      setLinkFeedback(req, 'error', 'Could not update link.');
+      return res.redirect('/settings');
+    }
+    const { rows } = await pool.query(
+      'DELETE FROM account_links WHERE id = $1 AND (requester_id = $2 OR target_id = $2) RETURNING status',
+      [linkId, currentId]
+    );
+    if (rows.length === 0) {
+      setLinkFeedback(req, 'error', 'Link not found.');
+    } else if (rows[0].status === 'accepted') {
+      setLinkFeedback(req, 'success', 'Link removed.');
+    } else {
+      setLinkFeedback(req, 'success', 'Request cancelled.');
+    }
+  } catch (err) {
+    console.error('Link remove error', err);
+    setLinkFeedback(req, 'error', 'Could not update link.');
+  }
+
+  return res.redirect('/settings');
 });
 
 app.post('/goal', requireAuth, async (req, res) => {
@@ -641,6 +1033,12 @@ app.post('/2fa/disable', requireAuth, async (req, res) => {
 
 app.get('/settings', requireAuth, renderSettings);
 
-app.listen(PORT, () => {
-  console.log(`Schautrack listening on port ${PORT}`);
-});
+ensureAccountLinksSchema()
+  .catch((err) => {
+    console.error('Schema init failed', err);
+  })
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`Schautrack listening on port ${PORT}`);
+    });
+  });

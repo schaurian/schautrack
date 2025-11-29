@@ -17,6 +17,23 @@ CREATE TABLE IF NOT EXISTS calorie_entries (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS account_links (
+  id SERIAL PRIMARY KEY,
+  requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT account_links_not_self CHECK (requester_id <> target_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS account_links_pair_idx
+  ON account_links (LEAST(requester_id, target_id), GREATEST(requester_id, target_id));
+
+CREATE INDEX IF NOT EXISTS account_links_requester_idx ON account_links (requester_id);
+CREATE INDEX IF NOT EXISTS account_links_target_idx ON account_links (target_id);
+CREATE INDEX IF NOT EXISTS account_links_status_idx ON account_links (status);
+
 CREATE TABLE IF NOT EXISTS "session" (
   "sid" VARCHAR NOT NULL,
   "sess" JSON NOT NULL,
