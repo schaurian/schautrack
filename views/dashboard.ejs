@@ -153,6 +153,8 @@
       let currentLabel = 'You';
       let currentCanEdit = true;
       let activeInlineEdit = null;
+      let entryEventSource = null;
+      let pollTimer = null;
       const initialEntries = <%- JSON.stringify(recentEntries.map((entry) => ({
         id: entry.id,
         date: entry.entry_date ? entry.entry_date.toISOString().slice(0, 10) : selectedDate,
@@ -245,6 +247,53 @@
         } catch (err) {
           console.error('Failed to load entries', err);
         }
+      };
+
+      const refreshCurrentEntries = () => {
+        loadEntries(currentUserId, currentDate, currentCanEdit);
+      };
+
+      const stopPolling = () => {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      };
+
+      const startPolling = () => {
+        if (pollTimer) return;
+        pollTimer = setInterval(refreshCurrentEntries, 15000);
+      };
+
+      const handleEntryEvent = (payload) => {
+        if (!payload || payload.sourceUserId === undefined) return;
+        if (String(payload.sourceUserId) === String(currentUserId)) {
+          refreshCurrentEntries();
+        }
+      };
+
+      const startEntryEvents = () => {
+        if (!window.EventSource) {
+          startPolling();
+          return;
+        }
+        if (entryEventSource) return;
+        const source = new EventSource('/events/entries');
+        entryEventSource = source;
+        source.addEventListener('entry-change', (evt) => {
+          try {
+            const data = JSON.parse(evt.data || '{}');
+            handleEntryEvent(data);
+          } catch (err) {
+            console.error('Failed to parse entry event', err);
+          }
+        });
+        source.onerror = () => {
+          source.close();
+          entryEventSource = null;
+          startPolling();
+          setTimeout(startEntryEvents, 2000);
+        };
       };
 
       document.addEventListener('submit', async (evt) => {
@@ -448,6 +497,7 @@
 
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel);
+      startEntryEvents();
 
       const initialDay = todayStr;
       setInterval(() => {

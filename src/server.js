@@ -17,6 +17,7 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 const MAX_LINKS = 3;
+const entryEventClients = new Map(); // userId -> Set(res)
 
 const toInt = (value) => {
   const num = parseInt(value, 10);
@@ -181,6 +182,45 @@ async function getLinkRequests(userId) {
 
 function setLinkFeedback(req, type, message) {
   req.session.linkFeedback = { type, message };
+}
+
+function addEntryEventClient(userId, res) {
+  if (!entryEventClients.has(userId)) {
+    entryEventClients.set(userId, new Set());
+  }
+  entryEventClients.get(userId).add(res);
+}
+
+function removeEntryEventClient(userId, res) {
+  const set = entryEventClients.get(userId);
+  if (!set) return;
+  set.delete(res);
+  if (set.size === 0) {
+    entryEventClients.delete(userId);
+  }
+}
+
+function sendEntryEvent(userId, payload) {
+  const set = entryEventClients.get(userId);
+  if (!set || set.size === 0) return;
+  const data = `event: entry-change\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const res of set) {
+    res.write(data);
+  }
+}
+
+async function broadcastEntryChange(sourceUserId) {
+  const uid = toInt(sourceUserId);
+  if (uid === null) return;
+  const targets = new Set([uid]);
+  try {
+    const links = await getAcceptedLinkUsers(uid);
+    links.forEach((link) => targets.add(link.userId));
+  } catch (err) {
+    console.error('Failed to load linked users for broadcast', err);
+  }
+  const payload = { sourceUserId: uid, at: Date.now() };
+  targets.forEach((targetId) => sendEntryEvent(targetId, payload));
 }
 
 function buildDayOptions(daysToShow) {
@@ -595,6 +635,31 @@ app.get('/entries/day', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/events/entries', requireAuth, (req, res) => {
+  const userId = toInt(req.currentUser?.id);
+  if (userId === null) {
+    return res.sendStatus(401);
+  }
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  if (res.flushHeaders) res.flushHeaders();
+  res.write('event: ready\ndata: {}\n\n');
+
+  addEntryEventClient(userId, res);
+  const keepAlive = setInterval(() => {
+    res.write('event: ping\ndata: {}\n\n');
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    removeEntryEventClient(userId, res);
+    res.end();
+  });
+});
+
 app.get('/settings/export', requireAuth, async (req, res) => {
   const user = req.currentUser;
   const { rows: entries } = await pool.query(
@@ -855,6 +920,7 @@ app.post('/entries', requireAuth, async (req, res) => {
       'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
       [req.currentUser.id, entryDate, amount, entryNameSafe]
     );
+    await broadcastEntryChange(req.currentUser.id);
   } catch (err) {
     console.error('Failed to add entry', err);
   }
@@ -919,6 +985,8 @@ app.post('/entries/:id/update', requireAuth, async (req, res) => {
       name: updated.entry_name || null,
     };
 
+    await broadcastEntryChange(req.currentUser.id);
+
     if (wantsJson) {
       return res.json({ ok: true, entry: payload });
     }
@@ -944,6 +1012,7 @@ app.post('/entries/:id/delete', requireAuth, async (req, res) => {
       entryId,
       req.currentUser.id,
     ]);
+    await broadcastEntryChange(req.currentUser.id);
   } catch (err) {
     console.error('Failed to delete entry', err);
     if (wantsJson) {
