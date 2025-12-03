@@ -7,6 +7,7 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://schautrack:schautrack@db:5432/schautrack
       - SESSION_SECRET=change-me
+      - SUPPORT_EMAIL=homebox-support@schauer.to
     depends_on:
       - db
   db:

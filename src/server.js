@@ -18,6 +18,7 @@ const upload = multer({
 });
 const MAX_LINKS = 3;
 const entryEventClients = new Map(); // userId -> Set(res)
+const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
 
 const toInt = (value) => {
   const num = parseInt(value, 10);
@@ -290,6 +291,7 @@ app.use(express.json());
 
 app.use((req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
+  res.locals.supportEmail = supportEmail;
   next();
 });
 
@@ -390,6 +392,16 @@ app.get('/', (req, res) => {
     return res.redirect('/dashboard');
   }
   res.redirect('/login');
+});
+
+app.get('/privacy', (req, res) => {
+  res.render('privacy', { activePage: null });
+});
+
+app.get('/delete', (req, res) => {
+  const feedback = req.session.deleteFeedback || null;
+  delete req.session.deleteFeedback;
+  res.render('delete', { activePage: null, deleteFeedback: feedback });
 });
 
 app.get('/register', (req, res) => {
@@ -503,6 +515,68 @@ app.post('/login', async (req, res) => {
 
 app.post('/logout', requireAuth, (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
+});
+
+app.post('/delete', requireAuth, async (req, res) => {
+  const { password, token } = req.body;
+  const userId = toInt(req.currentUser?.id);
+  if (userId === null) {
+    req.session.deleteFeedback = { type: 'error', message: 'Session invalid. Please log in again.' };
+    return res.redirect('/login?next=/delete');
+  }
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, password_hash, totp_enabled, totp_secret FROM users WHERE id = $1 LIMIT 1',
+      [userId]
+    );
+    const user = rows[0];
+    if (!user) {
+      req.session.deleteFeedback = { type: 'error', message: 'Account not found. Please log in again.' };
+      return res.redirect('/login?next=/delete');
+    }
+
+    const validPassword = await bcrypt.compare(password || '', user.password_hash || '');
+    if (!validPassword) {
+      req.session.deleteFeedback = { type: 'error', message: 'Incorrect password.' };
+      return res.redirect('/delete');
+    }
+
+    if (user.totp_enabled) {
+      if (!token) {
+        req.session.deleteFeedback = { type: 'error', message: 'Enter your 2FA code to confirm deletion.' };
+        return res.redirect('/delete');
+      }
+      const totpOk = speakeasy.totp.verify({
+        secret: user.totp_secret,
+        encoding: 'base32',
+        token,
+        window: 1,
+      });
+      if (!totpOk) {
+        req.session.deleteFeedback = { type: 'error', message: 'Invalid 2FA code.' };
+        return res.redirect('/delete');
+      }
+    }
+
+    await pool.query('BEGIN');
+    await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    await pool.query('COMMIT');
+
+    return req.session.destroy(() => {
+      res.render('delete', {
+        activePage: null,
+        deleteFeedback: { type: 'success', message: 'Your account and data were deleted. You have been signed out.' },
+      });
+    });
+  } catch (err) {
+    console.error('Account deletion failed', err);
+    await pool.query('ROLLBACK').catch(() => {});
+    req.session.deleteFeedback = { type: 'error', message: 'Could not delete account. Please try again.' };
+    return res.redirect('/delete');
+  }
 });
 
 app.get('/dashboard', requireAuth, async (req, res) => {
