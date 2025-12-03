@@ -9,13 +9,20 @@ services:
       - SESSION_SECRET=change-me
       - SUPPORT_EMAIL=homebox-support@schauer.to
     depends_on:
-      - db
+      db:
+        condition: service_healthy
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       - POSTGRES_DB=schautrack
       - POSTGRES_USER=schautrack
       - POSTGRES_PASSWORD=schautrack
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
