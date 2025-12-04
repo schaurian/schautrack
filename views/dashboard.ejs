@@ -281,7 +281,7 @@
           .join('');
       };
 
-      const renderWeight = (entry, date, userId, canEdit) => {
+      const renderWeight = (entry, date, userId, label, canEdit) => {
         if (weightDateInput) {
           weightDateInput.value = date;
         }
@@ -289,6 +289,10 @@
           weightInput.value = entry && entry.weight ? entry.weight : '';
         }
         if (weightRow && weightValueBtn) {
+          const nameBtn = weightRow.querySelector('[data-weight-edit-trigger]');
+          if (nameBtn) {
+            nameBtn.textContent = userId === selfUserId ? 'Weight' : `Weight · ${label || 'Shared'}`;
+          }
           const timeStr =
             entry && (entry.updated_at || entry.created_at)
               ? new Date(entry.updated_at || entry.created_at).toISOString().slice(11, 16)
@@ -305,11 +309,11 @@
         }
       };
 
-      const loadWeightForDate = async (userId, date, canEdit) => {
+      const loadWeightForDate = async (userId, date, label, canEdit) => {
         if (!weightDateInput || !date) return;
         const cacheKey = `${userId}:${date}`;
         if (weightCache.has(cacheKey)) {
-          renderWeight(weightCache.get(cacheKey), date, userId, canEdit);
+          renderWeight(weightCache.get(cacheKey), date, userId, label, canEdit);
           return;
         }
         try {
@@ -319,17 +323,17 @@
           }
           const res = await fetch(`/weight/day?${params.toString()}`, { headers: { Accept: 'application/json' } });
           if (!res.ok) {
-            renderWeight(null, date, userId, canEdit);
+            renderWeight(null, date, userId, label, canEdit);
             return;
           }
           const data = await res.json();
           if (data.ok) {
             const entry = data.entry || null;
             weightCache.set(cacheKey, entry);
-            renderWeight(entry, date, userId, canEdit);
+            renderWeight(entry, date, userId, label, canEdit);
           }
         } catch (err) {
-          renderWeight(null, date, userId, canEdit);
+          renderWeight(null, date, userId, label, canEdit);
         }
       };
 
@@ -465,7 +469,7 @@
         if (weightDateInput) {
           weightDateInput.value = date;
         }
-        loadWeightForDate(userId, date, userId === selfUserId);
+        loadWeightForDate(userId, date, label, userId === selfUserId);
       };
 
       const loadEntries = async (userId, date, canEdit) => {
