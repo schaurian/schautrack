@@ -675,7 +675,7 @@ button:disabled,
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .range-chip {
@@ -714,6 +714,31 @@ button:disabled,
 
 .range-custom button {
   flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .timeframe {
+    justify-items: start;
+    width: 100%;
+  }
+
+  .range-chips {
+    justify-content: flex-start;
+  }
+
+  .range-custom {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .range-custom .field {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .range-custom button {
+    width: 100%;
+  }
 }
 
 .hidden {
