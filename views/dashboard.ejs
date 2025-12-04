@@ -222,7 +222,7 @@
       const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
       const weightCache = new Map();
       if (initialWeight) {
-        weightCache.set(initialWeight.date, initialWeight);
+        weightCache.set(`${selfUserId}:${initialWeight.date}`, initialWeight);
       }
 
       const escapeHtml = (value) =>
@@ -281,7 +281,7 @@
           .join('');
       };
 
-      const renderWeight = (entry, date) => {
+      const renderWeight = (entry, date, userId, canEdit) => {
         if (weightDateInput) {
           weightDateInput.value = date;
         }
@@ -297,32 +297,39 @@
           weightValueBtn.textContent = entry ? `${entry.weight} kg` : 'Add weight';
           weightValueBtn.classList.toggle('muted', !entry);
           weightValueBtn.classList.toggle('pos', Boolean(entry));
+          weightRow.classList.toggle('view-only', !canEdit);
+          weightValueBtn.disabled = !canEdit;
           if (weightTime) {
             weightTime.textContent = entry ? timeStr : '';
           }
         }
       };
 
-      const loadWeightForDate = async (date) => {
+      const loadWeightForDate = async (userId, date, canEdit) => {
         if (!weightDateInput || !date) return;
-        if (weightCache.has(date)) {
-          renderWeight(weightCache.get(date), date);
+        const cacheKey = `${userId}:${date}`;
+        if (weightCache.has(cacheKey)) {
+          renderWeight(weightCache.get(cacheKey), date, userId, canEdit);
           return;
         }
         try {
-          const res = await fetch(`/weight/day?date=${date}`, { headers: { Accept: 'application/json' } });
+          const params = new URLSearchParams({ date });
+          if (String(userId) !== String(selfUserId)) {
+            params.set('user', userId);
+          }
+          const res = await fetch(`/weight/day?${params.toString()}`, { headers: { Accept: 'application/json' } });
           if (!res.ok) {
-            renderWeight(null, date);
+            renderWeight(null, date, userId, canEdit);
             return;
           }
           const data = await res.json();
           if (data.ok) {
             const entry = data.entry || null;
-            weightCache.set(date, entry);
-            renderWeight(entry, date);
+            weightCache.set(cacheKey, entry);
+            renderWeight(entry, date, userId, canEdit);
           }
         } catch (err) {
-          renderWeight(null, date);
+          renderWeight(null, date, userId, canEdit);
         }
       };
 
@@ -350,8 +357,8 @@
         if (!data.ok || !data.entry) {
           throw new Error('Save failed');
         }
-        weightCache.set(data.entry.date, data.entry);
-        renderWeight(data.entry, data.entry.date);
+        weightCache.set(`${selfUserId}:${data.entry.date}`, data.entry);
+        renderWeight(data.entry, data.entry.date, selfUserId, true);
       };
 
       const openWeightEditor = (triggerEl) => {
@@ -370,6 +377,7 @@
 
         const btnTarget = triggerEl || weightValueBtn;
         if (!btnTarget) return;
+        if (!currentCanEdit) return;
         const form = document.createElement('form');
         form.className = 'inline-edit inline-edit--amount';
         form.dataset.inlineEditing = 'true';
@@ -457,7 +465,7 @@
         if (weightDateInput) {
           weightDateInput.value = date;
         }
-        loadWeightForDate(date);
+        loadWeightForDate(userId, date, userId === selfUserId);
       };
 
       const loadEntries = async (userId, date, canEdit) => {
@@ -732,6 +740,7 @@
       document.addEventListener('click', (evt) => {
         const weightTrigger = evt.target.closest('[data-weight-edit-trigger]');
         if (weightTrigger) {
+          if (!currentCanEdit) return;
           openWeightEditor(weightTrigger);
         }
       });

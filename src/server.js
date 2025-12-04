@@ -1120,6 +1120,9 @@ app.get('/weight/day', requireAuth, async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Invalid date' });
   }
 
+  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
+  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
+
   const today = new Date();
   const oldest = new Date(today);
   oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
@@ -1130,8 +1133,26 @@ app.get('/weight/day', requireAuth, async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Date outside supported range' });
   }
 
+  if (targetUserId !== req.currentUser.id) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM account_links
+          WHERE status = 'accepted'
+            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
+          LIMIT 1`,
+        [req.currentUser.id, targetUserId]
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ ok: false, error: 'Not authorized to view weight' });
+      }
+    } catch (err) {
+      console.error('Link check failed', err);
+      return res.status(500).json({ ok: false, error: 'Failed to load weight' });
+    }
+  }
+
   try {
-    const entry = await getWeightEntry(req.currentUser.id, dateStr);
+    const entry = await getWeightEntry(targetUserId, dateStr);
     return res.json({ ok: true, entry });
   } catch (err) {
     console.error('Failed to fetch weight entry', err);
