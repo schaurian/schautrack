@@ -17,6 +17,8 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 const MAX_LINKS = 3;
+const MAX_HISTORY_DAYS = 180;
+const DEFAULT_RANGE_DAYS = 14;
 const entryEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
 
@@ -24,6 +26,8 @@ const toInt = (value) => {
   const num = parseInt(value, 10);
   return Number.isNaN(num) ? null : num;
 };
+
+const toIsoDate = (date) => date.toISOString().slice(0, 10);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://schautrack:schautrack@localhost:5432/schautrack',
@@ -45,6 +49,22 @@ async function ensureAccountLinksSchema() {
     CREATE INDEX IF NOT EXISTS account_links_requester_idx ON account_links (requester_id);
     CREATE INDEX IF NOT EXISTS account_links_target_idx ON account_links (target_id);
     CREATE INDEX IF NOT EXISTS account_links_status_idx ON account_links (status);
+  `);
+}
+
+async function ensureWeightEntriesSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS weight_entries (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      entry_date DATE NOT NULL,
+      weight NUMERIC(6, 2) NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      CONSTRAINT weight_entries_positive CHECK (weight > 0)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS weight_unique_per_day_idx ON weight_entries (user_id, entry_date);
   `);
 }
 
@@ -226,11 +246,19 @@ async function broadcastEntryChange(sourceUserId) {
 
 function buildDayOptions(daysToShow) {
   const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - (daysToShow - 1));
+  return buildDayOptionsBetween(startDate, today);
+}
+
+function buildDayOptionsBetween(startDate, endDate) {
   const dayOptions = [];
-  for (let i = 0; i < daysToShow; i += 1) {
-    const current = new Date(today);
-    current.setDate(today.getDate() - i);
-    dayOptions.push(current.toISOString().slice(0, 10));
+  const cursor = new Date(endDate);
+  const minDate = new Date(startDate);
+  for (let i = 0; i < MAX_HISTORY_DAYS; i += 1) {
+    if (cursor < minDate) break;
+    dayOptions.push(toIsoDate(cursor));
+    cursor.setDate(cursor.getDate() - 1);
   }
   return dayOptions;
 }
@@ -240,6 +268,37 @@ function getDateBounds(dayOptions) {
     newest: dayOptions[0],
     oldest: dayOptions[dayOptions.length - 1],
   };
+}
+
+function parseDateParam(value) {
+  if (!value || typeof value !== 'string') return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function sanitizeDateRange(startStr, endStr, fallbackDays = DEFAULT_RANGE_DAYS) {
+  const today = new Date();
+  const requestedEnd = parseDateParam(endStr);
+  let endDate = requestedEnd && requestedEnd <= today ? requestedEnd : today;
+
+  const requestedStart = parseDateParam(startStr);
+  const fallbackStart = new Date(endDate);
+  fallbackStart.setDate(endDate.getDate() - (fallbackDays - 1));
+
+  let startDate = requestedStart || fallbackStart;
+  if (startDate > endDate) {
+    startDate = new Date(endDate);
+  }
+
+  const maxLookback = new Date(endDate);
+  maxLookback.setDate(endDate.getDate() - (MAX_HISTORY_DAYS - 1));
+  if (startDate < maxLookback) {
+    startDate = maxLookback;
+  }
+
+  return { startDate, endDate };
 }
 
 async function getTotalsByDate(userId, oldestDate, newestDate) {
@@ -281,6 +340,60 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal) {
     }
     return { date: dateStr, total, status, overThreshold };
   });
+}
+
+function parseWeight(input) {
+  if (input === undefined || input === null) {
+    return { ok: false, value: null };
+  }
+  const normalized = String(input)
+    .replace(',', '.')
+    .replace(/[^0-9.+-]/g, '')
+    .trim();
+  if (!normalized || normalized.length > 12) {
+    return { ok: false, value: null };
+  }
+  const value = Number.parseFloat(normalized);
+  if (!Number.isFinite(value) || value <= 0 || value > 1500) {
+    return { ok: false, value: null };
+  }
+  return { ok: true, value: Math.round(value * 10) / 10 };
+}
+
+async function upsertWeightEntry(userId, dateStr, weight) {
+  const { rows } = await pool.query(
+    `INSERT INTO weight_entries (user_id, entry_date, weight)
+       VALUES ($1, $2, $3)
+      ON CONFLICT (user_id, entry_date)
+        DO UPDATE SET weight = EXCLUDED.weight, updated_at = NOW()
+      RETURNING id, entry_date, weight, created_at, updated_at`,
+    [userId, dateStr, weight]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    date: toIsoDate(row.entry_date),
+    weight: Number(row.weight),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function getWeightEntry(userId, dateStr) {
+  const { rows } = await pool.query(
+    'SELECT id, entry_date, weight, created_at, updated_at FROM weight_entries WHERE user_id = $1 AND entry_date = $2 LIMIT 1',
+    [userId, dateStr]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    date: toIsoDate(row.entry_date),
+    weight: Number(row.weight),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
 }
 
 app.set('view engine', 'ejs');
@@ -581,12 +694,20 @@ app.post('/delete', requireAuth, async (req, res) => {
 
 app.get('/dashboard', requireAuth, async (req, res) => {
   const user = { ...req.currentUser, id: toInt(req.currentUser.id) };
-  const daysToShow = 14;
-  const dayOptions = buildDayOptions(daysToShow);
+  const requestedRange = parseInt(req.query.range, 10);
+  const requestedDays = Number.isInteger(requestedRange)
+    ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
+    : DEFAULT_RANGE_DAYS;
+  const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, requestedDays);
+  const dayOptions = buildDayOptionsBetween(startDate, endDate);
+  if (dayOptions.length === 0) {
+    const fallbackToday = toIsoDate(new Date());
+    dayOptions.push(fallbackToday);
+  }
   const { oldest, newest } = getDateBounds(dayOptions);
-  const todayStr = dayOptions[0];
+  const todayStr = toIsoDate(new Date());
   const requestedDate = (req.query.day || '').trim();
-  const selectedDate = dayOptions.includes(requestedDate) ? requestedDate : todayStr;
+  const selectedDate = dayOptions.includes(requestedDate) ? requestedDate : newest;
 
   const totalsByDate = await getTotalsByDate(user.id, oldest, newest);
   const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal);
@@ -605,6 +726,13 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     acceptedLinks = await getAcceptedLinkUsers(user.id);
   } catch (err) {
     console.error('Failed to load linked users', err);
+  }
+
+  let weightEntry = null;
+  try {
+    weightEntry = await getWeightEntry(user.id, selectedDate);
+  } catch (err) {
+    console.error('Failed to load weight entry', err);
   }
 
   const sharedViews = [
@@ -645,6 +773,13 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     selectedDate,
     recentEntries,
     sharedViews,
+    range: {
+      start: oldest,
+      end: newest,
+      days: dayOptions.length,
+      preset: !req.query.start && !req.query.end ? requestedDays : null,
+    },
+    weightEntry,
     activePage: 'dashboard',
   });
 });
@@ -660,9 +795,9 @@ app.get('/entries/day', requireAuth, async (req, res) => {
 
   const today = new Date();
   const oldest = new Date(today);
-  oldest.setDate(today.getDate() - 13);
-  const oldestStr = oldest.toISOString().slice(0, 10);
-  const todayStr = today.toISOString().slice(0, 10);
+  oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
+  const oldestStr = toIsoDate(oldest);
+  const todayStr = toIsoDate(today);
 
   if (dateStr < oldestStr || dateStr > todayStr) {
     return res.status(400).json({ ok: false, error: 'Date must be within the last 14 days' });
@@ -979,24 +1114,110 @@ app.post('/goal', requireAuth, async (req, res) => {
   res.redirect('/settings');
 });
 
+app.get('/weight/day', requireAuth, async (req, res) => {
+  const dateStr = (req.query.date || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return res.status(400).json({ ok: false, error: 'Invalid date' });
+  }
+
+  const today = new Date();
+  const oldest = new Date(today);
+  oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
+  const oldestStr = toIsoDate(oldest);
+  const todayStr = toIsoDate(today);
+
+  if (dateStr < oldestStr || dateStr > todayStr) {
+    return res.status(400).json({ ok: false, error: 'Date outside supported range' });
+  }
+
+  try {
+    const entry = await getWeightEntry(req.currentUser.id, dateStr);
+    return res.json({ ok: true, entry });
+  } catch (err) {
+    console.error('Failed to fetch weight entry', err);
+    return res.status(500).json({ ok: false, error: 'Could not load weight' });
+  }
+});
+
+app.post('/weight/upsert', requireAuth, async (req, res) => {
+  const wantsJson = (req.headers.accept || '').includes('application/json');
+  const dateStr = (req.body.entry_date || req.body.date || '').trim() || toIsoDate(new Date());
+  const { ok, value: weight } = parseWeight(req.body.weight);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return wantsJson
+      ? res.status(400).json({ ok: false, error: 'Invalid date' })
+      : res.redirect('/dashboard');
+  }
+
+  if (!ok || weight === null) {
+    return wantsJson
+      ? res.status(400).json({ ok: false, error: 'Invalid weight' })
+      : res.redirect('/dashboard');
+  }
+
+  const today = new Date();
+  const oldest = new Date(today);
+  oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
+  const oldestStr = toIsoDate(oldest);
+  const todayStr = toIsoDate(today);
+  if (dateStr < oldestStr || dateStr > todayStr) {
+    return wantsJson
+      ? res.status(400).json({ ok: false, error: 'Date outside supported range' })
+      : res.redirect('/dashboard');
+  }
+
+  try {
+    const entry = await upsertWeightEntry(req.currentUser.id, dateStr, weight);
+    if (wantsJson) {
+      return res.json({ ok: true, entry });
+    }
+  } catch (err) {
+    console.error('Failed to upsert weight entry', err);
+    if (wantsJson) {
+      return res.status(500).json({ ok: false, error: 'Could not save weight' });
+    }
+  }
+
+  return res.redirect('/dashboard');
+});
+
 app.post('/entries', requireAuth, async (req, res) => {
-  const { value: amount, ok } = parseAmount(req.body.amount);
+  const { value: amount, ok: amountOk } = parseAmount(req.body.amount);
+  const { ok: weightOk, value: weightVal } = parseWeight(req.body.weight);
   const entryDate = req.body.entry_date || new Date().toISOString().slice(0, 10);
   const entryName = (req.body.entry_name || '').trim();
   const entryNameSafe = entryName ? entryName.slice(0, 120) : null;
 
-  if (!ok || amount === 0) {
+  const hasCalorieEntry = amountOk && amount !== 0;
+  const hasWeight = weightOk && weightVal !== null;
+
+  if (!hasCalorieEntry && !hasWeight) {
     return res.redirect('/dashboard');
   }
 
   try {
-    await pool.query(
-      'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
-      [req.currentUser.id, entryDate, amount, entryNameSafe]
-    );
-    await broadcastEntryChange(req.currentUser.id);
+    await pool.query('BEGIN');
+
+    if (hasCalorieEntry) {
+      await pool.query(
+        'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
+        [req.currentUser.id, entryDate, amount, entryNameSafe]
+      );
+    }
+
+    if (hasWeight) {
+      await upsertWeightEntry(req.currentUser.id, entryDate, weightVal);
+    }
+
+    await pool.query('COMMIT');
+
+    if (hasCalorieEntry) {
+      await broadcastEntryChange(req.currentUser.id);
+    }
   } catch (err) {
     console.error('Failed to add entry', err);
+    await pool.query('ROLLBACK').catch(() => {});
   }
 
   res.redirect('/dashboard');
@@ -1176,7 +1397,7 @@ app.post('/2fa/disable', requireAuth, async (req, res) => {
 
 app.get('/settings', requireAuth, renderSettings);
 
-ensureAccountLinksSchema()
+Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema()])
   .catch((err) => {
     console.error('Schema init failed', err);
   })

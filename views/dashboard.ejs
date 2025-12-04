@@ -36,12 +36,12 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">Log</p>
-        <h2>Add calories</h2>
+        <h2>New entry</h2>
       </div>
     </div>
-    <form action="/entries" method="POST" class="stack horizontal">
+    <form action="/entries" method="POST" class="stack horizontal" data-log-form>
       <label class="field">
-        <span>Amount</span>
+        <span>Calories</span>
         <input
           type="tel"
           name="amount"
@@ -50,26 +50,58 @@
           autocapitalize="none"
           autocorrect="off"
           spellcheck="false"
-          required
-          placeholder="e.g. 250, -200, (3*4)/6">
+          placeholder="e.g. 250, -200">
       </label>
       <label class="field">
-        <span>Name (optional)</span>
-        <input type="text" name="entry_name" maxlength="120" placeholder="e.g. Breakfast, Run, Snack">
+        <span>Label</span>
+        <input type="text" name="entry_name" maxlength="120" placeholder="Optional" list="entry-label-options">
       </label>
       <label class="field">
         <span>Date</span>
-        <input type="date" name="entry_date" value="<%= new Date().toISOString().slice(0,10) %>">
+        <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
+      </label>
+      <label class="field">
+        <span>Weight (kg)</span>
+        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input placeholder="Optional" value="<%= weightEntry ? weightEntry.weight : '' %>">
       </label>
       <button type="submit" class="primary">Record</button>
     </form>
+    <datalist id="entry-label-options">
+      <option value="Breakfast"></option>
+      <option value="Lunch"></option>
+      <option value="Dinner"></option>
+      <option value="Snack"></option>
+      <option value="Workout"></option>
+      <option value="Note"></option>
+    </datalist>
   </section>
 
   <section class="panel">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Recent</p>
-        <h2>Last 14 days</h2>
+        <h2>Timeline</h2>
+        <p class="muted small">Showing <%= range.start %> to <%= range.end %> · <%= range.days %> days</p>
+      </div>
+      <div class="timeframe">
+        <form method="GET" class="range-chips">
+          <input type="hidden" name="day" value="<%= selectedDate %>">
+          <% [7, 14, 30, 60, 90, 180].forEach((days) => { %>
+            <button type="submit" name="range" value="<%= days %>" class="range-chip <%= range.preset === days ? 'active' : '' %>"><%= days %>d</button>
+          <% }) %>
+        </form>
+        <form method="GET" class="range-custom">
+          <input type="hidden" name="day" value="<%= selectedDate %>">
+          <label class="field compact">
+            <span>From</span>
+            <input type="date" name="start" value="<%= range.start %>">
+          </label>
+          <label class="field compact">
+            <span>To</span>
+            <input type="date" name="end" value="<%= range.end %>">
+          </label>
+          <button class="ghost" type="submit">Apply</button>
+        </form>
       </div>
     </div>
     <div class="share-grid">
@@ -117,27 +149,46 @@
       <% }) %>
     </div>
     <div class="day-selected" data-day-selected>Showing <%= selectedDate === new Date().toISOString().slice(0,10) ? 'today' : selectedDate %> · You</div>
-    <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
-      <% if (recentEntries && recentEntries.length > 0) { %>
-        <% recentEntries.forEach((entry) => { %>
-          <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
-            <div>
-              <button type="button" class="edit-trigger entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-            </div>
-            <div class="entry-actions">
-              <div class="entry-amount-wrap">
-                <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
-              </div>
-              <span class="entry-time muted small" data-entry-time><%= entry.created_at ? entry.created_at.toISOString().slice(11,16) : '' %></span>
-              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
-                <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
-              </form>
-            </div>
+    <% const weightTime = weightEntry && (weightEntry.updated_at || weightEntry.created_at) ? (weightEntry.updated_at || weightEntry.created_at).toISOString().slice(11,16) : ''; %>
+    <div class="log-list">
+      <div class="weight-slot" data-weight-slot>
+        <div class="entry-row weight-row <%= weightEntry ? '' : 'is-empty' %>" data-weight-row>
+          <div>
+            <button type="button" class="edit-trigger entry-name" data-weight-edit-trigger>Weight</button>
           </div>
-        <% }) %>
-      <% } %>
+        <div class="entry-actions">
+            <div class="entry-amount-wrap">
+              <button type="button" class="edit-trigger entry-amount weight <%= weightEntry ? '' : 'muted' %>" data-weight-edit-trigger data-weight-value><%= weightEntry ? `${weightEntry.weight} kg` : 'Add weight' %></button>
+            </div>
+          <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : '' %></span>
+          <form class="inline-form delete-placeholder" aria-hidden="true">
+            <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
+          </form>
+        </div>
+      </div>
     </div>
-    <div class="muted <%= (!recentEntries || recentEntries.length === 0) ? '' : 'hidden' %>" data-entry-empty>No entries yet.</div>
+      <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
+        <% if (recentEntries && recentEntries.length > 0) { %>
+          <% recentEntries.forEach((entry) => { %>
+            <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
+              <div>
+                <button type="button" class="edit-trigger entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
+              </div>
+              <div class="entry-actions">
+                <div class="entry-amount-wrap">
+                  <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
+                </div>
+                <span class="entry-time muted small" data-entry-time><%= entry.created_at ? entry.created_at.toISOString().slice(11,16) : '' %></span>
+                <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
+                  <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+      <div class="muted <%= (!recentEntries || recentEntries.length === 0) ? '' : 'hidden' %>" data-entry-empty>No entries yet.</div>
+    </div>
   </section>
 
   <script>
@@ -162,6 +213,17 @@
         amount: entry.amount,
         name: entry.entry_name || null,
       }))) %>;
+      const weightInput = document.querySelector('[data-weight-input]');
+      const weightDateInput = document.querySelector('[data-weight-date]');
+      const weightSlot = document.querySelector('[data-weight-slot]');
+      const weightRow = document.querySelector('[data-weight-row]');
+      const weightValueBtn = document.querySelector('[data-weight-value]');
+      const weightTime = document.querySelector('[data-weight-time]');
+      const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
+      const weightCache = new Map();
+      if (initialWeight) {
+        weightCache.set(initialWeight.date, initialWeight);
+      }
 
       const escapeHtml = (value) =>
         String(value || '').replace(
@@ -219,7 +281,171 @@
           .join('');
       };
 
+      const renderWeight = (entry, date) => {
+        if (weightDateInput) {
+          weightDateInput.value = date;
+        }
+        if (weightInput) {
+          weightInput.value = entry && entry.weight ? entry.weight : '';
+        }
+        if (weightRow && weightValueBtn) {
+          const timeStr =
+            entry && (entry.updated_at || entry.created_at)
+              ? new Date(entry.updated_at || entry.created_at).toISOString().slice(11, 16)
+              : '';
+          weightRow.classList.toggle('is-empty', !entry);
+          weightValueBtn.textContent = entry ? `${entry.weight} kg` : 'Add weight';
+          weightValueBtn.classList.toggle('muted', !entry);
+          weightValueBtn.classList.toggle('pos', Boolean(entry));
+          if (weightTime) {
+            weightTime.textContent = entry ? timeStr : '';
+          }
+        }
+      };
+
+      const loadWeightForDate = async (date) => {
+        if (!weightDateInput || !date) return;
+        if (weightCache.has(date)) {
+          renderWeight(weightCache.get(date), date);
+          return;
+        }
+        try {
+          const res = await fetch(`/weight/day?date=${date}`, { headers: { Accept: 'application/json' } });
+          if (!res.ok) {
+            renderWeight(null, date);
+            return;
+          }
+          const data = await res.json();
+          if (data.ok) {
+            const entry = data.entry || null;
+            weightCache.set(date, entry);
+            renderWeight(entry, date);
+          }
+        } catch (err) {
+          renderWeight(null, date);
+        }
+      };
+
+      let activeWeightEdit = null;
+      const teardownWeightEditor = () => {
+        if (activeWeightEdit) {
+          const { form, trigger } = activeWeightEdit;
+          form.remove();
+          if (trigger) trigger.classList.remove('hidden');
+          activeWeightEdit = null;
+        }
+      };
+
+      const saveWeight = async (value) => {
+        const payload = { weight: value, entry_date: currentDate };
+        const res = await fetch('/weight/upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          throw new Error('Request failed');
+        }
+        const data = await res.json();
+        if (!data.ok || !data.entry) {
+          throw new Error('Save failed');
+        }
+        weightCache.set(data.entry.date, data.entry);
+        renderWeight(data.entry, data.entry.date);
+      };
+
+      const openWeightEditor = (triggerEl) => {
+        if (!weightSlot) return;
+        const row = triggerEl?.closest('[data-weight-row]') || weightRow;
+        if (!row) return;
+        if (row.querySelector('[data-inline-editing]')) return;
+
+        // Close any other inline edit (entries or weight) for consistency
+        if (activeInlineEdit) {
+          const { form, btn: openBtn } = activeInlineEdit;
+          form.remove();
+          if (openBtn) openBtn.classList.remove('hidden');
+          activeInlineEdit = null;
+        }
+
+        const btnTarget = triggerEl || weightValueBtn;
+        if (!btnTarget) return;
+        const form = document.createElement('form');
+        form.className = 'inline-edit inline-edit--amount';
+        form.dataset.inlineEditing = 'true';
+
+        const input = document.createElement('input');
+        input.type = 'tel';
+        input.inputMode = 'tel';
+        input.autocomplete = 'off';
+        input.className = 'inline-edit-input inline-edit-input--amount';
+        input.placeholder = 'e.g. 72.4';
+        const currentWeight = weightCache.get(currentDate)?.weight;
+        input.value = currentWeight ? currentWeight : '';
+
+        const spinner = document.createElement('span');
+        spinner.className = 'inline-edit-spinner hidden';
+
+        form.append(input, spinner);
+        btnTarget.insertAdjacentElement('afterend', form);
+
+        const finish = () => {
+          form.remove();
+          btnTarget.classList.remove('hidden');
+          row.classList.remove('is-editing');
+          activeInlineEdit = null;
+          activeWeightEdit = null;
+        };
+
+        let saving = false;
+        const handleSave = async () => {
+          if (saving) return;
+          const value = input.value.trim();
+          if (!value) {
+            finish();
+            return;
+          }
+          saving = true;
+          spinner.classList.remove('hidden');
+          form.classList.add('is-saving');
+          row.classList.add('is-editing');
+          try {
+            await saveWeight(value);
+            finish();
+          } catch (err) {
+            console.error('Weight save failed', err);
+            saving = false;
+            spinner.classList.add('hidden');
+            form.classList.remove('is-saving');
+            row.classList.remove('is-editing');
+          }
+        };
+
+        form.addEventListener('submit', (evt) => {
+          evt.preventDefault();
+          handleSave();
+        });
+
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Escape') {
+            finish();
+          } else if (evt.key === 'Enter') {
+            evt.preventDefault();
+            handleSave();
+          }
+        });
+
+        input.addEventListener('blur', handleSave);
+
+        btnTarget.classList.add('hidden');
+        activeInlineEdit = { form, btn: btnTarget };
+        activeWeightEdit = { form, trigger: btnTarget };
+        input.focus();
+        input.select();
+      };
+
       const setActiveDay = (userId, date, label) => {
+        teardownWeightEditor();
         dots.forEach((dot) => {
           const active = dot.dataset.userId === String(userId) && dot.dataset.date === date;
           dot.classList.toggle('active', active);
@@ -228,6 +454,10 @@
           const labelDate = date === todayStr ? 'today' : date;
           daySelected.textContent = `Showing ${labelDate} · ${label}`;
         }
+        if (weightDateInput) {
+          weightDateInput.value = date;
+        }
+        loadWeightForDate(date);
       };
 
       const loadEntries = async (userId, date, canEdit) => {
@@ -377,14 +607,14 @@
         btn.classList.add('hidden');
 
         const form = document.createElement('form');
-        form.className = 'inline-edit';
+        form.className = `inline-edit${type === 'amount' ? ' inline-edit--amount' : ''}`;
         form.dataset.inlineEditing = 'true';
 
         const input = document.createElement('input');
         input.type = type === 'amount' ? 'tel' : 'text';
         if (type === 'amount') input.inputMode = 'tel';
         input.autocomplete = 'off';
-        input.className = 'inline-edit-input';
+        input.className = `inline-edit-input${type === 'amount' ? ' inline-edit-input--amount' : ''}`;
         input.placeholder = placeholder;
         input.value = currentValue;
 
@@ -498,6 +728,13 @@
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel);
       startEntryEvents();
+
+      document.addEventListener('click', (evt) => {
+        const weightTrigger = evt.target.closest('[data-weight-edit-trigger]');
+        if (weightTrigger) {
+          openWeightEditor(weightTrigger);
+        }
+      });
 
       const initialDay = todayStr;
       setInterval(() => {
