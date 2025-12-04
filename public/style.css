@@ -686,7 +686,18 @@ button:disabled,
   color: var(--text);
   cursor: pointer;
   font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  flex: 0 0 auto;
   transition: border 120ms ease, background 120ms ease, transform 100ms ease;
+}
+
+.range-chips.nested {
+  justify-content: flex-start;
+}
+
+.range-chip.narrow {
+  padding: 6px 10px;
 }
 
 .range-chip:hover {
@@ -699,6 +710,16 @@ button:disabled,
   border-color: rgba(14, 165, 233, 0.8);
   box-shadow: 0 10px 26px rgba(14, 165, 233, 0.15);
   transform: translateY(-1px);
+}
+
+.range-controls {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.range-toggle {
+  padding: 8px 12px;
 }
 
 .range-custom {
@@ -724,6 +745,10 @@ button:disabled,
 
   .range-chips {
     justify-content: flex-start;
+  }
+
+  .range-controls {
+    justify-items: start;
   }
 
   .range-custom {

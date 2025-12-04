@@ -84,24 +84,26 @@
         <p class="muted small">Showing <%= range.start %> to <%= range.end %> · <%= range.days %> days</p>
       </div>
       <div class="timeframe">
-        <form method="GET" class="range-chips">
-          <input type="hidden" name="day" value="<%= selectedDate %>">
-          <% [7, 14, 30, 60, 90, 180].forEach((days) => { %>
-            <button type="submit" name="range" value="<%= days %>" class="range-chip <%= range.preset === days ? 'active' : '' %>"><%= days %>d</button>
-          <% }) %>
-        </form>
-        <form method="GET" class="range-custom">
-          <input type="hidden" name="day" value="<%= selectedDate %>">
-          <label class="field compact">
-            <span>From</span>
-            <input type="date" name="start" value="<%= range.start %>">
-          </label>
-          <label class="field compact">
-            <span>To</span>
-            <input type="date" name="end" value="<%= range.end %>">
-          </label>
-          <button class="ghost" type="submit">Apply</button>
-        </form>
+        <div class="range-controls">
+          <button type="button" class="ghost small range-toggle" data-range-toggle>More options</button>
+          <form method="GET" class="range-custom <%= range.preset === null ? '' : 'hidden' %>" data-range-custom>
+            <input type="hidden" name="day" value="<%= selectedDate %>">
+            <div class="range-chips nested">
+              <% [7, 14, 30, 60, 90, 120, 180].forEach((days) => { %>
+                <button type="submit" name="range" value="<%= days %>" class="range-chip narrow <%= range.preset === days ? 'active' : '' %>"><%= days %>d</button>
+              <% }) %>
+            </div>
+            <label class="field compact">
+              <span>From</span>
+              <input type="date" name="start" value="<%= range.start %>">
+            </label>
+            <label class="field compact">
+              <span>To</span>
+              <input type="date" name="end" value="<%= range.end %>">
+            </label>
+            <button class="ghost" type="submit">Apply</button>
+          </form>
+        </div>
       </div>
     </div>
     <div class="share-grid">
@@ -219,6 +221,8 @@
       const weightRow = document.querySelector('[data-weight-row]');
       const weightValueBtn = document.querySelector('[data-weight-value]');
       const weightTime = document.querySelector('[data-weight-time]');
+      const rangeToggle = document.querySelector('[data-range-toggle]');
+      const rangeCustom = document.querySelector('[data-range-custom]');
       const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
       const weightCache = new Map();
       if (initialWeight) {
@@ -230,6 +234,13 @@
           /[&<>"']/g,
           (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])
         );
+
+      if (rangeToggle && rangeCustom) {
+        rangeToggle.addEventListener('click', () => {
+          const showing = rangeCustom.classList.toggle('hidden') === false;
+          rangeToggle.textContent = showing ? 'Hide options' : 'More options';
+        });
+      }
 
       const renderEntries = (entries, canEdit) => {
         if (!entryList) return;
