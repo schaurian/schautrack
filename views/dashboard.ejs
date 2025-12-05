@@ -54,26 +54,18 @@
       </label>
       <label class="field">
         <span>Label</span>
-        <input type="text" name="entry_name" maxlength="120" placeholder="Optional" list="entry-label-options">
+        <input type="text" name="entry_name" maxlength="120" placeholder="Optional">
       </label>
       <label class="field">
         <span>Date</span>
         <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
       </label>
       <label class="field">
-        <span>Weight (kg)</span>
-        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input placeholder="Optional" value="<%= weightEntry ? weightEntry.weight : '' %>">
+        <span>Weight</span>
+        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional">
       </label>
       <button type="submit" class="primary">Record</button>
     </form>
-    <datalist id="entry-label-options">
-      <option value="Breakfast"></option>
-      <option value="Lunch"></option>
-      <option value="Dinner"></option>
-      <option value="Snack"></option>
-      <option value="Workout"></option>
-      <option value="Note"></option>
-    </datalist>
   </section>
 
   <section class="panel">
@@ -109,11 +101,30 @@
     <div class="share-grid">
       <% const todayStr = new Date().toISOString().slice(0,10); %>
       <% sharedViews.forEach((view) => { %>
-        <div class="share-card" data-share-block data-user-id="<%= view.userId %>" data-user-label="<%= view.label %>" data-is-self="<%= view.isSelf %>">
+        <div
+          class="share-card"
+          data-share-block
+          data-user-id="<%= view.userId %>"
+          data-user-label="<%= view.label %>"
+          data-user-email="<%= view.email %>"
+          data-link-id="<%= view.linkId || '' %>"
+          data-is-self="<%= view.isSelf %>"
+        >
           <div class="share-card-head">
             <div>
               <p class="eyebrow"><%= view.isSelf ? 'You' : 'Shared' %></p>
-              <h3 class="share-title"><%= view.label %></h3>
+              <h3 class="share-title">
+                <% if (view.isSelf) { %>
+                  <%= view.label %>
+                <% } else { %>
+                  <button
+                    type="button"
+                    class="share-title-btn"
+                    data-edit-share-label
+                    data-link-id="<%= view.linkId %>"
+                  ><%= view.label %></button>
+                <% } %>
+              </h3>
               <p class="muted small"><%= view.isSelf ? 'Your log' : 'View only' %></p>
             </div>
             <div class="chip <%= view.dailyGoal ? '' : 'muted' %>">
@@ -129,6 +140,7 @@
                 data-day-dot
                 data-user-id="<%= view.userId %>"
                 data-user-label="<%= view.label %>"
+                data-link-id="<%= view.linkId || '' %>"
                 data-is-self="<%= view.isSelf %>"
                 data-date="<%= day.date %>"
                 data-tip="<%= day.date %>"
@@ -156,11 +168,11 @@
       <div class="weight-slot" data-weight-slot>
         <div class="entry-row weight-row <%= weightEntry ? '' : 'is-empty' %>" data-weight-row>
           <div>
-            <button type="button" class="edit-trigger entry-name" data-weight-edit-trigger>Weight</button>
+            <button type="button" class="edit-trigger entry-name is-locked" data-locked="true">Weight</button>
           </div>
         <div class="entry-actions">
             <div class="entry-amount-wrap">
-              <button type="button" class="edit-trigger entry-amount weight <%= weightEntry ? '' : 'muted' %>" data-weight-edit-trigger data-weight-value><%= weightEntry ? `${weightEntry.weight} kg` : 'Add weight' %></button>
+              <button type="button" class="edit-trigger entry-amount weight <%= weightEntry ? '' : 'muted' %>" data-weight-value><%= weightEntry ? `${weightEntry.weight}` : 'Add weight' %></button>
             </div>
           <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : '' %></span>
           <form class="inline-form delete-placeholder" aria-hidden="true">
@@ -203,9 +215,10 @@
       const todayStr = new Date().toISOString().slice(0, 10);
       let currentDate = '<%= selectedDate %>';
       let currentUserId = selfUserId;
-      let currentLabel = 'You';
+      let currentLabel = <%- JSON.stringify(sharedViews && sharedViews.length ? sharedViews[0].label : 'You') %>;
       let currentCanEdit = true;
       let activeInlineEdit = null;
+      let activeShareLabelEdit = null;
       let entryEventSource = null;
       let pollTimer = null;
       const initialEntries = <%- JSON.stringify(recentEntries.map((entry) => ({
@@ -235,6 +248,111 @@
           (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])
         );
 
+      const teardownShareLabelEditor = () => {
+        if (activeShareLabelEdit) {
+          const { form, trigger, card } = activeShareLabelEdit;
+          form.remove();
+          trigger.classList.remove('hidden');
+          card.classList.remove('is-editing');
+          activeShareLabelEdit = null;
+        }
+      };
+
+      const saveShareLabel = async (linkId, value) => {
+        const res = await fetch(`/links/${linkId}/label`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ label: value }),
+        });
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        if (!data.ok) throw new Error('Update failed');
+        return data.label || '';
+      };
+
+      const openShareLabelEditor = (btn) => {
+        const shareCard = btn.closest('[data-share-block]');
+        const linkId = btn.dataset.linkId;
+        if (!shareCard || !linkId) return;
+        if (shareCard.querySelector('[data-inline-editing]')) return;
+
+        if (activeInlineEdit) {
+          const { form, btn: openBtn } = activeInlineEdit;
+          form.remove();
+          openBtn.classList.remove('hidden');
+          activeInlineEdit = null;
+        }
+        teardownShareLabelEditor();
+        teardownWeightEditor();
+
+        const form = document.createElement('form');
+        form.className = 'inline-edit';
+        form.dataset.inlineEditing = 'true';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.autocomplete = 'off';
+        input.maxLength = 120;
+        input.className = 'inline-edit-input';
+        input.placeholder = shareCard.dataset.userEmail || 'Label';
+        input.value = btn.textContent.trim();
+
+        const spinner = document.createElement('span');
+        spinner.className = 'inline-edit-spinner hidden';
+
+        form.append(input, spinner);
+        btn.insertAdjacentElement('afterend', form);
+        btn.classList.add('hidden');
+        shareCard.classList.add('is-editing');
+
+        const finish = () => {
+          form.remove();
+          btn.classList.remove('hidden');
+          shareCard.classList.remove('is-editing');
+          if (activeShareLabelEdit && activeShareLabelEdit.form === form) {
+            activeShareLabelEdit = null;
+          }
+        };
+
+        let saving = false;
+        const handleSave = async () => {
+          if (saving) return;
+          saving = true;
+          form.classList.add('is-saving');
+          spinner.classList.remove('hidden');
+          try {
+            const updatedLabel = await saveShareLabel(linkId, input.value.trim());
+            applyShareLabel(shareCard, updatedLabel);
+            finish();
+          } catch (err) {
+            console.error('Share label update failed', err);
+            saving = false;
+            form.classList.remove('is-saving');
+            spinner.classList.add('hidden');
+          }
+        };
+
+        form.addEventListener('submit', (evt) => {
+          evt.preventDefault();
+          handleSave();
+        });
+
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Escape') {
+            finish();
+          } else if (evt.key === 'Enter') {
+            evt.preventDefault();
+            handleSave();
+          }
+        });
+
+        input.addEventListener('blur', handleSave);
+
+        activeShareLabelEdit = { form, trigger: btn, card: shareCard };
+        input.focus();
+        input.select();
+      };
+
       if (rangeToggle && rangeCustom) {
         rangeToggle.addEventListener('click', () => {
           const showing = rangeCustom.classList.toggle('hidden') === false;
@@ -261,13 +379,18 @@
             const safeName = escapeHtml(entry.name || 'Untitled');
             if (!canEdit) {
               return `
-              <div class="entry-row view-only">
-                <div class="entry-name">${safeName}</div>
+              <div class="entry-row view-only" data-entry-row data-entry-id="${entry.id}">
+                <div>
+                  <button type="button" class="edit-trigger entry-name is-locked" data-locked="true">${safeName}</button>
+                </div>
                 <div class="entry-actions">
                   <div class="entry-amount-wrap">
-                    <span class="entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}">${entry.amount} kcal</span>
+                    <button type="button" class="edit-trigger entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount} kcal</button>
                   </div>
                   <span class="entry-time muted small">${entry.time || ''}</span>
+                  <form class="inline-form delete-placeholder" aria-hidden="true">
+                    <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
+                  </form>
                 </div>
               </div>
             `;
@@ -297,26 +420,66 @@
           weightDateInput.value = date;
         }
         if (weightInput) {
-          weightInput.value = entry && entry.weight ? entry.weight : '';
+          const hasEntry = Boolean(entry);
+          weightInput.value = '';
+          weightInput.disabled = hasEntry || !canEdit;
+          weightInput.classList.toggle('is-disabled', hasEntry || !canEdit);
+          weightInput.placeholder = hasEntry ? 'Logged for day' : 'Optional';
         }
         if (weightRow && weightValueBtn) {
-          const nameBtn = weightRow.querySelector('[data-weight-edit-trigger]');
-          if (nameBtn) {
-            nameBtn.textContent = userId === selfUserId ? 'Weight' : `Weight · ${label || 'Shared'}`;
+          const labelBtn = weightRow.querySelector('.entry-name');
+          if (labelBtn) {
+            labelBtn.textContent = 'Weight';
+            labelBtn.dataset.locked = 'true';
+            labelBtn.classList.add('is-locked');
           }
           const timeStr =
             entry && (entry.updated_at || entry.created_at)
               ? new Date(entry.updated_at || entry.created_at).toISOString().slice(11, 16)
               : '';
           weightRow.classList.toggle('is-empty', !entry);
-          weightValueBtn.textContent = entry ? `${entry.weight} kg` : 'Add weight';
+          weightValueBtn.textContent = entry ? `${entry.weight}` : 'Add weight';
           weightValueBtn.classList.toggle('muted', !entry);
           weightValueBtn.classList.toggle('pos', Boolean(entry));
           weightRow.classList.toggle('view-only', !canEdit);
-          weightValueBtn.disabled = !canEdit;
+          weightValueBtn.dataset.locked = String(!canEdit);
+          weightValueBtn.classList.toggle('is-locked', !canEdit);
           if (weightTime) {
             weightTime.textContent = entry ? timeStr : '';
           }
+        }
+      };
+
+      const applyShareLabel = (shareCard, rawLabel) => {
+        if (!shareCard) return;
+        const fallback = shareCard.dataset.userEmail || 'Shared';
+        const displayLabel = rawLabel && rawLabel.trim() ? rawLabel.trim() : fallback;
+        shareCard.dataset.userLabel = displayLabel;
+        const dotsInCard = shareCard.querySelectorAll('[data-day-dot]');
+        dotsInCard.forEach((dot) => {
+          dot.dataset.userLabel = displayLabel;
+        });
+        const titleBtn = shareCard.querySelector('[data-edit-share-label]');
+        const titleEl = shareCard.querySelector('.share-title');
+        if (titleBtn) {
+          titleBtn.textContent = displayLabel;
+        } else if (titleEl) {
+          titleEl.textContent = displayLabel;
+        }
+        if (String(currentUserId) === String(shareCard.dataset.userId)) {
+          currentLabel = displayLabel;
+          const labelDate = currentDate === todayStr ? 'today' : currentDate;
+          if (daySelected) {
+            daySelected.textContent = `Showing ${labelDate} · ${currentLabel}`;
+          }
+          const weightCacheKey = `${currentUserId}:${currentDate}`;
+          renderWeight(
+            weightCache.get(weightCacheKey) || null,
+            currentDate,
+            currentUserId,
+            currentLabel,
+            currentCanEdit
+          );
         }
       };
 
@@ -707,6 +870,11 @@
       };
 
       document.addEventListener('click', (evt) => {
+        const shareLabelBtn = evt.target.closest('[data-edit-share-label]');
+        if (shareLabelBtn) {
+          openShareLabelEditor(shareLabelBtn);
+          return;
+        }
         if (!currentCanEdit) return;
         const nameBtn = evt.target.closest('[data-edit-name]');
         if (nameBtn) {
@@ -724,6 +892,10 @@
             type: 'amount',
             placeholder: 'e.g. 250, -120',
           });
+        }
+        const weightTrigger = evt.target.closest('[data-weight-value]');
+        if (weightTrigger) {
+          openWeightEditor(weightTrigger);
         }
       });
 
@@ -751,14 +923,6 @@
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel);
       startEntryEvents();
-
-      document.addEventListener('click', (evt) => {
-        const weightTrigger = evt.target.closest('[data-weight-edit-trigger]');
-        if (weightTrigger) {
-          if (!currentCanEdit) return;
-          openWeightEditor(weightTrigger);
-        }
-      });
 
       const initialDay = todayStr;
       setInterval(() => {

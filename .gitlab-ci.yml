@@ -98,8 +98,16 @@ deploy:
   needs:
     - container-build-default
   variables:
-    KUBECONFIG: "$CI_PROJECT_DIR/schautrack-gitlab.kubeconfig"
+    KUBECONFIG_FILE: "$CI_PROJECT_DIR/.kubeconfig"
+    KUBECONFIG: "$CI_PROJECT_DIR/.kubeconfig"
   script:
+    - |
+      if [ -z "$KUBECONFIG_SCHAUTRACK" ]; then
+        echo "Missing KUBECONFIG_SCHAUTRACK secret" >&2
+        exit 1
+      fi
+    - echo "$KUBECONFIG_SCHAUTRACK" | base64 -d > "$KUBECONFIG_FILE"
+    - chmod 600 "$KUBECONFIG_FILE"
     - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - kubectl config get-contexts
     - kubectl apply --validate=false -f schautrack/schautrack.yaml

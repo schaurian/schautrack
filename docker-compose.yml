@@ -1,22 +1,17 @@
 services:
   web:
     build: .
+    env_file:
+      - .env
     ports:
       - "3000:3000"
-    environment:
-      - PORT=3000
-      - DATABASE_URL=postgresql://schautrack:schautrack@db:5432/schautrack
-      - SESSION_SECRET=change-me
-      - SUPPORT_EMAIL=homebox-support@schauer.to
     depends_on:
       db:
         condition: service_healthy
   db:
     image: postgres:18-alpine
-    environment:
-      - POSTGRES_DB=schautrack
-      - POSTGRES_USER=schautrack
-      - POSTGRES_PASSWORD=schautrack
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 5s

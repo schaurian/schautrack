@@ -53,9 +53,9 @@ a {
 }
 
 .brand-mark {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   background: var(--card);
   border: 1px solid var(--stroke);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
@@ -374,7 +374,7 @@ button:disabled,
 }
 
 .entry-row.view-only {
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
 }
 
 .entry-row:hover {
@@ -420,6 +420,23 @@ button:disabled,
   background: rgba(255, 255, 255, 0.04);
 }
 
+.edit-trigger.is-locked {
+  pointer-events: none;
+  cursor: default;
+}
+
+.edit-trigger.is-locked:hover {
+  background: none;
+  color: inherit;
+}
+
+.weight-input.is-disabled {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--stroke);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .inline-edit {
   display: flex;
   align-items: center;
@@ -433,16 +450,16 @@ button:disabled,
 }
 
 .inline-edit-input {
-  padding: 10px 12px;
+  padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: #0b1021;
   color: var(--text);
-  min-width: 140px;
+  min-width: 120px;
 }
 
 .inline-edit-input--amount {
-  min-width: 90px;
+  min-width: 100px;
   text-align: right;
 }
 
@@ -870,8 +887,43 @@ button:disabled,
   margin-bottom: 8px;
 }
 
+.share-card-head > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
 .share-title {
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.share-title-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.share-card.is-editing .share-title {
+  white-space: normal;
+  overflow: visible;
+}
+
+.share-card-head .chip {
+  flex-shrink: 0;
 }
 
 .share-card .dot-row {

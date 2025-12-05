@@ -44,6 +44,8 @@ async function ensureAccountLinksSchema() {
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       CONSTRAINT account_links_not_self CHECK (requester_id <> target_id)
     );
+    ALTER TABLE account_links
+      ADD COLUMN IF NOT EXISTS label TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS account_links_pair_idx
       ON account_links (LEAST(requester_id, target_id), GREATEST(requester_id, target_id));
     CREATE INDEX IF NOT EXISTS account_links_requester_idx ON account_links (requester_id);
@@ -127,6 +129,7 @@ async function getAcceptedLinkUsers(userId) {
   const { rows } = await pool.query(
     `SELECT al.id AS link_id,
             al.created_at,
+            al.label,
             CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END AS other_id,
             u.email AS other_email,
             u.daily_goal AS other_daily_goal
@@ -141,6 +144,7 @@ async function getAcceptedLinkUsers(userId) {
   return rows.map((row) => ({
     linkId: row.link_id,
     userId: row.other_id,
+    label: row.label,
     email: row.other_email,
     daily_goal: row.other_daily_goal,
     since: row.created_at,
@@ -751,9 +755,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       const totals = await getTotalsByDate(link.userId, oldest, newest);
       const stats = buildDailyStats(dayOptions, totals, link.daily_goal);
       sharedViews.push({
+        linkId: link.linkId,
         userId: link.userId,
         email: link.email,
-        label: link.email,
+        label: (link.label || '').trim() || link.email,
         isSelf: false,
         dailyGoal: link.daily_goal,
         dailyStats: stats,
@@ -1097,6 +1102,35 @@ app.post('/settings/link/remove', requireAuth, async (req, res) => {
   }
 
   return res.redirect('/settings');
+});
+
+app.post('/links/:id/label', requireAuth, async (req, res) => {
+  const linkId = toInt(req.params.id);
+  if (linkId === null) {
+    return res.status(400).json({ ok: false, error: 'Invalid link' });
+  }
+  const rawLabel = typeof req.body.label === 'string' ? req.body.label.trim() : '';
+  const label = rawLabel ? rawLabel.slice(0, 120) : null;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE account_links
+          SET label = $1, updated_at = NOW()
+        WHERE id = $2
+          AND status = 'accepted'
+          AND (requester_id = $3 OR target_id = $3)
+        RETURNING id, label`,
+      [label, linkId, req.currentUser.id]
+    );
+    const updated = rows[0];
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: 'Link not found' });
+    }
+    return res.json({ ok: true, label: updated.label || null });
+  } catch (err) {
+    console.error('Failed to update link label', err);
+    return res.status(500).json({ ok: false, error: 'Could not update label' });
+  }
 });
 
 app.post('/goal', requireAuth, async (req, res) => {
