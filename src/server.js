@@ -881,12 +881,21 @@ app.get('/settings/export', requireAuth, async (req, res) => {
     [user.id]
   );
 
+  const { rows: weights } = await pool.query(
+    'SELECT entry_date, weight FROM weight_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
+    [user.id]
+  );
+
   const payload = {
     exported_at: new Date().toISOString(),
     user: {
       email: user.email,
       daily_goal: user.daily_goal,
     },
+    weights: weights.map((row) => ({
+      date: row.entry_date.toISOString().slice(0, 10),
+      weight: Number(row.weight),
+    })),
     entries: entries.map((row) => ({
       date: row.entry_date.toISOString().slice(0, 10),
       amount: row.amount,
@@ -916,6 +925,7 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
   const goalCandidate =
     parsed.daily_goal !== undefined ? parsed.daily_goal : parsed.user?.daily_goal;
   const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 500) : [];
+  const weights = Array.isArray(parsed.weights) ? parsed.weights.slice(0, 500) : [];
 
   const toInsert = [];
   entries.forEach((entry) => {
@@ -928,9 +938,19 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
     toInsert.push({ date: dateStr, amount, name: nameSafe });
   });
 
+  const weightToInsert = [];
+  weights.forEach((entry) => {
+    const dateStr = (entry.date || entry.entry_date || '').toString();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
+    const { ok: weightOk, value: weightVal } = parseWeight(entry.weight);
+    if (!weightOk || weightVal === null) return;
+    weightToInsert.push({ date: dateStr, weight: weightVal });
+  });
+
   try {
     await pool.query('BEGIN');
     await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
+    await pool.query('DELETE FROM weight_entries WHERE user_id = $1', [req.currentUser.id]);
     if (Number.isInteger(goalCandidate) && goalCandidate >= 0) {
       await pool.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [
         goalCandidate,
@@ -943,6 +963,9 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
         'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
         [req.currentUser.id, entry.date, entry.amount, entry.name]
       );
+    }
+    for (const w of weightToInsert) {
+      await upsertWeightEntry(req.currentUser.id, w.date, w.weight);
     }
     await pool.query('COMMIT');
   } catch (err) {
