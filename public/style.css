@@ -738,25 +738,28 @@ button:disabled,
 }
 
 .range-chip {
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 7px 10px;
+  border-radius: 10px;
   border: 1px solid var(--stroke);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   cursor: pointer;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
   flex: 0 0 auto;
   transition: border 120ms ease, background 120ms ease, transform 100ms ease;
 }
 
 .range-chips.nested {
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, max-content));
+  justify-content: start;
+  max-width: 340px;
 }
 
 .range-chip.narrow {
-  padding: 6px 10px;
+  padding: 6px 8px;
 }
 
 .range-chip:hover {
