@@ -115,15 +115,16 @@ deploy:
     - |
       REG_SERVER="${REGISTRY_SERVER:-$CI_REGISTRY}"
       REG_EMAIL="${REGISTRY_EMAIL:-ci@example.com}"
-      if [ -z "${REGISTRY_USER:-}" ] || [ -z "${REGISTRY_PASSWORD:-}" ]; then
-        echo "Missing REGISTRY_USER/REGISTRY_PASSWORD (set to a deploy token or PAT with read_registry)." >&2
+      REG_USER="${REGISTRY_USER:-oauth2}"
+      if [ -z "${REGISTRY_PASSWORD:-}" ]; then
+        echo "Missing REGISTRY_PASSWORD (set to a deploy token or PAT with read_registry)." >&2
         exit 1
       fi
       kubectl delete secret schautrack-registry -n schautrack --ignore-not-found
       kubectl create secret docker-registry schautrack-registry \
         --namespace=schautrack \
         --docker-server="$REG_SERVER" \
-        --docker-username="$REGISTRY_USER" \
+        --docker-username="$REG_USER" \
         --docker-password="$REGISTRY_PASSWORD" \
         --docker-email="$REG_EMAIL"
     - |
