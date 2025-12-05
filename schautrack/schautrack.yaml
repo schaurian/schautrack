@@ -8,15 +8,6 @@ metadata:
     pod-security.kubernetes.io/audit: privileged
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: schautrack-app
-  namespace: schautrack
-type: Opaque
-stringData:
-  SESSION_SECRET: WFv3RzKd9ozGUEjP3eIGT3gtpXCFrSCT8hCiDA34tv6yKXouxjLy9sgSMpu1Tefj
----
-apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: schautrack-postgres-local-pv

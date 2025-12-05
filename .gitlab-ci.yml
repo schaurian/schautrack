@@ -128,6 +128,16 @@ deploy:
         --docker-password="$REG_PASS" \
         --docker-email="$REG_EMAIL" \
         --dry-run=client -o yaml | kubectl apply -f -
+    - |
+      if ! kubectl get secret schautrack-app -n schautrack >/dev/null 2>&1; then
+        echo "Creating session secret in cluster"
+        SESSION_SECRET_VALUE="$(head -c 32 /dev/urandom | base64 | tr -d '\n=' | cut -c1-64)"
+        kubectl create secret generic schautrack-app \
+          --namespace=schautrack \
+          --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}"
+      else
+        echo "Reusing existing session secret"
+      fi
     - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - kubectl config get-contexts
     - kubectl apply --validate=false -f schautrack/schautrack.yaml
