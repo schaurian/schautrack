@@ -113,21 +113,19 @@ deploy:
     - echo "$KUBECONFIG_SCHAUTRACK" | base64 -d > "$KUBECONFIG_FILE"
     - chmod 600 "$KUBECONFIG_FILE"
     - |
-      REG_USER="${REGISTRY_USER:-$CI_REGISTRY_USER}"
-      REG_PASS="${REGISTRY_PASSWORD:-$CI_JOB_TOKEN}"
       REG_SERVER="${REGISTRY_SERVER:-$CI_REGISTRY}"
       REG_EMAIL="${REGISTRY_EMAIL:-ci@example.com}"
-      if [ -z "$REG_USER" ] || [ -z "$REG_PASS" ]; then
-        echo "Missing registry credentials" >&2
+      if [ -z "${REGISTRY_USER:-}" ] || [ -z "${REGISTRY_PASSWORD:-}" ]; then
+        echo "Missing REGISTRY_USER/REGISTRY_PASSWORD (set to a deploy token or PAT with read_registry)." >&2
         exit 1
       fi
+      kubectl delete secret schautrack-registry -n schautrack --ignore-not-found
       kubectl create secret docker-registry schautrack-registry \
         --namespace=schautrack \
         --docker-server="$REG_SERVER" \
-        --docker-username="$REG_USER" \
-        --docker-password="$REG_PASS" \
-        --docker-email="$REG_EMAIL" \
-        --dry-run=client -o yaml | kubectl apply -f -
+        --docker-username="$REGISTRY_USER" \
+        --docker-password="$REGISTRY_PASSWORD" \
+        --docker-email="$REG_EMAIL"
     - |
       if [ -n "${SESSION_SECRET_VALUE:-}" ]; then
         echo "Applying provided session secret value"
