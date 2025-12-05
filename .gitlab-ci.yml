@@ -129,17 +129,22 @@ deploy:
         --docker-email="$REG_EMAIL" \
         --dry-run=client -o yaml | kubectl apply -f -
     - |
-      if ! kubectl get secret schautrack-app -n schautrack >/dev/null 2>&1; then
-        echo "Missing schautrack-app secret. To avoid changing session keys unexpectedly, provide SESSION_SECRET_VALUE in CI to create it."
-        if [ -z "${SESSION_SECRET_VALUE:-}" ]; then
-          echo "SESSION_SECRET_VALUE not set; aborting to prevent secret rotation." >&2
-          exit 1
-        fi
+      if [ -n "${SESSION_SECRET_VALUE:-}" ]; then
+        echo "Applying provided session secret value"
         kubectl create secret generic schautrack-app \
           --namespace=schautrack \
-          --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}"
+          --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}" \
+          --dry-run=client -o yaml | kubectl apply -f -
       else
-        echo "Reusing existing session secret"
+        if ! kubectl get secret schautrack-app -n schautrack >/dev/null 2>&1; then
+          echo "No existing session secret found; generating a new one."
+          SESSION_SECRET_VALUE="$(head -c 32 /dev/urandom | base64 | tr -d '\n=' | cut -c1-64)"
+          kubectl create secret generic schautrack-app \
+            --namespace=schautrack \
+            --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}"
+        else
+          echo "Reusing existing session secret"
+        fi
       fi
     - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - kubectl config get-contexts
