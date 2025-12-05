@@ -130,8 +130,11 @@ deploy:
         --dry-run=client -o yaml | kubectl apply -f -
     - |
       if ! kubectl get secret schautrack-app -n schautrack >/dev/null 2>&1; then
-        echo "Creating session secret in cluster"
-        SESSION_SECRET_VALUE="$(head -c 32 /dev/urandom | base64 | tr -d '\n=' | cut -c1-64)"
+        echo "Missing schautrack-app secret. To avoid changing session keys unexpectedly, provide SESSION_SECRET_VALUE in CI to create it."
+        if [ -z "${SESSION_SECRET_VALUE:-}" ]; then
+          echo "SESSION_SECRET_VALUE not set; aborting to prevent secret rotation." >&2
+          exit 1
+        fi
         kubectl create secret generic schautrack-app \
           --namespace=schautrack \
           --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}"
