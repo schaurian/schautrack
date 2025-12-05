@@ -61,8 +61,8 @@
         <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
       </label>
       <label class="field">
-        <span>Weight (lb)</span>
-        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional (lb)">
+        <span>Weight (<%= (weightUnit || 'kg').toLowerCase() === 'kg' ? 'kg' : 'lb' %>)</span>
+        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional (<%= (weightUnit || 'lb').toLowerCase() === 'kg' ? 'kg' : 'lb' %>)">
       </label>
       <button type="submit" class="primary">Record</button>
     </form>

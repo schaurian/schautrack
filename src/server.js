@@ -138,6 +138,9 @@ async function ensureUserPrefsSchema() {
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS timezone TEXT,
       ADD COLUMN IF NOT EXISTS weight_unit TEXT;
+    ALTER TABLE users
+      ALTER COLUMN weight_unit SET DEFAULT 'kg';
+    UPDATE users SET weight_unit = 'kg' WHERE weight_unit IS NULL;
   `);
 }
 
@@ -882,7 +885,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     selectedDate,
     recentEntries: viewEntries,
     sharedViews,
-    weightUnit: user.weight_unit || 'lb',
+    weightUnit: user.weight_unit || 'kg',
     timeZone: userTimeZone,
     todayStr: todayStrTz,
     range: {
@@ -1585,7 +1588,7 @@ app.post('/2fa/disable', requireAuth, async (req, res) => {
 app.get('/settings', requireAuth, renderSettings);
 app.post('/settings/preferences', requireAuth, async (req, res) => {
   const unitRaw = (req.body.weight_unit || '').toLowerCase();
-  const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'lb';
+  const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'kg';
 
   try {
     await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
