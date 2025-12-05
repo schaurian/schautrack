@@ -931,27 +931,25 @@ button:disabled,
 }
 
 .share-card-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
   margin-bottom: 8px;
 }
 
 .share-card-head > div:first-child {
-  flex: 1;
   min-width: 0;
 }
 
 .share-title {
   margin: 0;
+  display: block;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
+  min-height: 24px;
 }
 
 .share-title-btn {
@@ -963,9 +961,9 @@ button:disabled,
   font: inherit;
   cursor: pointer;
   text-align: left;
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
+  display: block;
+  width: 100%;
+  min-height: 24px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -978,7 +976,11 @@ button:disabled,
 }
 
 .share-card-head .chip {
-  flex-shrink: 0;
+  justify-self: end;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .share-card .dot-row {
@@ -1132,8 +1134,17 @@ button:disabled,
   background: rgba(255, 255, 255, 0.02);
 }
 
+.link-row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
 .link-email {
   font-weight: 600;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .link-actions {
