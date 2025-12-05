@@ -23,8 +23,12 @@ semver-tag:
       git config --global user.name "${GITLAB_USER_NAME:-GitLab CI}"
     - git tag -a "$VERSION" -m "Release $VERSION"
     - |
-      PUSH_USER="${GIT_PUSH_USER:-gitlab-ci-token}"
-      PUSH_TOKEN="${GIT_PUSH_TOKEN:-$CI_JOB_TOKEN}"
+      PUSH_TOKEN="${GIT_PUSH_TOKEN:-${GL_RELEASE_TOKEN:-$CI_JOB_TOKEN}}"
+      if [ "$PUSH_TOKEN" = "$CI_JOB_TOKEN" ]; then
+        PUSH_USER="${GIT_PUSH_USER:-gitlab-ci-token}"
+      else
+        PUSH_USER="${GIT_PUSH_USER:-oauth2}"
+      fi
       git push "https://${PUSH_USER}:${PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "$VERSION"
     - |
       if [ -n "${GL_RELEASE_TOKEN:-}" ]; then
