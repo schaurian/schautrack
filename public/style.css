@@ -314,6 +314,48 @@ button:disabled,
   color: var(--text);
 }
 
+.pill-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, transform 100ms ease;
+}
+
+.pill input {
+  display: none;
+}
+
+.pill:hover {
+  border-color: rgba(14, 165, 233, 0.6);
+  background: rgba(14, 165, 233, 0.06);
+}
+
+.pill.active {
+  border-color: rgba(14, 165, 233, 0.9);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(14, 165, 233, 0.08));
+  box-shadow: 0 10px 40px rgba(14, 165, 233, 0.2);
+}
+
+.preference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
 .beta-badge {
   margin-left: 8px;
   font-size: 11px;
@@ -915,6 +957,10 @@ button:disabled,
   display: inline-flex;
   align-items: center;
   min-height: 32px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .share-card.is-editing .share-title {

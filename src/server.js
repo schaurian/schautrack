@@ -21,6 +21,37 @@ const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
 const entryEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
+const TIMEZONE_OPTIONS = []; // kept for validation compatibility; now auto-detected client-side
+const KG_TO_LB = 2.20462;
+
+const parseCookies = (header) => {
+  if (!header) return {};
+  return header.split(';').reduce((acc, part) => {
+    const [rawKey, ...rest] = part.split('=');
+    const key = rawKey && rawKey.trim();
+    if (!key) return acc;
+    acc[key] = rest.join('=').trim();
+    return acc;
+  }, {});
+};
+
+const getClientTimezone = (req) => {
+  const fromHeader = (req.headers['x-timezone'] || req.headers['x-tz'] || '').trim();
+  if (fromHeader) return fromHeader.slice(0, 100);
+  const cookies = parseCookies(req.headers.cookie);
+  const fromCookie = (cookies.timezone || '').trim();
+  if (fromCookie) return fromCookie.slice(0, 100);
+  return null;
+};
+
+const rememberClientTimezone = (req, res) => {
+  const tz = getClientTimezone(req);
+  if (tz) {
+    // Persist for future requests; express sets cookies without extra middleware.
+    res.cookie('timezone', tz, { sameSite: 'lax', maxAge: 1000 * 60 * 60 * 24 * 365 });
+  }
+  return tz;
+};
 
 const toInt = (value) => {
   const num = parseInt(value, 10);
@@ -28,6 +59,39 @@ const toInt = (value) => {
 };
 
 const toIsoDate = (date) => date.toISOString().slice(0, 10);
+
+const formatDateInTz = (date, timeZone) => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone || 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch (err) {
+    return toIsoDate(date);
+  }
+};
+
+const formatTimeInTz = (date, timeZone) => {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: timeZone || 'UTC',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date);
+  } catch (err) {
+    return date.toISOString().slice(11, 16);
+  }
+};
+
+const kgToLbs = (kg) => (typeof kg === 'number' ? Math.round(kg * KG_TO_LB * 10) / 10 : null);
+const lbsToKg = (lbs) => {
+  const num = parseFloat(lbs);
+  if (Number.isNaN(num) || num <= 0) return null;
+  return Math.round((num / KG_TO_LB) * 100) / 100;
+};
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://schautrack:schautrack@localhost:5432/schautrack',
@@ -67,6 +131,14 @@ async function ensureWeightEntriesSchema() {
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS weight_unique_per_day_idx ON weight_entries (user_id, entry_date);
+  `);
+}
+
+async function ensureUserPrefsSchema() {
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS timezone TEXT,
+      ADD COLUMN IF NOT EXISTS weight_unit TEXT;
   `);
 }
 
@@ -446,6 +518,19 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Capture client timezone from cookie/header and persist for authenticated users.
+app.use((req, res, next) => {
+  const detectedTz = rememberClientTimezone(req, res);
+  if (req.currentUser && detectedTz && req.currentUser.timezone !== detectedTz) {
+    req.currentUser.timezone = detectedTz;
+    res.locals.currentUser = req.currentUser;
+    pool
+      .query('UPDATE users SET timezone = $1 WHERE id = $2', [detectedTz, req.currentUser.id])
+      .catch((err) => console.error('Failed to persist timezone', err));
+  }
+  next();
+});
+
 const requireAuth = (req, res, next) => {
   if (!req.currentUser) {
     return res.redirect('/login');
@@ -455,6 +540,7 @@ const requireAuth = (req, res, next) => {
 
 const renderSettings = async (req, res) => {
   const user = req.currentUser ? { ...req.currentUser, id: toInt(req.currentUser.id) } : null;
+  const detectedTimezone = rememberClientTimezone(req, res) || 'UTC';
   const tempSecret = req.session.tempSecret;
   const tempUrl = req.session.tempUrl;
   const feedback = req.session.linkFeedback || null;
@@ -491,12 +577,13 @@ const renderSettings = async (req, res) => {
     linkFeedback: feedback,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
+    timezoneDisplay: detectedTimezone,
   });
 };
 
 async function getUserById(id) {
   const { rows } = await pool.query(
-    'SELECT id, email, daily_goal, totp_enabled, totp_secret FROM users WHERE id = $1',
+    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit FROM users WHERE id = $1',
     [id]
   );
   const user = rows[0];
@@ -698,6 +785,17 @@ app.post('/delete', requireAuth, async (req, res) => {
 
 app.get('/dashboard', requireAuth, async (req, res) => {
   const user = { ...req.currentUser, id: toInt(req.currentUser.id) };
+  const detectedTz = rememberClientTimezone(req, res);
+  const userTimeZone = detectedTz || user.timezone || 'UTC';
+  const serverNow = new Date();
+  const todayStrTz = formatDateInTz(serverNow, userTimeZone);
+  const nowLocal = `${formatDateInTz(serverNow, userTimeZone)} ${formatTimeInTz(serverNow, userTimeZone)}`;
+  console.log('[tz]', {
+    epoch: serverNow.getTime(),
+    iso: serverNow.toISOString(),
+    tz: userTimeZone,
+    local: nowLocal,
+  });
   const requestedRange = parseInt(req.query.range, 10);
   const requestedDays = Number.isInteger(requestedRange)
     ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
@@ -705,13 +803,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, requestedDays);
   const dayOptions = buildDayOptionsBetween(startDate, endDate);
   if (dayOptions.length === 0) {
-    const fallbackToday = toIsoDate(new Date());
+    const fallbackToday = formatDateInTz(new Date(), userTimeZone);
     dayOptions.push(fallbackToday);
   }
   const { oldest, newest } = getDateBounds(dayOptions);
-  const todayStr = toIsoDate(new Date());
+  const todayStr = formatDateInTz(new Date(), userTimeZone);
   const requestedDate = (req.query.day || '').trim();
-  const selectedDate = dayOptions.includes(requestedDate) ? requestedDate : newest;
+  const selectedDate = dayOptions.includes(requestedDate)
+    ? requestedDate
+    : dayOptions.includes(todayStr)
+    ? todayStr
+    : newest;
 
   const totalsByDate = await getTotalsByDate(user.id, oldest, newest);
   const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal);
@@ -724,6 +826,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
     [user.id, selectedDate]
   );
+  const viewEntries = recentEntries.map((entry) => ({
+    ...entry,
+    timeFormatted: entry.created_at ? formatTimeInTz(entry.created_at, userTimeZone) : '',
+  }));
 
   let acceptedLinks = [];
   try {
@@ -738,6 +844,11 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Failed to load weight entry', err);
   }
+  const weightTimeFormatted =
+    weightEntry && (weightEntry.updated_at || weightEntry.created_at)
+      ? formatTimeInTz(weightEntry.updated_at || weightEntry.created_at, userTimeZone)
+      : '';
+  const viewWeight = weightEntry ? { ...weightEntry, timeFormatted: weightTimeFormatted } : null;
 
   const sharedViews = [
     {
@@ -776,15 +887,18 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     dailyStats,
     dayOptions,
     selectedDate,
-    recentEntries,
+    recentEntries: viewEntries,
     sharedViews,
+    weightUnit: user.weight_unit || 'lb',
+    timeZone: userTimeZone,
+    todayStr: todayStrTz,
     range: {
       start: oldest,
       end: newest,
       days: dayOptions.length,
       preset: !req.query.start && !req.query.end ? requestedDays : null,
     },
-    weightEntry,
+    weightEntry: viewWeight,
     activePage: 'dashboard',
   });
 });
@@ -827,6 +941,7 @@ app.get('/entries/day', requireAuth, async (req, res) => {
   }
 
   try {
+    const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
     const { rows } = await pool.query(
       'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
       [targetUserId, dateStr]
@@ -838,7 +953,7 @@ app.get('/entries/day', requireAuth, async (req, res) => {
       entries: rows.map((row) => ({
         id: row.id,
         date: row.entry_date.toISOString().slice(0, 10),
-        time: row.created_at ? row.created_at.toISOString().slice(11, 16) : '',
+        time: row.created_at ? formatTimeInTz(row.created_at, tz) : '',
         amount: row.amount,
         name: row.entry_name || null,
       })),
@@ -1304,6 +1419,7 @@ app.post('/entries', requireAuth, async (req, res) => {
 app.post('/entries/:id/update', requireAuth, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
+  const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
 
   if (Number.isNaN(entryId)) {
     return wantsJson ? res.status(400).json({ ok: false, error: 'Invalid entry id' }) : res.redirect('/dashboard');
@@ -1353,7 +1469,7 @@ app.post('/entries/:id/update', requireAuth, async (req, res) => {
     const payload = {
       id: updated.id,
       date: updated.entry_date.toISOString().slice(0, 10),
-      time: updated.created_at ? updated.created_at.toISOString().slice(11, 16) : '',
+      time: updated.created_at ? formatTimeInTz(updated.created_at, tz) : '',
       amount: updated.amount,
       name: updated.entry_name || null,
     };
@@ -1474,8 +1590,26 @@ app.post('/2fa/disable', requireAuth, async (req, res) => {
 });
 
 app.get('/settings', requireAuth, renderSettings);
+app.post('/settings/preferences', requireAuth, async (req, res) => {
+  const timezoneRaw = rememberClientTimezone(req, res);
+  const timezone = timezoneRaw && timezoneRaw.length <= 100 ? timezoneRaw : null;
+  const unitRaw = (req.body.weight_unit || '').toLowerCase();
+  const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'lb';
 
-Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema()])
+  try {
+    await pool.query('UPDATE users SET timezone = $1, weight_unit = $2 WHERE id = $3', [
+      timezone,
+      weightUnit,
+      req.currentUser.id,
+    ]);
+  } catch (err) {
+    console.error('Failed to update preferences', err);
+  }
+
+  res.redirect('/settings');
+});
+
+Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema()])
   .catch((err) => {
     console.error('Schema init failed', err);
   })

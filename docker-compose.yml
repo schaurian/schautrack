@@ -19,10 +19,10 @@ services:
       retries: 5
       start_period: 5s
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data-v2:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
 
 volumes:
-  db-data:
+  db-data-v2:

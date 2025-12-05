@@ -61,8 +61,8 @@
         <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
       </label>
       <label class="field">
-        <span>Weight</span>
-        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional">
+        <span>Weight (lb)</span>
+        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional (lb)">
       </label>
       <button type="submit" class="primary">Record</button>
     </form>
@@ -162,8 +162,8 @@
         </div>
       <% }) %>
     </div>
-    <div class="day-selected" data-day-selected>Showing <%= selectedDate === new Date().toISOString().slice(0,10) ? 'today' : selectedDate %> · You</div>
-    <% const weightTime = weightEntry && (weightEntry.updated_at || weightEntry.created_at) ? (weightEntry.updated_at || weightEntry.created_at).toISOString().slice(11,16) : ''; %>
+    <div class="day-selected" data-day-selected>Showing <%= selectedDate === todayStr ? 'today' : selectedDate %> · You</div>
+    <% const weightTime = weightEntry ? weightEntry.timeFormatted : ''; %>
     <div class="log-list">
       <div class="weight-slot" data-weight-slot>
         <div class="entry-row weight-row <%= weightEntry ? '' : 'is-empty' %>" data-weight-row>
@@ -172,7 +172,7 @@
           </div>
         <div class="entry-actions">
             <div class="entry-amount-wrap">
-              <button type="button" class="edit-trigger entry-amount weight <%= weightEntry ? '' : 'muted' %>" data-weight-value><%= weightEntry ? `${weightEntry.weight}` : 'Add weight' %></button>
+              <button type="button" class="edit-trigger entry-amount weight <%= weightEntry ? '' : 'muted' %>" data-weight-value><%= weightEntry ? `${(weightEntry.weight * 2.20462).toFixed(1)} lb` : 'Add weight' %></button>
             </div>
           <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : '' %></span>
           <form class="inline-form delete-placeholder" aria-hidden="true">
@@ -192,7 +192,7 @@
                 <div class="entry-amount-wrap">
                   <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
                 </div>
-                <span class="entry-time muted small" data-entry-time><%= entry.created_at ? entry.created_at.toISOString().slice(11,16) : '' %></span>
+                <span class="entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
                 <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
                   <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
                 </form>
@@ -212,7 +212,9 @@
       const emptyState = document.querySelector('[data-entry-empty]');
       const daySelected = document.querySelector('[data-day-selected]');
       const selfUserId = '<%= user.id %>';
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const clientTz = '<%= timeZone %>' || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const todayStr = '<%= todayStr %>';
+      const weightUnit = '<%= (weightUnit || "lb").toLowerCase() %>';
       let currentDate = '<%= selectedDate %>';
       let currentUserId = selfUserId;
       let currentLabel = <%- JSON.stringify(sharedViews && sharedViews.length ? sharedViews[0].label : 'You') %>;
@@ -224,7 +226,7 @@
       const initialEntries = <%- JSON.stringify(recentEntries.map((entry) => ({
         id: entry.id,
         date: entry.entry_date ? entry.entry_date.toISOString().slice(0, 10) : selectedDate,
-        time: entry.created_at ? entry.created_at.toISOString().slice(11, 16) : '',
+        time: entry.timeFormatted || '',
         amount: entry.amount,
         name: entry.entry_name || null,
       }))) %>;
@@ -247,6 +249,47 @@
           /[&<>"']/g,
           (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])
         );
+
+      const kgToLb = (kg) => Math.round((Number(kg) || 0) * 2.20462 * 10) / 10;
+      const lbToKg = (lb) => {
+        const num = parseFloat(lb);
+        if (Number.isNaN(num) || num <= 0) return null;
+        return Math.round((num / 2.20462) * 100) / 100;
+      };
+
+      const formatTime = (value) => {
+        if (!value) return '';
+        const dateObj = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(dateObj.getTime())) return '';
+        try {
+          return new Intl.DateTimeFormat('en-GB', {
+            timeZone: clientTz || undefined,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(dateObj);
+        } catch (err) {
+          return dateObj.toISOString().slice(11, 16);
+        }
+      };
+
+      const formatDateTz = (value) => {
+        const dateObj = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(dateObj.getTime())) return '';
+        try {
+          const formatted = new Intl.DateTimeFormat('en-CA', {
+            timeZone: clientTz || undefined,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(dateObj);
+          const parts = formatted.split('-');
+          if (parts.length === 3) return `${parts[0]}-${parts[1]}-${parts[2]}`;
+          return formatted;
+        } catch (err) {
+          return dateObj.toISOString().slice(0, 10);
+        }
+      };
 
       const teardownShareLabelEditor = () => {
         if (activeShareLabelEdit) {
@@ -427,6 +470,10 @@
           weightInput.placeholder = hasEntry ? 'Logged for day' : 'Optional';
         }
         if (weightRow && weightValueBtn) {
+          const formatWeight = (kg) => {
+            if (!kg) return '';
+            return weightUnit === 'kg' ? `${kg}` : `${kgToLb(kg)} lb`;
+          };
           const labelBtn = weightRow.querySelector('.entry-name');
           if (labelBtn) {
             labelBtn.textContent = 'Weight';
@@ -435,10 +482,10 @@
           }
           const timeStr =
             entry && (entry.updated_at || entry.created_at)
-              ? new Date(entry.updated_at || entry.created_at).toISOString().slice(11, 16)
+              ? formatTime(entry.updated_at || entry.created_at)
               : '';
           weightRow.classList.toggle('is-empty', !entry);
-          weightValueBtn.textContent = entry ? `${entry.weight}` : 'Add weight';
+          weightValueBtn.textContent = entry ? formatWeight(entry.weight) : 'Add weight';
           weightValueBtn.classList.toggle('muted', !entry);
           weightValueBtn.classList.toggle('pos', Boolean(entry));
           weightRow.classList.toggle('view-only', !canEdit);
@@ -565,9 +612,9 @@
         input.inputMode = 'tel';
         input.autocomplete = 'off';
         input.className = 'inline-edit-input inline-edit-input--amount';
-        input.placeholder = 'e.g. 72.4';
+        input.placeholder = weightUnit === 'kg' ? 'e.g. 72.4' : 'e.g. 180';
         const currentWeight = weightCache.get(currentDate)?.weight;
-        input.value = currentWeight ? currentWeight : '';
+        input.value = currentWeight ? (weightUnit === 'kg' ? currentWeight : kgToLb(currentWeight)) : '';
 
         const spinner = document.createElement('span');
         spinner.className = 'inline-edit-spinner hidden';
@@ -596,7 +643,12 @@
           form.classList.add('is-saving');
           row.classList.add('is-editing');
           try {
-            await saveWeight(value);
+            const kgVal = weightUnit === 'kg' ? parseFloat(value) : lbToKg(value);
+            if (!kgVal) {
+              finish();
+              return;
+            }
+            await saveWeight(kgVal);
             finish();
           } catch (err) {
             console.error('Weight save failed', err);
@@ -658,7 +710,11 @@
           if (!res.ok) return;
           const data = await res.json();
           if (data.ok) {
-            renderEntries(data.entries, canEdit);
+            const normalized = (data.entries || []).map((entry) => ({
+              ...entry,
+              time: entry.time || formatTime(entry.created_at),
+            }));
+            renderEntries(normalized, canEdit);
           }
         } catch (err) {
           console.error('Failed to load entries', err);
@@ -926,8 +982,8 @@
 
       const initialDay = todayStr;
       setInterval(() => {
-        const today = new Date().toISOString().slice(0, 10);
-        if (today !== initialDay) {
+        const today = formatDateTz(new Date());
+        if (today && today !== initialDay) {
           window.location.reload();
         }
       }, 60_000);
