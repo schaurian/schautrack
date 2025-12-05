@@ -21,7 +21,6 @@ const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
 const entryEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
-const TIMEZONE_OPTIONS = []; // kept for validation compatibility; now auto-detected client-side
 const KG_TO_LB = 2.20462;
 
 const parseCookies = (header) => {
@@ -540,7 +539,6 @@ const requireAuth = (req, res, next) => {
 
 const renderSettings = async (req, res) => {
   const user = req.currentUser ? { ...req.currentUser, id: toInt(req.currentUser.id) } : null;
-  const detectedTimezone = rememberClientTimezone(req, res) || 'UTC';
   const tempSecret = req.session.tempSecret;
   const tempUrl = req.session.tempUrl;
   const feedback = req.session.linkFeedback || null;
@@ -577,7 +575,6 @@ const renderSettings = async (req, res) => {
     linkFeedback: feedback,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
-    timezoneDisplay: detectedTimezone,
   });
 };
 
@@ -789,13 +786,6 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const userTimeZone = detectedTz || user.timezone || 'UTC';
   const serverNow = new Date();
   const todayStrTz = formatDateInTz(serverNow, userTimeZone);
-  const nowLocal = `${formatDateInTz(serverNow, userTimeZone)} ${formatTimeInTz(serverNow, userTimeZone)}`;
-  console.log('[tz]', {
-    epoch: serverNow.getTime(),
-    iso: serverNow.toISOString(),
-    tz: userTimeZone,
-    local: nowLocal,
-  });
   const requestedRange = parseInt(req.query.range, 10);
   const requestedDays = Number.isInteger(requestedRange)
     ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
@@ -1591,17 +1581,11 @@ app.post('/2fa/disable', requireAuth, async (req, res) => {
 
 app.get('/settings', requireAuth, renderSettings);
 app.post('/settings/preferences', requireAuth, async (req, res) => {
-  const timezoneRaw = rememberClientTimezone(req, res);
-  const timezone = timezoneRaw && timezoneRaw.length <= 100 ? timezoneRaw : null;
   const unitRaw = (req.body.weight_unit || '').toLowerCase();
   const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'lb';
 
   try {
-    await pool.query('UPDATE users SET timezone = $1, weight_unit = $2 WHERE id = $3', [
-      timezone,
-      weightUnit,
-      req.currentUser.id,
-    ]);
+    await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
   } catch (err) {
     console.error('Failed to update preferences', err);
   }

@@ -183,24 +183,19 @@
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Preferences</p>
-        <h2>Timezone & units</h2>
-      </div>
-    </div>
-    <form action="/settings/preferences" method="POST" class="stack">
-      <input type="hidden" name="timezone" value="<%= timezoneDisplay %>" data-timezone-input>
-      <div class="preference-grid">
-        <div class="field">
-          <span>Timezone</span>
-          <div class="pill muted" data-timezone-label><%= timezoneDisplay || 'Detecting your timezone…' %></div>
-          <p class="muted small">Auto-detected from your browser.</p>
+  <section class="grid two">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Preferences</p>
+          <h2>Display &amp; account</h2>
+          <p class="muted small">Choose how weights show up and manage your account.</p>
         </div>
+      </div>
+      <form action="/settings/preferences" method="POST" class="stack compact">
         <div class="field">
-          <span>Weight unit</span>
-          <div class="pill-group">
+          <span>Preferred weight unit</span>
+          <div class="pill-group" data-weight-unit>
             <label class="pill <%= (user.weight_unit || 'lb') === 'lb' ? 'active' : '' %>">
               <input type="radio" name="weight_unit" value="lb" <%= (user.weight_unit || 'lb') === 'lb' ? 'checked' : '' %>> Pounds (lb)
             </label>
@@ -208,33 +203,34 @@
               <input type="radio" name="weight_unit" value="kg" <%= user.weight_unit === 'kg' ? 'checked' : '' %>> Kilograms (kg)
             </label>
           </div>
+          <p class="muted small">Affects how weights display across the app.</p>
+        </div>
+        <button type="submit" class="primary">Save</button>
+      </form>
+      <div class="data-card stack danger-card spaced-top">
+        <p class="muted">Need to delete your account? You can request deletion without logging in.</p>
+        <a class="ghost danger full" href="/delete">Open deletion request page</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Data</p>
+          <h2>Backup &amp; restore</h2>
         </div>
       </div>
-      <button type="submit" class="primary">Save preferences</button>
-    </form>
-  </section>
-
-  <section class="panel">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Data</p>
-        <h2>Backup &amp; restore</h2>
+      <div class="data-actions">
+        <form action="/settings/export" method="GET" class="data-card stack">
+          <p class="muted">Download your entries and goal as JSON.</p>
+          <button type="submit" class="primary full">Export JSON</button>
+        </form>
+        <form id="import-form" action="/settings/import" method="POST" enctype="multipart/form-data" class="data-card stack">
+          <p class="muted danger-text">Import a saved export (.json). This will delete all current entries and replace them with the file.</p>
+          <input class="file-input" type="file" name="import_file" accept="application/json" required>
+          <button type="submit" class="primary full">Import JSON</button>
+        </form>
       </div>
-    </div>
-    <div class="data-actions">
-      <form action="/settings/export" method="GET" class="data-card stack">
-        <p class="muted">Download your entries and goal as JSON.</p>
-        <button type="submit" class="primary full">Export JSON</button>
-      </form>
-      <form id="import-form" action="/settings/import" method="POST" enctype="multipart/form-data" class="data-card stack">
-        <p class="muted danger-text">Import a saved export (.json). This will delete all current entries and replace them with the file.</p>
-        <input class="file-input" type="file" name="import_file" accept="application/json" required>
-        <button type="submit" class="primary full">Import JSON</button>
-      </form>
-    </div>
-    <div class="data-card stack" style="margin-top: 14px;">
-      <p class="muted">Need to delete your account? You can request deletion without logging in.</p>
-      <a class="ghost danger full" href="/delete">Open deletion request page</a>
     </div>
   </section>
   <script>
@@ -242,20 +238,22 @@
       const toggle = document.querySelector('[data-totp-toggle]');
       const body = document.querySelector('[data-totp-body]');
       const importForm = document.getElementById('import-form');
-      const tzInput = document.querySelector('[data-timezone-input]');
-      const tzLabel = document.querySelector('[data-timezone-label]');
-      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (browserTz) {
-        document.cookie = `timezone=${browserTz}; path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`;
-        if (tzInput) tzInput.value = browserTz;
-        if (tzLabel) tzLabel.textContent = browserTz;
-      }
       if (importForm) {
         importForm.addEventListener('submit', (evt) => {
           const ok = confirm('Importing will DELETE all current entries and replace them with the backup file. Continue?');
           if (!ok) {
             evt.preventDefault();
           }
+        });
+      }
+
+      const unitGroup = document.querySelector('[data-weight-unit]');
+      if (unitGroup) {
+        unitGroup.addEventListener('change', (evt) => {
+          if (evt.target.name !== 'weight_unit') return;
+          unitGroup.querySelectorAll('.pill').forEach((pill) => pill.classList.remove('active'));
+          const label = evt.target.closest('.pill');
+          if (label) label.classList.add('active');
         });
       }
 

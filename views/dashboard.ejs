@@ -472,7 +472,7 @@
         if (weightRow && weightValueBtn) {
           const formatWeight = (kg) => {
             if (!kg) return '';
-            return weightUnit === 'kg' ? `${kg}` : `${kgToLb(kg)} lb`;
+            return weightUnit === 'kg' ? `${kg} kg` : `${kgToLb(kg)} lb`;
           };
           const labelBtn = weightRow.querySelector('.entry-name');
           if (labelBtn) {
@@ -613,7 +613,7 @@
         input.autocomplete = 'off';
         input.className = 'inline-edit-input inline-edit-input--amount';
         input.placeholder = weightUnit === 'kg' ? 'e.g. 72.4' : 'e.g. 180';
-        const currentWeight = weightCache.get(currentDate)?.weight;
+        const currentWeight = weightCache.get(`${selfUserId}:${currentDate}`)?.weight;
         input.value = currentWeight ? (weightUnit === 'kg' ? currentWeight : kgToLb(currentWeight)) : '';
 
         const spinner = document.createElement('span');

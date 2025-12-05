@@ -6,26 +6,6 @@
   <title><%= title ? `${title} · Schautrack` : 'Schautrack' %></title>
   <link rel="icon" href="/logo.png" type="image/png">
   <link rel="stylesheet" href="/style.css">
-  <script>
-    (() => {
-      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (!browserTz) return;
-      const cookieMap = document.cookie.split(';').reduce((acc, part) => {
-        const [k, ...rest] = part.split('=');
-        if (!k) return acc;
-        acc[k.trim()] = rest.join('=').trim();
-        return acc;
-      }, {});
-      const current = cookieMap.timezone;
-      if (current === browserTz) return;
-      document.cookie = `timezone=${browserTz}; path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`;
-      // Reload once to let the server render with the detected timezone.
-      if (cookieMap._tz_set !== '1') {
-        document.cookie = `_tz_set=1; path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`;
-        location.reload();
-      }
-    })();
-  </script>
 </head>
 <body>
   <header class="shell top-bar">
