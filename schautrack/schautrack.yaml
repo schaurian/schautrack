@@ -10,24 +10,6 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: schautrack-registry
-  namespace: schautrack
-type: kubernetes.io/dockerconfigjson
-stringData:
-  .dockerconfigjson: |
-    {
-      "auths": {
-        "registry.gitlab.com": {
-          "username": "oauth2",
-          "password": "glpat-focLmzXlb1r0WLTOG57VTW86MQp1OjliNzh2Cw.01.1210kx4xv",
-          "auth": "b2F1dGgyOmdscGF0LWZvY0xtelhsYjFyMFdMVE9HNTdWVFc4Nk1RcDFPamxpTnpoMkN3LjAxLjEyMTBreDR4dg=="
-        }
-      }
-    }
----
-apiVersion: v1
-kind: Secret
-metadata:
   name: schautrack-app
   namespace: schautrack
 type: Opaque

@@ -108,6 +108,22 @@ deploy:
       fi
     - echo "$KUBECONFIG_SCHAUTRACK" | base64 -d > "$KUBECONFIG_FILE"
     - chmod 600 "$KUBECONFIG_FILE"
+    - |
+      REG_USER="${REGISTRY_USER:-$CI_REGISTRY_USER}"
+      REG_PASS="${REGISTRY_PASSWORD:-$CI_JOB_TOKEN}"
+      REG_SERVER="${REGISTRY_SERVER:-$CI_REGISTRY}"
+      REG_EMAIL="${REGISTRY_EMAIL:-ci@example.com}"
+      if [ -z "$REG_USER" ] || [ -z "$REG_PASS" ]; then
+        echo "Missing registry credentials" >&2
+        exit 1
+      fi
+      kubectl create secret docker-registry schautrack-registry \
+        --namespace=schautrack \
+        --docker-server="$REG_SERVER" \
+        --docker-username="$REG_USER" \
+        --docker-password="$REG_PASS" \
+        --docker-email="$REG_EMAIL" \
+        --dry-run=client -o yaml | kubectl apply -f -
     - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - kubectl config get-contexts
     - kubectl apply --validate=false -f schautrack/schautrack.yaml
