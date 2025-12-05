@@ -790,7 +790,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const requestedDays = Number.isInteger(requestedRange)
     ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
     : DEFAULT_RANGE_DAYS;
-  const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, requestedDays);
+  const ignoreCustomRange = Number.isInteger(requestedRange);
+  const startParam = ignoreCustomRange ? null : req.query.start;
+  const endParam = ignoreCustomRange ? null : req.query.end;
+  const { startDate, endDate } = sanitizeDateRange(startParam, endParam, requestedDays);
   const dayOptions = buildDayOptionsBetween(startDate, endDate);
   if (dayOptions.length === 0) {
     const fallbackToday = formatDateInTz(new Date(), userTimeZone);
