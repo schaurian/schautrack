@@ -46,6 +46,9 @@ metadata:
   name: schautrack-postgres
   namespace: schautrack
 spec:
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 1
   replicas: 1
   selector:
     matchLabels:
