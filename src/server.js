@@ -899,6 +899,71 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   });
 });
 
+app.get('/overview', requireAuth, async (req, res) => {
+  const requestedRange = parseInt(req.query.range, 10);
+  const rangeDays = Number.isInteger(requestedRange)
+    ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
+    : DEFAULT_RANGE_DAYS;
+
+  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
+  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
+
+  if (targetUserId !== req.currentUser.id) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM account_links
+          WHERE status = 'accepted'
+            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
+          LIMIT 1`,
+        [req.currentUser.id, targetUserId]
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ ok: false, error: 'Not authorized' });
+      }
+    } catch (err) {
+      console.error('Link check failed for overview', err);
+      return res.status(500).json({ ok: false, error: 'Failed to load overview' });
+    }
+  }
+
+  const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+  const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, rangeDays);
+  const dayOptions = buildDayOptionsBetween(startDate, endDate);
+  if (dayOptions.length === 0) {
+    const fallbackToday = formatDateInTz(new Date(), tz);
+    dayOptions.push(fallbackToday);
+  }
+  const { oldest, newest } = getDateBounds(dayOptions);
+  const todayStrTz = formatDateInTz(new Date(), tz);
+
+  try {
+    const targetUser =
+      targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
+    const dailyGoal = targetUser?.daily_goal || null;
+    const totalsByDate = await getTotalsByDate(targetUserId, oldest, newest);
+    const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal);
+    const todayTotal = totalsByDate.get(todayStrTz) || 0;
+    const goalStatus = !dailyGoal ? 'unset' : todayTotal <= dailyGoal ? 'under' : 'over';
+    const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
+
+    return res.json({
+      ok: true,
+      userId: targetUserId,
+      dailyGoal,
+      todayTotal,
+      todayStr: todayStrTz,
+      goalStatus,
+      goalDelta,
+      dailyStats,
+      dayOptions,
+      range: { start: oldest, end: newest },
+    });
+  } catch (err) {
+    console.error('Failed to build overview', err);
+    return res.status(500).json({ ok: false, error: 'Failed to load overview' });
+  }
+});
+
 app.get('/entries/day', requireAuth, async (req, res) => {
   const dateStr = (req.query.date || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {

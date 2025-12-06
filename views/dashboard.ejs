@@ -10,23 +10,26 @@
       <div class="stats">
         <div class="stat">
           <div class="stat-label">Goal</div>
-          <div class="stat-value"><%= user.daily_goal ? `${user.daily_goal} kcal` : 'Not set' %></div>
+          <div class="stat-value" data-stat-goal><%= user.daily_goal ? `${user.daily_goal} kcal` : 'Not set' %></div>
         </div>
         <div class="stat">
           <div class="stat-label">Logged today</div>
-          <div class="stat-value"><%= todayTotal %> kcal</div>
+          <div class="stat-value" data-stat-logged><%= todayTotal %> kcal</div>
         </div>
         <div class="stat">
           <div class="stat-label">Status</div>
-          <% if (!user.daily_goal) { %>
-            <div class="chip">Set a goal</div>
-          <% } else if (goalStatus === 'under') { %>
-            <div class="chip success">Under goal</div>
-            <div class="muted small">Room left: <%= goalDelta %> kcal</div>
-          <% } else { %>
-            <div class="chip danger">Over goal</div>
-            <div class="muted small">Over by <%= goalDelta %> kcal</div>
-          <% } %>
+          <div class="chip <%= !user.daily_goal ? '' : goalStatus === 'under' ? 'success' : 'danger' %>" data-stat-status-chip>
+            <%= !user.daily_goal ? 'Set a goal' : goalStatus === 'under' ? 'Under goal' : 'Over goal' %>
+          </div>
+          <div class="muted small" data-stat-status-detail>
+            <% if (!user.daily_goal) { %>
+              Set a goal
+            <% } else if (goalStatus === 'under') { %>
+              Room left: <%= goalDelta %> kcal
+            <% } else { %>
+              Over by <%= goalDelta %> kcal
+            <% } %>
+          </div>
         </div>
       </div>
     </div>
@@ -98,7 +101,7 @@
         </div>
       </div>
     </div>
-    <div class="share-grid">
+    <div class="share-grid" data-share-grid data-range-start="<%= range.start %>" data-range-end="<%= range.end %>">
       <% const todayStr = new Date().toISOString().slice(0,10); %>
       <% sharedViews.forEach((view) => { %>
         <div
@@ -109,6 +112,7 @@
           data-user-email="<%= view.email %>"
           data-link-id="<%= view.linkId || '' %>"
           data-is-self="<%= view.isSelf %>"
+          data-daily-goal="<%= view.dailyGoal || '' %>"
         >
           <div class="share-card-head">
             <div>
@@ -207,7 +211,7 @@
 
   <script>
     (() => {
-      const dots = Array.from(document.querySelectorAll('[data-day-dot]'));
+      let dots = Array.from(document.querySelectorAll('[data-day-dot]'));
       const entryList = document.querySelector('[data-entry-list]');
       const emptyState = document.querySelector('[data-entry-empty]');
       const daySelected = document.querySelector('[data-day-selected]');
@@ -238,6 +242,13 @@
       const weightTime = document.querySelector('[data-weight-time]');
       const rangeToggle = document.querySelector('[data-range-toggle]');
       const rangeCustom = document.querySelector('[data-range-custom]');
+      const shareGrid = document.querySelector('[data-share-grid]');
+      const rangeStart = shareGrid?.dataset.rangeStart || '';
+      const rangeEnd = shareGrid?.dataset.rangeEnd || '';
+      const statGoal = document.querySelector('[data-stat-goal]');
+      const statLogged = document.querySelector('[data-stat-logged]');
+      const statStatusChip = document.querySelector('[data-stat-status-chip]');
+      const statStatusDetail = document.querySelector('[data-stat-status-detail]');
       const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
       const weightCache = new Map();
       if (initialWeight) {
@@ -291,6 +302,97 @@
         }
       };
 
+      const updateTopStats = (data) => {
+        if (!data) return;
+        if (statGoal) {
+          statGoal.textContent = data.dailyGoal ? `${data.dailyGoal} kcal` : 'Not set';
+        }
+        if (statLogged) {
+          statLogged.textContent = `${data.todayTotal || 0} kcal`;
+        }
+        if (statStatusChip) {
+          statStatusChip.textContent = !data.dailyGoal
+            ? 'Set a goal'
+            : data.goalStatus === 'under'
+            ? 'Under goal'
+            : 'Over goal';
+          statStatusChip.classList.remove('success', 'danger', 'muted');
+          if (!data.dailyGoal) {
+            statStatusChip.classList.add('muted');
+          } else if (data.goalStatus === 'under') {
+            statStatusChip.classList.add('success');
+          } else {
+            statStatusChip.classList.add('danger');
+          }
+        }
+        if (statStatusDetail) {
+          if (!data.dailyGoal) {
+            statStatusDetail.textContent = 'Set a goal';
+          } else if (data.goalStatus === 'under') {
+            statStatusDetail.textContent = `Room left: ${Math.abs(data.goalDelta || 0)} kcal`;
+          } else {
+            statStatusDetail.textContent = `Over by ${Math.abs(data.goalDelta || 0)} kcal`;
+          }
+        }
+      };
+
+      const renderShareCardMeta = (card, data) => {
+        if (!card || !data) return;
+        const chip = card.querySelector('.chip');
+        if (chip) {
+          chip.textContent = data.dailyGoal ? `${data.dailyGoal} kcal goal` : 'Goal not set';
+          chip.classList.toggle('muted', !data.dailyGoal);
+        }
+      };
+
+      const dotHtmlForDay = (day, view) => {
+        const todayMark = day.date === view.todayStr ? 'today' : '';
+        const base = 'dot';
+        let variant = 'muted';
+        if (view.dailyGoal) {
+          if (day.status === 'zero') {
+            variant = 'zero';
+          } else if (day.status === 'under') {
+            variant = 'success';
+          } else if (day.status === 'over_threshold') {
+            variant = 'danger';
+          } else {
+            variant = 'warn';
+          }
+        }
+        return `
+          <div
+            class="dot-wrap"
+            role="button"
+            tabindex="0"
+            data-day-dot
+            data-user-id="${view.userId}"
+            data-user-label="${escapeHtml(view.label)}"
+            data-link-id="${view.linkId || ''}"
+            data-is-self="${view.isSelf}"
+            data-date="${day.date}"
+            data-tip="${day.date}"
+          >
+            <div class="${base} ${variant} ${todayMark}"></div>
+          </div>
+        `;
+      };
+
+      const renderCardDots = (card, dailyStats, todayStr) => {
+        if (!card) return;
+        const row = card.querySelector('.dot-row');
+        if (!row || !Array.isArray(dailyStats)) return;
+        const viewMeta = {
+          userId: card.dataset.userId,
+          label: card.dataset.userLabel || card.dataset.userEmail || 'Shared',
+          linkId: card.dataset.linkId || '',
+          isSelf: card.dataset.isSelf === 'true',
+          dailyGoal: card.dataset.dailyGoal ? Number(card.dataset.dailyGoal) : null,
+          todayStr,
+        };
+        row.innerHTML = dailyStats.map((day) => dotHtmlForDay(day, viewMeta)).join('');
+      };
+
       const teardownShareLabelEditor = () => {
         if (activeShareLabelEdit) {
           const { form, trigger, card } = activeShareLabelEdit;
@@ -301,16 +403,34 @@
         }
       };
 
-      const saveShareLabel = async (linkId, value) => {
-        const res = await fetch(`/links/${linkId}/label`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ label: value }),
-        });
-        if (!res.ok) throw new Error('Request failed');
-        const data = await res.json();
-        if (!data.ok) throw new Error('Update failed');
-        return data.label || '';
+      const loadLocalLabels = () => {
+        try {
+          const raw = localStorage.getItem('schautrack-labels');
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (err) {
+          return {};
+        }
+      };
+
+      const saveLocalLabels = (labels) => {
+        try {
+          localStorage.setItem('schautrack-labels', JSON.stringify(labels));
+        } catch (err) {
+          // ignore write errors
+        }
+      };
+
+      const setLocalLabel = (linkId, label) => {
+        const labels = loadLocalLabels();
+        labels[linkId] = label;
+        saveLocalLabels(labels);
+      };
+
+      const getLocalLabel = (linkId) => {
+        const labels = loadLocalLabels();
+        return labels[linkId] || '';
       };
 
       const openShareLabelEditor = (btn) => {
@@ -364,11 +484,11 @@
           form.classList.add('is-saving');
           spinner.classList.remove('hidden');
           try {
-            const updatedLabel = await saveShareLabel(linkId, input.value.trim());
+            const updatedLabel = input.value.trim();
+            setLocalLabel(linkId, updatedLabel);
             applyShareLabel(shareCard, updatedLabel);
             finish();
           } catch (err) {
-            console.error('Share label update failed', err);
             saving = false;
             form.classList.remove('is-saving');
             spinner.classList.add('hidden');
@@ -527,6 +647,45 @@
             currentLabel,
             currentCanEdit
           );
+        }
+      };
+
+      const fetchUserStats = async (userId) => {
+        const params = new URLSearchParams();
+        if (String(userId) !== String(selfUserId)) {
+          params.set('user', userId);
+        }
+        if (rangeStart) params.set('start', rangeStart);
+        if (rangeEnd) params.set('end', rangeEnd);
+        try {
+          const res = await fetch(`/overview?${params.toString()}`, { headers: { Accept: 'application/json' } });
+          if (!res.ok) return null;
+          const data = await res.json();
+          if (!data.ok) return null;
+          return data;
+        } catch (err) {
+          console.error('Failed to fetch stats', err);
+          return null;
+        }
+      };
+
+      const refreshCardForUser = async (userId) => {
+        const card = document.querySelector(`[data-share-block][data-user-id="${userId}"]`);
+        if (!card) return;
+        const stats = await fetchUserStats(userId);
+        if (!stats) return;
+        card.dataset.dailyGoal = stats.dailyGoal || '';
+        renderShareCardMeta(card, stats);
+        renderCardDots(card, stats.dailyStats, stats.todayStr);
+        attachDotHandlers();
+        if (String(userId) === String(currentUserId)) {
+          if (!stats.dayOptions.includes(currentDate)) {
+            currentDate = stats.dayOptions[0];
+          }
+          setActiveDay(currentUserId, currentDate, currentLabel);
+        }
+        if (String(userId) === String(selfUserId)) {
+          updateTopStats(stats);
         }
       };
 
@@ -698,6 +857,30 @@
         loadWeightForDate(userId, date, label, userId === selfUserId);
       };
 
+      const attachDotHandlers = () => {
+        dots = Array.from(document.querySelectorAll('[data-day-dot]'));
+        dots.forEach((dot) => {
+          const handle = () => {
+            const date = dot.dataset.date;
+            const userId = dot.dataset.userId;
+            if (!date || !userId) return;
+            currentDate = date;
+            currentUserId = userId;
+            currentLabel = dot.dataset.userLabel || 'Shared';
+            currentCanEdit = dot.dataset.isSelf === 'true';
+            setActiveDay(userId, date, currentLabel);
+            loadEntries(userId, date, currentCanEdit);
+          };
+          dot.onclick = handle;
+          dot.onkeypress = (evt) => {
+            if (evt.key === 'Enter' || evt.key === ' ') {
+              evt.preventDefault();
+              handle();
+            }
+          };
+        });
+      };
+
       const loadEntries = async (userId, date, canEdit) => {
         const params = new URLSearchParams({ date });
         if (String(userId) !== String(selfUserId)) {
@@ -739,6 +922,7 @@
 
       const handleEntryEvent = (payload) => {
         if (!payload || payload.sourceUserId === undefined) return;
+        refreshCardForUser(String(payload.sourceUserId));
         if (String(payload.sourceUserId) === String(currentUserId)) {
           refreshCurrentEntries();
         }
@@ -955,26 +1139,17 @@
         }
       });
 
-      dots.forEach((dot) => {
-        const handle = () => {
-          const date = dot.dataset.date;
-          const userId = dot.dataset.userId;
-          if (!date || !userId) return;
-          currentDate = date;
-          currentUserId = userId;
-          currentLabel = dot.dataset.userLabel || 'Shared';
-          currentCanEdit = dot.dataset.isSelf === 'true';
-          setActiveDay(userId, date, currentLabel);
-          loadEntries(userId, date, currentCanEdit);
-        };
-        dot.addEventListener('click', handle);
-        dot.addEventListener('keypress', (evt) => {
-          if (evt.key === 'Enter' || evt.key === ' ') {
-            evt.preventDefault();
-            handle();
-          }
-        });
+      // Apply locally stored labels to shared cards on load (private to this browser)
+      document.querySelectorAll('[data-share-block][data-link-id]').forEach((card) => {
+        const linkId = card.dataset.linkId;
+        if (!linkId) return;
+        const localLabel = getLocalLabel(linkId);
+        if (localLabel) {
+          applyShareLabel(card, localLabel);
+        }
       });
+
+      attachDotHandlers();
 
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel);
