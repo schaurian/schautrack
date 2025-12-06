@@ -64,7 +64,9 @@ spec:
           command:
             - sh
             - -c
-            - chown -R 999:999 /var/lib/postgresql/data || true
+            - |
+              mkdir -p /var/lib/postgresql/data
+              chown -R 999:999 /var/lib/postgresql
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -88,15 +90,17 @@ spec:
           envFrom:
             - secretRef:
                 name: schautrack-db
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data
           securityContext:
-            runAsUser: 0
-            runAsNonRoot: false
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
-              add:
-                - CHOWN
-                - FOWNER
-                - DAC_OVERRIDE
+              drop:
+                - ALL
             seccompProfile:
               type: RuntimeDefault
           ports:
@@ -104,7 +108,7 @@ spec:
               name: postgres
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
           readinessProbe:
             exec:
               command:
