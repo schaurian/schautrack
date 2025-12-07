@@ -108,12 +108,18 @@ async function ensureAccountLinksSchema() {
       CONSTRAINT account_links_not_self CHECK (requester_id <> target_id)
     );
     ALTER TABLE account_links
-      ADD COLUMN IF NOT EXISTS label TEXT;
+      ADD COLUMN IF NOT EXISTS label TEXT,
+      ADD COLUMN IF NOT EXISTS requester_label TEXT,
+      ADD COLUMN IF NOT EXISTS target_label TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS account_links_pair_idx
       ON account_links (LEAST(requester_id, target_id), GREATEST(requester_id, target_id));
     CREATE INDEX IF NOT EXISTS account_links_requester_idx ON account_links (requester_id);
     CREATE INDEX IF NOT EXISTS account_links_target_idx ON account_links (target_id);
     CREATE INDEX IF NOT EXISTS account_links_status_idx ON account_links (status);
+    UPDATE account_links
+       SET requester_label = COALESCE(requester_label, label),
+           target_label = COALESCE(target_label, label)
+     WHERE (requester_label IS NULL OR target_label IS NULL) AND label IS NOT NULL;
   `);
 }
 
@@ -203,7 +209,7 @@ async function getAcceptedLinkUsers(userId) {
   const { rows } = await pool.query(
     `SELECT al.id AS link_id,
             al.created_at,
-            al.label,
+            CASE WHEN al.requester_id = $1 THEN al.requester_label ELSE al.target_label END AS label,
             CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END AS other_id,
             u.email AS other_email,
             u.daily_goal AS other_daily_goal
@@ -322,21 +328,12 @@ async function broadcastEntryChange(sourceUserId) {
   targets.forEach((targetId) => sendUserEvent(targetId, 'entry-change', payload));
 }
 
-async function broadcastLinkLabelChange(linkId) {
+async function broadcastLinkLabelChange(linkId, userId, label) {
   const lid = toInt(linkId);
-  if (lid === null) return;
-  try {
-    const { rows } = await pool.query(
-      'SELECT id, requester_id, target_id, label FROM account_links WHERE id = $1 LIMIT 1',
-      [lid]
-    );
-    const link = rows[0];
-    if (!link) return;
-    const payload = { linkId: link.id, label: link.label || null };
-    [link.requester_id, link.target_id].forEach((uid) => sendUserEvent(uid, 'link-label-change', payload));
-  } catch (err) {
-    console.error('Failed to broadcast link label change', err);
-  }
+  const uid = toInt(userId);
+  if (lid === null || uid === null) return;
+  const payload = { linkId: lid, label: label || null };
+  sendUserEvent(uid, 'link-label-change', payload);
 }
 
 function buildDayOptions(daysToShow) {
@@ -1331,18 +1328,22 @@ app.post('/links/:id/label', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE account_links
-          SET label = $1, updated_at = NOW()
+          SET requester_label = CASE WHEN requester_id = $3 THEN $1 ELSE requester_label END,
+              target_label = CASE WHEN target_id = $3 THEN $1 ELSE target_label END,
+              updated_at = NOW()
         WHERE id = $2
           AND status = 'accepted'
-          AND (requester_id = $3 OR target_id = $3)
-        RETURNING id, label`,
+          AND ($3 = requester_id OR $3 = target_id)
+        RETURNING id,
+          CASE WHEN requester_id = $3 THEN requester_label ELSE target_label END AS label,
+          $3::int AS actor_id`,
       [label, linkId, req.currentUser.id]
     );
     const updated = rows[0];
     if (!updated) {
       return res.status(404).json({ ok: false, error: 'Link not found' });
     }
-    await broadcastLinkLabelChange(updated.id);
+    await broadcastLinkLabelChange(updated.id, updated.actor_id, updated.label);
     return res.json({ ok: true, label: updated.label || null });
   } catch (err) {
     console.error('Failed to update link label', err);
