@@ -302,6 +302,25 @@
         }
       };
 
+      const saveShareLabel = async (linkId, label) => {
+        const res = await fetch(`/links/${linkId}/label`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ label }),
+        });
+        if (!res.ok) {
+          throw new Error('Label request failed');
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error('Label save rejected');
+        }
+        return data.label || '';
+      };
+
       const updateTopStats = (data) => {
         if (!data) return;
         if (statGoal) {
@@ -403,36 +422,6 @@
         }
       };
 
-      const loadLocalLabels = () => {
-        try {
-          const raw = localStorage.getItem('schautrack-labels');
-          if (!raw) return {};
-          const parsed = JSON.parse(raw);
-          return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch (err) {
-          return {};
-        }
-      };
-
-      const saveLocalLabels = (labels) => {
-        try {
-          localStorage.setItem('schautrack-labels', JSON.stringify(labels));
-        } catch (err) {
-          // ignore write errors
-        }
-      };
-
-      const setLocalLabel = (linkId, label) => {
-        const labels = loadLocalLabels();
-        labels[linkId] = label;
-        saveLocalLabels(labels);
-      };
-
-      const getLocalLabel = (linkId) => {
-        const labels = loadLocalLabels();
-        return labels[linkId] || '';
-      };
-
       const openShareLabelEditor = (btn) => {
         const shareCard = btn.closest('[data-share-block]');
         const linkId = btn.dataset.linkId;
@@ -485,10 +474,11 @@
           spinner.classList.remove('hidden');
           try {
             const updatedLabel = input.value.trim();
-            setLocalLabel(linkId, updatedLabel);
-            applyShareLabel(shareCard, updatedLabel);
+            const saved = await saveShareLabel(linkId, updatedLabel);
+            applyShareLabel(shareCard, saved);
             finish();
           } catch (err) {
+            console.error('Failed to save label', err);
             saving = false;
             form.classList.remove('is-saving');
             spinner.classList.add('hidden');
@@ -928,6 +918,13 @@
         }
       };
 
+      const handleLinkLabelEvent = (payload) => {
+        if (!payload || !payload.linkId) return;
+        const card = document.querySelector(`[data-share-block][data-link-id="${payload.linkId}"]`);
+        if (!card) return;
+        applyShareLabel(card, payload.label || '');
+      };
+
       const startEntryEvents = () => {
         if (!window.EventSource) {
           startPolling();
@@ -942,6 +939,14 @@
             handleEntryEvent(data);
           } catch (err) {
             console.error('Failed to parse entry event', err);
+          }
+        });
+        source.addEventListener('link-label-change', (evt) => {
+          try {
+            const data = JSON.parse(evt.data || '{}');
+            handleLinkLabelEvent(data);
+          } catch (err) {
+            console.error('Failed to parse label event', err);
           }
         });
         source.onerror = () => {
@@ -1136,16 +1141,6 @@
         const weightTrigger = evt.target.closest('[data-weight-value]');
         if (weightTrigger) {
           openWeightEditor(weightTrigger);
-        }
-      });
-
-      // Apply locally stored labels to shared cards on load (private to this browser)
-      document.querySelectorAll('[data-share-block][data-link-id]').forEach((card) => {
-        const linkId = card.dataset.linkId;
-        if (!linkId) return;
-        const localLabel = getLocalLabel(linkId);
-        if (localLabel) {
-          applyShareLabel(card, localLabel);
         }
       });
 

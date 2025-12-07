@@ -19,7 +19,7 @@ const upload = multer({
 const MAX_LINKS = 3;
 const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
-const entryEventClients = new Map(); // userId -> Set(res)
+const userEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
 const KG_TO_LB = 2.20462;
 
@@ -283,26 +283,26 @@ function setLinkFeedback(req, type, message) {
   req.session.linkFeedback = { type, message };
 }
 
-function addEntryEventClient(userId, res) {
-  if (!entryEventClients.has(userId)) {
-    entryEventClients.set(userId, new Set());
+function addUserEventClient(userId, res) {
+  if (!userEventClients.has(userId)) {
+    userEventClients.set(userId, new Set());
   }
-  entryEventClients.get(userId).add(res);
+  userEventClients.get(userId).add(res);
 }
 
-function removeEntryEventClient(userId, res) {
-  const set = entryEventClients.get(userId);
+function removeUserEventClient(userId, res) {
+  const set = userEventClients.get(userId);
   if (!set) return;
   set.delete(res);
   if (set.size === 0) {
-    entryEventClients.delete(userId);
+    userEventClients.delete(userId);
   }
 }
 
-function sendEntryEvent(userId, payload) {
-  const set = entryEventClients.get(userId);
+function sendUserEvent(userId, eventName, payload) {
+  const set = userEventClients.get(userId);
   if (!set || set.size === 0) return;
-  const data = `event: entry-change\ndata: ${JSON.stringify(payload)}\n\n`;
+  const data = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
   for (const res of set) {
     res.write(data);
   }
@@ -319,7 +319,24 @@ async function broadcastEntryChange(sourceUserId) {
     console.error('Failed to load linked users for broadcast', err);
   }
   const payload = { sourceUserId: uid, at: Date.now() };
-  targets.forEach((targetId) => sendEntryEvent(targetId, payload));
+  targets.forEach((targetId) => sendUserEvent(targetId, 'entry-change', payload));
+}
+
+async function broadcastLinkLabelChange(linkId) {
+  const lid = toInt(linkId);
+  if (lid === null) return;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, requester_id, target_id, label FROM account_links WHERE id = $1 LIMIT 1',
+      [lid]
+    );
+    const link = rows[0];
+    if (!link) return;
+    const payload = { linkId: link.id, label: link.label || null };
+    [link.requester_id, link.target_id].forEach((uid) => sendUserEvent(uid, 'link-label-change', payload));
+  } catch (err) {
+    console.error('Failed to broadcast link label change', err);
+  }
 }
 
 function buildDayOptions(daysToShow) {
@@ -1038,14 +1055,14 @@ app.get('/events/entries', requireAuth, (req, res) => {
   if (res.flushHeaders) res.flushHeaders();
   res.write('event: ready\ndata: {}\n\n');
 
-  addEntryEventClient(userId, res);
+  addUserEventClient(userId, res);
   const keepAlive = setInterval(() => {
     res.write('event: ping\ndata: {}\n\n');
   }, 25000);
 
   req.on('close', () => {
     clearInterval(keepAlive);
-    removeEntryEventClient(userId, res);
+    removeUserEventClient(userId, res);
     res.end();
   });
 });
@@ -1325,6 +1342,7 @@ app.post('/links/:id/label', requireAuth, async (req, res) => {
     if (!updated) {
       return res.status(404).json({ ok: false, error: 'Link not found' });
     }
+    await broadcastLinkLabelChange(updated.id);
     return res.json({ ok: true, label: updated.label || null });
   } catch (err) {
     console.error('Failed to update link label', err);
