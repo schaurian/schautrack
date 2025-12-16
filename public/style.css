@@ -1113,10 +1113,15 @@ button:disabled,
   padding: 10px 0 12px;
 }
 
+.footer-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .build-tag {
-  position: fixed;
-  right: 14px;
-  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid var(--stroke);
   border-radius: 10px;
