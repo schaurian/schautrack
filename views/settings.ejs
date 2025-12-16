@@ -95,22 +95,24 @@
     </form>
 
     <div class="grid two">
-      <div class="data-card stack">
-        <div class="table-row header">
+      <div class="table">
+        <div class="table-row header linked-row">
           <div>Incoming requests</div>
-          <div></div>
           <div></div>
         </div>
         <% if (!incomingRequests || incomingRequests.length === 0) { %>
-          <p class="muted small">No incoming requests.</p>
+          <div class="table-row linked-row">
+            <div class="muted small">No incoming requests.</div>
+            <div></div>
+          </div>
         <% } else { %>
           <% incomingRequests.forEach((req) => { %>
-            <div class="link-row">
+            <div class="table-row linked-row">
               <div>
-                <div class="link-email"><%= req.email %></div>
+                <div class="table-email"><%= req.email %></div>
                 <div class="muted small">Requested <%= req.created_at ? req.created_at.toISOString().slice(0,10) : '' %></div>
               </div>
-              <div class="link-actions">
+              <div class="table-actions">
                 <form action="/settings/link/respond" method="POST" class="inline-form">
                   <input type="hidden" name="request_id" value="<%= req.id %>">
                   <input type="hidden" name="action" value="accept">
@@ -127,22 +129,24 @@
         <% } %>
       </div>
 
-      <div class="data-card stack">
-        <div class="table-row header">
+      <div class="table">
+        <div class="table-row header linked-row">
           <div>Sent requests</div>
-          <div></div>
           <div></div>
         </div>
         <% if (!outgoingRequests || outgoingRequests.length === 0) { %>
-          <p class="muted small">No pending requests.</p>
+          <div class="table-row linked-row">
+            <div class="muted small">No pending requests.</div>
+            <div></div>
+          </div>
         <% } else { %>
           <% outgoingRequests.forEach((req) => { %>
-            <div class="link-row">
+            <div class="table-row linked-row">
               <div>
-                <div class="link-email"><%= req.email %></div>
+                <div class="table-email"><%= req.email %></div>
                 <div class="muted small">Sent <%= req.created_at ? req.created_at.toISOString().slice(0,10) : '' %></div>
               </div>
-              <div class="link-actions">
+              <div class="table-actions">
                 <form action="/settings/link/remove" method="POST" class="inline-form">
                   <input type="hidden" name="link_id" value="<%= req.id %>">
                   <button type="submit" class="ghost danger">Cancel</button>

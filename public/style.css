@@ -1147,35 +1147,11 @@ button:disabled,
   z-index: 20;
 }
 
-.link-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.link-row > div:first-child {
-  flex: 1;
-  min-width: 0;
-}
-
-.link-email {
-  font-weight: 600;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.link-actions {
+.table-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .link-form {
@@ -1195,6 +1171,10 @@ button:disabled,
 
   .table-row {
     grid-template-columns: 1.2fr 1fr 1fr;
+  }
+
+  .table-row.linked-row {
+    grid-template-columns: 1fr auto;
   }
 
   .timeframe {
