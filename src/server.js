@@ -21,6 +21,9 @@ const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
 const userEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
+const impressumName = process.env.IMPRESSUM_NAME || 'Florian Schauer';
+const impressumEmail = process.env.IMPRESSUM_EMAIL || supportEmail;
+const impressumAddress = process.env.IMPRESSUM_ADDRESS || 'Sudetenring 50, 94234 Viechtach, Germany';
 const KG_TO_LB = 2.20462;
 
 const parseCookies = (header) => {
@@ -497,6 +500,11 @@ app.use(express.json());
 app.use((req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
   res.locals.supportEmail = supportEmail;
+  res.locals.impressum = {
+    name: impressumName,
+    email: impressumEmail,
+    address: impressumAddress,
+  };
   next();
 });
 

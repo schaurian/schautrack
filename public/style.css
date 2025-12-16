@@ -1135,6 +1135,27 @@ button:disabled,
   gap: 12px;
 }
 
+.footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.impressum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.impressum-label {
+  font-weight: 600;
+}
+
+.impressum a {
+  color: var(--muted);
+}
+
 .build-tag {
   display: inline-flex;
   align-items: center;
