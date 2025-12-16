@@ -390,6 +390,10 @@ button:disabled,
   font-weight: 700;
 }
 
+.table-row.linked-row {
+  grid-template-columns: 1fr auto;
+}
+
 .dot-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));

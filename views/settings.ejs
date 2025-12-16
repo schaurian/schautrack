@@ -155,9 +155,8 @@
     </div>
 
     <div class="table" style="margin-top: 14px;">
-      <div class="table-row header">
+      <div class="table-row header linked-row">
         <div>Linked accounts</div>
-        <div>Linked since</div>
         <div></div>
       </div>
       <% if (!acceptedLinks || acceptedLinks.length === 0) { %>
@@ -168,9 +167,8 @@
         </div>
       <% } else { %>
         <% acceptedLinks.forEach((link) => { %>
-          <div class="table-row">
+          <div class="table-row linked-row">
             <div class="table-email"><%= link.email %></div>
-            <div><%= link.since ? link.since.toISOString().slice(0,10) : '' %></div>
             <div style="text-align: right;">
               <form action="/settings/link/remove" method="POST" class="inline-form">
                 <input type="hidden" name="link_id" value="<%= link.linkId %>">
