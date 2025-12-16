@@ -2,25 +2,22 @@
   <footer class="shell footer">
     <div class="footer-content">
       <div class="footer-left">
-        <div class="muted">You got this. Trust me.</div>
-        <% if (impressum && (impressum.name || impressum.email || impressum.address)) { %>
-          <div class="muted small impressum">
-            <span class="impressum-label">Impressum:</span>
-            <% if (impressum.name) { %>
-              <span><%= impressum.name %></span>
-            <% } %>
-            <% if (impressum.email) { %>
-              <a href="mailto:<%= impressum.email %>"><%= impressum.email %></a>
-            <% } %>
-            <% if (impressum.address) { %>
-              <span><%= impressum.address %></span>
-            <% } %>
-          </div>
+        <div class="footer-quote">You got this. Trust me.</div>
+      </div>
+      <div class="footer-right">
+        <div class="footer-links">
+          <% if (impressumUrl) { %>
+            <a class="muted-link" href="<%= impressumUrl %>" <%= impressumUrl.startsWith('/') ? '' : 'target=\"_blank\" rel=\"noopener\"' %>>Impressum</a>
+            <span class="separator">—</span>
+          <% } %>
+          <a class="muted-link" href="/privacy">Privacy</a>
+          <span class="separator">—</span>
+          <a class="muted-link" href="/terms">Terms</a>
+        </div>
+        <% if (buildVersion) { %>
+          <div class="build-tag muted small">v<%= buildVersion %></div>
         <% } %>
       </div>
-      <% if (buildVersion) { %>
-        <div class="build-tag muted small">v<%= buildVersion %></div>
-      <% } %>
     </div>
   </footer>
 </body>

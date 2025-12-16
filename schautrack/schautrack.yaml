@@ -201,6 +201,8 @@ spec:
                 secretKeyRef:
                   name: schautrack-app
                   key: SESSION_SECRET
+            - name: SUPPORT_EMAIL
+              value: "schautrack-support@schauer.to"
           securityContext:
             runAsUser: 1000
             runAsNonRoot: true

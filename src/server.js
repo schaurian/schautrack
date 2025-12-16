@@ -20,10 +20,14 @@ const MAX_LINKS = 3;
 const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
 const userEventClients = new Map(); // userId -> Set(res)
-const supportEmail = process.env.SUPPORT_EMAIL || 'homebox-support@schauer.to';
+const supportEmail = process.env.SUPPORT_EMAIL;
+if (!supportEmail) {
+  throw new Error('SUPPORT_EMAIL environment variable is required');
+}
 const impressumName = process.env.IMPRESSUM_NAME || 'Florian Schauer';
-const impressumEmail = process.env.IMPRESSUM_EMAIL || supportEmail;
 const impressumAddress = process.env.IMPRESSUM_ADDRESS || 'Sudetenring 50, 94234 Viechtach, Germany';
+const impressumEmail = process.env.IMPRESSUM_EMAIL || supportEmail;
+const impressumUrl = process.env.IMPRESSUM_URL || '/impressum';
 const KG_TO_LB = 2.20462;
 
 const parseCookies = (header) => {
@@ -500,10 +504,11 @@ app.use(express.json());
 app.use((req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
   res.locals.supportEmail = supportEmail;
+  res.locals.impressumUrl = impressumUrl;
   res.locals.impressum = {
     name: impressumName,
-    email: impressumEmail,
     address: impressumAddress,
+    email: impressumEmail,
   };
   next();
 });
@@ -620,8 +625,16 @@ app.get('/', (req, res) => {
   res.redirect('/login');
 });
 
+app.get('/impressum', (req, res) => {
+  res.render('impressum', { activePage: null });
+});
+
 app.get('/privacy', (req, res) => {
   res.render('privacy', { activePage: null });
+});
+
+app.get('/terms', (req, res) => {
+  res.render('terms', { activePage: null });
 });
 
 app.get('/delete', (req, res) => {
