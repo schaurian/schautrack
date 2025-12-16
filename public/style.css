@@ -378,6 +378,7 @@ button:disabled,
   grid-template-columns: 1fr 1fr 1fr;
   padding: 12px 14px;
   border-bottom: 1px solid var(--stroke);
+  gap: 10px;
 }
 
 .table-row:last-child {
@@ -395,6 +396,16 @@ button:disabled,
   gap: 10px 12px;
   align-items: end;
   margin: 22px 0 12px;
+}
+
+.table-row > div {
+  min-width: 0;
+}
+
+.table-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .entry-list {

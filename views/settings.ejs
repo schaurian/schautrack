@@ -169,7 +169,7 @@
       <% } else { %>
         <% acceptedLinks.forEach((link) => { %>
           <div class="table-row">
-            <div><%= link.email %></div>
+            <div class="table-email"><%= link.email %></div>
             <div><%= link.since ? link.since.toISOString().slice(0,10) : '' %></div>
             <div style="text-align: right;">
               <form action="/settings/link/remove" method="POST" class="inline-form">
