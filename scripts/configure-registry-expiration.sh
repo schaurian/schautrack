@@ -17,6 +17,6 @@ curl --fail --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
   --data "keep_n=15" \
   --data "older_than=30d" \
   --data "cadence=7d" \
-  "${GITLAB_API}/projects/${PROJECT_ID}/registry/expiration_policies"
+  "${GITLAB_API}/projects/${PROJECT_ID}/container_expiration_policy"
 
 echo "Container registry expiration policy applied: keep semver + latest, retain 15 tags, delete older than 30d on a 7d cadence."
