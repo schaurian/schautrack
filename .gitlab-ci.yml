@@ -83,18 +83,23 @@ container-build-branch:
     - docker info
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - BUILD_TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+    # Define our new tag variable
+    - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
     - |
       docker build \
         -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
-        -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" \
+        -t "$CI_REGISTRY_IMAGE:$STAGING_TAG" \
         --build-arg BUILD_VERSION="$BUILD_TIMESTAMP" \
         .
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+    - docker push "$CI_REGISTRY_IMAGE:$STAGING_TAG"
   rules:
-    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+    # This runs on the staging branch and creates tags like "staging-42"
+    - if: '$CI_COMMIT_BRANCH == "staging"'
       when: on_success
-
+    # This keeps your existing logic for other non-default branches
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_COMMIT_BRANCH != "staging"'
+      when: on_success
 registry-expiration-policy:
   stage: cleanup
   image: alpine:3.19
