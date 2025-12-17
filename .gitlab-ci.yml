@@ -1,7 +1,6 @@
 stages:
   - release
   - build
-  - deploy
   - cleanup
 
 variables:
@@ -93,66 +92,6 @@ container-build-branch:
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
   rules:
     - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
-      when: on_success
-
-deploy:
-  stage: deploy
-  image:
-    name: bitnami/kubectl:latest
-    entrypoint: [""]
-  needs:
-    - container-build-default
-  variables:
-    KUBECONFIG_FILE: "$CI_PROJECT_DIR/.kubeconfig"
-    KUBECONFIG: "$CI_PROJECT_DIR/.kubeconfig"
-  script:
-    - |
-      if [ -z "$KUBECONFIG_SCHAUTRACK" ]; then
-        echo "Missing KUBECONFIG_SCHAUTRACK secret" >&2
-        exit 1
-      fi
-    - echo "$KUBECONFIG_SCHAUTRACK" | base64 -d > "$KUBECONFIG_FILE"
-    - chmod 600 "$KUBECONFIG_FILE"
-    - |
-      REG_SERVER="${REGISTRY_SERVER:-$CI_REGISTRY}"
-      REG_EMAIL="${REGISTRY_EMAIL:-ci@example.com}"
-      REG_USER="${REGISTRY_USER:-oauth2}"
-      if [ -z "${REGISTRY_PASSWORD:-}" ]; then
-        echo "Missing REGISTRY_PASSWORD (set to a deploy token or PAT with read_registry)." >&2
-        exit 1
-      fi
-      kubectl delete secret schautrack-registry -n schautrack --ignore-not-found
-      kubectl create secret docker-registry schautrack-registry \
-        --namespace=schautrack \
-        --docker-server="$REG_SERVER" \
-        --docker-username="$REG_USER" \
-        --docker-password="$REGISTRY_PASSWORD" \
-        --docker-email="$REG_EMAIL"
-    - |
-      if [ -n "${SESSION_SECRET_VALUE:-}" ]; then
-        echo "Applying provided session secret value"
-        kubectl create secret generic schautrack-app \
-          --namespace=schautrack \
-          --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}" \
-          --dry-run=client -o yaml | kubectl apply -f -
-      else
-        if ! kubectl get secret schautrack-app -n schautrack >/dev/null 2>&1; then
-          echo "No existing session secret found; generating a new one."
-          SESSION_SECRET_VALUE="$(head -c 32 /dev/urandom | base64 | tr -d '\n=' | cut -c1-64)"
-          kubectl create secret generic schautrack-app \
-            --namespace=schautrack \
-            --from-literal=SESSION_SECRET="${SESSION_SECRET_VALUE}"
-        else
-          echo "Reusing existing session secret"
-        fi
-      fi
-    - IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-    - kubectl config get-contexts
-    - kubectl apply --validate=false -f schautrack/schautrack.yaml
-    - kubectl set image deployment/schautrack schautrack="$IMAGE" -n schautrack
-    - kubectl rollout status deployment/schautrack -n schautrack --timeout=180s
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success
 
 registry-expiration-policy:

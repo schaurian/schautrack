@@ -42,6 +42,7 @@ Create the tables using `db/init.sql` or let Docker Compose apply it automatical
   - `GIT_PUSH_USER` (optional): Username for the token; defaults to `gitlab-ci-token`. Use your PAT username if preferred.
 - Without these variables the semver job cannot push tags and will fail.
 - Container registry cleanup: add a masked CI variable `REGISTRY_POLICY_TOKEN` (API scope PAT) to let the `registry-expiration-policy` job enforce an expiration policy (keep `latest` and all semver tags, retain 15 tags total, purge anything older than 30 days weekly).
+- Deployment is handled via GitOps in a separate Kubernetes repo; this pipeline only builds and pushes images (`latest`, semver tags, and commit SHA/branch tags). Point your GitOps overlays (e.g., Argo CD/Flux) at the desired tags for staging/production.
 
 ## Two-factor setup
 - Visit `/2fa` after logging in.
