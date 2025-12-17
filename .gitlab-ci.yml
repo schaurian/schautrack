@@ -82,11 +82,12 @@ container-build-branch:
   script:
     - docker info
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - BUILD_DATE=$(date -u +"%Y-%m-%d")
     - |
       docker build \
         -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
         -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" \
-        --build-arg BUILD_VERSION="$CI_COMMIT_REF_SLUG" \
+        --build-arg BUILD_VERSION="$BUILD_DATE" \
         .
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
