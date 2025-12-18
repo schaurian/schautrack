@@ -471,7 +471,8 @@ a:focus-visible,
 .dot-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(18px, 32px));
-  gap: 10px 12px;
+  row-gap: 36px;
+  column-gap: 12px;
   align-items: end;
   margin: 22px 0 12px;
   justify-content: space-between;
@@ -1638,7 +1639,8 @@ a:focus-visible,
 
   .dot-row {
     grid-template-columns: repeat(auto-fit, minmax(20px, 36px));
-    gap: var(--space-sm) var(--space-md);
+    row-gap: 18px;
+    column-gap: var(--space-md);
     justify-content: space-between;
   }
 
