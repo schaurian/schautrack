@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <div class="mobile-overlay" id="mobileOverlay"></div>
   <header class="shell top-bar">
     <div class="brand">
       <div class="brand-mark">
@@ -21,7 +22,12 @@
         <div class="brand-sub">Every day counts</div>
       </div>
     </div>
-  <nav class="nav">
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  <nav class="nav" id="mobileNav">
     <% if (currentUser) { %>
       <a href="/dashboard" class="nav-link <%= activePage === 'dashboard' ? 'active' : '' %>">Dashboard</a>
       <a href="/settings" class="nav-link <%= activePage === 'settings' ? 'active' : '' %>">Settings</a>
@@ -34,4 +40,34 @@
       <% } %>
     </nav>
   </header>
+  <script>
+    // Mobile menu toggle
+    (function() {
+      const hamburger = document.getElementById('hamburger');
+      const mobileNav = document.getElementById('mobileNav');
+      const overlay = document.getElementById('mobileOverlay');
+
+      if (hamburger && mobileNav && overlay) {
+        function toggleMenu() {
+          hamburger.classList.toggle('active');
+          mobileNav.classList.toggle('active');
+          overlay.classList.toggle('active');
+          document.body.style.overflow = mobileNav.classList.contains('active') ? 'hidden' : '';
+        }
+
+        hamburger.addEventListener('click', toggleMenu);
+        overlay.addEventListener('click', toggleMenu);
+
+        // Close menu when clicking nav links
+        const navLinks = mobileNav.querySelectorAll('.nav-link, .ghost');
+        navLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+              toggleMenu();
+            }
+          });
+        });
+      }
+    })();
+  </script>
   <main class="shell">
