@@ -30,6 +30,7 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
@@ -39,9 +40,11 @@ body {
     radial-gradient(circle at 80% 10%, rgba(245, 158, 11, 0.18), transparent 35%),
     linear-gradient(135deg, var(--bg-1), var(--bg-2));
   color: var(--text);
-  min-height: 100vh;
+  min-height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
 }
 
 a {
@@ -126,6 +129,7 @@ a {
 
 main.shell {
   padding-bottom: var(--space-xl);
+  flex: 1;
 }
 
 .panel {
@@ -1215,7 +1219,7 @@ a:focus-visible,
 
 .footer {
   padding: var(--space-lg) 0;
-  margin-top: var(--space-xl);
+  margin-top: auto;
 }
 
 .footer-content {
