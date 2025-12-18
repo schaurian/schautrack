@@ -9,25 +9,19 @@
       </div>
       <div class="stats">
         <div class="stat">
-          <div class="stat-label">Goal</div>
+          <div class="stat-label">Daily goal</div>
           <div class="stat-value" data-stat-goal><%= user.daily_goal ? `${user.daily_goal} kcal` : 'Not set' %></div>
         </div>
-        <div class="stat">
-          <div class="stat-label">Logged today</div>
+        <div class="stat stat-balance <%= !user.daily_goal ? '' : goalStatus === 'under' ? 'stat-success' : goalStatus === 'over_threshold' ? 'stat-danger' : 'stat-warning' %>" data-stat-balance>
+          <div class="stat-label">Balance</div>
           <div class="stat-value" data-stat-logged><%= todayTotal %> kcal</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Status</div>
-          <div class="chip <%= !user.daily_goal ? '' : goalStatus === 'under' ? 'success' : 'danger' %>" data-stat-status-chip>
-            <%= !user.daily_goal ? 'Set a goal' : goalStatus === 'under' ? 'Under goal' : 'Over goal' %>
-          </div>
-          <div class="muted small" data-stat-status-detail>
+          <div class="stat-detail muted small" data-stat-status-detail>
             <% if (!user.daily_goal) { %>
-              Set a goal
+              Set a goal to track
             <% } else if (goalStatus === 'under') { %>
-              Room left: <%= goalDelta %> kcal
+              <%= goalDelta %> kcal remaining
             <% } else { %>
-              Over by <%= goalDelta %> kcal
+              <%= goalDelta %> kcal over
             <% } %>
           </div>
         </div>
@@ -247,7 +241,7 @@
       const rangeEnd = shareGrid?.dataset.rangeEnd || '';
       const statGoal = document.querySelector('[data-stat-goal]');
       const statLogged = document.querySelector('[data-stat-logged]');
-      const statStatusChip = document.querySelector('[data-stat-status-chip]');
+      const statBalance = document.querySelector('[data-stat-balance]');
       const statStatusDetail = document.querySelector('[data-stat-status-detail]');
       const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
       const weightCache = new Map();
@@ -329,28 +323,25 @@
         if (statLogged) {
           statLogged.textContent = `${data.todayTotal || 0} kcal`;
         }
-        if (statStatusChip) {
-          statStatusChip.textContent = !data.dailyGoal
-            ? 'Set a goal'
-            : data.goalStatus === 'under'
-            ? 'Under goal'
-            : 'Over goal';
-          statStatusChip.classList.remove('success', 'danger', 'muted');
-          if (!data.dailyGoal) {
-            statStatusChip.classList.add('muted');
-          } else if (data.goalStatus === 'under') {
-            statStatusChip.classList.add('success');
-          } else {
-            statStatusChip.classList.add('danger');
+        if (statBalance) {
+          statBalance.classList.remove('stat-success', 'stat-warning', 'stat-danger');
+          if (data.dailyGoal) {
+            if (data.goalStatus === 'under') {
+              statBalance.classList.add('stat-success');
+            } else if (data.goalStatus === 'over_threshold') {
+              statBalance.classList.add('stat-danger');
+            } else {
+              statBalance.classList.add('stat-warning');
+            }
           }
         }
         if (statStatusDetail) {
           if (!data.dailyGoal) {
-            statStatusDetail.textContent = 'Set a goal';
+            statStatusDetail.textContent = 'Set a goal to track';
           } else if (data.goalStatus === 'under') {
-            statStatusDetail.textContent = `Room left: ${Math.abs(data.goalDelta || 0)} kcal`;
+            statStatusDetail.textContent = `${Math.abs(data.goalDelta || 0)} kcal remaining`;
           } else {
-            statStatusDetail.textContent = `Over by ${Math.abs(data.goalDelta || 0)} kcal`;
+            statStatusDetail.textContent = `${Math.abs(data.goalDelta || 0)} kcal over`;
           }
         }
       };
