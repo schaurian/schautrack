@@ -108,9 +108,9 @@ registry-expiration-policy:
     - |
       if [ -z "${REGISTRY_POLICY_TOKEN:-}" ]; then
         echo "REGISTRY_POLICY_TOKEN not set; skipping registry expiration policy update."
-        exit 0
+      else
+        bash scripts/configure-registry-expiration.sh
       fi
-      bash scripts/configure-registry-expiration.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: on_success
