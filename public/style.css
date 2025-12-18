@@ -1091,7 +1091,7 @@ a:focus-visible,
 }
 
 .share-card .dot-row {
-  margin: 0;
+  margin: 16px 0 4px 0;
 }
 
 .weight-panel .panel-header {
