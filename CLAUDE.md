@@ -65,9 +65,9 @@ schautrack/
 
 ### Timezone Handling
 - Each user has their own timezone stored in the database
-- Entry timestamps display in the CREATOR's timezone, not the VIEWER's
+- Entry timestamps always display in the VIEWER's timezone (like Unix timestamps converted to local time)
 - Timezone is auto-detected from client and persisted to DB
-- Critical for linked accounts: when viewing linked user's entries, show times in THEIR timezone
+- When viewing linked user's entries, timestamps are converted to YOUR timezone, not theirs
 
 ### Docker Optimization
 - Multi-stage build with Alpine base (171MB final image)
@@ -141,19 +141,20 @@ docker compose up -d --build
 3. CI automatically creates semver tags and builds containers
 4. Deploy using tagged container images
 
+**IMPORTANT:** Never auto-push to staging or main. The user handles all deployments manually.
+
 ## Code Patterns
 
 ### Timezone Usage
 ```javascript
-// Get user's timezone
+// Get viewer's timezone (always use the current user's timezone)
 const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
 
-// Format timestamps in user's timezone
+// Format timestamps in viewer's timezone
 const time = formatTimeInTz(entry.created_at, tz);
 
-// For linked users, use THEIR timezone, not viewer's
-const targetUser = await getUserById(targetUserId);
-const tz = targetUser?.timezone || 'UTC';
+// Even for linked users, timestamps are shown in VIEWER's timezone
+// This is like Unix timestamps - stored in UTC, displayed in local time
 ```
 
 ### SSE for Real-time Updates
@@ -198,10 +199,11 @@ const tz = targetUser?.timezone || 'UTC';
 
 ## Things to Remember
 
-1. **Always** use the target user's timezone when displaying their entries
+1. **Always** use the viewer's timezone when displaying timestamps (not the creator's)
 2. **Never** commit `.env` files or secrets
 3. **Always** test Docker builds after structural changes
 4. **Use** Kaniko for CI builds (not Docker-in-Docker)
 5. **Keep** all app code in `src/` directory
 6. **Maintain** the blue-purple color scheme
-7. **Footer quote:** "You got this. Trust me."
+7. **Never** auto-push to staging or main - user handles deployments
+8. **Footer quote:** "You got this. Trust me."
