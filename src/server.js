@@ -1037,7 +1037,12 @@ app.get('/entries/day', requireAuth, async (req, res) => {
   }
 
   try {
-    const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+    // Get the target user's timezone (for linked users) or use current user's timezone
+    const targetUser = targetUserId === req.currentUser.id
+      ? req.currentUser
+      : await getUserById(targetUserId);
+    const tz = targetUser?.timezone || getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+
     const { rows } = await pool.query(
       'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
       [targetUserId, dateStr]
