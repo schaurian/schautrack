@@ -145,4 +145,5 @@ cleanup-semver-tags:
         - package.json
         - package-lock.json
         - src/**/*
+        - scripts/cleanup-semver-tags.sh
       when: on_success
