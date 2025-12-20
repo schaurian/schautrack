@@ -17,10 +17,8 @@ WORKDIR /app
 # Copy only production dependencies from builder
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy application files in one layer
+# Copy all application files (everything is in src now)
 COPY --chown=node:node src ./src
-COPY --chown=node:node views ./views
-COPY --chown=node:node public ./public
 COPY --chown=node:node package.json ./
 
 ARG BUILD_VERSION=dev
