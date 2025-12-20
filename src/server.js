@@ -36,7 +36,12 @@ const parseCookies = (header) => {
     const [rawKey, ...rest] = part.split('=');
     const key = rawKey && rawKey.trim();
     if (!key) return acc;
-    acc[key] = rest.join('=').trim();
+    const value = rest.join('=').trim();
+    try {
+      acc[key] = decodeURIComponent(value);
+    } catch (e) {
+      acc[key] = value;
+    }
     return acc;
   }, {});
 };
