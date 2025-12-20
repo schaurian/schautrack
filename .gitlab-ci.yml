@@ -106,20 +106,26 @@ container-build-branch:
         - package-lock.json
         - src/**/*
       when: on_success
-registry-expiration-policy:
+cleanup-staging-tags:
   stage: cleanup
   image: alpine:3.19
   before_script:
-    - apk add --no-cache curl bash
+    - apk add --no-cache curl bash jq
   script:
-    - |
-      if [ -z "${REGISTRY_POLICY_TOKEN:-}" ]; then
-        echo "REGISTRY_POLICY_TOKEN not set; skipping registry expiration policy update."
-      else
-        bash scripts/configure-registry-expiration.sh
-      fi
+    - chmod +x scripts/cleanup-staging-tags.sh
+    - bash scripts/cleanup-staging-tags.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+      when: on_success
+
+cleanup-semver-tags:
+  stage: cleanup
+  image: alpine:3.19
+  before_script:
+    - apk add --no-cache curl bash jq
+  script:
+    - chmod +x scripts/cleanup-semver-tags.sh
+    - bash scripts/cleanup-semver-tags.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH == "staging"'
       when: on_success

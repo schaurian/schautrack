@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${REGISTRY_POLICY_TOKEN:-}" ]; then
+  echo "REGISTRY_POLICY_TOKEN not set; skipping semver tag cleanup."
+  exit 0
+fi
+
+GITLAB_API="${CI_API_V4_URL:-${CI_SERVER_URL%/}/api/v4}"
+PROJECT_ID="${CI_PROJECT_ID:?CI_PROJECT_ID is required}"
+
+echo "Fetching semver tags for cleanup..."
+
+# Get all tags from the registry
+TAGS=$(curl --silent --show-error \
+  --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
+  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories" | \
+  jq -r '.[0].id')
+
+if [ -z "$TAGS" ] || [ "$TAGS" = "null" ]; then
+  echo "No registry repository found"
+  exit 0
+fi
+
+# Get all semver tags (starting with v), sorted by semantic version
+SEMVER_TAGS=$(curl --silent --show-error \
+  --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
+  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${TAGS}/tags?per_page=100" | \
+  jq -r '.[] | select(.name | startswith("v")) | .name' | \
+  sort -V -r)
+
+# Count semver tags
+TAG_COUNT=$(echo "$SEMVER_TAGS" | grep -c "^v" || true)
+echo "Found ${TAG_COUNT} semver tags"
+
+# Keep the 20 most recent semver tags, delete the rest
+KEEP_COUNT=20
+if [ "$TAG_COUNT" -le "$KEEP_COUNT" ]; then
+  echo "Only ${TAG_COUNT} semver tags found, keeping all (threshold: ${KEEP_COUNT})"
+  exit 0
+fi
+
+# Skip the first KEEP_COUNT tags and delete the rest
+DELETE_COUNT=$((TAG_COUNT - KEEP_COUNT))
+echo "Deleting ${DELETE_COUNT} old semver tags (keeping ${KEEP_COUNT} most recent)..."
+
+DELETED=0
+SKIPPED=0
+echo "$SEMVER_TAGS" | tail -n +$((KEEP_COUNT + 1)) | while read -r tag; do
+  if [ -n "$tag" ]; then
+    echo "Deleting tag: $tag"
+    HTTP_CODE=$(curl --silent --show-error --write-out "%{http_code}" --output /dev/null \
+      --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
+      --request DELETE \
+      "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${TAGS}/tags/${tag}")
+
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+      DELETED=$((DELETED + 1))
+    else
+      echo "Failed to delete $tag (HTTP $HTTP_CODE)"
+      SKIPPED=$((SKIPPED + 1))
+    fi
+  fi
+done
+
+echo "Cleanup complete: ${DELETED} deleted, ${SKIPPED} failed"
