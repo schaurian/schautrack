@@ -4,8 +4,6 @@ stages:
   - cleanup
 
 variables:
-  DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: "/certs"
   GIT_DEPTH: "0"
 
 semver-tag:
@@ -49,49 +47,43 @@ semver-tag:
 
 container-build-default:
   stage: build
-  image: docker:29.1.3
-  services:
-    - name: docker:29.1.3-dind
-      command: ["--tls=false", "--registry-mirror=https://registry-1.docker.io"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
   needs:
     - semver-tag
   script:
-    - docker info
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - VERSION=$(cat version.txt)
-    - |
-      docker build \
-        -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
-        -t "$CI_REGISTRY_IMAGE:$VERSION" \
-        -t "$CI_REGISTRY_IMAGE:latest" \
-        --build-arg BUILD_VERSION="${VERSION#v}" \
-        .
-    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-    - docker push "$CI_REGISTRY_IMAGE:$VERSION"
-    - docker push "$CI_REGISTRY_IMAGE:latest"
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}:${VERSION}"
+      --destination "${CI_REGISTRY_IMAGE}:latest"
+      --build-arg "BUILD_VERSION=${VERSION#v}"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: on_success
 
 container-build-branch:
   stage: build
-  image: docker:29.1.3
-  services:
-    - name: docker:29.1.3-dind
-      command: ["--tls=false", "--registry-mirror=https://registry-1.docker.io"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
   script:
-    - docker info
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    # Define our new tag variable
     - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
-    - |
-      docker build \
-        -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
-        -t "$CI_REGISTRY_IMAGE:$STAGING_TAG" \
-        --build-arg BUILD_VERSION="$STAGING_TAG" \
-        .
-    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-    - docker push "$CI_REGISTRY_IMAGE:$STAGING_TAG"
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}:${STAGING_TAG}"
+      --build-arg "BUILD_VERSION=${STAGING_TAG}"
   rules:
     # This runs on the staging branch and creates tags like "staging-42"
     - if: '$CI_COMMIT_BRANCH == "staging"'
