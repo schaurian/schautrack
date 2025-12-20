@@ -20,5 +20,18 @@
       </div>
     </div>
   </footer>
+  <script>
+    // Detect and store timezone
+    (function() {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) {
+          document.cookie = 'timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
+        }
+      } catch (e) {
+        console.error('Failed to detect timezone', e);
+      }
+    })();
+  </script>
 </body>
 </html>

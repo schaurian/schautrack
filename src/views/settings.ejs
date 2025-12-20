@@ -196,6 +196,15 @@
       </div>
       <form action="/settings/preferences" method="POST" class="stack compact">
         <div class="field">
+          <span>Timezone</span>
+          <select name="timezone" class="timezone-select">
+            <% timezones.forEach((tz) => { %>
+              <option value="<%= tz %>" <%= (user.timezone || 'UTC') === tz ? 'selected' : '' %>><%= tz %></option>
+            <% }) %>
+          </select>
+          <p class="muted small">Affects how timestamps display across the app.</p>
+        </div>
+        <div class="field">
           <span>Preferred weight unit</span>
           <div class="pill-group" data-weight-unit>
             <label class="pill <%= (user.weight_unit || 'lb') === 'lb' ? 'active' : '' %>">

@@ -593,6 +593,9 @@ const renderSettings = async (req, res) => {
     }
   }
 
+  // Get all supported IANA timezones
+  const timezones = Intl.supportedValuesOf('timeZone');
+
   res.render('settings', {
     user,
     hasTempSecret: Boolean(tempSecret),
@@ -605,6 +608,7 @@ const renderSettings = async (req, res) => {
     linkFeedback: feedback,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
+    timezones,
   });
 };
 
@@ -663,9 +667,11 @@ app.post('/register', async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    // Detect timezone from client
+    const detectedTz = getClientTimezone(req) || 'UTC';
     const { rows } = await pool.query(
-      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id',
-      [email, passwordHash]
+      'INSERT INTO users (email, password_hash, timezone) VALUES ($1, $2, $3) RETURNING id',
+      [email, passwordHash, detectedTz]
     );
     req.session.userId = rows[0].id;
     res.redirect('/dashboard');
@@ -1696,8 +1702,17 @@ app.post('/settings/preferences', requireAuth, async (req, res) => {
   const unitRaw = (req.body.weight_unit || '').toLowerCase();
   const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'kg';
 
+  // Validate timezone against supported IANA timezones
+  const timezoneRaw = (req.body.timezone || '').trim();
+  const supportedTimezones = Intl.supportedValuesOf('timeZone');
+  const timezone = supportedTimezones.includes(timezoneRaw) ? timezoneRaw : null;
+
   try {
-    await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
+    if (timezone) {
+      await pool.query('UPDATE users SET weight_unit = $1, timezone = $2 WHERE id = $3', [weightUnit, timezone, req.currentUser.id]);
+    } else {
+      await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
+    }
   } catch (err) {
     console.error('Failed to update preferences', err);
   }
