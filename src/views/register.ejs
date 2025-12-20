@@ -11,6 +11,7 @@
       <div class="alert danger"><%= error %></div>
     <% } %>
     <form action="/register" method="POST" class="stack">
+      <input type="hidden" name="timezone" id="timezoneField">
       <label class="field">
         <span>Email</span>
         <input type="email" name="email" required autocomplete="email">
@@ -21,5 +22,18 @@
       </label>
       <button type="submit" class="primary">Create account</button>
     </form>
+    <script>
+      // Detect and populate timezone field
+      (function() {
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (tz) {
+            document.getElementById('timezoneField').value = tz;
+          }
+        } catch (e) {
+          console.error('Failed to detect timezone', e);
+        }
+      })();
+    </script>
   </section>
 <%- include('partials/footer') %>

@@ -657,7 +657,7 @@ app.get('/register', (req, res) => {
 });
 
 app.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, timezone } = req.body;
   if (!email || !password) {
     return res.render('register', { error: 'Email and password are required.' });
   }
@@ -669,8 +669,8 @@ app.post('/register', async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    // Detect timezone from client
-    const detectedTz = getClientTimezone(req) || 'UTC';
+    // Get timezone from form field, fallback to cookie/header detection, then UTC
+    const detectedTz = timezone || getClientTimezone(req) || 'UTC';
     const { rows } = await pool.query(
       'INSERT INTO users (email, password_hash, timezone) VALUES ($1, $2, $3) RETURNING id',
       [email, passwordHash, detectedTz]
