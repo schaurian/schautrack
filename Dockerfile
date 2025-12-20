@@ -24,7 +24,8 @@ COPY --chown=node:node package.json ./
 ARG BUILD_VERSION=dev
 ENV BUILD_VERSION=$BUILD_VERSION \
     NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    TZ=UTC
 
 # Run as non-root user
 USER node
