@@ -109,6 +109,9 @@ container-build-branch:
 cleanup-staging-tags:
   stage: cleanup
   image: alpine:3.19
+  needs:
+    - job: container-build-branch
+      optional: false
   before_script:
     - apk add --no-cache curl bash jq
   script:
@@ -116,11 +119,19 @@ cleanup-staging-tags:
     - bash scripts/cleanup-staging-tags.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == "staging"'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
       when: on_success
 
 cleanup-semver-tags:
   stage: cleanup
   image: alpine:3.19
+  needs:
+    - job: container-build-default
+      optional: false
   before_script:
     - apk add --no-cache curl bash jq
   script:
@@ -128,4 +139,9 @@ cleanup-semver-tags:
     - bash scripts/cleanup-semver-tags.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
       when: on_success
