@@ -106,3 +106,5 @@ registry-expiration-policy:
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: on_success
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+      when: on_success
