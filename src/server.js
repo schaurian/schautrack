@@ -150,7 +150,8 @@ async function ensureUserPrefsSchema() {
   await pool.query(`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS timezone TEXT,
-      ADD COLUMN IF NOT EXISTS weight_unit TEXT;
+      ADD COLUMN IF NOT EXISTS weight_unit TEXT,
+      ADD COLUMN IF NOT EXISTS timezone_manual BOOLEAN DEFAULT FALSE;
     ALTER TABLE users
       ALTER COLUMN weight_unit SET DEFAULT 'kg';
     UPDATE users SET weight_unit = 'kg' WHERE weight_unit IS NULL;
@@ -550,7 +551,8 @@ app.use(async (req, res, next) => {
 // Capture client timezone from cookie/header and persist for authenticated users.
 app.use((req, res, next) => {
   const detectedTz = rememberClientTimezone(req, res);
-  if (req.currentUser && detectedTz && req.currentUser.timezone !== detectedTz) {
+  // Only auto-update timezone if user hasn't manually set it
+  if (req.currentUser && detectedTz && req.currentUser.timezone !== detectedTz && !req.currentUser.timezone_manual) {
     req.currentUser.timezone = detectedTz;
     res.locals.currentUser = req.currentUser;
     pool
@@ -614,7 +616,7 @@ const renderSettings = async (req, res) => {
 
 async function getUserById(id) {
   const { rows } = await pool.query(
-    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit FROM users WHERE id = $1',
+    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual FROM users WHERE id = $1',
     [id]
   );
   const user = rows[0];
@@ -1709,7 +1711,8 @@ app.post('/settings/preferences', requireAuth, async (req, res) => {
 
   try {
     if (timezone) {
-      await pool.query('UPDATE users SET weight_unit = $1, timezone = $2 WHERE id = $3', [weightUnit, timezone, req.currentUser.id]);
+      // Set timezone_manual flag to prevent auto-updates
+      await pool.query('UPDATE users SET weight_unit = $1, timezone = $2, timezone_manual = TRUE WHERE id = $3', [weightUnit, timezone, req.currentUser.id]);
     } else {
       await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
     }
