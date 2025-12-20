@@ -10,10 +10,9 @@ GITLAB_API="${CI_API_V4_URL:-${CI_SERVER_URL%/}/api/v4}"
 PROJECT_ID="${CI_PROJECT_ID:?CI_PROJECT_ID is required}"
 
 # Use JSON format for container registry cleanup policy
-# High keep_n to accommodate many staging builds + semver releases
+# Keep 50 most recent tags (staging builds + semver releases)
 echo "Updating container expiration policy for project ${PROJECT_ID}..."
 
-# First, let's see what the error actually is
 RESPONSE=$(curl --silent --show-error --write-out "\nHTTP_STATUS:%{http_code}" \
   --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
   --header "Content-Type: application/json" \
@@ -21,9 +20,9 @@ RESPONSE=$(curl --silent --show-error --write-out "\nHTTP_STATUS:%{http_code}" \
   --data '{
     "container_expiration_policy_attributes": {
       "enabled": true,
-      "name_regex": ".*",
-      "name_regex_keep": "latest",
-      "keep_n": 40,
+      "name_regex": "^staging-|^v[0-9]",
+      "name_regex_keep": "^latest$",
+      "keep_n": 50,
       "cadence": "7d"
     }
   }' \
@@ -42,4 +41,4 @@ if [ "$HTTP_STATUS" -ge 400 ]; then
 fi
 
 echo ""
-echo "Container registry expiration policy applied: keep 40 most recent tags (staging + semver), latest protected forever."
+echo "Container registry expiration policy applied: keep 50 most recent tags matching ^staging- or ^v[0-9], latest protected forever."
