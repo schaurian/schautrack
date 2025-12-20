@@ -23,7 +23,7 @@
       <button type="submit" class="primary">Create account</button>
     </form>
     <script>
-      // Detect and populate timezone field
+      // Detect and populate timezone field for user registration
       (function() {
         try {
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -31,7 +31,7 @@
             document.getElementById('timezoneField').value = tz;
           }
         } catch (e) {
-          console.error('Failed to detect timezone', e);
+          console.error('Failed to detect timezone:', e);
         }
       })();
     </script>
