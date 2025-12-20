@@ -124,6 +124,7 @@ cleanup-staging-tags:
         - package.json
         - package-lock.json
         - src/**/*
+        - scripts/cleanup-staging-tags.sh
       when: on_success
 
 cleanup-semver-tags:
