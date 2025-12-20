@@ -1723,10 +1723,27 @@ app.post('/settings/preferences', requireAuth, async (req, res) => {
   res.redirect('/settings');
 });
 
-Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema()])
-  .catch((err) => {
-    console.error('Schema init failed', err);
-  })
+// Retry schema initialization with exponential backoff
+async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema()]);
+      console.log('Schema initialization successful');
+      return;
+    } catch (err) {
+      const delay = initialDelay * Math.pow(2, attempt - 1);
+      console.error(`Schema init failed (attempt ${attempt}/${maxRetries}):`, err.message);
+      if (attempt < maxRetries) {
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('Schema initialization failed after all retries. App will start but may have issues.');
+      }
+    }
+  }
+}
+
+initSchemaWithRetry()
   .finally(() => {
     app.listen(PORT, () => {
       console.log(`Schautrack listening on port ${PORT}`);
