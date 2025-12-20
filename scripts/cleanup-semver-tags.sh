@@ -11,21 +11,26 @@ PROJECT_ID="${CI_PROJECT_ID:?CI_PROJECT_ID is required}"
 
 echo "Fetching semver tags for cleanup..."
 
-# Get all tags from the registry
-TAGS=$(curl --silent --show-error \
+# Get the registry repository ID
+REPOS=$(curl --silent --show-error \
   --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
-  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories" | \
-  jq -r '.[0].id')
+  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories")
 
-if [ -z "$TAGS" ] || [ "$TAGS" = "null" ]; then
+echo "DEBUG: Registry repositories response: $REPOS"
+
+REPO_ID=$(echo "$REPOS" | jq -r '.[0].id')
+
+if [ -z "$REPO_ID" ] || [ "$REPO_ID" = "null" ]; then
   echo "No registry repository found"
   exit 0
 fi
 
+echo "Using registry repository ID: $REPO_ID"
+
 # Get all semver tags (starting with v), sorted by semantic version
 SEMVER_TAGS=$(curl --silent --show-error \
   --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
-  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${TAGS}/tags?per_page=100" | \
+  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${REPO_ID}/tags?per_page=100" | \
   jq -r '.[] | select(.name | startswith("v")) | .name' | \
   sort -V -r)
 
@@ -52,7 +57,7 @@ echo "$SEMVER_TAGS" | tail -n +$((KEEP_COUNT + 1)) | while read -r tag; do
     HTTP_CODE=$(curl --silent --show-error --write-out "%{http_code}" --output /dev/null \
       --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
       --request DELETE \
-      "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${TAGS}/tags/${tag}")
+      "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${REPO_ID}/tags/${tag}")
 
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
       DELETED=$((DELETED + 1))
