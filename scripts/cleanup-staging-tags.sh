@@ -28,12 +28,18 @@ fi
 
 echo "Using registry repository ID: $REPO_ID"
 
-# Get all staging tags, sorted by created date
-STAGING_TAGS=$(curl --silent --show-error \
+# Get all tags first to see what we have
+ALL_TAGS=$(curl --silent --show-error \
   --header "PRIVATE-TOKEN: ${REGISTRY_POLICY_TOKEN}" \
-  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${REPO_ID}/tags?per_page=100" | \
-  jq -r '.[] | select(.name | startswith("staging-")) | .name' | \
-  sort -t'-' -k2 -n -r)
+  "${GITLAB_API}/projects/${PROJECT_ID}/registry/repositories/${REPO_ID}/tags?per_page=100")
+
+echo "DEBUG: All tags response (first 500 chars): ${ALL_TAGS:0:500}"
+
+# Filter for staging tags
+STAGING_TAGS=$(echo "$ALL_TAGS" | jq -r '.[] | select(.name | startswith("staging-")) | .name' | sort -t'-' -k2 -n -r)
+
+echo "DEBUG: Staging tags found:"
+echo "$STAGING_TAGS"
 
 # Count staging tags
 TAG_COUNT=$(echo "$STAGING_TAGS" | grep -c "staging-" || true)
