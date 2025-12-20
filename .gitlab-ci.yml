@@ -66,6 +66,11 @@ container-build-default:
       --build-arg "BUILD_VERSION=${VERSION#v}"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
       when: on_success
 
 container-build-branch:
@@ -87,9 +92,19 @@ container-build-branch:
   rules:
     # This runs on the staging branch and creates tags like "staging-42"
     - if: '$CI_COMMIT_BRANCH == "staging"'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
       when: on_success
     # This keeps your existing logic for other non-default branches
     - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_COMMIT_BRANCH != "staging"'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
       when: on_success
 registry-expiration-policy:
   stage: cleanup
