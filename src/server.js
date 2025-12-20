@@ -64,6 +64,17 @@ const rememberClientTimezone = (req, res) => {
   return tz;
 };
 
+// Get the effective timezone for a user
+const getUserTimezone = (req, res) => {
+  const user = req.currentUser;
+  if (user) {
+    // Always use the user's saved timezone from database
+    return user.timezone || 'UTC';
+  }
+  // For non-authenticated users, try to detect from client
+  return getClientTimezone(req) || 'UTC';
+};
+
 const toInt = (value) => {
   const num = parseInt(value, 10);
   return Number.isNaN(num) ? null : num;
@@ -553,17 +564,9 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Capture client timezone from cookie/header and persist for authenticated users.
+// Store detected timezone in cookie for future reference (used for non-authenticated pages)
 app.use((req, res, next) => {
-  const detectedTz = rememberClientTimezone(req, res);
-  // Only auto-update timezone if user hasn't manually set it
-  if (req.currentUser && detectedTz && req.currentUser.timezone !== detectedTz && !req.currentUser.timezone_manual) {
-    req.currentUser.timezone = detectedTz;
-    res.locals.currentUser = req.currentUser;
-    pool
-      .query('UPDATE users SET timezone = $1 WHERE id = $2', [detectedTz, req.currentUser.id])
-      .catch((err) => console.error('Failed to persist timezone', err));
-  }
+  rememberClientTimezone(req, res);
   next();
 });
 
@@ -833,8 +836,7 @@ app.post('/delete', requireAuth, async (req, res) => {
 
 app.get('/dashboard', requireAuth, async (req, res) => {
   const user = { ...req.currentUser, id: toInt(req.currentUser.id) };
-  const detectedTz = rememberClientTimezone(req, res);
-  const userTimeZone = detectedTz || user.timezone || 'UTC';
+  const userTimeZone = getUserTimezone(req, res);
   const serverNow = new Date();
   const todayStrTz = formatDateInTz(serverNow, userTimeZone);
   const requestedRange = parseInt(req.query.range, 10);
@@ -974,7 +976,7 @@ app.get('/overview', requireAuth, async (req, res) => {
     }
   }
 
-  const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+  const tz = getUserTimezone(req, res);
   const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, rangeDays);
   const dayOptions = buildDayOptionsBetween(startDate, endDate);
   if (dayOptions.length === 0) {
@@ -1050,7 +1052,7 @@ app.get('/entries/day', requireAuth, async (req, res) => {
   }
 
   try {
-    const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+    const tz = getUserTimezone(req, res);
 
     const { rows } = await pool.query(
       'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
@@ -1534,7 +1536,7 @@ app.post('/entries', requireAuth, async (req, res) => {
 app.post('/entries/:id/update', requireAuth, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
-  const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+  const tz = getUserTimezone(req, res);
 
   if (Number.isNaN(entryId)) {
     return wantsJson ? res.status(400).json({ ok: false, error: 'Invalid entry id' }) : res.redirect('/dashboard');
