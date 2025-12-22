@@ -12,13 +12,9 @@ renovate:
   variables:
     RENOVATE_PLATFORM: gitlab
     RENOVATE_ENDPOINT: ${CI_API_V4_URL}
-    RENOVATE_TOKEN: ${RENOVATE_TOKEN}
     RENOVATE_REPOSITORIES: ${CI_PROJECT_PATH}
     LOG_LEVEL: info
   script:
-    - 'echo "RENOVATE_TOKEN: ${RENOVATE_TOKEN}"'
-    - 'echo "RENOVATE_ENDPOINT: ${RENOVATE_ENDPOINT}"'
-    - 'echo "RENOVATE_REPOSITORIES: ${RENOVATE_REPOSITORIES}"'
     - renovate
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
