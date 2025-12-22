@@ -3,9 +3,9 @@
   "extends": [
     "config:recommended"
   ],
-  "baseBranches": ["main"],
+  "baseBranches": ["staging"],
   "labels": ["dependencies"],
-  "schedule": ["before 6am on monday"],
+  "schedule": ["before 6am on friday"],
   "timezone": "Europe/Berlin",
   "packageRules": [
     {
