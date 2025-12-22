@@ -16,6 +16,9 @@ renovate:
     RENOVATE_REPOSITORIES: ${CI_PROJECT_PATH}
     LOG_LEVEL: info
   script:
+    - 'echo "RENOVATE_TOKEN length: ${#RENOVATE_TOKEN}"'
+    - 'echo "RENOVATE_ENDPOINT: ${RENOVATE_ENDPOINT}"'
+    - 'echo "RENOVATE_REPOSITORIES: ${RENOVATE_REPOSITORIES}"'
     - renovate
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
