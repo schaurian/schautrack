@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # Determine next semver based on Conventional Commits since last tag.
+# Supports override via [bump:major], [bump:minor], or [bump:patch] in commit messages.
 
 last_tag=$(git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --abbrev=0 2>/dev/null || true)
 if [[ -z "$last_tag" ]]; then
@@ -14,6 +15,7 @@ fi
 major=0
 minor=0
 patch=0
+override=""
 
 if [[ -n "$range" ]]; then
   mapfile -t commits < <(git log --format="%s%n%b" "$range")
@@ -22,6 +24,18 @@ else
 fi
 
 for line in "${commits[@]}"; do
+  # Check for explicit bump override first
+  if [[ "$line" == *"[bump:major]"* ]]; then
+    override="major"
+    break
+  elif [[ "$line" == *"[bump:minor]"* ]]; then
+    override="minor"
+    break
+  elif [[ "$line" == *"[bump:patch]"* ]]; then
+    override="patch"
+    break
+  fi
+
   # Normalize to lowercase for detection
   lower=$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')
   if [[ "$lower" == *"breaking change"* ]] || [[ "$lower" =~ ^[a-z]+!\: ]]; then
@@ -37,13 +51,23 @@ for line in "${commits[@]}"; do
 done
 
 # Default to patch if no commits matched anything (but commits exist).
-if [[ ${#commits[@]} -gt 0 && $major -eq 0 && $minor -eq 0 && $patch -eq 0 ]]; then
+if [[ ${#commits[@]} -gt 0 && $major -eq 0 && $minor -eq 0 && $patch -eq 0 && -z "$override" ]]; then
   patch=1
 fi
 
 IFS='.' read -r cur_major cur_minor cur_patch <<<"${last_tag#v}"
 
-if [[ $major -eq 1 ]]; then
+# Apply override if set, otherwise use detected bump
+if [[ "$override" == "major" ]]; then
+  cur_major=$((cur_major + 1))
+  cur_minor=0
+  cur_patch=0
+elif [[ "$override" == "minor" ]]; then
+  cur_minor=$((cur_minor + 1))
+  cur_patch=0
+elif [[ "$override" == "patch" ]]; then
+  cur_patch=$((cur_patch + 1))
+elif [[ $major -eq 1 ]]; then
   cur_major=$((cur_major + 1))
   cur_minor=0
   cur_patch=0
