@@ -64,7 +64,7 @@ semver-tag:
 container-build-default:
   stage: build
   image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
     entrypoint: [""]
   needs:
     - semver-tag
@@ -92,7 +92,7 @@ container-build-default:
 container-build-branch:
   stage: build
   image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
     entrypoint: [""]
   script:
     - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
