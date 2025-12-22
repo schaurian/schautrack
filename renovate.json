@@ -5,7 +5,7 @@
   ],
   "baseBranches": ["staging"],
   "labels": ["dependencies"],
-  "schedule": ["before 6am on friday"],
+  "schedule": ["before 8am on friday"],
   "timezone": "Europe/Berlin",
   "packageRules": [
     {
