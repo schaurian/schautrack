@@ -1,9 +1,27 @@
 stages:
+  - renovate
   - release
   - build
 
 variables:
   GIT_DEPTH: "0"
+
+renovate:
+  stage: renovate
+  image: renovate/renovate:latest
+  variables:
+    RENOVATE_PLATFORM: gitlab
+    RENOVATE_ENDPOINT: ${CI_API_V4_URL}
+    RENOVATE_TOKEN: ${RENOVATE_TOKEN}
+    RENOVATE_REPOSITORIES: ${CI_PROJECT_PATH}
+    LOG_LEVEL: info
+  script:
+    - renovate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_RENOVATE == "true"'
+      when: always
 
 semver-tag:
   stage: release
