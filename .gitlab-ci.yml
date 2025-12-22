@@ -59,6 +59,14 @@ semver-tag:
     expire_in: 1 week
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
+        - scripts/**/*
+        - .gitlab-ci.yml
+        - renovate.json
       when: on_success
 
 container-build-default:
