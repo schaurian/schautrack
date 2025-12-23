@@ -43,9 +43,6 @@ semver-tag:
       else
         PUSH_USER="${GIT_PUSH_USER:-oauth2}"
       fi
-      echo "Using user: $PUSH_USER"
-      echo "Token length: ${#PUSH_TOKEN}"
-      echo "Token prefix: ${PUSH_TOKEN:0:5}..."
       git push "https://${PUSH_USER}:${PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "$VERSION"
     - |
       if [ -n "${GL_RELEASE_TOKEN:-}" ]; then
