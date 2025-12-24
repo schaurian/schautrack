@@ -59,7 +59,7 @@
         <span>Weight (<%= (weightUnit || 'kg').toLowerCase() === 'kg' ? 'kg' : 'lb' %>)</span>
         <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional (<%= (weightUnit || 'lb').toLowerCase() === 'kg' ? 'kg' : 'lb' %>)">
       </label>
-      <button type="submit" class="primary">Record</button>
+      <button type="submit" class="primary" disabled data-submit-btn>Record</button>
     </form>
   </section>
 
@@ -1132,6 +1132,35 @@
       });
 
       attachDotHandlers();
+
+      // Calorie input validation for submit button
+      const logForm = document.querySelector('[data-log-form]');
+      const calorieInput = logForm?.querySelector('input[name="amount"]');
+      const submitBtn = logForm?.querySelector('[data-submit-btn]');
+
+      const isValidCalorieInput = (value) => {
+        if (!value || !value.trim()) return false;
+        const trimmed = value.trim();
+        // Allow: integers, negative integers, or simple math like 100+50, 200-30, 10*5
+        // Must evaluate to a finite number
+        if (!/^-?\d+(\s*[+\-*]\s*\d+)*$/.test(trimmed)) return false;
+        try {
+          const result = Function('"use strict"; return (' + trimmed + ')')();
+          return typeof result === 'number' && isFinite(result);
+        } catch {
+          return false;
+        }
+      };
+
+      const updateSubmitState = () => {
+        if (!submitBtn || !calorieInput) return;
+        submitBtn.disabled = !isValidCalorieInput(calorieInput.value);
+      };
+
+      if (calorieInput) {
+        calorieInput.addEventListener('input', updateSubmitState);
+        updateSubmitState();
+      }
 
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel);
