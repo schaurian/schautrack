@@ -866,7 +866,14 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal);
 
   const todayTotal = totalsByDate.get(todayStr) || 0;
-  const goalStatus = !user.daily_goal ? 'unset' : todayTotal <= user.daily_goal ? 'under' : 'over';
+  const goalThreshold = user.daily_goal ? Math.round(user.daily_goal * 1.1) : null;
+  const goalStatus = !user.daily_goal
+    ? 'unset'
+    : todayTotal <= user.daily_goal
+      ? 'under'
+      : goalThreshold && todayTotal > goalThreshold
+        ? 'over_threshold'
+        : 'over';
   const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
 
   const { rows: recentEntries } = await pool.query(
@@ -994,7 +1001,14 @@ app.get('/overview', requireAuth, async (req, res) => {
     const totalsByDate = await getTotalsByDate(targetUserId, oldest, newest);
     const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal);
     const todayTotal = totalsByDate.get(todayStrTz) || 0;
-    const goalStatus = !dailyGoal ? 'unset' : todayTotal <= dailyGoal ? 'under' : 'over';
+    const goalThreshold = dailyGoal ? Math.round(dailyGoal * 1.1) : null;
+    const goalStatus = !dailyGoal
+      ? 'unset'
+      : todayTotal <= dailyGoal
+        ? 'under'
+        : goalThreshold && todayTotal > goalThreshold
+          ? 'over_threshold'
+          : 'over';
     const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
 
     return res.json({
