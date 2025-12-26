@@ -513,6 +513,26 @@ async function getWeightEntry(userId, dateStr) {
   };
 }
 
+async function getLastWeightEntry(userId, beforeOrOnDate = null) {
+  let query = 'SELECT id, entry_date, weight, created_at, updated_at FROM weight_entries WHERE user_id = $1';
+  const params = [userId];
+  if (beforeOrOnDate) {
+    query += ' AND entry_date <= $2';
+    params.push(beforeOrOnDate);
+  }
+  query += ' ORDER BY entry_date DESC LIMIT 1';
+  const { rows } = await pool.query(query, params);
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    date: toIsoDate(row.entry_date),
+    weight: Number(row.weight),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -893,8 +913,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   }
 
   let weightEntry = null;
+  let lastWeightEntry = null;
   try {
     weightEntry = await getWeightEntry(user.id, selectedDate);
+    lastWeightEntry = await getLastWeightEntry(user.id, selectedDate);
   } catch (err) {
     console.error('Failed to load weight entry', err);
   }
@@ -953,6 +975,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       preset: !req.query.start && !req.query.end ? requestedDays : null,
     },
     weightEntry: viewWeight,
+    lastWeightEntry,
     activePage: 'dashboard',
   });
 });
@@ -1457,7 +1480,8 @@ app.get('/weight/day', requireAuth, async (req, res) => {
 
   try {
     const entry = await getWeightEntry(targetUserId, dateStr);
-    return res.json({ ok: true, entry });
+    const lastWeight = await getLastWeightEntry(targetUserId, dateStr);
+    return res.json({ ok: true, entry, lastWeight });
   } catch (err) {
     console.error('Failed to fetch weight entry', err);
     return res.status(500).json({ ok: false, error: 'Could not load weight' });

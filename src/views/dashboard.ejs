@@ -55,10 +55,6 @@
         <span>Date</span>
         <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
       </label>
-      <label class="field">
-        <span>Weight (<%= (weightUnit || 'kg').toLowerCase() === 'kg' ? 'kg' : 'lb' %>)</span>
-        <input type="text" name="weight" inputmode="decimal" autocomplete="off" data-weight-input class="weight-input" placeholder="Optional (<%= (weightUnit || 'lb').toLowerCase() === 'kg' ? 'kg' : 'lb' %>)">
-      </label>
       <button type="submit" class="primary" disabled data-submit-btn>Record</button>
     </form>
   </section>
@@ -157,18 +153,39 @@
       <% }) %>
     </div>
     <div class="day-selected" data-day-selected>Showing <%= selectedDate === todayStr ? 'today' : selectedDate %> · You</div>
-    <% const weightTime = weightEntry ? weightEntry.timeFormatted : ''; %>
+    <%
+      const weightTime = weightEntry ? weightEntry.timeFormatted : '';
+      const formatWeightValue = (kg) => {
+        if (!kg) return '';
+        return (weightUnit || 'kg').toLowerCase() === 'kg' ? `${kg} kg` : `${(kg * 2.20462).toFixed(1)} lb`;
+      };
+      const formatDaysAgo = (weightDateStr, selectedDateStr) => {
+        if (!weightDateStr || !selectedDateStr) return null;
+        const weightDate = new Date(weightDateStr + 'T00:00:00');
+        const selected = new Date(selectedDateStr + 'T00:00:00');
+        const diffDays = Math.round((selected - weightDate) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return null;
+        if (diffDays === 0) return 'same day';
+        if (diffDays === 1) return '1 day before';
+        return `${diffDays} days before`;
+      };
+      const lastWeightIsValid = lastWeightEntry && formatDaysAgo(lastWeightEntry.date, selectedDate) !== null;
+      const displayWeight = weightEntry || (lastWeightIsValid ? lastWeightEntry : null);
+      const weightDisplayText = displayWeight ? formatWeightValue(displayWeight.weight) : 'No weight logged';
+      const isLastWeight = !weightEntry && lastWeightIsValid;
+      const lastWeightDaysAgo = isLastWeight ? formatDaysAgo(lastWeightEntry.date, selectedDate) : null;
+    %>
     <div class="log-list">
       <div class="weight-slot" data-weight-slot>
         <div class="entry-row weight-row <%= weightEntry ? '' : 'is-empty' %>" data-weight-row>
           <div>
-            <button type="button" class="edit-trigger entry-name is-locked" data-locked="true">Weight</button>
+            <button type="button" class="edit-trigger entry-name is-locked" data-locked="true"><%= isLastWeight ? 'Last weight' : 'Weight' %></button>
           </div>
         <div class="entry-actions">
             <div class="entry-amount-wrap">
-              <button type="button" class="edit-trigger entry-amount weight <%= weightEntry ? '' : 'muted' %>" data-weight-value><%= weightEntry ? `${(weightEntry.weight * 2.20462).toFixed(1)} lb` : 'Add weight' %></button>
+              <button type="button" class="edit-trigger entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
             </div>
-          <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : '' %></span>
+          <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
           <form class="inline-form delete-placeholder" aria-hidden="true">
             <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
           </form>
@@ -224,7 +241,6 @@
         amount: entry.amount,
         name: entry.entry_name || null,
       }))) %>;
-      const weightInput = document.querySelector('[data-weight-input]');
       const weightDateInput = document.querySelector('[data-weight-date]');
       const weightSlot = document.querySelector('[data-weight-slot]');
       const weightRow = document.querySelector('[data-weight-row]');
@@ -240,6 +256,7 @@
       const statBalance = document.querySelector('[data-stat-balance]');
       const statStatusDetail = document.querySelector('[data-stat-status-detail]');
       const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
+      const lastWeight = <%- JSON.stringify(lastWeightEntry || null) %>;
       const weightCache = new Map();
       if (initialWeight) {
         weightCache.set(`${selfUserId}:${initialWeight.date}`, initialWeight);
@@ -555,16 +572,25 @@
           .join('');
       };
 
-      const renderWeight = (entry, date, userId, label, canEdit) => {
+      const formatDaysAgo = (weightDateStr, selectedDateStr) => {
+        if (!weightDateStr || !selectedDateStr) return null;
+        const weightDate = new Date(weightDateStr + 'T00:00:00');
+        const selectedDate = new Date(selectedDateStr + 'T00:00:00');
+        const diffDays = Math.round((selectedDate - weightDate) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return null;
+        if (diffDays === 0) return 'same day';
+        if (diffDays === 1) return '1 day before';
+        return `${diffDays} days before`;
+      };
+
+      const lastWeightCache = new Map();
+      if (lastWeight) {
+        lastWeightCache.set(selfUserId, lastWeight);
+      }
+
+      const renderWeight = (entry, date, userId, label, canEdit, userLastWeight) => {
         if (weightDateInput) {
           weightDateInput.value = date;
-        }
-        if (weightInput) {
-          const hasEntry = Boolean(entry);
-          weightInput.value = '';
-          weightInput.disabled = hasEntry || !canEdit;
-          weightInput.classList.toggle('is-disabled', hasEntry || !canEdit);
-          weightInput.placeholder = hasEntry ? 'Logged for day' : 'Optional';
         }
         if (weightRow && weightValueBtn) {
           const formatWeight = (kg) => {
@@ -572,8 +598,12 @@
             return weightUnit === 'kg' ? `${kg} kg` : `${kgToLb(kg)} lb`;
           };
           const labelBtn = weightRow.querySelector('.entry-name');
+          const lastWeightDaysAgo = userLastWeight ? formatDaysAgo(userLastWeight.date, date) : null;
+          const lastWeightIsValid = lastWeightDaysAgo !== null;
+          const displayEntry = entry || (lastWeightIsValid ? userLastWeight : null);
+          const isLastWeight = !entry && lastWeightIsValid;
           if (labelBtn) {
-            labelBtn.textContent = 'Weight';
+            labelBtn.textContent = isLastWeight ? 'Last weight' : 'Weight';
             labelBtn.dataset.locked = 'true';
             labelBtn.classList.add('is-locked');
           }
@@ -582,14 +612,14 @@
               ? formatTime(entry.updated_at || entry.created_at)
               : '';
           weightRow.classList.toggle('is-empty', !entry);
-          weightValueBtn.textContent = entry ? formatWeight(entry.weight) : 'Add weight';
-          weightValueBtn.classList.toggle('muted', !entry);
+          weightValueBtn.textContent = displayEntry ? formatWeight(displayEntry.weight) : 'No weight logged';
+          weightValueBtn.classList.toggle('muted', !displayEntry);
           weightValueBtn.classList.toggle('pos', Boolean(entry));
           weightRow.classList.toggle('view-only', !canEdit);
           weightValueBtn.dataset.locked = String(!canEdit);
           weightValueBtn.classList.toggle('is-locked', !canEdit);
           if (weightTime) {
-            weightTime.textContent = entry ? timeStr : '';
+            weightTime.textContent = entry ? timeStr : (lastWeightDaysAgo || '');
           }
         }
       };
@@ -670,7 +700,8 @@
         if (!weightDateInput || !date) return;
         const cacheKey = `${userId}:${date}`;
         if (weightCache.has(cacheKey)) {
-          renderWeight(weightCache.get(cacheKey), date, userId, label, canEdit);
+          const userLastWeight = lastWeightCache.get(userId) || null;
+          renderWeight(weightCache.get(cacheKey), date, userId, label, canEdit, userLastWeight);
           return;
         }
         try {
@@ -680,17 +711,21 @@
           }
           const res = await fetch(`/weight/day?${params.toString()}`, { headers: { Accept: 'application/json' } });
           if (!res.ok) {
-            renderWeight(null, date, userId, label, canEdit);
+            renderWeight(null, date, userId, label, canEdit, null);
             return;
           }
           const data = await res.json();
           if (data.ok) {
             const entry = data.entry || null;
+            const userLastWeight = data.lastWeight || null;
             weightCache.set(cacheKey, entry);
-            renderWeight(entry, date, userId, label, canEdit);
+            if (userLastWeight) {
+              lastWeightCache.set(userId, userLastWeight);
+            }
+            renderWeight(entry, date, userId, label, canEdit, userLastWeight);
           }
         } catch (err) {
-          renderWeight(null, date, userId, label, canEdit);
+          renderWeight(null, date, userId, label, canEdit, null);
         }
       };
 
