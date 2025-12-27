@@ -99,6 +99,8 @@ schautrack/
 
 ## Database Schema Notes
 
+**Schema migrations are handled in code** via `ensureXxxSchema()` functions in `server.js` - no separate migration scripts or Kubernetes Jobs needed.
+
 ### Key Tables
 - `users`: User accounts with timezone, daily_goal, weight_unit, TOTP settings
 - `calorie_entries`: Date-based entries with amounts and optional names
