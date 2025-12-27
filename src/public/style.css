@@ -219,6 +219,19 @@ h2 {
   gap: var(--space-xs);
 }
 
+.captcha-image {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: var(--space-sm);
+  display: flex;
+  justify-content: center;
+}
+
+.captcha-image svg {
+  max-width: 100%;
+  height: auto;
+}
+
 button,
 .button,
 .primary,

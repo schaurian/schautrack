@@ -10,25 +10,40 @@
     <% if (error) { %>
       <div class="alert danger"><%= error %></div>
     <% } %>
-    <form action="/register" method="POST" class="stack">
-      <input type="hidden" name="timezone" id="timezoneField">
-      <label class="field">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email">
-      </label>
-      <label class="field">
-        <span>Password</span>
-        <input type="password" name="password" required autocomplete="new-password">
-      </label>
-      <button type="submit" class="primary">Create account</button>
-    </form>
+    <% if (requireCaptcha) { %>
+      <p class="muted">Verify you're human to create your account.</p>
+      <form action="/register" method="POST" class="stack">
+        <input type="hidden" name="step" value="captcha">
+        <div class="field">
+          <span>Enter the text shown below</span>
+          <div class="captcha-image"><%- captchaSvg %></div>
+          <input type="text" name="captcha" required autocomplete="off" placeholder="Enter captcha" autofocus>
+        </div>
+        <button type="submit" class="primary">Create account</button>
+      </form>
+    <% } else { %>
+      <form action="/register" method="POST" class="stack">
+        <input type="hidden" name="timezone" id="timezoneField">
+        <input type="hidden" name="step" value="credentials">
+        <label class="field">
+          <span>Email</span>
+          <input type="email" name="email" value="<%= email %>" required autocomplete="email">
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" name="password" required autocomplete="new-password">
+        </label>
+        <button type="submit" class="primary">Continue</button>
+      </form>
+    <% } %>
     <script>
       // Detect and populate timezone field for user registration
       (function() {
         try {
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          if (tz) {
-            document.getElementById('timezoneField').value = tz;
+          const field = document.getElementById('timezoneField');
+          if (tz && field) {
+            field.value = tz;
           }
         } catch (e) {
           console.error('Failed to detect timezone:', e);

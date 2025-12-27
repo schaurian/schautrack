@@ -10,6 +10,7 @@ const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const svgCaptcha = require('svg-captcha');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,6 +71,21 @@ const sendEmail = async (to, subject, text, html) => {
 
 const generateResetCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// SVG CAPTCHA helper (self-hosted image captcha)
+const generateCaptcha = () => {
+  return svgCaptcha.create({
+    size: 5,
+    noise: 2,
+    color: true,
+    background: '#1a1a2e',
+  });
+};
+
+const verifyCaptcha = (sessionAnswer, userAnswer) => {
+  if (!sessionAnswer || !userAnswer) return false;
+  return sessionAnswer.toLowerCase().trim() === userAnswer.toLowerCase().trim();
 };
 
 const parseCookies = (header) => {
@@ -242,8 +258,17 @@ async function ensurePasswordResetSchema() {
 async function ensureEmailVerificationSchema() {
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
-    UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL;
+  `);
 
+  // Mark users created before 2025-12-27 (when email verification was added) as verified
+  // This is safe to run multiple times - only affects users with email_verified = FALSE
+  // who were created before the feature existed
+  await pool.query(`
+    UPDATE users SET email_verified = TRUE
+    WHERE email_verified = FALSE AND created_at < '2025-12-27'
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS email_verification_tokens (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -853,64 +878,186 @@ app.get('/register', (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
-  res.render('register', { error: null });
+  // Clear any pending registration
+  delete req.session.pendingRegistration;
+  res.render('register', { error: null, email: '', requireCaptcha: false, captchaSvg: null });
 });
 
 app.post('/register', async (req, res) => {
-  const { email, password, timezone } = req.body;
-  if (!email || !password) {
-    return res.render('register', { error: 'Email and password are required.' });
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
   }
 
-  try {
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
-      return res.render('register', { error: 'Account already exists.' });
+  const { step, captcha } = req.body;
+
+  // Step 1: Credentials submitted - validate and show CAPTCHA
+  if (step === 'credentials') {
+    const email = (req.body.email || '').toLowerCase().trim();
+    const { password, timezone } = req.body;
+
+    if (!email || !password) {
+      return res.render('register', {
+        error: 'Email and password are required.',
+        email,
+        requireCaptcha: false,
+        captchaSvg: null,
+      });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
-    // Get timezone from form field, fallback to cookie/header detection, then UTC
-    const detectedTz = timezone || getClientTimezone(req) || 'UTC';
+    try {
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.rows.length > 0) {
+        return res.render('register', {
+          error: 'Account already exists.',
+          email,
+          requireCaptcha: false,
+          captchaSvg: null,
+        });
+      }
 
-    // If SMTP is configured, require email verification
-    if (isSmtpConfigured()) {
-      const { rows } = await pool.query(
-        'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, FALSE) RETURNING id',
-        [email.toLowerCase().trim(), passwordHash, detectedTz]
-      );
-      const userId = rows[0].id;
-      const code = await createEmailVerificationToken(userId);
-      await sendVerificationEmail(email, code);
+      // Store credentials in session and show CAPTCHA
+      const detectedTz = timezone || getClientTimezone(req) || 'UTC';
+      req.session.pendingRegistration = { email, password, timezone: detectedTz };
 
-      // Store email in session for verification page
-      req.session.verifyEmail = email.toLowerCase().trim();
-      req.session.verifyCodeVerified = false;
-      res.redirect('/verify-email');
-    } else {
-      // No SMTP, auto-verify and log in
-      const { rows } = await pool.query(
-        'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, TRUE) RETURNING id',
-        [email.toLowerCase().trim(), passwordHash, detectedTz]
-      );
-      req.session.userId = rows[0].id;
-      res.redirect('/dashboard');
+      const newCaptcha = generateCaptcha();
+      req.session.captchaAnswer = newCaptcha.text;
+
+      return res.render('register', {
+        error: null,
+        email,
+        requireCaptcha: true,
+        captchaSvg: newCaptcha.data,
+      });
+    } catch (err) {
+      console.error('Registration error', err);
+      return res.render('register', {
+        error: 'Could not register user.',
+        email,
+        requireCaptcha: false,
+        captchaSvg: null,
+      });
     }
-  } catch (err) {
-    console.error('Registration error', err);
-    res.render('register', { error: 'Could not register user.' });
   }
+
+  // Step 2: CAPTCHA submitted - verify and create account
+  if (step === 'captcha') {
+    const pending = req.session.pendingRegistration;
+    if (!pending || !pending.email || !pending.password) {
+      return res.render('register', {
+        error: 'Registration session expired. Please start again.',
+        email: '',
+        requireCaptcha: false,
+        captchaSvg: null,
+      });
+    }
+
+    // Helper to render CAPTCHA step with error
+    const renderCaptchaError = (error) => {
+      const newCaptcha = generateCaptcha();
+      req.session.captchaAnswer = newCaptcha.text;
+      return res.render('register', {
+        error,
+        email: pending.email,
+        requireCaptcha: true,
+        captchaSvg: newCaptcha.data,
+      });
+    };
+
+    if (!verifyCaptcha(req.session.captchaAnswer, captcha)) {
+      return renderCaptchaError('Invalid captcha. Please try again.');
+    }
+
+    try {
+      // Check again that email doesn't exist (race condition protection)
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [pending.email]);
+      if (existing.rows.length > 0) {
+        delete req.session.pendingRegistration;
+        return res.render('register', {
+          error: 'Account already exists.',
+          email: pending.email,
+          requireCaptcha: false,
+          captchaSvg: null,
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(pending.password, 12);
+
+      // If SMTP is configured, require email verification
+      if (isSmtpConfigured()) {
+        const { rows } = await pool.query(
+          'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, FALSE) RETURNING id',
+          [pending.email, passwordHash, pending.timezone]
+        );
+        const userId = rows[0].id;
+        const code = await createEmailVerificationToken(userId);
+        await sendVerificationEmail(pending.email, code);
+
+        // Clear pending and store email for verification page
+        delete req.session.pendingRegistration;
+        req.session.verifyEmail = pending.email;
+        req.session.verifyCodeVerified = false;
+        return res.redirect('/verify-email');
+      } else {
+        // No SMTP, auto-verify and log in
+        const { rows } = await pool.query(
+          'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, TRUE) RETURNING id',
+          [pending.email, passwordHash, pending.timezone]
+        );
+        delete req.session.pendingRegistration;
+        req.session.userId = rows[0].id;
+        return res.redirect('/dashboard');
+      }
+    } catch (err) {
+      console.error('Registration error', err);
+      return renderCaptchaError('Could not register user.');
+    }
+  }
+
+  // Invalid step
+  res.redirect('/register');
 });
 
 app.get('/login', (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
-  res.render('login', { error: null, requireToken: false, email: '' });
+  // Show CAPTCHA if there have been 3+ failed attempts
+  const failedAttempts = req.session.loginFailedAttempts || 0;
+  let captchaSvg = null;
+  if (failedAttempts >= 3) {
+    const captcha = generateCaptcha();
+    req.session.captchaAnswer = captcha.text;
+    captchaSvg = captcha.data;
+  }
+  res.render('login', { error: null, requireToken: false, email: '', captchaSvg });
 });
 
 app.post('/login', async (req, res) => {
-  const { email, password, token } = req.body;
+  const { email, password, token, captcha } = req.body;
   const pendingUserId = req.session.pendingUserId;
+  const failedAttempts = req.session.loginFailedAttempts || 0;
+
+  // Helper to render login with CAPTCHA if needed
+  const renderLogin = (error, opts = {}) => {
+    const attempts = req.session.loginFailedAttempts || 0;
+    let captchaSvg = null;
+    if (attempts >= 3) {
+      const newCaptcha = generateCaptcha();
+      req.session.captchaAnswer = newCaptcha.text;
+      captchaSvg = newCaptcha.data;
+    }
+    return res.render('login', {
+      error,
+      requireToken: opts.requireToken || false,
+      email: opts.email || '',
+      captchaSvg,
+    });
+  };
+
+  // Helper to record a failed attempt
+  const recordFailure = () => {
+    req.session.loginFailedAttempts = (req.session.loginFailedAttempts || 0) + 1;
+  };
 
   try {
     // Second step: pending login waiting for TOTP only
@@ -918,7 +1065,7 @@ app.post('/login', async (req, res) => {
       const pendingUser = await getUserById(pendingUserId);
       if (!pendingUser || !pendingUser.totp_enabled || !pendingUser.totp_secret) {
         delete req.session.pendingUserId;
-        return res.render('login', { error: 'Invalid 2FA session.', requireToken: false, email: '' });
+        return renderLogin('Invalid 2FA session.');
       }
 
       const ok = speakeasy.totp.verify({
@@ -929,35 +1076,38 @@ app.post('/login', async (req, res) => {
       });
 
       if (!ok) {
-        return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email: pendingUser.email });
+        return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email: pendingUser.email, captchaSvg: null });
       }
 
+      // Success - clear failed attempts
+      req.session.loginFailedAttempts = 0;
       req.session.userId = pendingUser.id;
       delete req.session.pendingUserId;
       return res.redirect('/dashboard');
     }
 
     if (!email || !password) {
-      return res.render('login', {
-        error: 'Email and password are required.',
-        requireToken: false,
-        email: email || '',
-      });
+      return renderLogin('Email and password are required.', { email: email || '' });
+    }
+
+    // Verify CAPTCHA if required (3+ failed attempts)
+    if (failedAttempts >= 3) {
+      if (!verifyCaptcha(req.session.captchaAnswer, captcha)) {
+        return renderLogin('Invalid captcha. Please try again.', { email });
+      }
     }
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = rows[0];
     if (!user) {
-      return res.render('login', { error: 'Invalid credentials.', requireToken: false, email });
+      recordFailure();
+      return renderLogin('Invalid credentials.', { email });
     }
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.render('login', {
-        error: 'Invalid credentials.',
-        requireToken: false,
-        email,
-      });
+      recordFailure();
+      return renderLogin('Invalid credentials.', { email });
     }
 
     // Check if email is verified (only if SMTP is configured)
@@ -975,14 +1125,17 @@ app.post('/login', async (req, res) => {
         error: null,
         requireToken: true,
         email,
+        captchaSvg: null,
       });
     }
 
+    // Success - clear failed attempts
+    req.session.loginFailedAttempts = 0;
     req.session.userId = user.id;
     return res.redirect('/dashboard');
   } catch (err) {
     console.error('Login error', err);
-    res.render('login', { error: 'Could not log in.', requireToken: false, email: email || '' });
+    renderLogin('Could not log in.', { email: email || '' });
   }
 });
 
@@ -994,28 +1147,50 @@ app.get('/forgot-password', (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
-  res.render('forgot-password', { error: null, success: null, smtpConfigured: isSmtpConfigured() });
+  // Generate SVG CAPTCHA
+  const captcha = generateCaptcha();
+  req.session.captchaAnswer = captcha.text;
+  res.render('forgot-password', {
+    error: null,
+    success: null,
+    smtpConfigured: isSmtpConfigured(),
+    captchaSvg: captcha.data,
+    email: '',
+  });
 });
 
 app.post('/forgot-password', async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
-  if (!isSmtpConfigured()) {
-    return res.render('forgot-password', {
-      error: 'Password recovery is not available. Please contact support.',
-      success: null,
-      smtpConfigured: false,
-    });
-  }
 
   const email = (req.body.email || '').toLowerCase().trim();
-  if (!email) {
+
+  // Helper to render with new CAPTCHA (preserves email)
+  const renderWithCaptcha = (error) => {
+    const captcha = generateCaptcha();
+    req.session.captchaAnswer = captcha.text;
     return res.render('forgot-password', {
-      error: 'Please enter your email address.',
+      error,
       success: null,
-      smtpConfigured: true,
+      smtpConfigured: isSmtpConfigured(),
+      captchaSvg: captcha.data,
+      email,
     });
+  };
+
+  if (!isSmtpConfigured()) {
+    return renderWithCaptcha('Password recovery is not available. Please contact support.');
+  }
+
+  // Verify CAPTCHA
+  const captchaAnswer = (req.body.captcha || '').trim();
+  if (!verifyCaptcha(req.session.captchaAnswer, captchaAnswer)) {
+    return renderWithCaptcha('Incorrect answer. Please try again.');
+  }
+
+  if (!email) {
+    return renderWithCaptcha('Please enter your email address.');
   }
 
   try {
@@ -1035,6 +1210,9 @@ app.post('/forgot-password', async (req, res) => {
       await sendEmail(user.email, subject, text, html);
     }
 
+    // Clear CAPTCHA answer from session
+    delete req.session.captchaAnswer;
+
     // Store email in session for reset-password page
     req.session.resetEmail = email;
     req.session.resetCodeVerified = false;
@@ -1043,11 +1221,7 @@ app.post('/forgot-password', async (req, res) => {
     res.redirect('/reset-password');
   } catch (err) {
     console.error('Forgot password error', err);
-    res.render('forgot-password', {
-      error: 'Could not process request. Please try again.',
-      success: null,
-      smtpConfigured: true,
-    });
+    renderWithCaptcha('Could not process request. Please try again.');
   }
 });
 

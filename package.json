@@ -17,6 +17,7 @@
     "multer": "^2.0.2",
     "pg": "^8.11.5",
     "nodemailer": "^6.9.16",
+    "svg-captcha": "^1.4.0",
     "qrcode": "^1.5.3",
     "speakeasy": "^2.0.0"
   },

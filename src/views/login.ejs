@@ -20,6 +20,13 @@
           <span>Password</span>
           <input type="password" name="password" required autocomplete="current-password">
         </label>
+        <% if (captchaSvg) { %>
+          <div class="field">
+            <span>Enter the text shown below</span>
+            <div class="captcha-image"><%- captchaSvg %></div>
+            <input type="text" name="captcha" required autocomplete="off" placeholder="Enter captcha">
+          </div>
+        <% } %>
         <p class="muted small"><a href="/forgot-password">Forgot password?</a></p>
       <% } else { %>
         <div class="muted">Signed in as <%= email %>. Enter your 2FA code to finish.</div>
