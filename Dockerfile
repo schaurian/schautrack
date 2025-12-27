@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --production --omit=dev && \
+RUN npm install --omit=dev && \
     npm cache clean --force && \
     rm -rf /root/.npm
 
