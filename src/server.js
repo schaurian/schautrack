@@ -267,6 +267,54 @@ async function markTokenUsed(tokenId) {
 
 async function cleanExpiredTokens() {
   await pool.query('DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE');
+  await pool.query('DELETE FROM email_verification_tokens WHERE expires_at < NOW() OR used = TRUE');
+}
+
+// Email verification helpers
+async function createEmailVerificationToken(userId) {
+  const code = generateResetCode();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+  await pool.query(
+    'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+    [userId, code, expiresAt]
+  );
+  return code;
+}
+
+async function verifyEmailToken(email, token) {
+  const { rows } = await pool.query(
+    `SELECT evt.id, evt.user_id, evt.expires_at, u.email
+     FROM email_verification_tokens evt
+     JOIN users u ON u.id = evt.user_id
+     WHERE u.email = $1 AND evt.token = $2 AND evt.used = FALSE
+     ORDER BY evt.created_at DESC
+     LIMIT 1`,
+    [email.toLowerCase().trim(), token]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (new Date(row.expires_at) < new Date()) return null;
+  return { tokenId: row.id, userId: row.user_id };
+}
+
+async function markEmailVerificationUsed(tokenId) {
+  await pool.query('UPDATE email_verification_tokens SET used = TRUE WHERE id = $1', [tokenId]);
+}
+
+async function markUserVerified(userId) {
+  await pool.query('UPDATE users SET email_verified = TRUE WHERE id = $1', [userId]);
+}
+
+async function sendVerificationEmail(email, code) {
+  const subject = 'Verify Your Email - Schautrack';
+  const text = `Your verification code is: ${code}\n\nThis code expires in 30 minutes.\n\nIf you did not create this account, you can ignore this email.`;
+  const html = `
+    <p>Your verification code is:</p>
+    <h2 style="font-family: monospace; letter-spacing: 4px;">${code}</h2>
+    <p>This code expires in 30 minutes.</p>
+    <p>If you did not create this account, you can ignore this email.</p>
+  `;
+  await sendEmail(email, subject, text, html);
 }
 
 function parseAmount(input) {
@@ -797,12 +845,30 @@ app.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 12);
     // Get timezone from form field, fallback to cookie/header detection, then UTC
     const detectedTz = timezone || getClientTimezone(req) || 'UTC';
-    const { rows } = await pool.query(
-      'INSERT INTO users (email, password_hash, timezone) VALUES ($1, $2, $3) RETURNING id',
-      [email, passwordHash, detectedTz]
-    );
-    req.session.userId = rows[0].id;
-    res.redirect('/dashboard');
+
+    // If SMTP is configured, require email verification
+    if (isSmtpConfigured()) {
+      const { rows } = await pool.query(
+        'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, FALSE) RETURNING id',
+        [email.toLowerCase().trim(), passwordHash, detectedTz]
+      );
+      const userId = rows[0].id;
+      const code = await createEmailVerificationToken(userId);
+      await sendVerificationEmail(email, code);
+
+      // Store email in session for verification page
+      req.session.verifyEmail = email.toLowerCase().trim();
+      req.session.verifyCodeVerified = false;
+      res.redirect('/verify-email');
+    } else {
+      // No SMTP, auto-verify and log in
+      const { rows } = await pool.query(
+        'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, TRUE) RETURNING id',
+        [email.toLowerCase().trim(), passwordHash, detectedTz]
+      );
+      req.session.userId = rows[0].id;
+      res.redirect('/dashboard');
+    }
   } catch (err) {
     console.error('Registration error', err);
     res.render('register', { error: 'Could not register user.' });
@@ -866,6 +932,14 @@ app.post('/login', async (req, res) => {
         requireToken: false,
         email,
       });
+    }
+
+    // Check if email is verified (only if SMTP is configured)
+    if (isSmtpConfigured() && !user.email_verified) {
+      // Store email in session for verification page
+      req.session.verifyEmail = user.email;
+      req.session.verifyCodeVerified = false;
+      return res.redirect('/verify-email');
     }
 
     if (user.totp_enabled) {
@@ -935,12 +1009,12 @@ app.post('/forgot-password', async (req, res) => {
       await sendEmail(user.email, subject, text, html);
     }
 
-    // Always show success to prevent email enumeration
-    res.render('forgot-password', {
-      error: null,
-      success: 'If an account exists with that email, a reset code has been sent.',
-      smtpConfigured: true,
-    });
+    // Store email in session for reset-password page
+    req.session.resetEmail = email;
+    req.session.resetCodeVerified = false;
+
+    // Redirect to reset-password page
+    res.redirect('/reset-password');
   } catch (err) {
     console.error('Forgot password error', err);
     res.render('forgot-password', {
@@ -955,8 +1029,15 @@ app.get('/reset-password', (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
-  const email = req.query.email || '';
-  res.render('reset-password', { error: null, success: null, email });
+  const email = req.session.resetEmail || '';
+  const codeVerified = req.session.resetCodeVerified || false;
+
+  // If no email in session, redirect to forgot-password
+  if (!email) {
+    return res.redirect('/forgot-password');
+  }
+
+  res.render('reset-password', { error: null, success: null, email, codeVerified });
 });
 
 app.post('/reset-password', async (req, res) => {
@@ -964,16 +1045,67 @@ app.post('/reset-password', async (req, res) => {
     return res.redirect('/dashboard');
   }
 
-  const email = (req.body.email || '').toLowerCase().trim();
+  const email = req.session.resetEmail || '';
   const code = (req.body.code || '').trim();
   const password = req.body.password || '';
   const confirmPassword = req.body.confirm_password || '';
+  const codeVerified = req.session.resetCodeVerified || false;
 
-  if (!email || !code || !password) {
+  // If no email in session, redirect to forgot-password
+  if (!email) {
+    return res.redirect('/forgot-password');
+  }
+
+  // Step 1: Verify code
+  if (!codeVerified) {
+    if (!code) {
+      return res.render('reset-password', {
+        error: 'Please enter the reset code.',
+        success: null,
+        email,
+        codeVerified: false,
+      });
+    }
+
+    try {
+      const tokenResult = await verifyPasswordResetToken(email, code);
+      if (!tokenResult) {
+        return res.render('reset-password', {
+          error: 'Invalid or expired code. Please request a new one.',
+          success: null,
+          email,
+          codeVerified: false,
+        });
+      }
+
+      // Code is valid - store in session and show password form
+      req.session.resetCodeVerified = true;
+      req.session.resetTokenId = tokenResult.tokenId;
+      req.session.resetUserId = tokenResult.userId;
+      return res.render('reset-password', {
+        error: null,
+        success: null,
+        email,
+        codeVerified: true,
+      });
+    } catch (err) {
+      console.error('Reset code verification error', err);
+      return res.render('reset-password', {
+        error: 'Could not verify code. Please try again.',
+        success: null,
+        email,
+        codeVerified: false,
+      });
+    }
+  }
+
+  // Step 2: Set new password
+  if (!password) {
     return res.render('reset-password', {
-      error: 'All fields are required.',
+      error: 'Password is required.',
       success: null,
       email,
+      codeVerified: true,
     });
   }
 
@@ -982,6 +1114,7 @@ app.post('/reset-password', async (req, res) => {
       error: 'Passwords do not match.',
       success: null,
       email,
+      codeVerified: true,
     });
   }
 
@@ -990,28 +1123,39 @@ app.post('/reset-password', async (req, res) => {
       error: 'Password must be at least 6 characters.',
       success: null,
       email,
+      codeVerified: true,
     });
   }
 
   try {
-    const tokenResult = await verifyPasswordResetToken(email, code);
-    if (!tokenResult) {
-      return res.render('reset-password', {
-        error: 'Invalid or expired code. Please request a new one.',
-        success: null,
-        email,
-      });
+    const userId = req.session.resetUserId;
+    const tokenId = req.session.resetTokenId;
+
+    if (!userId || !tokenId) {
+      // Session expired, start over
+      delete req.session.resetEmail;
+      delete req.session.resetCodeVerified;
+      delete req.session.resetTokenId;
+      delete req.session.resetUserId;
+      return res.redirect('/forgot-password');
     }
 
     const hash = await bcrypt.hash(password, 12);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, tokenResult.userId]);
-    await markTokenUsed(tokenResult.tokenId);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
+    await markTokenUsed(tokenId);
     await cleanExpiredTokens();
+
+    // Clear session data
+    delete req.session.resetEmail;
+    delete req.session.resetCodeVerified;
+    delete req.session.resetTokenId;
+    delete req.session.resetUserId;
 
     res.render('reset-password', {
       error: null,
       success: 'Password updated successfully. You can now log in.',
       email: '',
+      codeVerified: false,
     });
   } catch (err) {
     console.error('Reset password error', err);
@@ -1019,6 +1163,137 @@ app.post('/reset-password', async (req, res) => {
       error: 'Could not reset password. Please try again.',
       success: null,
       email,
+      codeVerified: true,
+    });
+  }
+});
+
+// Email verification routes
+app.get('/verify-email', (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+  const email = req.session.verifyEmail || '';
+  const codeVerified = req.session.verifyCodeVerified || false;
+
+  // If no email in session, redirect to login
+  if (!email) {
+    return res.redirect('/login');
+  }
+
+  res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail });
+});
+
+app.post('/verify-email', async (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+
+  const email = req.session.verifyEmail || '';
+  const code = (req.body.code || '').trim();
+
+  // If no email in session, redirect to login
+  if (!email) {
+    return res.redirect('/login');
+  }
+
+  if (!code) {
+    return res.render('verify-email', {
+      error: 'Please enter the verification code.',
+      success: null,
+      email,
+      codeVerified: false,
+      supportEmail,
+    });
+  }
+
+  try {
+    const tokenResult = await verifyEmailToken(email, code);
+    if (!tokenResult) {
+      return res.render('verify-email', {
+        error: 'Invalid or expired code. Please request a new one.',
+        success: null,
+        email,
+        codeVerified: false,
+        supportEmail,
+      });
+    }
+
+    // Mark token as used and user as verified
+    await markEmailVerificationUsed(tokenResult.tokenId);
+    await markUserVerified(tokenResult.userId);
+    await cleanExpiredTokens();
+
+    // Clear session data and log user in
+    delete req.session.verifyEmail;
+    delete req.session.verifyCodeVerified;
+    req.session.userId = tokenResult.userId;
+
+    return res.redirect('/dashboard');
+  } catch (err) {
+    console.error('Email verification error', err);
+    res.render('verify-email', {
+      error: 'Could not verify email. Please try again.',
+      success: null,
+      email,
+      codeVerified: false,
+      supportEmail,
+    });
+  }
+});
+
+app.post('/verify-email/resend', async (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+
+  const email = req.session.verifyEmail || '';
+
+  // If no email in session, redirect to login
+  if (!email) {
+    return res.redirect('/login');
+  }
+
+  try {
+    // Get the user
+    const { rows } = await pool.query('SELECT id, email_verified FROM users WHERE email = $1', [email]);
+    const user = rows[0];
+
+    if (!user) {
+      delete req.session.verifyEmail;
+      return res.redirect('/login');
+    }
+
+    if (user.email_verified) {
+      delete req.session.verifyEmail;
+      return res.render('verify-email', {
+        error: null,
+        success: 'Your email is already verified. You can log in.',
+        email: '',
+        codeVerified: true,
+        supportEmail,
+      });
+    }
+
+    // Create new token and send email
+    const code = await createEmailVerificationToken(user.id);
+    await sendVerificationEmail(email, code);
+
+    res.render('verify-email', {
+      error: null,
+      success: 'A new verification code has been sent to your email.',
+      email,
+      codeVerified: false,
+      supportEmail,
+    });
+  } catch (err) {
+    console.error('Resend verification error', err);
+    res.render('verify-email', {
+      error: 'Could not send verification code. Please try again later.',
+      success: null,
+      email,
+      codeVerified: false,
+      supportEmail,
     });
   }
 });
