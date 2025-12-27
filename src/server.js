@@ -256,6 +256,11 @@ async function ensurePasswordResetSchema() {
 }
 
 async function ensureEmailVerificationSchema() {
+  // First ensure the users table has created_at column
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+  `);
+
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
   `);
