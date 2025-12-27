@@ -216,6 +216,14 @@ async function ensureUserPrefsSchema() {
   `);
 }
 
+async function ensureCalorieEntriesSchema() {
+  await pool.query(`
+    ALTER TABLE calorie_entries
+      ADD COLUMN IF NOT EXISTS entry_name TEXT,
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+  `);
+}
+
 async function ensurePasswordResetSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -2342,7 +2350,7 @@ app.post('/settings/password', requireAuth, async (req, res) => {
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema()]);
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema()]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {
