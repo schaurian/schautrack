@@ -265,14 +265,6 @@ async function ensureEmailVerificationSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
   `);
 
-  // Mark users created before 2025-12-27 (when email verification was added) as verified
-  // This is safe to run multiple times - only affects users with email_verified = FALSE
-  // who were created before the feature existed
-  await pool.query(`
-    UPDATE users SET email_verified = TRUE
-    WHERE email_verified = FALSE AND created_at < '2025-12-27'
-  `);
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS email_verification_tokens (
       id SERIAL PRIMARY KEY,
@@ -284,6 +276,17 @@ async function ensureEmailVerificationSchema() {
     );
     CREATE INDEX IF NOT EXISTS email_verification_tokens_user_idx ON email_verification_tokens (user_id);
     CREATE INDEX IF NOT EXISTS email_verification_tokens_expires_idx ON email_verification_tokens (expires_at);
+  `);
+
+  // Mark unverified users as verified if they have no pending verification token
+  // This handles users created before email verification was added
+  await pool.query(`
+    UPDATE users SET email_verified = TRUE
+    WHERE email_verified = FALSE
+      AND id NOT IN (
+        SELECT DISTINCT user_id FROM email_verification_tokens
+        WHERE used = FALSE AND expires_at > NOW()
+      )
   `);
 }
 
