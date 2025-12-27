@@ -1,6 +1,7 @@
 // Schautrack server
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
@@ -70,14 +71,14 @@ const sendEmail = async (to, subject, text, html) => {
 };
 
 const generateResetCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 // SVG CAPTCHA helper (self-hosted image captcha)
 const generateCaptcha = () => {
   return svgCaptcha.create({
     size: 5,
-    noise: 2,
+    noise: 4,
     color: true,
     background: '#1a1a2e',
   });
@@ -923,9 +924,10 @@ app.post('/register', async (req, res) => {
         });
       }
 
-      // Store credentials in session and show CAPTCHA
+      // Store credentials in session and show CAPTCHA (hash password for security)
       const detectedTz = timezone || getClientTimezone(req) || 'UTC';
-      req.session.pendingRegistration = { email, password, timezone: detectedTz };
+      const passwordHash = await bcrypt.hash(password, 12);
+      req.session.pendingRegistration = { email, passwordHash, timezone: detectedTz };
 
       const newCaptcha = generateCaptcha();
       req.session.captchaAnswer = newCaptcha.text;
@@ -950,7 +952,7 @@ app.post('/register', async (req, res) => {
   // Step 2: CAPTCHA submitted - verify and create account
   if (step === 'captcha') {
     const pending = req.session.pendingRegistration;
-    if (!pending || !pending.email || !pending.password) {
+    if (!pending || !pending.email || !pending.passwordHash) {
       return res.render('register', {
         error: 'Registration session expired. Please start again.',
         email: '',
@@ -975,6 +977,9 @@ app.post('/register', async (req, res) => {
       return renderCaptchaError('Invalid captcha. Please try again.');
     }
 
+    // Clear CAPTCHA after successful verification
+    delete req.session.captchaAnswer;
+
     try {
       // Check again that email doesn't exist (race condition protection)
       const existing = await pool.query('SELECT id FROM users WHERE email = $1', [pending.email]);
@@ -988,13 +993,11 @@ app.post('/register', async (req, res) => {
         });
       }
 
-      const passwordHash = await bcrypt.hash(pending.password, 12);
-
       // If SMTP is configured, require email verification
       if (isSmtpConfigured()) {
         const { rows } = await pool.query(
           'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, FALSE) RETURNING id',
-          [pending.email, passwordHash, pending.timezone]
+          [pending.email, pending.passwordHash, pending.timezone]
         );
         const userId = rows[0].id;
         const code = await createEmailVerificationToken(userId);
@@ -1009,7 +1012,7 @@ app.post('/register', async (req, res) => {
         // No SMTP, auto-verify and log in
         const { rows } = await pool.query(
           'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, TRUE) RETURNING id',
-          [pending.email, passwordHash, pending.timezone]
+          [pending.email, pending.passwordHash, pending.timezone]
         );
         delete req.session.pendingRegistration;
         req.session.userId = rows[0].id;
@@ -1103,6 +1106,8 @@ app.post('/login', async (req, res) => {
       if (!verifyCaptcha(req.session.captchaAnswer, captcha)) {
         return renderLogin('Invalid captcha. Please try again.', { email });
       }
+      // Clear CAPTCHA after successful verification
+      delete req.session.captchaAnswer;
     }
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -1405,6 +1410,18 @@ app.post('/verify-email', async (req, res) => {
     return res.redirect('/login');
   }
 
+  // Rate limit: max 5 verification attempts per session
+  const verifyAttempts = req.session.verifyAttempts || 0;
+  if (verifyAttempts >= 5) {
+    return res.render('verify-email', {
+      error: 'Too many attempts. Please request a new code.',
+      success: null,
+      email,
+      codeVerified: false,
+      supportEmail,
+    });
+  }
+
   if (!code) {
     return res.render('verify-email', {
       error: 'Please enter the verification code.',
@@ -1418,6 +1435,7 @@ app.post('/verify-email', async (req, res) => {
   try {
     const tokenResult = await verifyEmailToken(email, code);
     if (!tokenResult) {
+      req.session.verifyAttempts = verifyAttempts + 1;
       return res.render('verify-email', {
         error: 'Invalid or expired code. Please request a new one.',
         success: null,
@@ -1435,6 +1453,8 @@ app.post('/verify-email', async (req, res) => {
     // Clear session data and log user in
     delete req.session.verifyEmail;
     delete req.session.verifyCodeVerified;
+    delete req.session.verifyAttempts;
+    delete req.session.resendAttempts;
     req.session.userId = tokenResult.userId;
 
     return res.redirect('/dashboard');
@@ -1462,6 +1482,18 @@ app.post('/verify-email/resend', async (req, res) => {
     return res.redirect('/login');
   }
 
+  // Rate limit: max 3 resend attempts per session
+  const resendAttempts = req.session.resendAttempts || 0;
+  if (resendAttempts >= 3) {
+    return res.render('verify-email', {
+      error: 'Too many resend requests. Please wait and try again later.',
+      success: null,
+      email,
+      codeVerified: false,
+      supportEmail,
+    });
+  }
+
   try {
     // Get the user
     const { rows } = await pool.query('SELECT id, email_verified FROM users WHERE email = $1', [email]);
@@ -1486,6 +1518,10 @@ app.post('/verify-email/resend', async (req, res) => {
     // Create new token and send email
     const code = await createEmailVerificationToken(user.id);
     await sendVerificationEmail(email, code);
+
+    // Increment resend counter and reset verify attempts
+    req.session.resendAttempts = resendAttempts + 1;
+    req.session.verifyAttempts = 0;
 
     res.render('verify-email', {
       error: null,
