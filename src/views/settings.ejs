@@ -66,6 +66,33 @@
         <% } %>
       </div>
     </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Security</p>
+          <h2>Change password</h2>
+        </div>
+      </div>
+      <% if (passwordFeedback) { %>
+        <div class="alert <%= passwordFeedback.type === 'error' ? 'danger' : 'success' %>"><%= passwordFeedback.message %></div>
+      <% } %>
+      <form action="/settings/password" method="POST" class="stack">
+        <label class="field">
+          <span>Current password</span>
+          <input type="password" name="current_password" required autocomplete="current-password">
+        </label>
+        <label class="field">
+          <span>New password</span>
+          <input type="password" name="new_password" required autocomplete="new-password" minlength="6">
+        </label>
+        <label class="field">
+          <span>Confirm new password</span>
+          <input type="password" name="confirm_password" required autocomplete="new-password" minlength="6">
+        </label>
+        <button type="submit" class="primary">Update password</button>
+      </form>
+    </div>
   </section>
 
   <section class="panel">

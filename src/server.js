@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,46 @@ const impressumAddress = process.env.IMPRESSUM_ADDRESS || 'Sudetenring 50, 94234
 const impressumEmail = process.env.IMPRESSUM_EMAIL || supportEmail;
 const impressumUrl = process.env.IMPRESSUM_URL || '/impressum';
 const KG_TO_LB = 2.20462;
+
+// SMTP configuration
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+const smtpFrom = process.env.SMTP_FROM || supportEmail;
+const smtpSecure = process.env.SMTP_SECURE === 'true';
+
+const isSmtpConfigured = () => Boolean(smtpHost && smtpUser && smtpPass);
+
+let smtpTransporter = null;
+if (isSmtpConfigured()) {
+  smtpTransporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+}
+
+const sendEmail = async (to, subject, text, html) => {
+  if (!smtpTransporter) {
+    throw new Error('SMTP not configured');
+  }
+  return smtpTransporter.sendMail({
+    from: smtpFrom,
+    to,
+    subject,
+    text,
+    html,
+  });
+};
+
+const generateResetCode = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 const parseCookies = (header) => {
   if (!header) return {};
@@ -173,6 +214,59 @@ async function ensureUserPrefsSchema() {
       ALTER COLUMN weight_unit SET DEFAULT 'kg';
     UPDATE users SET weight_unit = 'kg' WHERE weight_unit IS NULL;
   `);
+}
+
+async function ensurePasswordResetSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_user_idx ON password_reset_tokens (user_id);
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_expires_idx ON password_reset_tokens (expires_at);
+  `);
+}
+
+async function createPasswordResetToken(userId) {
+  const code = generateResetCode();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+  await pool.query(
+    'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used = FALSE',
+    [userId]
+  );
+  await pool.query(
+    'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+    [userId, code, expiresAt]
+  );
+  return code;
+}
+
+async function verifyPasswordResetToken(email, token) {
+  const { rows } = await pool.query(
+    `SELECT prt.id, prt.user_id, prt.expires_at, u.email
+     FROM password_reset_tokens prt
+     JOIN users u ON u.id = prt.user_id
+     WHERE u.email = $1 AND prt.token = $2 AND prt.used = FALSE
+     ORDER BY prt.created_at DESC
+     LIMIT 1`,
+    [email.toLowerCase().trim(), token]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (new Date(row.expires_at) < new Date()) return null;
+  return { tokenId: row.id, userId: row.user_id };
+}
+
+async function markTokenUsed(tokenId) {
+  await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [tokenId]);
+}
+
+async function cleanExpiredTokens() {
+  await pool.query('DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE');
 }
 
 function parseAmount(input) {
@@ -604,6 +698,8 @@ const renderSettings = async (req, res) => {
   const tempUrl = req.session.tempUrl;
   const feedback = req.session.linkFeedback || null;
   delete req.session.linkFeedback;
+  const passwordFeedback = req.session.passwordFeedback || null;
+  delete req.session.passwordFeedback;
 
   let linkState = { incoming: [], outgoing: [] };
   let acceptedLinks = [];
@@ -637,6 +733,7 @@ const renderSettings = async (req, res) => {
     outgoingRequests: linkState.outgoing,
     acceptedLinks,
     linkFeedback: feedback,
+    passwordFeedback,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
     timezones,
@@ -791,6 +888,139 @@ app.post('/login', async (req, res) => {
 
 app.post('/logout', requireAuth, (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
+});
+
+app.get('/forgot-password', (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+  res.render('forgot-password', { error: null, success: null, smtpConfigured: isSmtpConfigured() });
+});
+
+app.post('/forgot-password', async (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+  if (!isSmtpConfigured()) {
+    return res.render('forgot-password', {
+      error: 'Password recovery is not available. Please contact support.',
+      success: null,
+      smtpConfigured: false,
+    });
+  }
+
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email) {
+    return res.render('forgot-password', {
+      error: 'Please enter your email address.',
+      success: null,
+      smtpConfigured: true,
+    });
+  }
+
+  try {
+    const { rows } = await pool.query('SELECT id, email FROM users WHERE email = $1', [email]);
+    const user = rows[0];
+
+    if (user) {
+      const code = await createPasswordResetToken(user.id);
+      const subject = 'Password Reset Code - Schautrack';
+      const text = `Your password reset code is: ${code}\n\nThis code expires in 30 minutes.\n\nIf you did not request this, you can ignore this email.`;
+      const html = `
+        <p>Your password reset code is:</p>
+        <h2 style="font-family: monospace; letter-spacing: 4px;">${code}</h2>
+        <p>This code expires in 30 minutes.</p>
+        <p>If you did not request this, you can ignore this email.</p>
+      `;
+      await sendEmail(user.email, subject, text, html);
+    }
+
+    // Always show success to prevent email enumeration
+    res.render('forgot-password', {
+      error: null,
+      success: 'If an account exists with that email, a reset code has been sent.',
+      smtpConfigured: true,
+    });
+  } catch (err) {
+    console.error('Forgot password error', err);
+    res.render('forgot-password', {
+      error: 'Could not process request. Please try again.',
+      success: null,
+      smtpConfigured: true,
+    });
+  }
+});
+
+app.get('/reset-password', (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+  const email = req.query.email || '';
+  res.render('reset-password', { error: null, success: null, email });
+});
+
+app.post('/reset-password', async (req, res) => {
+  if (req.currentUser) {
+    return res.redirect('/dashboard');
+  }
+
+  const email = (req.body.email || '').toLowerCase().trim();
+  const code = (req.body.code || '').trim();
+  const password = req.body.password || '';
+  const confirmPassword = req.body.confirm_password || '';
+
+  if (!email || !code || !password) {
+    return res.render('reset-password', {
+      error: 'All fields are required.',
+      success: null,
+      email,
+    });
+  }
+
+  if (password !== confirmPassword) {
+    return res.render('reset-password', {
+      error: 'Passwords do not match.',
+      success: null,
+      email,
+    });
+  }
+
+  if (password.length < 6) {
+    return res.render('reset-password', {
+      error: 'Password must be at least 6 characters.',
+      success: null,
+      email,
+    });
+  }
+
+  try {
+    const tokenResult = await verifyPasswordResetToken(email, code);
+    if (!tokenResult) {
+      return res.render('reset-password', {
+        error: 'Invalid or expired code. Please request a new one.',
+        success: null,
+        email,
+      });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, tokenResult.userId]);
+    await markTokenUsed(tokenResult.tokenId);
+    await cleanExpiredTokens();
+
+    res.render('reset-password', {
+      error: null,
+      success: 'Password updated successfully. You can now log in.',
+      email: '',
+    });
+  } catch (err) {
+    console.error('Reset password error', err);
+    res.render('reset-password', {
+      error: 'Could not reset password. Please try again.',
+      success: null,
+      email,
+    });
+  }
 });
 
 app.post('/delete', requireAuth, async (req, res) => {
@@ -1769,11 +1999,57 @@ app.post('/settings/preferences', requireAuth, async (req, res) => {
   res.redirect('/settings');
 });
 
+app.post('/settings/password', requireAuth, async (req, res) => {
+  const currentPassword = req.body.current_password || '';
+  const newPassword = req.body.new_password || '';
+  const confirmPassword = req.body.confirm_password || '';
+
+  if (!currentPassword || !newPassword) {
+    req.session.passwordFeedback = { type: 'error', message: 'Current and new password are required.' };
+    return res.redirect('/settings');
+  }
+
+  if (newPassword !== confirmPassword) {
+    req.session.passwordFeedback = { type: 'error', message: 'New passwords do not match.' };
+    return res.redirect('/settings');
+  }
+
+  if (newPassword.length < 6) {
+    req.session.passwordFeedback = { type: 'error', message: 'New password must be at least 6 characters.' };
+    return res.redirect('/settings');
+  }
+
+  try {
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.currentUser.id]);
+    const user = rows[0];
+    if (!user) {
+      req.session.passwordFeedback = { type: 'error', message: 'User not found.' };
+      return res.redirect('/settings');
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!validPassword) {
+      req.session.passwordFeedback = { type: 'error', message: 'Current password is incorrect.' };
+      return res.redirect('/settings');
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.currentUser.id]);
+
+    req.session.passwordFeedback = { type: 'success', message: 'Password updated successfully.' };
+    res.redirect('/settings');
+  } catch (err) {
+    console.error('Password change error', err);
+    req.session.passwordFeedback = { type: 'error', message: 'Could not change password. Please try again.' };
+    res.redirect('/settings');
+  }
+});
+
 // Retry schema initialization with exponential backoff
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema()]);
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensurePasswordResetSchema()]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {
