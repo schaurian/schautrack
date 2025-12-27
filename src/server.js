@@ -231,6 +231,24 @@ async function ensurePasswordResetSchema() {
   `);
 }
 
+async function ensureEmailVerificationSchema() {
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+    UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL;
+
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS email_verification_tokens_user_idx ON email_verification_tokens (user_id);
+    CREATE INDEX IF NOT EXISTS email_verification_tokens_expires_idx ON email_verification_tokens (expires_at);
+  `);
+}
+
 async function createPasswordResetToken(userId) {
   const code = generateResetCode();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
@@ -2324,7 +2342,7 @@ app.post('/settings/password', requireAuth, async (req, res) => {
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensurePasswordResetSchema()]);
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema()]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {
