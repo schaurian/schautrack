@@ -272,8 +272,10 @@ button:active,
 button:disabled,
 .ghost:disabled,
 .primary:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
+  background: #2a2a3a;
+  color: #6b7280;
 }
 
 button:focus-visible,

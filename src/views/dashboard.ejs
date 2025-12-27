@@ -38,18 +38,18 @@
       <label class="field">
         <span>Calories</span>
         <input
-          type="tel"
+          type="text"
           name="amount"
-          inputmode="tel"
+          inputmode="numeric"
           autocomplete="off"
           autocapitalize="none"
           autocorrect="off"
           spellcheck="false"
-          placeholder="e.g. 250, -200">
+          placeholder="e.g. 200 or 2*200">
       </label>
       <label class="field">
-        <span>Label</span>
-        <input type="text" name="entry_name" maxlength="120" placeholder="Optional">
+        <span>What</span>
+        <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack...">
       </label>
       <label class="field">
         <span>Date</span>
@@ -1176,9 +1176,11 @@
       const isValidCalorieInput = (value) => {
         if (!value || !value.trim()) return false;
         const trimmed = value.trim();
-        // Allow: integers, negative integers, or simple math like 100+50, 200-30, 10*5
-        // Must evaluate to a finite number
-        if (!/^-?\d+(\s*[+\-*]\s*\d+)*$/.test(trimmed)) return false;
+        // Allow: numbers with math operators (+, -, *, /) and parentheses
+        // Only allow safe characters to prevent code injection
+        if (!/^[\d+\-*/() ]+$/.test(trimmed)) return false;
+        // Must contain at least one digit
+        if (!/\d/.test(trimmed)) return false;
         try {
           const result = Function('"use strict"; return (' + trimmed + ')')();
           return typeof result === 'number' && isFinite(result);
@@ -1193,6 +1195,30 @@
       };
 
       if (calorieInput) {
+        // Filter input to only allow numbers and math operators
+        const validCalorieChars = /^[\d+\-*/() ]+$/;
+        calorieInput.addEventListener('beforeinput', (e) => {
+          if (e.inputType === 'insertText' && e.data) {
+            // Allow: digits, +, -, *, /, (, ), spaces
+            if (!validCalorieChars.test(e.data)) {
+              e.preventDefault();
+            }
+          }
+        });
+
+        // Also filter on paste
+        calorieInput.addEventListener('paste', (e) => {
+          const paste = (e.clipboardData || window.clipboardData).getData('text');
+          if (!validCalorieChars.test(paste)) {
+            e.preventDefault();
+            // Insert only valid characters from paste
+            const filtered = paste.replace(/[^\d+\-*/() ]/g, '');
+            if (filtered) {
+              document.execCommand('insertText', false, filtered);
+            }
+          }
+        });
+
         calorieInput.addEventListener('input', updateSubmitState);
         updateSubmitState();
       }
