@@ -123,8 +123,10 @@ Required:
 - `COOKIE_SECURE`: Set to 'true' for HTTPS environments
 
 Optional:
-- `IMPRESSUM_NAME`, `IMPRESSUM_ADDRESS`, `IMPRESSUM_EMAIL`: Legal contact info
-- `IMPRESSUM_URL`: Custom impressum page URL
+- `IMPRINT_NAME`: Operator name (default: 'Operator')
+- `IMPRINT_URL`: Custom imprint page URL (default: '/imprint')
+- `IMPRINT_ADDRESS`: Address text (rendered as SVG)
+- `IMPRINT_EMAIL`: Email text (rendered as SVG)
 - `BUILD_VERSION`: Injected during build, displayed in footer
 
 ## Development Workflow

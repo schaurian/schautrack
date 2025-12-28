@@ -1301,21 +1301,25 @@ a:focus-visible,
   color: var(--muted);
 }
 
-.impressum-card {
-  border: 1px solid var(--stroke);
-  border-radius: 10px;
+.imprint-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.02);
-  display: inline-flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  width: fit-content;
+  margin-bottom: var(--space-md);
 }
 
-.impressum-img {
-  max-width: 200px;
+.imprint-label {
+  margin-left: -12px;
+}
+
+.imprint-img {
+  display: block;
+  max-width: 100%;
   height: auto;
-  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.35));
+  margin-top: var(--space-xs);
+  margin-left: -12px; /* Pull left to align text optically */
+  border-radius: var(--radius-sm);
 }
 
 .build-tag {

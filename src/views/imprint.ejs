@@ -1,19 +1,19 @@
-<%- include('partials/header', { title: 'Impressum', activePage: null }) %>
+<%- include('partials/header', { title: 'Imprint', activePage: null }) %>
   <section class="panel stack">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Legal Notice</p>
-        <h1>Impressum</h1>
+        <h1>Imprint</h1>
       </div>
     </div>
     <p class="muted small">Responsible according to § 5 TMG / § 18 Abs. 2 MStV</p>
-    <div class="impressum-card">
-      <div class="muted small">Operator</div>
-      <img class="impressum-img" src="/impressum-address.png" alt="Operator address (image)">
+    <div class="imprint-card">
+      <div class="muted small imprint-label">Operator</div>
+      <img class="imprint-img" src="/imprint/address.svg?v=<%= Date.now() %>" alt="Operator address">
     </div>
-    <div class="impressum-card">
-      <div class="muted small">Contact</div>
-      <img class="impressum-img" src="/impressum-email.png" alt="Contact email (image)">
+    <div class="imprint-card">
+      <div class="muted small imprint-label">Contact</div>
+      <img class="imprint-img" src="/imprint/email.svg?v=<%= Date.now() %>" alt="Contact email">
     </div>
 
     <h2>Contact</h2>
@@ -48,7 +48,7 @@
       can remove the content promptly.
     </p>
 
-    <h2>EU Dispute Resolution / Verbraucherstreitbeilegung</h2>
+    <h2>EU Dispute Resolution</h2>
     <p>
       The EU platform for online dispute resolution: <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr</a>.
       I am not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.

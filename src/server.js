@@ -28,10 +28,46 @@ const supportEmail = process.env.SUPPORT_EMAIL;
 if (!supportEmail) {
   throw new Error('SUPPORT_EMAIL environment variable is required');
 }
-const impressumName = process.env.IMPRESSUM_NAME || 'Florian Schauer';
-const impressumAddress = process.env.IMPRESSUM_ADDRESS || 'Sudetenring 50, 94234 Viechtach, Germany';
-const impressumEmail = process.env.IMPRESSUM_EMAIL || supportEmail;
-const impressumUrl = process.env.IMPRESSUM_URL || '/impressum';
+const enableLegal = process.env.ENABLE_LEGAL === 'true';
+const imprintName = process.env.IMPRINT_NAME || 'Operator';
+const imprintUrl = process.env.IMPRINT_URL || '/imprint';
+const imprintAddress = process.env.IMPRINT_ADDRESS || null;
+// Display email (image/text)
+const imprintEmail = process.env.IMPRINT_EMAIL || null;
+
+// XML escape helper
+const escapeXml = (unsafe) => {
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+    }
+  });
+};
+
+// Helper to generate text SVG
+const textToSvg = (text, color = '#e5e7eb') => {
+  if (!text) return '';
+  const lines = String(text).split(/\\n|\n/);
+  const fontSize = 16;
+  const lineHeight = 24;
+  const height = lines.length * lineHeight;
+  // Estimate width: avg char width approx 9px at 16px font
+  const maxLen = Math.max(...lines.map(l => l.length));
+  const width = Math.max(maxLen * 10, 100); 
+  
+  const svgContent = lines.map((line, i) => 
+    `<text x="0" y="${(i + 1) * lineHeight - 6}" fill="${color}" font-family="sans-serif" font-weight="500" font-size="${fontSize}">${escapeXml(line)}</text>`
+  ).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <style>text { font-family: "Space Grotesk", sans-serif; }</style>
+    ${svgContent}
+  </svg>`;
+};
 const KG_TO_LB = 2.20462;
 
 // SMTP configuration
@@ -744,11 +780,12 @@ app.use(express.json());
 app.use((req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
   res.locals.supportEmail = supportEmail;
-  res.locals.impressumUrl = impressumUrl;
-  res.locals.impressum = {
-    name: impressumName,
-    address: impressumAddress,
-    email: impressumEmail,
+  // Only enable legal UI if flag is true AND we have the required content
+  const isLegalConfigured = enableLegal && !!imprintAddress && !!imprintEmail;
+  res.locals.enableLegal = isLegalConfigured;
+  res.locals.imprintUrl = imprintUrl;
+  res.locals.imprint = {
+    name: imprintName,
   };
   next();
 });
@@ -865,19 +902,37 @@ app.get('/', (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/impressum', (req, res) => {
-  res.render('impressum', { activePage: null });
+app.get('/imprint/address.svg', (req, res) => {
+  if (!enableLegal || !imprintAddress) return res.sendStatus(404);
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(textToSvg(imprintAddress));
+});
+
+app.get('/imprint/email.svg', (req, res) => {
+  if (!enableLegal || !imprintEmail) return res.sendStatus(404);
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(textToSvg(imprintEmail));
+});
+
+app.get('/imprint', (req, res) => {
+  if (!enableLegal || !imprintAddress || !imprintEmail) return res.sendStatus(404);
+  res.render('imprint', { activePage: null });
 });
 
 app.get('/privacy', (req, res) => {
+  if (!enableLegal) return res.sendStatus(404);
   res.render('privacy', { activePage: null });
 });
 
 app.get('/terms', (req, res) => {
+  if (!enableLegal) return res.sendStatus(404);
   res.render('terms', { activePage: null });
 });
 
 app.get('/delete', (req, res) => {
+  if (!enableLegal) return res.sendStatus(404);
   const feedback = req.session.deleteFeedback || null;
   delete req.session.deleteFeedback;
   res.render('delete', { activePage: null, deleteFeedback: feedback });

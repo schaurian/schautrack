@@ -5,15 +5,19 @@
         <div class="footer-quote">You got this. Trust me.</div>
       </div>
       <div class="footer-right">
-        <div class="footer-links">
-          <% if (impressumUrl) { %>
-            <a class="muted-link" href="<%= impressumUrl %>" <%= impressumUrl.startsWith('/') ? '' : 'target=\"_blank\" rel=\"noopener\"' %>>Impressum</a>
+        <% if (enableLegal) { %>
+          <div class="footer-links">
+            <% if (imprintUrl) { %>
+              <a class="muted-link" href="<%= imprintUrl %>" <%= imprintUrl.startsWith('/') ? '' : 'target="_blank" rel="noopener"' %>>Imprint</a>
+              <span class="separator">—</span>
+            <% } %>
+            <a class="muted-link" href="/privacy">Privacy</a>
             <span class="separator">—</span>
-          <% } %>
-          <a class="muted-link" href="/privacy">Privacy</a>
-          <span class="separator">—</span>
-          <a class="muted-link" href="/terms">Terms</a>
-        </div>
+            <a class="muted-link" href="/terms">Terms</a>
+            <span class="separator">—</span>
+            <a class="muted-link" href="/delete">Delete Account</a>
+          </div>
+        <% } %>
         <% if (buildVersion) { %>
           <div class="build-tag muted small">v<%= buildVersion %></div>
         <% } %>
