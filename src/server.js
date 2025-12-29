@@ -73,6 +73,43 @@ const textToSvg = (text, color = '#e5e7eb') => {
 };
 const KG_TO_LB = 2.20462;
 
+// API Key Encryption (AES-256-GCM)
+const API_KEY_ENCRYPTION_SECRET = process.env.API_KEY_ENCRYPTION_SECRET;
+
+const encryptApiKey = (plaintext) => {
+  if (!API_KEY_ENCRYPTION_SECRET || !plaintext) return null;
+  try {
+    const key = Buffer.from(API_KEY_ENCRYPTION_SECRET, 'hex');
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    let encrypted = cipher.update(plaintext, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    const authTag = cipher.getAuthTag();
+    return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
+  } catch (err) {
+    console.error('Failed to encrypt API key', err);
+    return null;
+  }
+};
+
+const decryptApiKey = (ciphertext) => {
+  if (!API_KEY_ENCRYPTION_SECRET || !ciphertext) return null;
+  try {
+    const [ivB64, tagB64, encrypted] = ciphertext.split(':');
+    const key = Buffer.from(API_KEY_ENCRYPTION_SECRET, 'hex');
+    const iv = Buffer.from(ivB64, 'base64');
+    const authTag = Buffer.from(tagB64, 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (err) {
+    console.error('Failed to decrypt API key', err);
+    return null;
+  }
+};
+
 // SMTP configuration
 const smtpHost = process.env.SMTP_HOST;
 const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -337,6 +374,15 @@ async function ensureAdminSettingsSchema() {
       value TEXT,
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+}
+
+async function ensureAIKeysSchema() {
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS openai_api_key TEXT,
+      ADD COLUMN IF NOT EXISTS claude_api_key TEXT,
+      ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai';
   `);
 }
 
@@ -812,7 +858,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 app.use(async (req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
@@ -907,6 +953,8 @@ const renderSettings = async (req, res) => {
   delete req.session.linkFeedback;
   const passwordFeedback = req.session.passwordFeedback || null;
   delete req.session.passwordFeedback;
+  const aiFeedback = req.session.aiFeedback || null;
+  delete req.session.aiFeedback;
 
   let linkState = { incoming: [], outgoing: [] };
   let acceptedLinks = [];
@@ -930,8 +978,32 @@ const renderSettings = async (req, res) => {
   // Get all supported IANA timezones
   const timezones = Intl.supportedValuesOf('timeZone');
 
+  // Prepare AI key info for display (masked)
+  const hasOpenaiKey = Boolean(user.openai_api_key);
+  const hasClaudeKey = Boolean(user.claude_api_key);
+  let openaiKeyLast4 = '';
+  let claudeKeyLast4 = '';
+  if (hasOpenaiKey) {
+    const decrypted = decryptApiKey(user.openai_api_key);
+    if (decrypted && decrypted.length >= 4) {
+      openaiKeyLast4 = decrypted.slice(-4);
+    }
+  }
+  if (hasClaudeKey) {
+    const decrypted = decryptApiKey(user.claude_api_key);
+    if (decrypted && decrypted.length >= 4) {
+      claudeKeyLast4 = decrypted.slice(-4);
+    }
+  }
+
   res.render('settings', {
-    user,
+    user: {
+      ...user,
+      hasOpenaiKey,
+      hasClaudeKey,
+      openaiKeyLast4,
+      claudeKeyLast4,
+    },
     hasTempSecret: Boolean(tempSecret),
     qrDataUrl,
     otpauthUrl: tempUrl || null,
@@ -941,6 +1013,7 @@ const renderSettings = async (req, res) => {
     acceptedLinks,
     linkFeedback: feedback,
     passwordFeedback,
+    aiFeedback,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
     timezones,
@@ -949,7 +1022,7 @@ const renderSettings = async (req, res) => {
 
 async function getUserById(id) {
   const { rows } = await pool.query(
-    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual FROM users WHERE id = $1',
+    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual, openai_api_key, claude_api_key, preferred_ai_provider FROM users WHERE id = $1',
     [id]
   );
   const user = rows[0];
@@ -1831,6 +1904,12 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     }
   }
 
+  // Check if AI estimation is enabled (user has API key for selected provider)
+  const hasAiEnabled = Boolean(
+    (user.preferred_ai_provider === 'claude' && user.claude_api_key) ||
+    (user.preferred_ai_provider !== 'claude' && user.openai_api_key)
+  );
+
   res.render('dashboard', {
     user,
     todayTotal,
@@ -1852,6 +1931,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     },
     weightEntry: viewWeight,
     lastWeightEntry,
+    hasAiEnabled,
     activePage: 'dashboard',
   });
 });
@@ -2547,6 +2627,154 @@ app.post('/entries/:id/delete', requireAuth, async (req, res) => {
   res.redirect('/dashboard');
 });
 
+// AI Calorie Estimation API
+app.post('/api/ai/estimate', requireAuth, async (req, res) => {
+  const { image, context } = req.body;
+
+  if (!image || !image.startsWith('data:image/')) {
+    return res.status(400).json({ ok: false, error: 'Invalid image data' });
+  }
+
+  const user = req.currentUser;
+  const provider = user.preferred_ai_provider || 'openai';
+
+  let apiKey = null;
+  if (provider === 'openai' && user.openai_api_key) {
+    apiKey = decryptApiKey(user.openai_api_key);
+  } else if (provider === 'claude' && user.claude_api_key) {
+    apiKey = decryptApiKey(user.claude_api_key);
+  }
+
+  if (!apiKey) {
+    return res.status(400).json({ ok: false, error: 'No API key configured for selected provider' });
+  }
+
+  const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+  const mediaType = image.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
+
+  const contextHint = context ? `\n\nUser provided context: "${context}"` : '';
+  const prompt = `Analyze this food image and estimate the calories.${contextHint}
+
+Respond in JSON format with these fields:
+- calories: estimated total calories (number)
+- food: brief description of the food items (string, max 50 chars)
+- confidence: your confidence level ("high", "medium", or "low")
+
+Only respond with the JSON object, no other text.`;
+
+  try {
+    let result;
+    if (provider === 'openai') {
+      result = await callOpenAI(apiKey, base64Data, mediaType, prompt);
+    } else {
+      result = await callClaude(apiKey, base64Data, mediaType, prompt);
+    }
+
+    return res.json({
+      ok: true,
+      calories: result.calories,
+      food: result.food,
+      confidence: result.confidence,
+    });
+  } catch (err) {
+    console.error('AI estimation failed:', err.message);
+    return res.status(500).json({ ok: false, error: err.message || 'AI analysis failed' });
+  }
+});
+
+async function callOpenAI(apiKey, base64Data, mediaType, prompt) {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mediaType};base64,${base64Data}`,
+                detail: 'low',
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 200,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`OpenAI API error: ${error}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices[0]?.message?.content || '';
+  return parseAIResponse(content);
+}
+
+async function callClaude(apiKey, base64Data, mediaType, prompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: base64Data,
+              },
+            },
+            { type: 'text', text: prompt },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Claude API error: ${error}`);
+  }
+
+  const data = await response.json();
+  const content = data.content[0]?.text || '';
+  return parseAIResponse(content);
+}
+
+function parseAIResponse(content) {
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('Invalid AI response format');
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  return {
+    calories: parseInt(parsed.calories, 10) || 0,
+    food: String(parsed.food || 'Unknown food').slice(0, 50),
+    confidence: ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'medium',
+  };
+}
+
 app.get('/2fa', requireAuth, (req, res) => res.redirect('/settings'));
 
 app.get('/2fa/setup', requireAuth, async (req, res) => {
@@ -2640,6 +2868,55 @@ app.post('/settings/preferences', requireAuth, async (req, res) => {
     }
   } catch (err) {
     console.error('Failed to update preferences', err);
+  }
+
+  res.redirect('/settings');
+});
+
+app.post('/settings/ai', requireAuth, async (req, res) => {
+  const { preferred_ai_provider, openai_api_key, claude_api_key, clear_keys } = req.body;
+
+  if (clear_keys === 'true') {
+    try {
+      await pool.query('UPDATE users SET openai_api_key = NULL, claude_api_key = NULL WHERE id = $1', [req.currentUser.id]);
+      req.session.aiFeedback = { type: 'success', message: 'API keys cleared.' };
+    } catch (err) {
+      console.error('Failed to clear AI keys', err);
+      req.session.aiFeedback = { type: 'error', message: 'Could not clear keys.' };
+    }
+    return res.redirect('/settings');
+  }
+
+  const provider = ['openai', 'claude'].includes(preferred_ai_provider) ? preferred_ai_provider : 'openai';
+  const updates = ['preferred_ai_provider = $1'];
+  const values = [provider];
+  let idx = 2;
+
+  if (openai_api_key && openai_api_key.trim()) {
+    const encrypted = encryptApiKey(openai_api_key.trim());
+    if (encrypted) {
+      updates.push(`openai_api_key = $${idx}`);
+      values.push(encrypted);
+      idx++;
+    }
+  }
+
+  if (claude_api_key && claude_api_key.trim()) {
+    const encrypted = encryptApiKey(claude_api_key.trim());
+    if (encrypted) {
+      updates.push(`claude_api_key = $${idx}`);
+      values.push(encrypted);
+      idx++;
+    }
+  }
+
+  try {
+    values.push(req.currentUser.id);
+    await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);
+    req.session.aiFeedback = { type: 'success', message: 'AI settings saved.' };
+  } catch (err) {
+    console.error('Failed to save AI settings', err);
+    req.session.aiFeedback = { type: 'error', message: 'Could not save settings.' };
   }
 
   res.redirect('/settings');
@@ -2776,7 +3053,7 @@ app.post('/admin/users/:id/delete', requireAuth, requireAdmin, async (req, res) 
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema(), ensureAdminSettingsSchema()]);
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema(), ensureAdminSettingsSchema(), ensureAIKeysSchema()]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {

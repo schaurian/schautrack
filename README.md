@@ -6,7 +6,8 @@ Calorie tracking web app with authentication, TOTP-based 2FA, daily goals, and a
 - Email + password auth with optional TOTP 2FA (QR setup + disable flow)
 - Manage daily calorie goal and 2FA from a single Settings page
 - Log calories as positive (consumed) or negative (burned), with custom dates
-- Dashboard shows today’s progress and a 14-day goal hit/miss overview
+- Dashboard shows today's progress and a 14-day goal hit/miss overview
+- AI-powered calorie estimation from food photos (OpenAI or Claude)
 - Postgres-backed sessions and data
 - Dockerized app + database
 - GitLab CI builds Docker images and pushes to the project registry
@@ -49,9 +50,39 @@ Create the tables using `db/init.sql` or let Docker Compose apply it automatical
 
 ## Two-factor setup
 - Visit `/2fa` after logging in.
-- Click “Start setup” to get a QR code / otpauth URL.
+- Click "Start setup" to get a QR code / otpauth URL.
 - Verify a 6-digit code from your authenticator to activate.
 - To disable, confirm with a current code.
+
+## AI Photo Calorie Estimation
+Estimate calories from food photos using OpenAI (GPT-4o) or Claude (Sonnet) vision APIs.
+
+### Setup
+1. Generate an encryption key for API key storage:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+2. Add to your `.env`:
+   ```
+   API_KEY_ENCRYPTION_SECRET=<generated-key>
+   ```
+
+3. Restart the app to apply the configuration.
+
+4. In the app, go to **Settings > AI Features**:
+   - Select your preferred AI provider (OpenAI or Claude)
+   - Enter your API key (get one from [platform.openai.com](https://platform.openai.com) or [console.anthropic.com](https://console.anthropic.com))
+   - Save settings
+
+### Usage
+Once configured, a camera button appears next to the calorie input on the dashboard:
+- Click the button to open the photo modal
+- Take a photo (camera access on mobile) or upload an image
+- The AI analyzes the food and estimates calories
+- Click "Use this estimate" to populate the form
+
+API keys are encrypted before storage using AES-256-GCM.
 
 ## Project layout
 - `src/server.js` – Express server, routes, auth + 2FA, dashboard logic

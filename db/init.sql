@@ -85,3 +85,12 @@ CREATE TABLE IF NOT EXISTS admin_settings (
   value TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Additional user columns (added via migration in server.js)
+-- These are documented here for reference but applied by ensureUserPrefsSchema() and ensureAIKeysSchema()
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS weight_unit TEXT DEFAULT 'kg';
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone_manual BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS openai_api_key TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS claude_api_key TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai';
