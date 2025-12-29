@@ -1904,11 +1904,24 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     }
   }
 
-  // Check if AI estimation is enabled (user has API key for selected provider)
-  const hasAiEnabled = Boolean(
-    (user.preferred_ai_provider === 'claude' && user.claude_api_key) ||
-    (user.preferred_ai_provider !== 'claude' && user.openai_api_key)
-  );
+  // Check if AI estimation is enabled (user or global API key for selected provider)
+  let hasAiEnabled = false;
+  const prefersClaude = user.preferred_ai_provider === 'claude';
+  if (prefersClaude) {
+    if (user.claude_api_key) {
+      hasAiEnabled = true;
+    } else {
+      const globalKey = await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY);
+      hasAiEnabled = Boolean(globalKey.value);
+    }
+  } else {
+    if (user.openai_api_key) {
+      hasAiEnabled = true;
+    } else {
+      const globalKey = await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY);
+      hasAiEnabled = Boolean(globalKey.value);
+    }
+  }
 
   res.render('dashboard', {
     user,
@@ -2638,11 +2651,24 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
   const user = req.currentUser;
   const provider = user.preferred_ai_provider || 'openai';
 
+  // Get API key: first try user's key, then fall back to global key
   let apiKey = null;
-  if (provider === 'openai' && user.openai_api_key) {
-    apiKey = decryptApiKey(user.openai_api_key);
-  } else if (provider === 'claude' && user.claude_api_key) {
-    apiKey = decryptApiKey(user.claude_api_key);
+  if (provider === 'openai') {
+    if (user.openai_api_key) {
+      apiKey = decryptApiKey(user.openai_api_key);
+    } else {
+      // Fallback to global key (env var or admin setting)
+      const globalKey = await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY);
+      if (globalKey.value) apiKey = globalKey.value;
+    }
+  } else if (provider === 'claude') {
+    if (user.claude_api_key) {
+      apiKey = decryptApiKey(user.claude_api_key);
+    } else {
+      // Fallback to global key (env var or admin setting)
+      const globalKey = await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY);
+      if (globalKey.value) apiKey = globalKey.value;
+    }
   }
 
   if (!apiKey) {
@@ -2980,6 +3006,8 @@ app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
     imprint_address: await getEffectiveSetting('imprint_address', process.env.IMPRINT_ADDRESS),
     imprint_email: await getEffectiveSetting('imprint_email', process.env.IMPRINT_EMAIL),
     enable_legal: await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL),
+    openai_api_key: await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY),
+    claude_api_key: await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY),
   };
 
   const feedback = req.session.adminFeedback || null;
@@ -3003,6 +3031,8 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     imprint_address: 'IMPRINT_ADDRESS',
     imprint_email: 'IMPRINT_EMAIL',
     enable_legal: 'ENABLE_LEGAL',
+    openai_api_key: 'OPENAI_API_KEY',
+    claude_api_key: 'CLAUDE_API_KEY',
   };
 
   if (!allowedKeys[key]) {

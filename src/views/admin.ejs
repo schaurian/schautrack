@@ -20,19 +20,23 @@
         imprint_address: 'Imprint Address',
         imprint_email: 'Imprint Email',
         enable_legal: 'Enable Legal Pages',
+        openai_api_key: 'OpenAI API Key (Global)',
+        claude_api_key: 'Claude API Key (Global)',
       }; %>
       <% for (const [key, setting] of Object.entries(settings)) { %>
+        <% const isApiKey = key.includes('api_key'); %>
         <form action="/admin/settings" method="POST" class="admin-setting-row">
           <input type="hidden" name="key" value="<%= key %>">
           <label class="field">
             <span><%= settingLabels[key] || key %></span>
             <div class="input-with-badge">
               <input
-                type="text"
+                type="<%= isApiKey ? 'password' : 'text' %>"
                 name="value"
                 value="<%= setting.value || '' %>"
-                placeholder="<%= setting.source === 'none' ? 'Not set' : '' %>"
+                placeholder="<%= setting.source === 'none' ? 'Not set' : (isApiKey && setting.value ? '••••••••' : '') %>"
                 <%= setting.source === 'env' ? 'disabled' : '' %>
+                autocomplete="<%= isApiKey ? 'off' : 'on' %>"
               >
               <% if (setting.source === 'env') { %>
                 <span class="badge env">ENV</span>
@@ -40,6 +44,9 @@
                 <span class="badge db">DB</span>
               <% } %>
             </div>
+            <% if (isApiKey) { %>
+              <p class="muted small">Global key used when users don't have their own. Leave blank to clear.</p>
+            <% } %>
           </label>
           <% if (setting.source !== 'env') { %>
             <button type="submit" class="ghost">Save</button>
