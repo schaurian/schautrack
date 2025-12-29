@@ -35,6 +35,9 @@ const imprintAddress = process.env.IMPRINT_ADDRESS || null;
 // Display email (image/text)
 const imprintEmail = process.env.IMPRINT_EMAIL || null;
 
+// Admin email - user with this email gets admin access
+const adminEmail = process.env.ADMIN_EMAIL || null;
+
 // XML escape helper
 const escapeXml = (unsafe) => {
   return unsafe.replace(/[<>&'"]/g, (c) => {
@@ -324,6 +327,16 @@ async function ensureEmailVerificationSchema() {
         SELECT DISTINCT user_id FROM email_verification_tokens
         WHERE used = FALSE AND expires_at > NOW()
       )
+  `);
+}
+
+async function ensureAdminSettingsSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 }
 
@@ -771,21 +784,56 @@ async function getLastWeightEntry(userId, beforeOrOnDate = null) {
   };
 }
 
+// Helper functions for admin settings
+const getEffectiveSetting = async (key, envValue) => {
+  if (envValue !== undefined && envValue !== null && envValue !== '') {
+    return { value: envValue, source: 'env' };
+  }
+  try {
+    const result = await pool.query('SELECT value FROM admin_settings WHERE key = $1', [key]);
+    if (result.rows.length > 0 && result.rows[0].value !== null) {
+      return { value: result.rows[0].value, source: 'db' };
+    }
+  } catch (err) {
+    console.error('Failed to get admin setting', key, err);
+  }
+  return { value: null, source: 'none' };
+};
+
+const setAdminSetting = async (key, value) => {
+  await pool.query(`
+    INSERT INTO admin_settings (key, value, updated_at)
+    VALUES ($1, $2, NOW())
+    ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
+  `, [key, value]);
+};
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
-  res.locals.supportEmail = supportEmail;
+
+  // Load configurable settings (env vars take precedence over DB)
+  const effectiveSupportEmail = await getEffectiveSetting('support_email', supportEmail);
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  const effectiveImprintName = await getEffectiveSetting('imprint_name', imprintName);
+  const effectiveImprintUrl = await getEffectiveSetting('imprint_url', imprintUrl);
+  const effectiveImprintAddress = await getEffectiveSetting('imprint_address', imprintAddress);
+  const effectiveImprintEmail = await getEffectiveSetting('imprint_email', imprintEmail);
+
+  res.locals.supportEmail = effectiveSupportEmail.value || supportEmail;
+
   // Only enable legal UI if flag is true AND we have the required content
-  const isLegalConfigured = enableLegal && !!imprintAddress && !!imprintEmail;
-  res.locals.enableLegal = isLegalConfigured;
-  res.locals.imprintUrl = imprintUrl;
+  const legalEnabled = effectiveEnableLegal.value === 'true';
+  const hasImprintContent = !!effectiveImprintAddress.value && !!effectiveImprintEmail.value;
+  res.locals.enableLegal = legalEnabled && hasImprintContent;
+  res.locals.imprintUrl = effectiveImprintUrl.value || '/imprint';
   res.locals.imprint = {
-    name: imprintName,
+    name: effectiveImprintName.value || 'Operator',
   };
   next();
 });
@@ -811,6 +859,7 @@ app.use(async (req, res, next) => {
   if (!req.session.userId) {
     req.currentUser = null;
     res.locals.currentUser = null;
+    res.locals.isAdmin = false;
     return next();
   }
 
@@ -818,8 +867,10 @@ app.use(async (req, res, next) => {
     const user = await getUserById(req.session.userId);
     req.currentUser = user || null;
     res.locals.currentUser = user || null;
+    res.locals.isAdmin = adminEmail && user && user.email.toLowerCase() === adminEmail.toLowerCase();
   } catch (err) {
     console.error('Failed to load user from session', err);
+    res.locals.isAdmin = false;
   }
   next();
 });
@@ -833,6 +884,17 @@ app.use((req, res, next) => {
 const requireAuth = (req, res, next) => {
   if (!req.currentUser) {
     return res.redirect('/login');
+  }
+  next();
+};
+
+const isAdmin = (user) => {
+  return adminEmail && user && user.email.toLowerCase() === adminEmail.toLowerCase();
+};
+
+const requireAdmin = (req, res, next) => {
+  if (!req.currentUser || !isAdmin(req.currentUser)) {
+    return res.status(404).send('Not found');
   }
   next();
 };
@@ -902,37 +964,47 @@ app.get('/', (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/imprint/address.svg', (req, res) => {
-  if (!enableLegal || !imprintAddress) return res.sendStatus(404);
+app.get('/imprint/address.svg', async (req, res) => {
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  const effectiveImprintAddress = await getEffectiveSetting('imprint_address', imprintAddress);
+  if (effectiveEnableLegal.value !== 'true' || !effectiveImprintAddress.value) return res.sendStatus(404);
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'no-store');
-  res.send(textToSvg(imprintAddress));
+  res.send(textToSvg(effectiveImprintAddress.value));
 });
 
-app.get('/imprint/email.svg', (req, res) => {
-  if (!enableLegal || !imprintEmail) return res.sendStatus(404);
+app.get('/imprint/email.svg', async (req, res) => {
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  const effectiveImprintEmail = await getEffectiveSetting('imprint_email', imprintEmail);
+  if (effectiveEnableLegal.value !== 'true' || !effectiveImprintEmail.value) return res.sendStatus(404);
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'no-store');
-  res.send(textToSvg(imprintEmail));
+  res.send(textToSvg(effectiveImprintEmail.value));
 });
 
-app.get('/imprint', (req, res) => {
-  if (!enableLegal || !imprintAddress || !imprintEmail) return res.sendStatus(404);
+app.get('/imprint', async (req, res) => {
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  const effectiveImprintAddress = await getEffectiveSetting('imprint_address', imprintAddress);
+  const effectiveImprintEmail = await getEffectiveSetting('imprint_email', imprintEmail);
+  if (effectiveEnableLegal.value !== 'true' || !effectiveImprintAddress.value || !effectiveImprintEmail.value) return res.sendStatus(404);
   res.render('imprint', { activePage: null });
 });
 
-app.get('/privacy', (req, res) => {
-  if (!enableLegal) return res.sendStatus(404);
+app.get('/privacy', async (req, res) => {
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  if (effectiveEnableLegal.value !== 'true') return res.sendStatus(404);
   res.render('privacy', { activePage: null });
 });
 
-app.get('/terms', (req, res) => {
-  if (!enableLegal) return res.sendStatus(404);
+app.get('/terms', async (req, res) => {
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  if (effectiveEnableLegal.value !== 'true') return res.sendStatus(404);
   res.render('terms', { activePage: null });
 });
 
-app.get('/delete', (req, res) => {
-  if (!enableLegal) return res.sendStatus(404);
+app.get('/delete', async (req, res) => {
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  if (effectiveEnableLegal.value !== 'true') return res.sendStatus(404);
   const feedback = req.session.deleteFeedback || null;
   delete req.session.deleteFeedback;
   res.render('delete', { activePage: null, deleteFeedback: feedback });
@@ -2619,11 +2691,92 @@ app.post('/settings/password', requireAuth, async (req, res) => {
   }
 });
 
+// Admin routes
+app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
+  const { rows: users } = await pool.query(
+    'SELECT id, email, created_at, email_verified FROM users ORDER BY created_at DESC'
+  );
+
+  const settings = {
+    support_email: await getEffectiveSetting('support_email', process.env.SUPPORT_EMAIL),
+    imprint_name: await getEffectiveSetting('imprint_name', process.env.IMPRINT_NAME),
+    imprint_address: await getEffectiveSetting('imprint_address', process.env.IMPRINT_ADDRESS),
+    imprint_email: await getEffectiveSetting('imprint_email', process.env.IMPRINT_EMAIL),
+    enable_legal: await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL),
+  };
+
+  const feedback = req.session.adminFeedback || null;
+  delete req.session.adminFeedback;
+
+  res.render('admin', {
+    user: req.currentUser,
+    activePage: 'admin',
+    users,
+    settings,
+    feedback,
+  });
+});
+
+app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
+  const { key, value } = req.body;
+
+  const allowedKeys = {
+    support_email: 'SUPPORT_EMAIL',
+    imprint_name: 'IMPRINT_NAME',
+    imprint_address: 'IMPRINT_ADDRESS',
+    imprint_email: 'IMPRINT_EMAIL',
+    enable_legal: 'ENABLE_LEGAL',
+  };
+
+  if (!allowedKeys[key]) {
+    req.session.adminFeedback = { type: 'error', message: 'Invalid setting key.' };
+    return res.redirect('/admin');
+  }
+
+  const envValue = process.env[allowedKeys[key]];
+  if (envValue !== undefined && envValue !== null && envValue !== '') {
+    req.session.adminFeedback = { type: 'error', message: 'This setting is controlled by environment variable.' };
+    return res.redirect('/admin');
+  }
+
+  try {
+    await setAdminSetting(key, value);
+    req.session.adminFeedback = { type: 'success', message: 'Setting updated.' };
+  } catch (err) {
+    console.error('Failed to update admin setting', err);
+    req.session.adminFeedback = { type: 'error', message: 'Failed to update setting.' };
+  }
+  res.redirect('/admin');
+});
+
+app.post('/admin/users/:id/delete', requireAuth, requireAdmin, async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+
+  if (Number.isNaN(userId)) {
+    req.session.adminFeedback = { type: 'error', message: 'Invalid user ID.' };
+    return res.redirect('/admin');
+  }
+
+  if (userId === req.currentUser.id) {
+    req.session.adminFeedback = { type: 'error', message: 'Cannot delete yourself.' };
+    return res.redirect('/admin');
+  }
+
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    req.session.adminFeedback = { type: 'success', message: 'User deleted.' };
+  } catch (err) {
+    console.error('Failed to delete user', err);
+    req.session.adminFeedback = { type: 'error', message: 'Failed to delete user.' };
+  }
+  res.redirect('/admin');
+});
+
 // Retry schema initialization with exponential backoff
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema()]);
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema(), ensureAdminSettingsSchema()]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {

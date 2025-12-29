@@ -29,6 +29,7 @@
     </button>
   <nav class="nav" id="mobileNav">
     <% if (currentUser) { %>
+      <% if (isAdmin) { %><a href="/admin" class="nav-link <%= activePage === 'admin' ? 'active' : '' %>">Admin</a><% } %>
       <a href="/dashboard" class="nav-link <%= activePage === 'dashboard' ? 'active' : '' %>">Dashboard</a>
       <a href="/settings" class="nav-link <%= activePage === 'settings' ? 'active' : '' %>">Settings</a>
       <form action="/logout" method="POST" class="inline-form">

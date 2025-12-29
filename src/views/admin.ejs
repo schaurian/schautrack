@@ -1,0 +1,219 @@
+<%- include('partials/header', { title: 'Admin' }) %>
+  <% if (feedback) { %>
+    <div class="alert <%= feedback.type === 'error' ? 'danger' : 'success' %>"><%= feedback.message %></div>
+  <% } %>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Configuration</p>
+        <h2>Application Settings</h2>
+      </div>
+      <a href="/dashboard" class="ghost">Back to dashboard</a>
+    </div>
+    <p class="muted small">Settings controlled by environment variables cannot be changed here.</p>
+
+    <div class="admin-settings">
+      <% const settingLabels = {
+        support_email: 'Support Email',
+        imprint_name: 'Imprint Name',
+        imprint_address: 'Imprint Address',
+        imprint_email: 'Imprint Email',
+        enable_legal: 'Enable Legal Pages',
+      }; %>
+      <% for (const [key, setting] of Object.entries(settings)) { %>
+        <form action="/admin/settings" method="POST" class="admin-setting-row">
+          <input type="hidden" name="key" value="<%= key %>">
+          <label class="field">
+            <span><%= settingLabels[key] || key %></span>
+            <div class="input-with-badge">
+              <input
+                type="text"
+                name="value"
+                value="<%= setting.value || '' %>"
+                placeholder="<%= setting.source === 'none' ? 'Not set' : '' %>"
+                <%= setting.source === 'env' ? 'disabled' : '' %>
+              >
+              <% if (setting.source === 'env') { %>
+                <span class="badge env">ENV</span>
+              <% } else if (setting.source === 'db') { %>
+                <span class="badge db">DB</span>
+              <% } %>
+            </div>
+          </label>
+          <% if (setting.source !== 'env') { %>
+            <button type="submit" class="ghost">Save</button>
+          <% } %>
+        </form>
+      <% } %>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Users</p>
+        <h2>Registered Users (<%= users.length %>)</h2>
+      </div>
+    </div>
+
+    <div class="users-list">
+      <% for (const u of users) { %>
+        <div class="user-row">
+          <div class="user-info">
+            <span class="user-email <%= u.id === user.id ? 'admin-current-user' : '' %>">
+              <%= u.email %><% if (u.id === user.id) { %> <span class="muted">(you)</span><% } %>
+            </span>
+            <span class="user-meta">
+              <% if (u.email_verified) { %>
+                <span class="status-chip success">Verified</span>
+              <% } else { %>
+                <span class="status-chip">Unverified</span>
+              <% } %>
+              <span class="muted">Joined <%= u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Unknown' %></span>
+            </span>
+          </div>
+          <div class="user-actions">
+            <% if (u.id !== user.id) { %>
+              <form action="/admin/users/<%= u.id %>/delete" method="POST" class="inline-form" onsubmit="return confirm('Delete user <%= u.email %>? This cannot be undone.');">
+                <button type="submit" class="ghost danger">Delete</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+<style>
+.admin-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.admin-setting-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-md);
+}
+
+.admin-setting-row .field {
+  flex: 1;
+}
+
+.input-with-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-badge input {
+  flex: 1;
+  padding-right: 50px;
+}
+
+.input-with-badge input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.badge {
+  position: absolute;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge.env {
+  background: var(--accent);
+  color: white;
+}
+
+.badge.db {
+  background: var(--accent-2);
+  color: white;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-md);
+}
+
+.user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--stroke);
+  gap: var(--space-md);
+}
+
+.user-row:last-child {
+  border-bottom: none;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.user-email {
+  font-size: 1rem;
+  word-break: break-all;
+}
+
+.user-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.user-actions {
+  flex-shrink: 0;
+}
+
+.status-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: var(--stroke);
+  color: var(--muted);
+}
+
+.status-chip.success {
+  background: var(--success);
+  color: white;
+}
+
+.inline-form {
+  display: inline;
+}
+
+.admin-current-user {
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .admin-setting-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-setting-row button {
+    align-self: flex-end;
+  }
+}
+</style>
+<%- include('partials/footer') %>
