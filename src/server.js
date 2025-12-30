@@ -2501,6 +2501,7 @@ app.post('/weight/upsert', requireAuth, async (req, res) => {
 });
 
 app.post('/entries', requireAuth, async (req, res) => {
+  const wantsJson = (req.headers.accept || '').includes('application/json');
   const { value: amount, ok: amountOk } = parseAmount(req.body.amount);
   const { ok: weightOk, value: weightVal } = parseWeight(req.body.weight);
   const entryDate = req.body.entry_date || new Date().toISOString().slice(0, 10);
@@ -2511,6 +2512,9 @@ app.post('/entries', requireAuth, async (req, res) => {
   const hasWeight = weightOk && weightVal !== null;
 
   if (!hasCalorieEntry && !hasWeight) {
+    if (wantsJson) {
+      return res.status(400).json({ ok: false, error: 'Invalid entry data' });
+    }
     return res.redirect('/dashboard');
   }
 
@@ -2533,9 +2537,16 @@ app.post('/entries', requireAuth, async (req, res) => {
     if (hasCalorieEntry) {
       await broadcastEntryChange(req.currentUser.id);
     }
+
+    if (wantsJson) {
+      return res.json({ ok: true });
+    }
   } catch (err) {
     console.error('Failed to add entry', err);
     await pool.query('ROLLBACK').catch(() => {});
+    if (wantsJson) {
+      return res.status(500).json({ ok: false, error: 'Failed to save entry' });
+    }
   }
 
   res.redirect('/dashboard');
