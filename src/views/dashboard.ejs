@@ -1386,7 +1386,11 @@
           if (!data.ok) {
             throw new Error(data.error || 'Analysis failed');
           }
-          showResult(data);
+          // Auto-fill form fields and close modal
+          if (calorieInput) calorieInput.value = data.calories;
+          if (nameInput && data.food) nameInput.value = data.food;
+          closeModal();
+          if (calorieInput) calorieInput.dispatchEvent(new Event('input'));
         } catch (err) {
           console.error('AI analysis failed', err);
           showError(err.message);
