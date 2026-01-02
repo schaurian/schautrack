@@ -93,6 +93,45 @@
         <button type="submit" class="primary">Update password</button>
       </form>
     </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Security</p>
+          <h2>Change email</h2>
+        </div>
+      </div>
+      <p class="muted small">Current email: <strong><%= user.email %></strong></p>
+      <% if (emailFeedback) { %>
+        <div class="alert <%= emailFeedback.type === 'error' ? 'danger' : 'success' %>"><%= emailFeedback.message %></div>
+      <% } %>
+      <form action="/settings/email/request" method="POST" class="stack">
+        <label class="field">
+          <span>New email address</span>
+          <input type="email" name="new_email" required autocomplete="email" placeholder="newemail@example.com">
+        </label>
+        <label class="field">
+          <span>Current password</span>
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <% if (user.totp_enabled) { %>
+          <label class="field">
+            <span>2FA code</span>
+            <input type="text" name="totp_code" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code">
+          </label>
+        <% } %>
+        <% if (emailCaptchaSvg) { %>
+          <div class="captcha-block">
+            <div class="captcha-image"><%- emailCaptchaSvg %></div>
+            <label class="field">
+              <span>Enter captcha</span>
+              <input type="text" name="captcha" required autocomplete="off" placeholder="Enter the text above">
+            </label>
+          </div>
+        <% } %>
+        <button type="submit" class="primary">Send verification code</button>
+      </form>
+    </div>
   </section>
 
   <section class="panel">

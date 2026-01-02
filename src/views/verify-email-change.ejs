@@ -1,0 +1,32 @@
+<%- include('partials/header', { title: 'Verify New Email' }) %>
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Email change</p>
+        <h1>Verify new email</h1>
+      </div>
+      <a href="/settings" class="ghost">Back to settings</a>
+    </div>
+    <% if (feedback && feedback.type === 'error') { %>
+      <div class="alert danger"><%= feedback.message %></div>
+    <% } %>
+    <% if (feedback && feedback.type === 'success') { %>
+      <div class="stack">
+        <div class="alert success"><%= feedback.message %></div>
+        <a href="/settings" class="primary">Go to settings</a>
+      </div>
+    <% } else { %>
+      <p class="muted">Enter the 6-digit code sent to <strong><%= pendingEmail %></strong>.</p>
+      <form action="/settings/email/verify" method="POST" class="stack">
+        <label class="field">
+          <span>Verification code</span>
+          <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" required autocomplete="off" autofocus>
+        </label>
+        <button type="submit" class="primary">Change email</button>
+      </form>
+      <form action="/settings/email/cancel" method="POST" class="stack" style="margin-top: var(--space-md);">
+        <button type="submit" class="ghost">Cancel email change</button>
+      </form>
+    <% } %>
+  </section>
+<%- include('partials/footer') %>

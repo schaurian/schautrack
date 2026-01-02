@@ -355,6 +355,11 @@ async function ensureEmailVerificationSchema() {
     CREATE INDEX IF NOT EXISTS email_verification_tokens_expires_idx ON email_verification_tokens (expires_at);
   `);
 
+  // Add new_email column for email change functionality
+  await pool.query(`
+    ALTER TABLE email_verification_tokens ADD COLUMN IF NOT EXISTS new_email TEXT;
+  `);
+
   // Mark unverified users as verified if they have no pending verification token
   // This handles users created before email verification was added
   await pool.query(`
@@ -468,6 +473,43 @@ async function sendVerificationEmail(email, code) {
     <h2 style="font-family: monospace; letter-spacing: 4px;">${code}</h2>
     <p>This code expires in 30 minutes.</p>
     <p>If you did not create this account, you can ignore this email.</p>
+  `;
+  await sendEmail(email, subject, text, html);
+}
+
+async function createEmailChangeToken(userId, newEmail) {
+  const code = generateResetCode();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+  await pool.query(
+    'INSERT INTO email_verification_tokens (user_id, token, expires_at, new_email) VALUES ($1, $2, $3, $4)',
+    [userId, code, expiresAt, newEmail.toLowerCase().trim()]
+  );
+  return code;
+}
+
+async function verifyEmailChangeToken(userId, token) {
+  const { rows } = await pool.query(
+    `SELECT id, new_email, expires_at
+     FROM email_verification_tokens
+     WHERE user_id = $1 AND token = $2 AND used = FALSE AND new_email IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId, token]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (new Date(row.expires_at) < new Date()) return null;
+  return { tokenId: row.id, newEmail: row.new_email };
+}
+
+async function sendEmailChangeVerification(email, code) {
+  const subject = 'Verify Your New Email - Schautrack';
+  const text = `Your verification code is: ${code}\n\nThis code expires in 30 minutes.\n\nIf you did not request this email change, you can ignore this email.`;
+  const html = `
+    <p>Your verification code to confirm your new email address is:</p>
+    <h2 style="font-family: monospace; letter-spacing: 4px;">${code}</h2>
+    <p>This code expires in 30 minutes.</p>
+    <p>If you did not request this email change, you can ignore this email.</p>
   `;
   await sendEmail(email, subject, text, html);
 }
@@ -970,6 +1012,21 @@ const renderSettings = async (req, res) => {
   delete req.session.passwordFeedback;
   const aiFeedback = req.session.aiFeedback || null;
   delete req.session.aiFeedback;
+  const emailFeedback = req.session.emailFeedback || null;
+  delete req.session.emailFeedback;
+
+  // Generate captcha for email change if not already present
+  let emailCaptchaSvg = null;
+  if (!req.session.emailChangeCaptcha) {
+    const captcha = svgCaptcha.create({ size: 5, noise: 4, color: true, background: '#1a1a2e' });
+    req.session.emailChangeCaptcha = captcha.text;
+    emailCaptchaSvg = captcha.data;
+  } else {
+    // Regenerate SVG for display but keep the same answer
+    const captcha = svgCaptcha.create({ size: 5, noise: 4, color: true, background: '#1a1a2e' });
+    req.session.emailChangeCaptcha = captcha.text;
+    emailCaptchaSvg = captcha.data;
+  }
 
   let linkState = { incoming: [], outgoing: [] };
   let acceptedLinks = [];
@@ -1029,6 +1086,8 @@ const renderSettings = async (req, res) => {
     linkFeedback: feedback,
     passwordFeedback,
     aiFeedback,
+    emailFeedback,
+    emailCaptchaSvg,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
     timezones,
@@ -3060,6 +3119,163 @@ app.post('/settings/password', requireAuth, async (req, res) => {
     req.session.passwordFeedback = { type: 'error', message: 'Could not change password. Please try again.' };
     res.redirect('/settings');
   }
+});
+
+// Email change routes
+app.post('/settings/email/request', requireAuth, async (req, res) => {
+  const newEmail = (req.body.new_email || '').trim().toLowerCase();
+  const password = req.body.password || '';
+  const totpCode = req.body.totp_code || '';
+  const captchaAnswer = (req.body.captcha || '').trim();
+
+  // Validate captcha
+  const expectedCaptcha = req.session.emailChangeCaptcha;
+  delete req.session.emailChangeCaptcha; // Clear captcha after use
+  if (!expectedCaptcha || !verifyCaptcha(expectedCaptcha, captchaAnswer)) {
+    req.session.emailFeedback = { type: 'error', message: 'Invalid captcha. Please try again.' };
+    return res.redirect('/settings');
+  }
+
+  // Validate email format
+  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    req.session.emailFeedback = { type: 'error', message: 'Please enter a valid email address.' };
+    return res.redirect('/settings');
+  }
+
+  // Check if email is the same
+  if (newEmail === req.currentUser.email.toLowerCase()) {
+    req.session.emailFeedback = { type: 'error', message: 'New email is the same as your current email.' };
+    return res.redirect('/settings');
+  }
+
+  // Check if email is already taken
+  try {
+    const { rows } = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [newEmail]);
+    if (rows.length > 0) {
+      req.session.emailFeedback = { type: 'error', message: 'This email address is already in use.' };
+      return res.redirect('/settings');
+    }
+  } catch (err) {
+    console.error('Email check error', err);
+    req.session.emailFeedback = { type: 'error', message: 'Could not verify email. Please try again.' };
+    return res.redirect('/settings');
+  }
+
+  // Verify password
+  try {
+    const { rows } = await pool.query('SELECT password_hash, totp_enabled, totp_secret FROM users WHERE id = $1', [req.currentUser.id]);
+    const user = rows[0];
+    if (!user) {
+      req.session.emailFeedback = { type: 'error', message: 'User not found.' };
+      return res.redirect('/settings');
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      req.session.emailFeedback = { type: 'error', message: 'Incorrect password.' };
+      return res.redirect('/settings');
+    }
+
+    // Verify TOTP if enabled
+    if (user.totp_enabled) {
+      if (!totpCode) {
+        req.session.emailFeedback = { type: 'error', message: 'Please enter your 2FA code.' };
+        return res.redirect('/settings');
+      }
+      const totpOk = speakeasy.totp.verify({
+        secret: user.totp_secret,
+        encoding: 'base32',
+        token: totpCode,
+        window: 1,
+      });
+      if (!totpOk) {
+        req.session.emailFeedback = { type: 'error', message: 'Invalid 2FA code.' };
+        return res.redirect('/settings');
+      }
+    }
+
+    // Create token and send verification email
+    const code = await createEmailChangeToken(req.currentUser.id, newEmail);
+    await sendEmailChangeVerification(newEmail, code);
+
+    // Store pending email in session for the verification page
+    req.session.pendingEmailChange = newEmail;
+    req.session.emailChangeAttempts = 0;
+
+    res.redirect('/settings/email/verify');
+  } catch (err) {
+    console.error('Email change request error', err);
+    req.session.emailFeedback = { type: 'error', message: 'Could not process email change. Please try again.' };
+    res.redirect('/settings');
+  }
+});
+
+app.get('/settings/email/verify', requireAuth, (req, res) => {
+  const pendingEmail = req.session.pendingEmailChange;
+  if (!pendingEmail) {
+    return res.redirect('/settings');
+  }
+
+  const feedback = req.session.emailVerifyFeedback || null;
+  delete req.session.emailVerifyFeedback;
+
+  res.render('verify-email-change', {
+    user: req.currentUser,
+    pendingEmail,
+    feedback,
+    activePage: 'settings',
+  });
+});
+
+app.post('/settings/email/verify', requireAuth, async (req, res) => {
+  const pendingEmail = req.session.pendingEmailChange;
+  if (!pendingEmail) {
+    return res.redirect('/settings');
+  }
+
+  const code = (req.body.code || '').trim();
+  if (!code) {
+    req.session.emailVerifyFeedback = { type: 'error', message: 'Please enter the verification code.' };
+    return res.redirect('/settings/email/verify');
+  }
+
+  // Rate limit attempts
+  req.session.emailChangeAttempts = (req.session.emailChangeAttempts || 0) + 1;
+  if (req.session.emailChangeAttempts > 5) {
+    delete req.session.pendingEmailChange;
+    delete req.session.emailChangeAttempts;
+    req.session.emailFeedback = { type: 'error', message: 'Too many failed attempts. Please start over.' };
+    return res.redirect('/settings');
+  }
+
+  try {
+    const result = await verifyEmailChangeToken(req.currentUser.id, code);
+    if (!result) {
+      req.session.emailVerifyFeedback = { type: 'error', message: 'Invalid or expired verification code.' };
+      return res.redirect('/settings/email/verify');
+    }
+
+    // Update the user's email
+    await pool.query('UPDATE users SET email = $1 WHERE id = $2', [result.newEmail, req.currentUser.id]);
+    await markEmailVerificationUsed(result.tokenId);
+
+    // Clear session state
+    delete req.session.pendingEmailChange;
+    delete req.session.emailChangeAttempts;
+
+    req.session.emailFeedback = { type: 'success', message: 'Email address updated successfully.' };
+    res.redirect('/settings');
+  } catch (err) {
+    console.error('Email change verification error', err);
+    req.session.emailVerifyFeedback = { type: 'error', message: 'Could not verify code. Please try again.' };
+    res.redirect('/settings/email/verify');
+  }
+});
+
+app.post('/settings/email/cancel', requireAuth, (req, res) => {
+  delete req.session.pendingEmailChange;
+  delete req.session.emailChangeAttempts;
+  res.redirect('/settings');
 });
 
 // Admin routes
