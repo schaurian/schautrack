@@ -45,16 +45,7 @@
     <form action="/entries" method="POST" class="stack horizontal" data-log-form>
       <label class="field">
         <span>Calories</span>
-        <input
-          type="text"
-          name="amount"
-          inputmode="numeric"
-          autocomplete="off"
-          autocapitalize="none"
-          autocorrect="off"
-          spellcheck="false"
-          placeholder="e.g. 200 or 2*200"
-          data-calorie-input>
+        <input type="text" inputmode="decimal" pattern="[0-9+\-*/().\s]*" name="goal" placeholder="e.g. 2200" value="<%= user.daily_goal || '' %>">
       </label>
       <label class="field">
         <span>What</span>
