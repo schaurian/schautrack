@@ -534,7 +534,8 @@ async function getAcceptedLinkUsers(userId) {
             CASE WHEN al.requester_id = $1 THEN al.requester_label ELSE al.target_label END AS label,
             CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END AS other_id,
             u.email AS other_email,
-            u.daily_goal AS other_daily_goal
+            u.daily_goal AS other_daily_goal,
+            u.timezone AS other_timezone
        FROM account_links al
         JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
       WHERE al.status = 'accepted'
@@ -549,6 +550,7 @@ async function getAcceptedLinkUsers(userId) {
     label: row.label,
     email: row.other_email,
     daily_goal: row.other_daily_goal,
+    timezone: row.other_timezone || 'UTC',
     since: row.created_at,
   }));
 }
@@ -665,13 +667,19 @@ function buildDayOptions(daysToShow) {
   return buildDayOptionsBetween(startDate, today);
 }
 
-function buildDayOptionsBetween(startDate, endDate) {
+function buildDayOptionsBetween(startDateStr, endDateStr) {
   const dayOptions = [];
-  const cursor = new Date(endDate);
-  const minDate = new Date(startDate);
+  // Work with date strings directly to avoid timezone issues
+  // Parse as local date by appending time component
+  const cursor = new Date(endDateStr + 'T12:00:00');
+  const minDate = new Date(startDateStr + 'T12:00:00');
   for (let i = 0; i < MAX_HISTORY_DAYS; i += 1) {
     if (cursor < minDate) break;
-    dayOptions.push(toIsoDate(cursor));
+    // Format as YYYY-MM-DD without timezone conversion
+    const year = cursor.getFullYear();
+    const month = String(cursor.getMonth() + 1).padStart(2, '0');
+    const day = String(cursor.getDate()).padStart(2, '0');
+    dayOptions.push(`${year}-${month}-${day}`);
     cursor.setDate(cursor.getDate() - 1);
   }
   return dayOptions;
@@ -692,27 +700,34 @@ function parseDateParam(value) {
   return date;
 }
 
-function sanitizeDateRange(startStr, endStr, fallbackDays = DEFAULT_RANGE_DAYS) {
-  const today = new Date();
-  const requestedEnd = parseDateParam(endStr);
-  let endDate = requestedEnd && requestedEnd <= today ? requestedEnd : today;
+function sanitizeDateRange(startStr, endStr, fallbackDays = DEFAULT_RANGE_DAYS, userTz = 'UTC') {
+  const todayStr = formatDateInTz(new Date(), userTz);
+  const requestedEnd = endStr && /^\d{4}-\d{2}-\d{2}$/.test(endStr.trim()) ? endStr.trim() : null;
+  let endDateStr = requestedEnd && requestedEnd <= todayStr ? requestedEnd : todayStr;
 
-  const requestedStart = parseDateParam(startStr);
-  const fallbackStart = new Date(endDate);
-  fallbackStart.setDate(endDate.getDate() - (fallbackDays - 1));
+  const requestedStart = startStr && /^\d{4}-\d{2}-\d{2}$/.test(startStr.trim()) ? startStr.trim() : null;
 
-  let startDate = requestedStart || fallbackStart;
-  if (startDate > endDate) {
-    startDate = new Date(endDate);
+  // Calculate fallback start by subtracting days from end date
+  const endDateObj = new Date(endDateStr + 'T12:00:00');
+  const fallbackStartObj = new Date(endDateObj);
+  fallbackStartObj.setDate(endDateObj.getDate() - (fallbackDays - 1));
+  const fallbackStartStr = `${fallbackStartObj.getFullYear()}-${String(fallbackStartObj.getMonth() + 1).padStart(2, '0')}-${String(fallbackStartObj.getDate()).padStart(2, '0')}`;
+
+  let startDateStr = requestedStart || fallbackStartStr;
+  if (startDateStr > endDateStr) {
+    startDateStr = endDateStr;
   }
 
-  const maxLookback = new Date(endDate);
-  maxLookback.setDate(endDate.getDate() - (MAX_HISTORY_DAYS - 1));
-  if (startDate < maxLookback) {
-    startDate = maxLookback;
+  // Calculate max lookback
+  const maxLookbackObj = new Date(endDateObj);
+  maxLookbackObj.setDate(endDateObj.getDate() - (MAX_HISTORY_DAYS - 1));
+  const maxLookbackStr = `${maxLookbackObj.getFullYear()}-${String(maxLookbackObj.getMonth() + 1).padStart(2, '0')}-${String(maxLookbackObj.getDate()).padStart(2, '0')}`;
+
+  if (startDateStr < maxLookbackStr) {
+    startDateStr = maxLookbackStr;
   }
 
-  return { startDate, endDate };
+  return { startDate: startDateStr, endDate: endDateStr };
 }
 
 async function getTotalsByDate(userId, oldestDate, newestDate) {
@@ -1816,7 +1831,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   const ignoreCustomRange = Number.isInteger(requestedRange);
   const startParam = ignoreCustomRange ? null : req.query.start;
   const endParam = ignoreCustomRange ? null : req.query.end;
-  const { startDate, endDate } = sanitizeDateRange(startParam, endParam, requestedDays);
+  const { startDate, endDate } = sanitizeDateRange(startParam, endParam, requestedDays, userTimeZone);
   const dayOptions = buildDayOptionsBetween(startDate, endDate);
   if (dayOptions.length === 0) {
     const fallbackToday = formatDateInTz(new Date(), userTimeZone);
@@ -1883,13 +1898,21 @@ app.get('/dashboard', requireAuth, async (req, res) => {
       isSelf: true,
       dailyGoal: user.daily_goal,
       dailyStats,
+      todayStr: todayStrTz,
     },
   ];
 
   for (const link of acceptedLinks) {
     try {
-      const totals = await getTotalsByDate(link.userId, oldest, newest);
-      const stats = buildDailyStats(dayOptions, totals, link.daily_goal);
+      // Get the linked user's "today" in their timezone
+      const linkTodayStr = formatDateInTz(new Date(), link.timezone);
+      // Filter out days that haven't started yet in the linked user's timezone
+      const linkDayOptions = dayOptions.filter((d) => d <= linkTodayStr);
+      const linkOldest = linkDayOptions.length > 0 ? linkDayOptions[linkDayOptions.length - 1] : oldest;
+      const linkNewest = linkDayOptions.length > 0 ? linkDayOptions[0] : newest;
+
+      const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
+      const stats = buildDailyStats(linkDayOptions, totals, link.daily_goal);
       sharedViews.push({
         linkId: link.linkId,
         userId: link.userId,
@@ -1898,6 +1921,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         isSelf: false,
         dailyGoal: link.daily_goal,
         dailyStats: stats,
+        todayStr: linkTodayStr,
       });
     } catch (err) {
       console.error('Failed to build stats for linked user', err);
@@ -1958,6 +1982,10 @@ app.get('/overview', requireAuth, async (req, res) => {
   const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
   const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
 
+  // Fetch target user early to get their timezone
+  const targetUser =
+    targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
+
   if (targetUserId !== req.currentUser.id) {
     try {
       const { rows } = await pool.query(
@@ -1976,19 +2004,28 @@ app.get('/overview', requireAuth, async (req, res) => {
     }
   }
 
-  const tz = getUserTimezone(req, res);
-  const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, rangeDays);
-  const dayOptions = buildDayOptionsBetween(startDate, endDate);
+  // Use viewer's timezone for building the date range
+  const viewerTz = getUserTimezone(req, res);
+  // Use target user's timezone to determine their "today"
+  const targetTz = targetUser?.timezone || 'UTC';
+
+  const { startDate, endDate } = sanitizeDateRange(req.query.start, req.query.end, rangeDays, viewerTz);
+  let dayOptions = buildDayOptionsBetween(startDate, endDate);
+
+  // For linked users, filter out days that haven't started yet in their timezone
+  if (targetUserId !== req.currentUser.id) {
+    const targetTodayStr = formatDateInTz(new Date(), targetTz);
+    dayOptions = dayOptions.filter((d) => d <= targetTodayStr);
+  }
+
   if (dayOptions.length === 0) {
-    const fallbackToday = formatDateInTz(new Date(), tz);
+    const fallbackToday = formatDateInTz(new Date(), targetTz);
     dayOptions.push(fallbackToday);
   }
   const { oldest, newest } = getDateBounds(dayOptions);
-  const todayStrTz = formatDateInTz(new Date(), tz);
+  const todayStrTz = formatDateInTz(new Date(), targetTz);
 
   try {
-    const targetUser =
-      targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
     const dailyGoal = targetUser?.daily_goal || null;
     const totalsByDate = await getTotalsByDate(targetUserId, oldest, newest);
     const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal);
@@ -2030,11 +2067,22 @@ app.get('/entries/day', requireAuth, async (req, res) => {
   const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
   const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
 
+  // Fetch target user early to get their timezone for timestamp display
+  const targetUser =
+    targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
+
+  // Use viewer's timezone for date range validation (matches the dots shown in UI)
+  const viewerTz = getUserTimezone(req, res);
+  // Use target user's timezone for displaying entry timestamps
+  const displayTz = targetUserId === req.currentUser.id
+    ? viewerTz
+    : (targetUser?.timezone || 'UTC');
+
   const today = new Date();
   const oldest = new Date(today);
   oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
-  const oldestStr = toIsoDate(oldest);
-  const todayStr = toIsoDate(today);
+  const oldestStr = formatDateInTz(oldest, viewerTz);
+  const todayStr = formatDateInTz(today, viewerTz);
 
   if (dateStr < oldestStr || dateStr > todayStr) {
     return res.status(400).json({ ok: false, error: 'Date must be within the last 14 days' });
@@ -2059,8 +2107,6 @@ app.get('/entries/day', requireAuth, async (req, res) => {
   }
 
   try {
-    const tz = getUserTimezone(req, res);
-
     const { rows } = await pool.query(
       'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
       [targetUserId, dateStr]
@@ -2072,7 +2118,7 @@ app.get('/entries/day', requireAuth, async (req, res) => {
       entries: rows.map((row) => ({
         id: row.id,
         date: row.entry_date.toISOString().slice(0, 10),
-        time: row.created_at ? formatTimeInTz(row.created_at, tz) : '',
+        time: row.created_at ? formatTimeInTz(row.created_at, displayTz) : '',
         amount: row.amount,
         name: row.entry_name || null,
       })),
@@ -2419,12 +2465,20 @@ app.get('/weight/day', requireAuth, async (req, res) => {
   const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
   const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
 
-  const userTz = getUserTimezone(req, res);
+  // Fetch target user early to get their timezone
+  const targetUser =
+    targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
+
+  // Use target user's timezone for linked users, viewer's timezone for self
+  const tz = targetUserId === req.currentUser.id
+    ? getUserTimezone(req, res)
+    : (targetUser?.timezone || 'UTC');
+
   const today = new Date();
   const oldest = new Date(today);
   oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
-  const oldestStr = formatDateInTz(oldest, userTz);
-  const todayStr = formatDateInTz(today, userTz);
+  const oldestStr = formatDateInTz(oldest, tz);
+  const todayStr = formatDateInTz(today, tz);
 
   if (dateStr < oldestStr || dateStr > todayStr) {
     return res.status(400).json({ ok: false, error: 'Date outside supported range' });

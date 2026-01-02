@@ -98,7 +98,6 @@
       </div>
     </div>
     <div class="share-grid" data-share-grid data-range-start="<%= range.start %>" data-range-end="<%= range.end %>">
-      <% const todayStr = new Date().toISOString().slice(0,10); %>
       <% sharedViews.forEach((view) => { %>
         <div
           class="share-card"
@@ -109,6 +108,7 @@
           data-link-id="<%= view.linkId || '' %>"
           data-is-self="<%= view.isSelf %>"
           data-daily-goal="<%= view.dailyGoal || '' %>"
+          data-today-str="<%= view.todayStr %>"
         >
           <div class="share-card-head">
             <div>
@@ -143,17 +143,18 @@
                 data-is-self="<%= view.isSelf %>"
                 data-date="<%= day.date %>"
                 data-tip="<%= day.date %>"
+                data-today-str="<%= view.todayStr %>"
               >
                 <% if (!view.dailyGoal) { %>
-                  <div class="dot muted <%= day.date === todayStr ? 'today' : '' %>"></div>
+                  <div class="dot muted <%= day.date === view.todayStr ? 'today' : '' %>"></div>
                 <% } else if (day.status === 'zero') { %>
-                  <div class="dot zero <%= day.date === todayStr ? 'today' : '' %>"></div>
+                  <div class="dot zero <%= day.date === view.todayStr ? 'today' : '' %>"></div>
                 <% } else if (day.status === 'under') { %>
-                  <div class="dot success <%= day.date === todayStr ? 'today' : '' %>"></div>
+                  <div class="dot success <%= day.date === view.todayStr ? 'today' : '' %>"></div>
                 <% } else if (day.status === 'over_threshold') { %>
-                  <div class="dot danger <%= day.date === todayStr ? 'today' : '' %>"></div>
+                  <div class="dot danger <%= day.date === view.todayStr ? 'today' : '' %>"></div>
                 <% } else { %>
-                  <div class="dot warn <%= day.date === todayStr ? 'today' : '' %>"></div>
+                  <div class="dot warn <%= day.date === view.todayStr ? 'today' : '' %>"></div>
                 <% } %>
               </div>
             <% }) %>
@@ -698,7 +699,7 @@
           if (!stats.dayOptions.includes(currentDate)) {
             currentDate = stats.dayOptions[0];
           }
-          setActiveDay(currentUserId, currentDate, currentLabel);
+          setActiveDay(currentUserId, currentDate, currentLabel, currentCanEdit, stats.todayStr);
         }
         if (String(userId) === String(selfUserId)) {
           updateTopStats(stats);
@@ -862,14 +863,16 @@
         input.select();
       };
 
-      const setActiveDay = (userId, date, label) => {
+      const setActiveDay = (userId, date, label, isSelf, viewTodayStr) => {
         teardownWeightEditor();
         dots.forEach((dot) => {
           const active = dot.dataset.userId === String(userId) && dot.dataset.date === date;
           dot.classList.toggle('active', active);
         });
         if (daySelected) {
-          const labelDate = date === todayStr ? 'today' : date;
+          // Only show "today" for self, show date for linked users
+          const effectiveToday = viewTodayStr || todayStr;
+          const labelDate = isSelf && date === effectiveToday ? 'today' : date;
           daySelected.textContent = `Showing ${labelDate} · ${label}`;
         }
         if (weightDateInput) {
@@ -884,12 +887,13 @@
           const handle = () => {
             const date = dot.dataset.date;
             const userId = dot.dataset.userId;
+            const viewTodayStr = dot.dataset.todayStr;
             if (!date || !userId) return;
             currentDate = date;
             currentUserId = userId;
             currentLabel = dot.dataset.userLabel || 'Shared';
             currentCanEdit = dot.dataset.isSelf === 'true';
-            setActiveDay(userId, date, currentLabel);
+            setActiveDay(userId, date, currentLabel, currentCanEdit, viewTodayStr);
             loadEntries(userId, date, currentCanEdit);
           };
           dot.onclick = handle;
@@ -1233,7 +1237,7 @@
       }
 
       renderEntries(initialEntries, true);
-      setActiveDay(currentUserId, currentDate, currentLabel);
+      setActiveDay(currentUserId, currentDate, currentLabel, true, todayStr);
       startEntryEvents();
 
       const initialDay = todayStr;
