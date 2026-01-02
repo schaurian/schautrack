@@ -45,7 +45,15 @@
     <form action="/entries" method="POST" class="stack horizontal" data-log-form>
       <label class="field">
         <span>Calories</span>
-        <input type="text" inputmode="decimal" pattern="[0-9+\-*/().\s]*" name="goal" placeholder="e.g. 2200" value="<%= user.daily_goal || '' %>">
+        <input 
+          type="tel" 
+          inputmode="tel" 
+          pattern="[0-9+\-*/().\s]*" 
+          name="amount" 
+          placeholder="e.g. 250" 
+          autocomplete="off"
+          id="math-input"
+        >
       </label>
       <label class="field">
         <span>What</span>
@@ -1229,6 +1237,56 @@
 
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel, true, todayStr);
+      // Math Helper
+      const mathInput = document.getElementById('math-input');
+      const mathToolbar = document.getElementById('math-toolbar');
+      const mathBtns = document.querySelectorAll('[data-math]');
+      
+      const insertMath = (symbol) => {
+        if (!mathInput) return;
+        const start = mathInput.selectionStart;
+        const end = mathInput.selectionEnd;
+        const text = mathInput.value;
+        
+        mathInput.value = text.slice(0, start) + symbol + text.slice(end);
+        mathInput.selectionStart = mathInput.selectionEnd = start + 1;
+        // Trigger input event for validation
+        mathInput.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+
+      if (mathInput && mathToolbar) {
+        // Show toolbar on focus
+        mathInput.addEventListener('focus', () => {
+          mathToolbar.classList.add('visible');
+        });
+
+        // Hide toolbar on blur, but delay to check if we clicked a button
+        mathInput.addEventListener('blur', (e) => {
+          // If the related target is not one of our buttons, hide
+          // However, mousedown preventDefault usually handles the focus stay
+          // We add a small delay just to be safe visually
+          setTimeout(() => {
+            if (document.activeElement !== mathInput) {
+              mathToolbar.classList.remove('visible');
+            }
+          }, 150);
+        });
+
+        mathBtns.forEach(btn => {
+          // Prevent focus loss when clicking buttons
+          btn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+          });
+          
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            insertMath(btn.dataset.math);
+            // Ensure focus stays/returns
+            mathInput.focus();
+          });
+        });
+      }
+
       startEntryEvents();
 
       const initialDay = todayStr;
@@ -1534,4 +1592,13 @@
     })();
   </script>
   <% } %>
+  <div class="math-helper-row" id="math-toolbar">
+    <button type="button" class="math-btn" data-math="(">(</button>
+    <button type="button" class="math-btn" data-math=")">)</button>
+    <button type="button" class="math-btn" data-math="/">/</button>
+    <button type="button" class="math-btn" data-math="*">*</button>
+    <button type="button" class="math-btn" data-math="-">-</button>
+    <button type="button" class="math-btn" data-math="+">+</button>
+  </div>
+
 <%- include('partials/footer') %>
