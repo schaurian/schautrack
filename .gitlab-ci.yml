@@ -8,7 +8,7 @@ variables:
 
 renovate:
   stage: renovate
-  image: renovate/renovate:42.66.8
+  image: renovate/renovate:42.69.2
   variables:
     RENOVATE_PLATFORM: gitlab
     RENOVATE_ENDPOINT: ${CI_API_V4_URL}
