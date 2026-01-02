@@ -1245,6 +1245,48 @@ a:focus-visible,
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
+.totp-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.totp-setup form {
+  width: 100%;
+}
+
+.qr-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-center img {
+  width: 180px;
+  height: 180px;
+  background: #fff;
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.totp-secret {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.totp-secret code {
+  flex: 1;
+  font-size: 0.75rem;
+}
+
+.totp-secret button {
+  flex-shrink: 0;
+}
+
 .break {
   word-break: break-all;
   display: block;

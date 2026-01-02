@@ -1004,6 +1004,15 @@ const requireAdmin = (req, res, next) => {
 
 const renderSettings = async (req, res) => {
   const user = req.currentUser ? { ...req.currentUser, id: toInt(req.currentUser.id) } : null;
+
+  // Check if temp secret has expired (10 minutes)
+  const TOTP_SETUP_EXPIRY = 10 * 60 * 1000; // 10 minutes
+  if (req.session.tempSecretCreatedAt && Date.now() - req.session.tempSecretCreatedAt > TOTP_SETUP_EXPIRY) {
+    delete req.session.tempSecret;
+    delete req.session.tempUrl;
+    delete req.session.tempSecretCreatedAt;
+  }
+
   const tempSecret = req.session.tempSecret;
   const tempUrl = req.session.tempUrl;
   const feedback = req.session.linkFeedback || null;
@@ -1014,19 +1023,6 @@ const renderSettings = async (req, res) => {
   delete req.session.aiFeedback;
   const emailFeedback = req.session.emailFeedback || null;
   delete req.session.emailFeedback;
-
-  // Generate captcha for email change if not already present
-  let emailCaptchaSvg = null;
-  if (!req.session.emailChangeCaptcha) {
-    const captcha = svgCaptcha.create({ size: 5, noise: 4, color: true, background: '#1a1a2e' });
-    req.session.emailChangeCaptcha = captcha.text;
-    emailCaptchaSvg = captcha.data;
-  } else {
-    // Regenerate SVG for display but keep the same answer
-    const captcha = svgCaptcha.create({ size: 5, noise: 4, color: true, background: '#1a1a2e' });
-    req.session.emailChangeCaptcha = captcha.text;
-    emailCaptchaSvg = captcha.data;
-  }
 
   let linkState = { incoming: [], outgoing: [] };
   let acceptedLinks = [];
@@ -1077,6 +1073,7 @@ const renderSettings = async (req, res) => {
       claudeKeyLast4,
     },
     hasTempSecret: Boolean(tempSecret),
+    totpSecret: tempSecret || null,
     qrDataUrl,
     otpauthUrl: tempUrl || null,
     activePage: 'settings',
@@ -1087,7 +1084,6 @@ const renderSettings = async (req, res) => {
     passwordFeedback,
     aiFeedback,
     emailFeedback,
-    emailCaptchaSvg,
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
     timezones,
@@ -2938,6 +2934,14 @@ app.get('/2fa/setup', requireAuth, async (req, res) => {
 
   req.session.tempSecret = secret.base32;
   req.session.tempUrl = secret.otpauth_url;
+  req.session.tempSecretCreatedAt = Date.now();
+  res.redirect('/settings');
+});
+
+app.get('/2fa/cancel', requireAuth, (req, res) => {
+  delete req.session.tempSecret;
+  delete req.session.tempUrl;
+  delete req.session.tempSecretCreatedAt;
   res.redirect('/settings');
 });
 
@@ -2967,6 +2971,7 @@ app.post('/2fa/enable', requireAuth, async (req, res) => {
     ]);
     delete req.session.tempSecret;
     delete req.session.tempUrl;
+    delete req.session.tempSecretCreatedAt;
   } catch (err) {
     console.error('Failed to enable 2FA', err);
   }
@@ -3126,15 +3131,6 @@ app.post('/settings/email/request', requireAuth, async (req, res) => {
   const newEmail = (req.body.new_email || '').trim().toLowerCase();
   const password = req.body.password || '';
   const totpCode = req.body.totp_code || '';
-  const captchaAnswer = (req.body.captcha || '').trim();
-
-  // Validate captcha
-  const expectedCaptcha = req.session.emailChangeCaptcha;
-  delete req.session.emailChangeCaptcha; // Clear captcha after use
-  if (!expectedCaptcha || !verifyCaptcha(expectedCaptcha, captchaAnswer)) {
-    req.session.emailFeedback = { type: 'error', message: 'Invalid captcha. Please try again.' };
-    return res.redirect('/settings');
-  }
 
   // Validate email format
   if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {

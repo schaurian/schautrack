@@ -3,10 +3,8 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Target</p>
           <h2>Daily goal</h2>
         </div>
-        <a href="/dashboard" class="ghost">Back to dashboard</a>
       </div>
       <form action="/goal" method="POST" class="stack">
         <label class="field">
@@ -20,20 +18,13 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Two-factor</p>
-          <h2>Protect your account</h2>
+          <h2>Two-factor</h2>
         </div>
       </div>
 
-      <div class="panel-toggle">
-        <p class="muted small">Manage authenticator setup and 2FA status.</p>
-        <button type="button" class="ghost" data-totp-toggle aria-expanded="false">Show details</button>
-      </div>
-
-      <div class="stack hidden" data-totp-body>
+      <div class="stack">
         <% if (user.totp_enabled) { %>
-          <div class="alert success">2FA is enabled for <%= user.email %>.</div>
-          <p class="muted">Use your authenticator app to generate codes. To disable, confirm with a current code.</p>
+          <div class="alert success">2FA is enabled.</div>
           <form action="/2fa/disable" method="POST" class="stack compact">
             <label class="field">
               <span>Current 2FA code</span>
@@ -42,14 +33,28 @@
             <button type="submit" class="ghost danger">Disable 2FA</button>
           </form>
         <% } else if (hasTempSecret) { %>
-          <div class="alert">Scan the QR code or copy the setup link, then confirm with a 6-digit code.</div>
-          <div class="grid two">
-            <div class="qr">
+          <p class="muted small">Scan the QR code or copy the secret, then enter the 6-digit code.</p>
+          <div class="totp-setup">
+            <div class="qr-center">
               <% if (qrDataUrl) { %>
                 <img src="<%= qrDataUrl %>" alt="2FA QR code">
               <% } %>
               <% if (otpauthUrl) { %>
-                <code class="muted break"><%= otpauthUrl %></code>
+                <div class="totp-secret">
+                  <button type="button" class="ghost small" id="copy-totp-url" title="Copy TOTP URL">Copy URL</button>
+                  <script>
+                    document.getElementById('copy-totp-url').addEventListener('click', async function() {
+                      const url = <%- JSON.stringify(otpauthUrl) %>;
+                      try {
+                        await navigator.clipboard.writeText(url);
+                        this.textContent = 'Copied!';
+                        setTimeout(() => this.textContent = 'Copy URL', 1500);
+                      } catch (err) {
+                        console.error('Copy failed', err);
+                      }
+                    });
+                  </script>
+                </div>
               <% } %>
             </div>
             <form action="/2fa/enable" method="POST" class="stack compact">
@@ -58,19 +63,21 @@
                 <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
               </label>
               <button type="submit" class="primary">Activate 2FA</button>
+              <a href="/2fa/cancel" class="ghost danger">Cancel</a>
             </form>
           </div>
         <% } else { %>
-          <div class="alert">Add an authenticator app (like 1Password, Authy, Google Authenticator) for stronger protection.</div>
+          <p class="muted small">Add extra security with an authenticator app.</p>
           <a class="primary" href="/2fa/setup">Start setup</a>
         <% } %>
       </div>
     </div>
+  </section>
 
+  <section class="grid two">
     <div class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Security</p>
           <h2>Change password</h2>
         </div>
       </div>
@@ -97,7 +104,6 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Security</p>
           <h2>Change email</h2>
         </div>
       </div>
@@ -120,15 +126,6 @@
             <input type="text" name="totp_code" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code">
           </label>
         <% } %>
-        <% if (emailCaptchaSvg) { %>
-          <div class="captcha-block">
-            <div class="captcha-image"><%- emailCaptchaSvg %></div>
-            <label class="field">
-              <span>Enter captcha</span>
-              <input type="text" name="captcha" required autocomplete="off" placeholder="Enter the text above">
-            </label>
-          </div>
-        <% } %>
         <button type="submit" class="primary">Send verification code</button>
       </form>
     </div>
@@ -137,7 +134,6 @@
   <section class="panel">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Sharing</p>
         <h2>Link accounts</h2>
       </div>
       <div class="chip muted">Up to <%= maxLinks %></div>
@@ -255,9 +251,7 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Preferences</p>
-          <h2>Display &amp; account</h2>
-          <p class="muted small">Choose how weights show up and manage your account.</p>
+          <h2>Preferences</h2>
         </div>
       </div>
       <form action="/settings/preferences" method="POST" class="stack compact">
@@ -293,7 +287,6 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Data</p>
           <h2>Backup &amp; restore</h2>
         </div>
       </div>
@@ -314,9 +307,7 @@
   <section class="panel">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">AI Features</p>
-        <h2>Photo calorie estimation</h2>
-        <p class="muted small">Use AI to estimate calories from food photos.</p>
+        <h2>AI settings</h2>
       </div>
     </div>
     <% if (aiFeedback) { %>
@@ -352,8 +343,6 @@
 
   <script>
     (() => {
-      const toggle = document.querySelector('[data-totp-toggle]');
-      const body = document.querySelector('[data-totp-body]');
       const importForm = document.getElementById('import-form');
       if (importForm) {
         importForm.addEventListener('submit', (evt) => {
@@ -385,20 +374,20 @@
         });
       }
 
-      if (!toggle || !body) return;
-
-      const updateLabel = () => {
-        const hidden = body.classList.contains('hidden');
-        toggle.textContent = hidden ? 'Show details' : 'Hide details';
-        toggle.setAttribute('aria-expanded', String(!hidden));
-      };
-
-      toggle.addEventListener('click', () => {
-        body.classList.toggle('hidden');
-        updateLabel();
+      // Copy button for TOTP secret
+      document.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const text = btn.getAttribute('data-copy');
+          try {
+            await navigator.clipboard.writeText(text);
+            const original = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = original, 1500);
+          } catch (err) {
+            console.error('Copy failed', err);
+          }
+        });
       });
-
-      updateLabel();
     })();
   </script>
 <%- include('partials/footer') %>
