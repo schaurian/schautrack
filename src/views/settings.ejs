@@ -9,7 +9,7 @@
       <form action="/goal" method="POST" class="stack">
         <label class="field">
           <span>Goal in kcal</span>
-          <input type="number" name="goal" min="0" placeholder="e.g. 2200" value="<%= user.daily_goal || '' %>">
+          <input type="text" inputmode="decimal" name="goal" placeholder="e.g. 2200" value="<%= user.daily_goal || '' %>">
         </label>
         <button type="submit" class="primary">Save goal</button>
       </form>
