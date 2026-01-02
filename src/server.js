@@ -2419,11 +2419,12 @@ app.get('/weight/day', requireAuth, async (req, res) => {
   const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
   const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
 
+  const userTz = getUserTimezone(req, res);
   const today = new Date();
   const oldest = new Date(today);
   oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
-  const oldestStr = toIsoDate(oldest);
-  const todayStr = toIsoDate(today);
+  const oldestStr = formatDateInTz(oldest, userTz);
+  const todayStr = formatDateInTz(today, userTz);
 
   if (dateStr < oldestStr || dateStr > todayStr) {
     return res.status(400).json({ ok: false, error: 'Date outside supported range' });
@@ -2459,7 +2460,8 @@ app.get('/weight/day', requireAuth, async (req, res) => {
 
 app.post('/weight/upsert', requireAuth, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
-  const dateStr = (req.body.entry_date || req.body.date || '').trim() || toIsoDate(new Date());
+  const userTz = getUserTimezone(req, res);
+  const dateStr = (req.body.entry_date || req.body.date || '').trim() || formatDateInTz(new Date(), userTz);
   const { ok, value: weight } = parseWeight(req.body.weight);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -2477,8 +2479,8 @@ app.post('/weight/upsert', requireAuth, async (req, res) => {
   const today = new Date();
   const oldest = new Date(today);
   oldest.setDate(today.getDate() - (MAX_HISTORY_DAYS - 1));
-  const oldestStr = toIsoDate(oldest);
-  const todayStr = toIsoDate(today);
+  const oldestStr = formatDateInTz(oldest, userTz);
+  const todayStr = formatDateInTz(today, userTz);
   if (dateStr < oldestStr || dateStr > todayStr) {
     return wantsJson
       ? res.status(400).json({ ok: false, error: 'Date outside supported range' })
@@ -2502,9 +2504,10 @@ app.post('/weight/upsert', requireAuth, async (req, res) => {
 
 app.post('/entries', requireAuth, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
+  const userTz = getUserTimezone(req, res);
   const { value: amount, ok: amountOk } = parseAmount(req.body.amount);
   const { ok: weightOk, value: weightVal } = parseWeight(req.body.weight);
-  const entryDate = req.body.entry_date || new Date().toISOString().slice(0, 10);
+  const entryDate = req.body.entry_date || formatDateInTz(new Date(), userTz);
   const entryName = (req.body.entry_name || '').trim();
   const entryNameSafe = entryName ? entryName.slice(0, 120) : null;
 
