@@ -2917,96 +2917,140 @@ Only respond with the JSON object, no other text.`;
 });
 
 async function callOpenAI(apiKey, base64Data, mediaType, prompt) {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mediaType};base64,${base64Data}`,
-                detail: 'low',
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mediaType};base64,${base64Data}`,
+                  detail: 'low',
+                },
               },
-            },
-          ],
-        },
-      ],
-      max_tokens: 200,
-    }),
-  });
+            ],
+          },
+        ],
+        max_tokens: 200,
+      }),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${error}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content || '';
+    return parseAIResponse(content);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = await response.json();
-  const content = data.choices[0]?.message?.content || '';
-  return parseAIResponse(content);
 }
 
 async function callClaude(apiKey, base64Data, mediaType, prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 200,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: base64Data,
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: mediaType,
+                  data: base64Data,
+                },
               },
-            },
-            { type: 'text', text: prompt },
-          ],
-        },
-      ],
-    }),
-  });
+              { type: 'text', text: prompt },
+            ],
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error: ${error}`);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Claude API error: ${error}`);
+    }
+
+    const data = await response.json();
+    const content = data.content[0]?.text || '';
+    return parseAIResponse(content);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = await response.json();
-  const content = data.content[0]?.text || '';
-  return parseAIResponse(content);
 }
 
 function parseAIResponse(content) {
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Invalid AI response format');
+  if (!content || typeof content !== 'string') {
+    throw new Error('Empty AI response');
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  // Remove markdown code blocks if present
+  let cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
-  return {
-    calories: parseInt(parsed.calories, 10) || 0,
-    food: String(parsed.food || 'Unknown food').slice(0, 50),
-    confidence: ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'medium',
-  };
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.error('AI response without JSON:', content);
+    throw new Error('Could not parse AI response');
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const calories = parseInt(parsed.calories, 10);
+    if (isNaN(calories) || calories <= 0) {
+      throw new Error('Invalid calorie value in response');
+    }
+
+    return {
+      calories,
+      food: String(parsed.food || 'Unknown food').slice(0, 50),
+      confidence: ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'medium',
+    };
+  } catch (parseErr) {
+    console.error('JSON parse error:', parseErr.message, 'Content:', content);
+    throw new Error('Could not understand AI response');
+  }
 }
 
 app.get('/2fa', requireAuth, (req, res) => res.redirect('/settings'));
