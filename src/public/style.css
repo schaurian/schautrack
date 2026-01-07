@@ -2106,68 +2106,71 @@ a:focus-visible,
 
 /* Landscape mode support for AI camera modal */
 @media (orientation: landscape) and (max-height: 500px) {
-  .ai-modal {
-    flex-direction: row;
-    max-height: 100vh;
-  }
-
-  .ai-modal-header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 10;
-    background: var(--card);
-  }
-
-  .ai-modal-body {
-    display: flex;
-    flex-direction: row;
-    gap: var(--space-md);
-    padding-top: 60px;
+  .ai-modal-minimal {
     width: 100%;
-    overflow: auto;
-  }
-
-  .ai-preview-container {
-    flex: 1;
-    height: calc(100vh - 80px);
-    max-height: none;
-    aspect-ratio: auto;
-  }
-
-  .ai-video-preview {
-    object-fit: contain;
-  }
-
-  .ai-context {
-    flex: 0 0 200px;
-    margin-top: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .ai-capture-btn {
-    bottom: var(--space-md);
-  }
-
-  .ai-modal-actions {
-    flex-direction: column;
-    justify-content: center;
     height: 100%;
   }
 
+  .ai-modal-minimal .ai-modal-body {
+    height: 100%;
+  }
+
+  .ai-modal-minimal .ai-preview-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ai-video-preview {
+    object-fit: cover;
+  }
+
+  /* Move close button to top-right */
+  .ai-modal-close-float {
+    top: var(--space-md);
+    right: var(--space-md);
+  }
+
+  /* Move capture button to right side, vertically centered */
+  .ai-capture-btn {
+    bottom: auto;
+    left: auto;
+    right: var(--space-lg);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .ai-capture-btn:hover {
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .ai-capture-btn:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  /* Move upload button to bottom-right */
+  .ai-upload-alt {
+    bottom: var(--space-md);
+    right: var(--space-md);
+  }
+
+  .ai-context {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 80px;
+    padding: var(--space-md);
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  }
+
   .ai-loading {
-    flex: 1;
     justify-content: center;
   }
 
   .ai-result {
-    flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    padding: var(--space-lg);
   }
 
   .ai-result-actions {
