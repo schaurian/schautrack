@@ -1302,22 +1302,16 @@
               </button>
             </div>
             <div class="ai-modal-body">
-              <div class="ai-modal-actions" data-ai-actions>
-                <button type="button" class="ghost" data-ai-camera>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  Camera
-                </button>
-                <label class="ghost" style="display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <div class="ai-camera-fallback" data-ai-fallback style="display: none;">
+                <p class="muted">Could not access camera</p>
+                <label class="ghost" style="display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="17 8 12 3 7 8"/>
                     <line x1="12" y1="3" x2="12" y2="15"/>
                   </svg>
-                  Upload
-                  <input type="file" accept="image/*" data-ai-upload style="display: none;">
+                  Upload photo instead
+                  <input type="file" accept="image/*" data-ai-upload-fallback style="display: none;">
                 </label>
               </div>
               <div class="ai-preview-container" data-ai-preview style="display: none;"></div>
@@ -1369,10 +1363,19 @@
       const showPreview = (imageSrc, showCapture = false) => {
         const container = modal.querySelector('[data-ai-preview]');
         container.innerHTML = showCapture
-          ? `<video class="ai-video-preview" autoplay playsinline data-ai-video></video><button type="button" class="ai-capture-btn" data-ai-capture></button>`
+          ? `<video class="ai-video-preview" autoplay playsinline data-ai-video></video>
+             <button type="button" class="ai-capture-btn" data-ai-capture></button>
+             <label class="ai-upload-alt" data-ai-upload-label>
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                 <polyline points="17 8 12 3 7 8"/>
+                 <line x1="12" y1="3" x2="12" y2="15"/>
+               </svg>
+               <input type="file" accept="image/*" data-ai-upload style="display: none;">
+             </label>`
           : `<img class="ai-preview-img" src="${imageSrc}" alt="Food preview">`;
         container.style.display = 'block';
-        modal.querySelector('[data-ai-actions]').style.display = 'none';
+        modal.querySelector('[data-ai-fallback]').style.display = 'none';
         modal.querySelector('[data-ai-context]').style.display = showCapture ? 'none' : 'block';
         modal.querySelector('[data-ai-loading]').style.display = 'none';
         modal.querySelector('[data-ai-result]').style.display = 'none';
@@ -1381,7 +1384,7 @@
 
       const showLoading = () => {
         modal.querySelector('[data-ai-preview]').style.display = 'none';
-        modal.querySelector('[data-ai-actions]').style.display = 'none';
+        modal.querySelector('[data-ai-fallback]').style.display = 'none';
         modal.querySelector('[data-ai-context]').style.display = 'none';
         modal.querySelector('[data-ai-loading]').style.display = 'flex';
         modal.querySelector('[data-ai-result]').style.display = 'none';
@@ -1442,7 +1445,8 @@
           video.srcObject = videoStream;
         } catch (err) {
           console.error('Camera access failed', err);
-          alert('Could not access camera. Please use the upload option.');
+          // Show fallback upload option
+          modal.querySelector('[data-ai-fallback]').style.display = 'flex';
         }
       };
 
@@ -1502,21 +1506,25 @@
       const resetModal = () => {
         currentImage = null;
         modal.querySelector('[data-ai-preview]').style.display = 'none';
-        modal.querySelector('[data-ai-actions]').style.display = 'flex';
+        modal.querySelector('[data-ai-fallback]').style.display = 'none';
         modal.querySelector('[data-ai-context]').style.display = 'none';
         modal.querySelector('[data-ai-context-input]').value = '';
         modal.querySelector('[data-ai-loading]').style.display = 'none';
         modal.querySelector('[data-ai-result]').style.display = 'none';
+        // Restart camera
+        startCamera();
       };
 
       trigger.addEventListener('click', () => {
         modal = createModal();
         requestAnimationFrame(() => modal.classList.add('active'));
 
+        // Start camera immediately
+        startCamera();
+
         modal.addEventListener('click', async (e) => {
           if (e.target === modal) closeModal();
           if (e.target.closest('[data-ai-close]')) closeModal();
-          if (e.target.closest('[data-ai-camera]')) startCamera();
           if (e.target.closest('[data-ai-capture]')) capturePhoto();
           if (e.target.closest('[data-ai-retry]')) resetModal();
           if (e.target.closest('[data-ai-analyze]')) {
@@ -1564,10 +1572,15 @@
           }
         });
 
-        const uploadInput = modal.querySelector('[data-ai-upload]');
-        uploadInput.addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          if (file) handleFileUpload(file);
+        // Handle file uploads from both camera view and fallback
+        modal.addEventListener('change', (e) => {
+          if (e.target.matches('[data-ai-upload], [data-ai-upload-fallback]')) {
+            const file = e.target.files[0];
+            if (file) {
+              stopCamera();
+              handleFileUpload(file);
+            }
+          }
         });
       });
     })();
