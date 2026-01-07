@@ -2885,9 +2885,11 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
   const prompt = `Analyze this food image and estimate the calories.${contextHint}
 
 Respond in JSON format with these fields:
-- calories: estimated total calories (number)
+- calories: estimated total calories (number, must be > 0 if food is detected)
 - food: brief description of the food items (string, max 50 chars)
 - confidence: your confidence level ("high", "medium", or "low")
+
+If you cannot identify any food in the image, set calories to 0 and food to "No food detected".
 
 Only respond with the JSON object, no other text.`;
 
@@ -2912,6 +2914,13 @@ Only respond with the JSON object, no other text.`;
     });
   } catch (err) {
     console.error('AI estimation failed:', err.message);
+    if (err.message === 'NO_FOOD_DETECTED') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Could not identify food in the image. Try taking a clearer photo or use manual entry.',
+        code: 'NO_FOOD',
+      });
+    }
     return res.status(500).json({ ok: false, error: err.message || 'AI analysis failed' });
   }
 });
@@ -3039,7 +3048,11 @@ function parseAIResponse(content) {
 
     const calories = parseInt(parsed.calories, 10);
     if (isNaN(calories) || calories <= 0) {
-      throw new Error('Invalid calorie value in response');
+      // AI couldn't identify food - return specific error
+      const reason = parsed.food || 'No food detected';
+      const noFoodError = new Error('NO_FOOD_DETECTED');
+      noFoodError.reason = reason;
+      throw noFoodError;
     }
 
     return {
@@ -3048,6 +3061,9 @@ function parseAIResponse(content) {
       confidence: ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'medium',
     };
   } catch (parseErr) {
+    if (parseErr.message === 'NO_FOOD_DETECTED') {
+      throw parseErr;
+    }
     console.error('JSON parse error:', parseErr.message, 'Content:', content);
     throw new Error('Could not understand AI response');
   }
