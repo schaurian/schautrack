@@ -391,6 +391,21 @@ async function ensureAIKeysSchema() {
   `);
 }
 
+async function ensureAIUsageSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      usage_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      request_count INTEGER NOT NULL DEFAULT 0,
+      CONSTRAINT ai_usage_unique UNIQUE (user_id, usage_date)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS ai_usage_user_date_idx ON ai_usage (user_id, usage_date);
+  `);
+}
+
 async function createPasswordResetToken(userId) {
   const code = generateResetCode();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
@@ -909,6 +924,29 @@ const setAdminSetting = async (key, value) => {
     VALUES ($1, $2, NOW())
     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
   `, [key, value]);
+};
+
+// AI usage tracking helpers
+const getAIUsageToday = async (userId) => {
+  const result = await pool.query(
+    'SELECT request_count FROM ai_usage WHERE user_id = $1 AND usage_date = CURRENT_DATE',
+    [userId]
+  );
+  return result.rows[0]?.request_count || 0;
+};
+
+const incrementAIUsage = async (userId) => {
+  await pool.query(`
+    INSERT INTO ai_usage (user_id, usage_date, request_count)
+    VALUES ($1, CURRENT_DATE, 1)
+    ON CONFLICT (user_id, usage_date) DO UPDATE SET request_count = ai_usage.request_count + 1
+  `, [userId]);
+};
+
+const getAIDailyLimit = async () => {
+  const setting = await getEffectiveSetting('ai_daily_limit', process.env.AI_DAILY_LIMIT);
+  const limit = parseInt(setting.value, 10);
+  return Number.isNaN(limit) || limit <= 0 ? null : limit; // null means unlimited
 };
 
 app.set('view engine', 'ejs');
@@ -1985,6 +2023,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
   // Check if AI estimation is enabled (user or global API key for selected provider)
   let hasAiEnabled = false;
+  let aiUsingGlobalKey = false;
   const prefersClaude = user.preferred_ai_provider === 'claude';
   if (prefersClaude) {
     if (user.claude_api_key) {
@@ -1992,6 +2031,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     } else {
       const globalKey = await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY);
       hasAiEnabled = Boolean(globalKey.value);
+      aiUsingGlobalKey = hasAiEnabled;
     }
   } else {
     if (user.openai_api_key) {
@@ -1999,6 +2039,21 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     } else {
       const globalKey = await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY);
       hasAiEnabled = Boolean(globalKey.value);
+      aiUsingGlobalKey = hasAiEnabled;
+    }
+  }
+
+  // Get AI usage info if using global key
+  let aiUsage = null;
+  if (hasAiEnabled && aiUsingGlobalKey) {
+    const dailyLimit = await getAIDailyLimit();
+    if (dailyLimit !== null) {
+      const usageToday = await getAIUsageToday(user.id);
+      aiUsage = {
+        used: usageToday,
+        limit: dailyLimit,
+        remaining: Math.max(0, dailyLimit - usageToday),
+      };
     }
   }
 
@@ -2024,6 +2079,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     weightEntry: viewWeight,
     lastWeightEntry,
     hasAiEnabled,
+    aiUsage,
     activePage: 'dashboard',
   });
 });
@@ -2776,13 +2832,17 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
 
   // Get API key: first try user's key, then fall back to global key
   let apiKey = null;
+  let usingGlobalKey = false;
   if (provider === 'openai') {
     if (user.openai_api_key) {
       apiKey = decryptApiKey(user.openai_api_key);
     } else {
       // Fallback to global key (env var or admin setting)
       const globalKey = await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY);
-      if (globalKey.value) apiKey = globalKey.value;
+      if (globalKey.value) {
+        apiKey = globalKey.value;
+        usingGlobalKey = true;
+      }
     }
   } else if (provider === 'claude') {
     if (user.claude_api_key) {
@@ -2790,12 +2850,32 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
     } else {
       // Fallback to global key (env var or admin setting)
       const globalKey = await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY);
-      if (globalKey.value) apiKey = globalKey.value;
+      if (globalKey.value) {
+        apiKey = globalKey.value;
+        usingGlobalKey = true;
+      }
     }
   }
 
   if (!apiKey) {
     return res.status(400).json({ ok: false, error: 'No API key configured for selected provider' });
+  }
+
+  // Rate limiting: only applies when using global key
+  if (usingGlobalKey) {
+    const dailyLimit = await getAIDailyLimit();
+    if (dailyLimit !== null) {
+      const usageToday = await getAIUsageToday(user.id);
+      if (usageToday >= dailyLimit) {
+        return res.status(429).json({
+          ok: false,
+          error: `Daily limit reached (${dailyLimit} requests). Add your own API key in settings for unlimited access.`,
+          limitReached: true,
+          limit: dailyLimit,
+          used: usageToday,
+        });
+      }
+    }
   }
 
   const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
@@ -2817,6 +2897,11 @@ Only respond with the JSON object, no other text.`;
       result = await callOpenAI(apiKey, base64Data, mediaType, prompt);
     } else {
       result = await callClaude(apiKey, base64Data, mediaType, prompt);
+    }
+
+    // Increment usage after successful request (only for global key)
+    if (usingGlobalKey) {
+      await incrementAIUsage(user.id);
     }
 
     return res.json({
@@ -3288,6 +3373,7 @@ app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
     enable_legal: await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL),
     openai_api_key: await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY),
     claude_api_key: await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY),
+    ai_daily_limit: await getEffectiveSetting('ai_daily_limit', process.env.AI_DAILY_LIMIT),
   };
 
   const feedback = req.session.adminFeedback || null;
@@ -3313,6 +3399,7 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     enable_legal: 'ENABLE_LEGAL',
     openai_api_key: 'OPENAI_API_KEY',
     claude_api_key: 'CLAUDE_API_KEY',
+    ai_daily_limit: 'AI_DAILY_LIMIT',
   };
 
   if (!allowedKeys[key]) {
@@ -3363,7 +3450,7 @@ app.post('/admin/users/:id/delete', requireAuth, requireAdmin, async (req, res) 
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema(), ensureAdminSettingsSchema(), ensureAIKeysSchema()]);
+      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema(), ensureAdminSettingsSchema(), ensureAIKeysSchema(), ensureAIUsageSchema()]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {

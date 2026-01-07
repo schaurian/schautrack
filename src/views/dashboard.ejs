@@ -34,12 +34,17 @@
         <h2>Munch log</h2>
       </div>
       <% if (hasAiEnabled) { %>
-        <button type="button" class="ai-photo-btn" data-ai-photo-trigger title="Estimate calories from photo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-        </button>
+        <div class="ai-photo-wrap">
+          <% if (aiUsage) { %>
+            <span class="ai-usage-badge <%= aiUsage.remaining === 0 ? 'exhausted' : '' %>" title="<%= aiUsage.used %>/<%= aiUsage.limit %> today"><%= aiUsage.remaining %></span>
+          <% } %>
+          <button type="button" class="ai-photo-btn <%= aiUsage && aiUsage.remaining === 0 ? 'disabled' : '' %>" data-ai-photo-trigger title="Estimate calories from photo" <%= aiUsage && aiUsage.remaining === 0 ? 'disabled' : '' %>>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
+        </div>
       <% } %>
     </div>
     <form action="/entries" method="POST" class="stack horizontal" data-log-form>
@@ -1258,6 +1263,25 @@
 
       const calorieInput = document.querySelector('[data-calorie-input]');
       const nameInput = document.querySelector('input[name="entry_name"]');
+      const usageBadge = document.querySelector('.ai-usage-badge');
+
+      const updateUsageBadge = (remaining) => {
+        if (!usageBadge) return;
+        usageBadge.textContent = remaining;
+        usageBadge.classList.toggle('exhausted', remaining === 0);
+        if (remaining === 0) {
+          trigger.classList.add('disabled');
+          trigger.disabled = true;
+        }
+      };
+
+      const decrementUsage = () => {
+        if (!usageBadge) return;
+        const current = parseInt(usageBadge.textContent, 10);
+        if (!isNaN(current) && current > 0) {
+          updateUsageBadge(current - 1);
+        }
+      };
 
       let modal = null;
       let videoStream = null;
@@ -1388,8 +1412,14 @@
           });
           const data = await res.json();
           if (!data.ok) {
+            // Handle rate limit response
+            if (data.limitReached) {
+              updateUsageBadge(0);
+            }
             throw new Error(data.error || 'Analysis failed');
           }
+          // Decrement usage badge after successful request
+          decrementUsage();
           // Auto-fill form fields and close modal
           if (calorieInput) calorieInput.value = data.calories;
           if (nameInput && data.food) nameInput.value = data.food;

@@ -22,6 +22,7 @@
         enable_legal: 'Enable Legal Pages',
         openai_api_key: 'OpenAI API Key (Global)',
         claude_api_key: 'Claude API Key (Global)',
+        ai_daily_limit: 'AI Daily Limit',
       }; %>
       <% for (const [key, setting] of Object.entries(settings)) { %>
         <% const isApiKey = key.includes('api_key'); %>
@@ -46,6 +47,9 @@
             </div>
             <% if (isApiKey) { %>
               <p class="muted small">Global key used when users don't have their own. Leave blank to clear.</p>
+            <% } %>
+            <% if (key === 'ai_daily_limit') { %>
+              <p class="muted small">Max AI requests per user per day (using global key). Leave blank or 0 for unlimited.</p>
             <% } %>
           </label>
           <% if (setting.source !== 'env') { %>
