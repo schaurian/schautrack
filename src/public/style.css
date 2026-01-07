@@ -1970,7 +1970,7 @@ a:focus-visible,
 
 .ai-capture-btn {
   position: absolute;
-  bottom: var(--space-lg);
+  bottom: var(--space-xl);
   left: 50%;
   transform: translateX(-50%);
   width: 64px;
@@ -1994,13 +1994,13 @@ a:focus-visible,
 
 .ai-upload-alt {
   position: absolute;
-  bottom: var(--space-lg);
-  right: var(--space-lg);
+  bottom: var(--space-xl);
+  right: var(--space-xl);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -2016,8 +2016,8 @@ a:focus-visible,
 
 .ai-close-alt {
   position: absolute;
-  bottom: var(--space-lg);
-  left: var(--space-lg);
+  bottom: var(--space-xl);
+  left: var(--space-xl);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2187,8 +2187,8 @@ a:focus-visible,
   .ai-modal-close-float,
   .ai-close-alt {
     top: auto;
-    bottom: var(--space-md);
-    right: var(--space-md);
+    bottom: var(--space-xl);
+    right: var(--space-xl);
     left: auto;
     transform: none;
   }
@@ -2197,7 +2197,7 @@ a:focus-visible,
   .ai-capture-btn {
     bottom: auto;
     left: auto;
-    right: var(--space-lg);
+    right: var(--space-xl);
     top: 50%;
     transform: translateY(-50%);
   }
@@ -2212,10 +2212,10 @@ a:focus-visible,
 
   /* Move upload button to top-right */
   .ai-upload-alt {
-    top: var(--space-md);
+    top: var(--space-xl);
     bottom: auto;
     left: auto;
-    right: var(--space-md);
+    right: var(--space-xl);
     transform: none;
   }
 
