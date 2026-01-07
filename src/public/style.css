@@ -1910,11 +1910,12 @@ a:focus-visible,
 
 .ai-modal-close-float {
   position: absolute;
-  top: var(--space-md);
-  right: var(--space-md);
+  bottom: var(--space-lg);
+  right: calc(50% - 80px);
   z-index: 10;
   background: rgba(0, 0, 0, 0.6);
   border: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
   cursor: pointer;
   padding: var(--space-sm);
@@ -1925,10 +1926,12 @@ a:focus-visible,
   justify-content: center;
   width: 44px;
   height: 44px;
+  transform: translateX(50%);
 }
 
 .ai-modal-close-float:hover {
   background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .ai-modal-body {
@@ -1993,7 +1996,8 @@ a:focus-visible,
 .ai-upload-alt {
   position: absolute;
   bottom: var(--space-lg);
-  right: var(--space-lg);
+  left: calc(50% - 80px);
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2106,28 +2110,43 @@ a:focus-visible,
 
 /* Landscape mode support for AI camera modal */
 @media (orientation: landscape) and (max-height: 500px) {
+  .ai-modal-overlay {
+    padding: 0;
+  }
+
   .ai-modal-minimal {
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
   }
 
   .ai-modal-minimal .ai-modal-body {
     height: 100%;
+    padding: 0;
   }
 
   .ai-modal-minimal .ai-preview-container {
     width: 100%;
     height: 100%;
+    border-radius: 0;
+    margin: 0;
   }
 
   .ai-video-preview {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
   }
 
-  /* Move close button to top-right */
+  /* Move close button to bottom-right */
   .ai-modal-close-float {
-    top: var(--space-md);
+    top: auto;
+    bottom: var(--space-md);
     right: var(--space-md);
+    left: auto;
+    transform: none;
   }
 
   /* Move capture button to right side, vertically centered */
@@ -2147,10 +2166,13 @@ a:focus-visible,
     transform: translateY(-50%) scale(0.95);
   }
 
-  /* Move upload button to bottom-right */
+  /* Move upload button to top-right */
   .ai-upload-alt {
-    bottom: var(--space-md);
+    top: var(--space-md);
+    bottom: auto;
+    left: auto;
     right: var(--space-md);
+    transform: none;
   }
 
   .ai-context {
