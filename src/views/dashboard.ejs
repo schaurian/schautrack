@@ -1291,16 +1291,13 @@
         const overlay = document.createElement('div');
         overlay.className = 'ai-modal-overlay';
         overlay.innerHTML = `
-          <div class="ai-modal">
-            <div class="ai-modal-header">
-              <h3>Estimate calories</h3>
-              <button type="button" class="ai-modal-close" data-ai-close>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
+          <div class="ai-modal ai-modal-minimal">
+            <button type="button" class="ai-modal-close-float" data-ai-close>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
             <div class="ai-modal-body">
               <div class="ai-camera-fallback" data-ai-fallback style="display: none;">
                 <p class="muted">Could not access camera</p>
@@ -1487,9 +1484,10 @@
 
       const capturePhoto = async () => {
         const video = modal.querySelector('[data-ai-video]');
-        if (!video) return;
-        stopCamera();
+        if (!video || video.readyState < 2) return; // Ensure video is ready
+        // Capture frame BEFORE stopping camera
         const base64 = await resizeImage(video);
+        stopCamera();
         showPreview(base64);
       };
 
