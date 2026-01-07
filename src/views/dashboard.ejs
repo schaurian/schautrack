@@ -1292,14 +1292,14 @@
         overlay.className = 'ai-modal-overlay';
         overlay.innerHTML = `
           <div class="ai-modal ai-modal-minimal">
-            <button type="button" class="ai-modal-close-float" data-ai-close>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
             <div class="ai-modal-body">
               <div class="ai-camera-fallback" data-ai-fallback style="display: none;">
+                <button type="button" class="ai-fallback-close" data-ai-close>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
                 <p class="muted">Could not access camera</p>
                 <label class="ghost" style="display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
@@ -1361,7 +1361,6 @@
         const container = modal.querySelector('[data-ai-preview]');
         container.innerHTML = showCapture
           ? `<video class="ai-video-preview" autoplay playsinline data-ai-video></video>
-             <button type="button" class="ai-capture-btn" data-ai-capture></button>
              <label class="ai-upload-alt" data-ai-upload-label>
                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -1369,7 +1368,14 @@
                  <line x1="12" y1="3" x2="12" y2="15"/>
                </svg>
                <input type="file" accept="image/*" data-ai-upload style="display: none;">
-             </label>`
+             </label>
+             <button type="button" class="ai-capture-btn" data-ai-capture></button>
+             <button type="button" class="ai-close-alt" data-ai-close>
+               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                 <line x1="18" y1="6" x2="6" y2="18"/>
+                 <line x1="6" y1="6" x2="18" y2="18"/>
+               </svg>
+             </button>`
           : `<img class="ai-preview-img" src="${imageSrc}" alt="Food preview">`;
         container.style.display = 'block';
         modal.querySelector('[data-ai-fallback]').style.display = 'none';
@@ -1522,7 +1528,12 @@
 
         modal.addEventListener('click', async (e) => {
           if (e.target === modal) closeModal();
-          if (e.target.closest('[data-ai-close]')) closeModal();
+          if (e.target.closest('[data-ai-close]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeModal();
+            return;
+          }
           if (e.target.closest('[data-ai-capture]')) capturePhoto();
           if (e.target.closest('[data-ai-retry]')) resetModal();
           if (e.target.closest('[data-ai-analyze]')) {

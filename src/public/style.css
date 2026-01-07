@@ -1911,10 +1911,9 @@ a:focus-visible,
 .ai-modal-close-float {
   position: absolute;
   bottom: var(--space-lg);
-  right: calc(50% - 80px);
+  right: calc(50% - 100px);
   z-index: 10;
   background: rgba(0, 0, 0, 0.6);
-  border: none;
   border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
   cursor: pointer;
@@ -1926,7 +1925,6 @@ a:focus-visible,
   justify-content: center;
   width: 44px;
   height: 44px;
-  transform: translateX(50%);
 }
 
 .ai-modal-close-float:hover {
@@ -1983,6 +1981,7 @@ a:focus-visible,
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 100ms ease;
+  z-index: 10;
 }
 
 .ai-capture-btn:hover {
@@ -1996,8 +1995,7 @@ a:focus-visible,
 .ai-upload-alt {
   position: absolute;
   bottom: var(--space-lg);
-  left: calc(50% - 80px);
-  transform: translateX(-50%);
+  right: var(--space-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2008,10 +2006,32 @@ a:focus-visible,
   border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
   cursor: pointer;
-  transition: background 150ms ease;
+  z-index: 10;
 }
 
 .ai-upload-alt:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.ai-close-alt {
+  position: absolute;
+  bottom: var(--space-lg);
+  left: var(--space-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.ai-close-alt:hover {
   background: rgba(0, 0, 0, 0.8);
   border-color: rgba(255, 255, 255, 0.5);
 }
@@ -2024,6 +2044,29 @@ a:focus-visible,
   gap: var(--space-lg);
   padding: var(--space-xl);
   min-height: 200px;
+  position: relative;
+}
+
+.ai-fallback-close {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.ai-fallback-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .ai-context {
@@ -2140,8 +2183,9 @@ a:focus-visible,
     object-fit: cover;
   }
 
-  /* Move close button to bottom-right */
-  .ai-modal-close-float {
+  /* Move close buttons to bottom-right */
+  .ai-modal-close-float,
+  .ai-close-alt {
     top: auto;
     bottom: var(--space-md);
     right: var(--space-md);
