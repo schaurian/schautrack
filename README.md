@@ -1,19 +1,21 @@
 # Schautrack
-Schautrack is an open-source, AI-powered calorie tracker for you and your friends.
+Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you and your friends.
+
+**Try it:** [schautrack.schauer.to](https://schautrack.schauer.to)
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
 ## Features
-- Email + password auth with optional TOTP 2FA (QR setup + disable flow)
-- Log calories as positive (consumed) or negative (burned), with custom dates
-- Dashboard shows today's progress and a 14-day goal hit/miss overview
+- Log calories consumed or burned
+- Daily calorie goals with progress tracking
 - AI-powered calorie estimation from food photos (OpenAI or Claude)
-- Weight tracking with daily entries
-- Account linking to share data with other users
-- Timezone-aware entry timestamps
-- Real-time updates via Server-Sent Events (SSE)
-- Postgres-backed sessions and data
-- Dockerized app + database
+- Weight tracking
+- Account linking to share data with friends
+- Email + password auth with optional TOTP 2FA
+- Timezone-aware timestamps
+- Real-time updates via SSE
+- Docker and Kubernetes ready
+- Android app on Google Play
 
 ## Quickstart (Docker)
 1) Clone the repository:
@@ -30,6 +32,14 @@ cp .env.example .env
 docker compose up --build
 ```
 4) App is available at http://localhost:3000
+
+## Android App
+
+<a href="https://play.google.com/apps/testing/to.schauer.schautrack">
+  <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
+</a>
+
+The app is open source - build it yourself from [schautrack-android](https://gitlab.com/florianschauer/schautrack-android).
 
 ### Setup
 1. Generate an encryption key for API key storage:
@@ -51,7 +61,7 @@ docker compose up --build
 
 ## Environment Variables
 
-Settings can be configured via environment variables (in .env or passed to the container) or by an admin in /admin. Environment variables always take precedence.
+Settings can be configured via environment variables (in .env or passed to the container). Some settings can also be changed by an admin in /admin. Environment variables always take precedence.
 
 ### Required
 
@@ -118,10 +128,6 @@ These are used by the Postgres container in docker-compose.yml:
 | `OPENAI_API_KEY` | *(empty)* | Global OpenAI API key (fallback for all users) |
 | `CLAUDE_API_KEY` | *(empty)* | Global Claude API key (fallback for all users) |
 | `AI_DAILY_LIMIT` | `*(empty)*` | Daily limit for AI requests per user |
-
-## Android App
-
-An Android app is available at [schautrack-android](https://gitlab.com/florianschauer/schautrack-android).
 
 ## Contributing
 
