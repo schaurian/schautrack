@@ -250,9 +250,7 @@ const lbsToKg = (lbs) => {
   return Math.round((num / KG_TO_LB) * 100) / 100;
 };
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://schautrack:schautrack@localhost:5432/schautrack',
-});
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function ensureAccountLinksSchema() {
   await pool.query(`

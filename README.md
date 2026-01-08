@@ -1,5 +1,7 @@
 # Schautrack
-Schautrack is an open-source, AI-powered calorie tracker.
+Schautrack is an open-source, AI-powered calorie tracker for you and your friends.
+
+![Dashboard](docs/screenshots/dashboard.png)
 
 ## Features
 - Email + password auth with optional TOTP 2FA (QR setup + disable flow)
@@ -14,23 +16,20 @@ Schautrack is an open-source, AI-powered calorie tracker.
 - Dockerized app + database
 
 ## Quickstart (Docker)
-1) Copy env template and adjust secrets as needed:
+1) Clone the repository:
+```
+git clone https://gitlab.com/florianschauer/schautrack.git
+cd schautrack
+```
+2) Copy env template and adjust secrets as needed:
 ```
 cp .env.example .env
 ```
-2) Build and run:
+3) Build and run:
 ```
 docker compose up --build
 ```
-3) App is available at http://localhost:3000
-
-## Local development (without Docker)
-You’ll need Node 18+ and Postgres. Then:
-```
-cp .env.example .env        # point DATABASE_URL at your Postgres
-npm install
-npm run dev                 # or npm start
-```
+4) App is available at http://localhost:3000
 
 ### Setup
 1. Generate an encryption key for API key storage:
@@ -50,39 +49,22 @@ npm run dev                 # or npm start
    - Enter your API key (get one from [platform.openai.com](https://platform.openai.com) or [console.anthropic.com](https://console.anthropic.com))
    - Save settings
 
-### Global API Keys (Admin)
-Administrators can set global API keys that all users can use:
-
-**Via environment variables:**
-```
-OPENAI_API_KEY=sk-...
-CLAUDE_API_KEY=sk-ant-...
-```
-
-**Via admin settings:** Navigate to `/admin` and configure the OpenAI/Claude API keys in the Application Settings section.
-
-Global keys are used as a fallback when users don't have their own keys configured. User-specific keys take priority over global keys.
-
-### Usage
-Once configured (either per-user or globally), a camera button appears in the dashboard header:
-- Click the button to open the photo modal
-- Take a photo (camera access on mobile) or upload an image
-- The AI analyzes the food and estimates calories
-- Click "Use this estimate" to populate the form, or "Add entry" to submit directly
-
-API keys are encrypted before storage using AES-256-GCM.
-
 ## Environment Variables
 
-All variables can be set in `.env` file. Some can also be configured via the `/admin` settings page (env vars always take precedence over DB settings).
+Settings can be configured via environment variables (in .env or passed to the container) or by an admin in /admin. Environment variables always take precedence.
 
 ### Required
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
 | `SESSION_SECRET` | Session encryption key (change in production!) |
 | `SUPPORT_EMAIL` | Contact email shown on support/error pages |
+
+### Database
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string (e.g. `postgresql://user:pass@host:5432/db`) |
 
 ### Server
 
@@ -90,6 +72,16 @@ All variables can be set in `.env` file. Some can also be configured via the `/a
 |----------|---------|-------------|
 | `PORT` | `3000` | Port to listen on |
 | `COOKIE_SECURE` | `false` | Set to `true` when serving over HTTPS |
+
+### Postgres (Docker Compose)
+
+These are used by the Postgres container in docker-compose.yml:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_DB` | `schautrack` | Database name |
+| `POSTGRES_USER` | `schautrack` | Database user |
+| `POSTGRES_PASSWORD` | `schautrack` | Database password |
 
 ### Admin
 
@@ -125,16 +117,16 @@ All variables can be set in `.env` file. Some can also be configured via the `/a
 | `API_KEY_ENCRYPTION_SECRET` | *(empty)* | AES-256-GCM key for encrypting user API keys |
 | `OPENAI_API_KEY` | *(empty)* | Global OpenAI API key (fallback for all users) |
 | `CLAUDE_API_KEY` | *(empty)* | Global Claude API key (fallback for all users) |
+| `AI_DAILY_LIMIT` | `*(empty)*` | Daily limit for AI requests per user |
 
-### Build
+## Android App
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BUILD_VERSION` | *(empty)* | Version shown in footer (set by CI) |
+An Android app is available at [schautrack-android](https://gitlab.com/florianschauer/schautrack-android).
 
-## Project layout
-- `src/server.js` – Express server, routes, auth + 2FA, dashboard logic
-- `src/views/` – EJS templates for auth, dashboard, 2FA
-- `src/public/` – Stylesheet
-- `db/init.sql` – Database schema (users, entries, session store)
-- `docker-compose.yml` – App + Postgres stack
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
