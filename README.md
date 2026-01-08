@@ -33,6 +33,13 @@ docker compose up --build
 ```
 4) App is available at http://localhost:3000
 
+### Pre-built Images
+Pre-built Docker images are available in the registry:
+[`registry.gitlab.com/schauer.to/schautrack`](https://gitlab.com/schauer.to/schautrack/container_registry)
+
+- **Production:** `registry.gitlab.com/schauer.to/schautrack:v1.2.3`
+- **Staging:** `registry.gitlab.com/schauer.to/schautrack:staging-123`
+
 ## Android App
 
 <a href="https://play.google.com/apps/testing/to.schauer.schautrack">
