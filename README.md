@@ -1,17 +1,17 @@
 # Schautrack
-
-Calorie tracking web app with authentication, TOTP-based 2FA, daily goals, and a day-by-day overview. Runs in Docker with Postgres.
+Schautrack is an open-source, AI-powered calorie tracker.
 
 ## Features
 - Email + password auth with optional TOTP 2FA (QR setup + disable flow)
-- Manage daily calorie goal and 2FA from a single Settings page
 - Log calories as positive (consumed) or negative (burned), with custom dates
 - Dashboard shows today's progress and a 14-day goal hit/miss overview
 - AI-powered calorie estimation from food photos (OpenAI or Claude)
+- Weight tracking with daily entries
+- Account linking to share data with other users
+- Timezone-aware entry timestamps
+- Real-time updates via Server-Sent Events (SSE)
 - Postgres-backed sessions and data
 - Dockerized app + database
-- GitLab CI builds Docker images and pushes to the project registry
-- Android WebView wrapper (loads https://schautrack.schauer.to) in `android/`
 
 ## Quickstart (Docker)
 1) Copy env template and adjust secrets as needed:
@@ -31,31 +31,6 @@ cp .env.example .env        # point DATABASE_URL at your Postgres
 npm install
 npm run dev                 # or npm start
 ```
-
-Create the tables using `db/init.sql` or let Docker Compose apply it automatically. The session store uses the `session` table from that script.
-
-- `COOKIE_SECURE=false` keeps cookies usable on plain HTTP (Docker/dev). Set to `true` only when serving over HTTPS.
-
-## CI versioning & tagging
-- The GitLab pipeline bumps SemVer on the default branch using Conventional Commits, tags the repo, and pushes container images.
-- To allow tag pushes, set CI/CD variables (keep them masked/protected):
-  - `GIT_PUSH_TOKEN`: Personal Access Token with `write_repository` (or `api`) scope.
-  - `GIT_PUSH_USER` (optional): Username for the token; defaults to `gitlab-ci-token`. Use your PAT username if preferred.
-- Without these variables the semver job cannot push tags and will fail.
-- Tagging rules:
-  - Default branch builds: `latest`, SemVer (e.g., `v1.2.31`), and commit SHA.
-  - Other branches: commit SHA + branch slug tag (e.g., a `staging` branch pushes `:staging`).
-- Container registry cleanup: add a masked CI variable `REGISTRY_POLICY_TOKEN` (API scope PAT) to let the `registry-expiration-policy` job enforce an expiration policy (keep `latest` and all semver tags, retain 15 tags total, purge anything older than 30 days weekly).
-- Deployment is handled via GitOps in a separate Kubernetes repo; this pipeline only builds and pushes images (`latest`, semver tags, and commit SHA/branch tags). Point your GitOps overlays (e.g., Argo CD/Flux) at the desired tags for staging/production.
-
-## Two-factor setup
-- Visit `/2fa` after logging in.
-- Click "Start setup" to get a QR code / otpauth URL.
-- Verify a 6-digit code from your authenticator to activate.
-- To disable, confirm with a current code.
-
-## AI Photo Calorie Estimation
-Estimate calories from food photos using OpenAI (GPT-4o) or Claude (Sonnet) vision APIs.
 
 ### Setup
 1. Generate an encryption key for API key storage:
