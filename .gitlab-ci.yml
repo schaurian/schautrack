@@ -114,6 +114,9 @@ container-build-branch:
       --destination "${CI_REGISTRY_IMAGE}:${STAGING_TAG}"
       --build-arg "BUILD_VERSION=${STAGING_TAG}"
   rules:
+    # Skip release commits (they're pushed to staging but shouldn't trigger a build)
+    - if: '$CI_COMMIT_MESSAGE =~ /\[bump:(major|minor|patch)\]/'
+      when: never
     # This runs on the staging branch and creates tags like "staging-42"
     - if: '$CI_COMMIT_BRANCH == "staging"'
       changes:
