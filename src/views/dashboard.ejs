@@ -50,12 +50,12 @@
     <form action="/entries" method="POST" class="stack horizontal" data-log-form>
       <label class="field">
         <span>Calories</span>
-        <input 
-          type="tel" 
-          inputmode="tel" 
-          pattern="[0-9+\-*/().\s]*" 
-          name="amount" 
-          placeholder="e.g. 250" 
+        <input
+          type="text"
+          inputmode="text"
+          pattern="[0-9+\-*/().\s]*"
+          name="amount"
+          placeholder="e.g. 250 or -200"
           autocomplete="off"
           id="math-input"
           data-calorie-input
@@ -1082,8 +1082,8 @@
         form.dataset.inlineEditing = 'true';
 
         const input = document.createElement('input');
-        input.type = type === 'amount' ? 'tel' : 'text';
-        if (type === 'amount') input.inputMode = 'tel';
+        input.type = 'text';
+        if (type === 'amount') input.inputMode = 'text';
         input.autocomplete = 'off';
         input.className = `inline-edit-input${type === 'amount' ? ' inline-edit-input--amount' : ''}`;
         input.placeholder = placeholder;

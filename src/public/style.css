@@ -689,7 +689,7 @@ a:focus-visible,
 }
 
 .entry-amount.neg {
-  color: var(--danger);
+  color: var(--accent-2);
 }
 
 .weight-row {
