@@ -46,25 +46,7 @@ Pre-built Docker images are available in the registry:
   <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
 </a>
 
-The app is open source - build it yourself from [schautrack-android](https://gitlab.com/florianschauer/schautrack-android).
-
-### Setup
-1. Generate an encryption key for API key storage:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
-
-2. Add to your `.env`:
-   ```
-   API_KEY_ENCRYPTION_SECRET=<generated-key>
-   ```
-
-3. Restart the app to apply the configuration.
-
-4. In the app, go to **Settings > AI Features**:
-   - Select your preferred AI provider (OpenAI or Claude)
-   - Enter your API key (get one from [platform.openai.com](https://platform.openai.com) or [console.anthropic.com](https://console.anthropic.com))
-   - Save settings
+Build it yourself from [schautrack-android](https://gitlab.com/florianschauer/schautrack-android).
 
 ## Environment Variables
 
@@ -89,16 +71,6 @@ Settings can be configured via environment variables (in .env or passed to the c
 |----------|---------|-------------|
 | `PORT` | `3000` | Port to listen on |
 | `COOKIE_SECURE` | `false` | Set to `true` when serving over HTTPS |
-
-### Postgres (Docker Compose)
-
-These are used by the Postgres container in docker-compose.yml:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_DB` | `schautrack` | Database name |
-| `POSTGRES_USER` | `schautrack` | Database user |
-| `POSTGRES_PASSWORD` | `schautrack` | Database password |
 
 ### Admin
 
