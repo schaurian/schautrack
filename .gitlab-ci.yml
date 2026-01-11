@@ -2,6 +2,7 @@ stages:
   - renovate
   - release
   - build
+  - manifest
 
 variables:
   GIT_DEPTH: "0"
@@ -69,7 +70,7 @@ semver-tag:
         - renovate.json
       when: on_success
 
-container-build-default:
+container-build-default-amd64:
   stage: build
   image:
     name: gcr.io/kaniko-project/executor:v1.24.0-debug
@@ -84,9 +85,9 @@ container-build-default:
       /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
-      --destination "${CI_REGISTRY_IMAGE}:${VERSION}"
-      --destination "${CI_REGISTRY_IMAGE}:latest"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-amd64"
+      --destination "${CI_REGISTRY_IMAGE}:${VERSION}-amd64"
+      --custom-platform "linux/amd64"
       --build-arg "BUILD_VERSION=${VERSION#v}"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -97,22 +98,71 @@ container-build-default:
         - src/**/*
       when: on_success
 
-container-build-branch:
+container-build-default-arm64:
   stage: build
   image:
     name: gcr.io/kaniko-project/executor:v1.24.0-debug
     entrypoint: [""]
+  needs:
+    - semver-tag
   script:
-    - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
+    - VERSION=$(cat version.txt)
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
     - >-
       /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
-      --destination "${CI_REGISTRY_IMAGE}:${STAGING_TAG}"
-      --build-arg "BUILD_VERSION=${STAGING_TAG}"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-arm64"
+      --destination "${CI_REGISTRY_IMAGE}:${VERSION}-arm64"
+      --custom-platform "linux/arm64"
+      --build-arg "BUILD_VERSION=${VERSION#v}"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
+      when: on_success
+
+manifest-default:
+  stage: manifest
+  image: mplatform/manifest-tool:alpine-v2.1.6
+  needs:
+    - container-build-default-amd64
+    - container-build-default-arm64
+    - semver-tag
+  script:
+    - VERSION=$(cat version.txt)
+    - |
+      manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
+        push from-args \
+        --platforms linux/amd64,linux/arm64 \
+        --template "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-ARCH" \
+        --target "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - |
+      manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
+        push from-args \
+        --platforms linux/amd64,linux/arm64 \
+        --template "${CI_REGISTRY_IMAGE}:${VERSION}-ARCH" \
+        --target "${CI_REGISTRY_IMAGE}:${VERSION}"
+    - |
+      manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
+        push from-args \
+        --platforms linux/amd64,linux/arm64 \
+        --template "${CI_REGISTRY_IMAGE}:${VERSION}-ARCH" \
+        --target "${CI_REGISTRY_IMAGE}:latest"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - package.json
+        - package-lock.json
+        - src/**/*
+      when: on_success
+
+.branch-build-rules:
   rules:
     # Skip release commits (they're pushed to staging but shouldn't trigger a build)
     - if: '$CI_COMMIT_MESSAGE =~ /\[bump:(major|minor|patch)\]/'
@@ -133,3 +183,63 @@ container-build-branch:
         - package-lock.json
         - src/**/*
       when: on_success
+
+container-build-branch-amd64:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
+    entrypoint: [""]
+  script:
+    - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-amd64"
+      --destination "${CI_REGISTRY_IMAGE}:${STAGING_TAG}-amd64"
+      --custom-platform "linux/amd64"
+      --build-arg "BUILD_VERSION=${STAGING_TAG}"
+  extends: .branch-build-rules
+
+container-build-branch-arm64:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
+    entrypoint: [""]
+  script:
+    - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-arm64"
+      --destination "${CI_REGISTRY_IMAGE}:${STAGING_TAG}-arm64"
+      --custom-platform "linux/arm64"
+      --build-arg "BUILD_VERSION=${STAGING_TAG}"
+  extends: .branch-build-rules
+
+manifest-branch:
+  stage: manifest
+  image: mplatform/manifest-tool:alpine-v2.1.6
+  needs:
+    - container-build-branch-amd64
+    - container-build-branch-arm64
+  script:
+    - STAGING_TAG="${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
+    - |
+      manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
+        push from-args \
+        --platforms linux/amd64,linux/arm64 \
+        --template "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-ARCH" \
+        --target "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - |
+      manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
+        push from-args \
+        --platforms linux/amd64,linux/arm64 \
+        --template "${CI_REGISTRY_IMAGE}:${STAGING_TAG}-ARCH" \
+        --target "${CI_REGISTRY_IMAGE}:${STAGING_TAG}"
+  extends: .branch-build-rules
