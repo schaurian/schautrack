@@ -180,9 +180,9 @@
         const selected = new Date(selectedDateStr + 'T00:00:00');
         const diffDays = Math.round((selected - weightDate) / (1000 * 60 * 60 * 24));
         if (diffDays < 0) return null;
-        if (diffDays === 0) return 'same day';
-        if (diffDays === 1) return '1 day before';
-        return `${diffDays} days before`;
+        if (diffDays === 0) return 'today';
+        if (diffDays === 1) return '1d ago';
+        return `${diffDays}d ago`;
       };
       const lastWeightIsValid = lastWeightEntry && formatDaysAgo(lastWeightEntry.date, selectedDate) !== null;
       const displayWeight = weightEntry || (lastWeightIsValid ? lastWeightEntry : null);
@@ -196,17 +196,17 @@
           <div>
             <button type="button" class="edit-trigger entry-name is-locked" data-locked="true"><%= isLastWeight ? 'Last weight' : 'Weight' %></button>
           </div>
-        <div class="entry-actions">
+          <div class="entry-actions">
             <div class="entry-amount-wrap">
               <button type="button" class="edit-trigger entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
             </div>
-          <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
-          <form class="inline-form delete-placeholder" aria-hidden="true">
-            <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
-          </form>
+            <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
+            <form class="inline-form delete-placeholder" aria-hidden="true">
+              <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
       <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
         <% if (recentEntries && recentEntries.length > 0) { %>
           <% recentEntries.forEach((entry) => { %>
@@ -593,9 +593,9 @@
         const selectedDate = new Date(selectedDateStr + 'T00:00:00');
         const diffDays = Math.round((selectedDate - weightDate) / (1000 * 60 * 60 * 24));
         if (diffDays < 0) return null;
-        if (diffDays === 0) return 'same day';
-        if (diffDays === 1) return '1 day before';
-        return `${diffDays} days before`;
+        if (diffDays === 0) return 'today';
+        if (diffDays === 1) return '1d ago';
+        return `${diffDays}d ago`;
       };
 
       const lastWeightCache = new Map();
