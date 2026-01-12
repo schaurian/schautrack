@@ -84,7 +84,6 @@ container-build-default-amd64:
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
       --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-amd64"
-      --destination "${CI_REGISTRY_IMAGE}:${VERSION}-amd64"
       --custom-platform "linux/amd64"
       --build-arg "BUILD_VERSION=${VERSION#v}"
   rules:
@@ -115,7 +114,6 @@ container-build-default-arm64:
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
       --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-arm64"
-      --destination "${CI_REGISTRY_IMAGE}:${VERSION}-arm64"
       --build-arg "BUILD_VERSION=${VERSION#v}"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -143,18 +141,12 @@ manifest-default:
         push from-args \
         --platforms linux/amd64,linux/arm64 \
         --template "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-ARCH" \
-        --target "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
-    - |
-      manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
-        push from-args \
-        --platforms linux/amd64,linux/arm64 \
-        --template "${CI_REGISTRY_IMAGE}:${VERSION}-ARCH" \
         --target "${CI_REGISTRY_IMAGE}:${VERSION}"
     - |
       manifest-tool --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
         push from-args \
         --platforms linux/amd64,linux/arm64 \
-        --template "${CI_REGISTRY_IMAGE}:${VERSION}-ARCH" \
+        --template "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-ARCH" \
         --target "${CI_REGISTRY_IMAGE}:latest"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
