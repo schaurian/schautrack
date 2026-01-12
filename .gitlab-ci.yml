@@ -129,7 +129,9 @@ container-build-default-arm64:
 
 manifest-default:
   stage: manifest
-  image: mplatform/manifest-tool:alpine-v2.1.6
+  image:
+    name: mplatform/manifest-tool:alpine-v2.1.6
+    entrypoint: [""]
   needs:
     - container-build-default-amd64
     - container-build-default-arm64
