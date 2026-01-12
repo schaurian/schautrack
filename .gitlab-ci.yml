@@ -65,9 +65,7 @@ semver-tag:
         - package.json
         - package-lock.json
         - src/**/*
-        - scripts/**/*
-        - .gitlab-ci.yml
-        - renovate.json
+        - .gitlab-ci.yaml
       when: on_success
 
 container-build-default-amd64:
@@ -96,6 +94,7 @@ container-build-default-amd64:
         - package.json
         - package-lock.json
         - src/**/*
+        - .gitlab-ci.yaml
       when: on_success
 
 container-build-default-arm64:
@@ -125,6 +124,7 @@ container-build-default-arm64:
         - package.json
         - package-lock.json
         - src/**/*
+        - .gitlab-ci.yaml
       when: on_success
 
 manifest-default:
@@ -163,6 +163,7 @@ manifest-default:
         - package.json
         - package-lock.json
         - src/**/*
+        - .gitlab-ci.yaml
       when: on_success
 
 container-build-branch:
@@ -190,6 +191,7 @@ container-build-branch:
         - package.json
         - package-lock.json
         - src/**/*
+        - .gitlab-ci.yaml
       when: on_success
     - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_COMMIT_BRANCH != "staging"'
       changes:
@@ -197,4 +199,5 @@ container-build-branch:
         - package.json
         - package-lock.json
         - src/**/*
+        - .gitlab-ci.yaml
       when: on_success
