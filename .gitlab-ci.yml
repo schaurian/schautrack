@@ -104,7 +104,7 @@ container-build-default-arm64:
     name: gcr.io/kaniko-project/executor:v1.24.0-debug
     entrypoint: [""]
   tags:
-    - saas-linux-medium-arm64
+    - saas-linux-small-arm64
   needs:
     - semver-tag
   script:
