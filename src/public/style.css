@@ -667,8 +667,8 @@ a:focus-visible,
 }
 
 .entry-time {
-  min-width: 56px;
-  text-align: right;
+  min-width: 40px;
+  text-align: left;
   opacity: 0.9;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
