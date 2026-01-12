@@ -1,4 +1,4 @@
-// Schautrack server
+// Schautrack server - CI trigger
 require('dotenv').config();
 const path = require('path');
 const crypto = require('crypto');
