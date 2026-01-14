@@ -2817,6 +2817,32 @@ app.post('/entries/:id/delete', requireAuth, async (req, res) => {
   res.redirect('/dashboard');
 });
 
+app.post('/weight/:id/delete', requireAuth, async (req, res) => {
+  const weightId = parseInt(req.params.id, 10);
+  const wantsJson = (req.headers.accept || '').includes('application/json');
+  if (Number.isNaN(weightId)) {
+    return wantsJson ? res.status(400).json({ ok: false }) : res.redirect('/dashboard');
+  }
+
+  try {
+    await pool.query('DELETE FROM weight_entries WHERE id = $1 AND user_id = $2', [
+      weightId,
+      req.currentUser.id,
+    ]);
+    await broadcastEntryChange(req.currentUser.id);
+  } catch (err) {
+    console.error('Failed to delete weight entry', err);
+    if (wantsJson) {
+      return res.status(500).json({ ok: false });
+    }
+  }
+
+  if (wantsJson) {
+    return res.json({ ok: true });
+  }
+  res.redirect('/dashboard');
+});
+
 // AI Calorie Estimation API
 app.post('/api/ai/estimate', requireAuth, async (req, res) => {
   const { image, context } = req.body;

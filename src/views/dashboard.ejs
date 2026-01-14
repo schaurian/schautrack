@@ -201,9 +201,15 @@
               <button type="button" class="edit-trigger entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
             </div>
             <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
-            <form class="inline-form delete-placeholder" aria-hidden="true">
-              <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
-            </form>
+            <% if (weightEntry && weightEntry.id) { %>
+              <form action="/weight/<%= weightEntry.id %>/delete" method="POST" class="inline-form" data-weight-delete-form>
+                <button type="submit" class="ghost danger small" data-delete-weight data-weight-id="<%= weightEntry.id %>">Delete</button>
+              </form>
+            <% } else { %>
+              <form class="inline-form delete-placeholder" aria-hidden="true">
+                <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
+              </form>
+            <% } %>
           </div>
         </div>
       </div>
@@ -636,6 +642,36 @@
           if (weightTime) {
             weightTime.textContent = entry ? timeStr : (lastWeightDaysAgo || '');
           }
+          // Update delete button
+          const existingDeleteForm = weightRow.querySelector('[data-weight-delete-form]');
+          const existingPlaceholder = weightRow.querySelector('.delete-placeholder');
+          if (entry && entry.id && canEdit) {
+            // Show real delete form
+            if (existingPlaceholder) existingPlaceholder.remove();
+            if (!existingDeleteForm) {
+              const form = document.createElement('form');
+              form.action = `/weight/${entry.id}/delete`;
+              form.method = 'POST';
+              form.className = 'inline-form';
+              form.dataset.weightDeleteForm = 'true';
+              form.innerHTML = `<button type="submit" class="ghost danger small" data-delete-weight data-weight-id="${entry.id}">Delete</button>`;
+              weightRow.querySelector('.entry-actions').appendChild(form);
+            } else {
+              existingDeleteForm.action = `/weight/${entry.id}/delete`;
+              const btn = existingDeleteForm.querySelector('[data-delete-weight]');
+              if (btn) btn.dataset.weightId = entry.id;
+            }
+          } else {
+            // Show placeholder or hide
+            if (existingDeleteForm) existingDeleteForm.remove();
+            if (!existingPlaceholder) {
+              const placeholder = document.createElement('form');
+              placeholder.className = 'inline-form delete-placeholder';
+              placeholder.setAttribute('aria-hidden', 'true');
+              placeholder.innerHTML = `<button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>`;
+              weightRow.querySelector('.entry-actions').appendChild(placeholder);
+            }
+          }
         }
       };
 
@@ -769,7 +805,8 @@
           throw new Error('Save failed');
         }
         weightCache.set(`${selfUserId}:${data.entry.date}`, data.entry);
-        renderWeight(data.entry, data.entry.date, selfUserId, true);
+        const userLastWeight = lastWeightCache.get(selfUserId) || null;
+        renderWeight(data.entry, data.entry.date, selfUserId, currentLabel, true, userLastWeight);
       };
 
       const openWeightEditor = (triggerEl) => {
@@ -1015,6 +1052,28 @@
           }
         } catch (err) {
           console.error('Delete failed', err);
+        }
+      });
+
+      document.addEventListener('submit', async (evt) => {
+        if (!currentCanEdit) return;
+        const form = evt.target.closest('[data-weight-delete-form]');
+        if (!form) return;
+        evt.preventDefault();
+        const btn = form.querySelector('[data-delete-weight]');
+        const weightId = btn?.dataset.weightId;
+        if (!weightId) return;
+        try {
+          const res = await fetch(`/weight/${weightId}/delete`, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+          });
+          if (res.ok) {
+            weightCache.delete(`${selfUserId}:${currentDate}`);
+            loadWeightForDate(currentUserId, currentDate, currentLabel, currentCanEdit);
+          }
+        } catch (err) {
+          console.error('Weight delete failed', err);
         }
       });
 

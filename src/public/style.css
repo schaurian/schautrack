@@ -548,18 +548,17 @@ a:focus-visible,
 
 .entry-actions {
   display: grid;
-  grid-auto-flow: column;
+  grid-template-columns: 100px 52px 70px;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-sm);
-  flex-wrap: wrap;
 }
 
 .entry-amount-wrap {
   display: flex;
   align-items: center;
-  min-width: 72px;
+  width: 100px;
   justify-content: flex-start;
+  position: relative;
 }
 
 .edit-trigger {
@@ -667,12 +666,11 @@ a:focus-visible,
 }
 
 .entry-time {
-  min-width: 40px;
+  width: 52px;
   text-align: left;
   opacity: 0.9;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
-  margin-right: 6px;
 }
 
 .entry-amount {
@@ -733,16 +731,23 @@ a:focus-visible,
 
 .inline-edit--amount {
   flex-wrap: nowrap;
+  position: absolute;
+  left: 0;
+  z-index: 10;
 }
 
 .inline-edit--amount .inline-edit-input {
-  width: 120px;
-  max-width: 140px;
+  width: 60px;
+  min-width: 60px;
   text-align: right;
 }
 
+.delete-placeholder {
+  display: inline-block;
+}
+
 .delete-placeholder .placeholder-delete {
-  visibility: hidden;
+  opacity: 0;
   pointer-events: none;
 }
 
