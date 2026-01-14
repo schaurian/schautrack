@@ -737,8 +737,8 @@ a:focus-visible,
 }
 
 .inline-edit--amount .inline-edit-input {
-  width: 60px;
-  min-width: 60px;
+  width: 80px;
+  min-width: 80px;
   text-align: right;
 }
 
