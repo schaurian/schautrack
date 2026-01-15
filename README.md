@@ -5,14 +5,18 @@ Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you a
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
+## Goals
+
+Counting calories is painful. But it helps you reach your weight goals.
+
+Schautrack is built to stay out of your way. Just enter your calories and stay under your daily goal. Or snap a photo and let AI estimate it for you.
+
 ## Features
 - Log calories consumed or burned
 - Daily calorie goals with progress tracking
 - AI-powered calorie estimation from food photos (OpenAI or Claude)
 - Weight tracking
 - Account linking to share data with friends
-- Email + password auth with optional TOTP 2FA
-- Timezone-aware timestamps
 - Real-time updates via SSE
 - Docker and Kubernetes ready
 - Android app on Google Play
