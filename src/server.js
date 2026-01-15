@@ -1136,6 +1136,24 @@ async function getUserById(id) {
   return { ...user, id: toInt(user.id) };
 }
 
+// Health check endpoint for app verification
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({
+      app: 'schautrack',
+      status: 'ok',
+      version: process.env.BUILD_VERSION || 'dev'
+    });
+  } catch {
+    res.status(503).json({
+      app: 'schautrack',
+      status: 'error',
+      version: process.env.BUILD_VERSION || 'dev'
+    });
+  }
+});
+
 app.get('/', (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
