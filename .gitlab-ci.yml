@@ -23,40 +23,18 @@ renovate:
     - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_RENOVATE == "true"'
       when: always
 
-semver-tag:
+compute-version:
   stage: release
   image: alpine:3.23
   before_script:
-    - apk add --no-cache git curl bash
+    - apk add --no-cache git bash
   script:
-    - chmod +x scripts/bump-version.sh scripts/generate-changelog.sh
+    - chmod +x scripts/bump-version.sh
     - VERSION=$(scripts/bump-version.sh)
     - echo "$VERSION" > version.txt
-    - scripts/generate-changelog.sh "$VERSION" > changelog.md
-    - |
-      git config --global user.email "${GITLAB_USER_EMAIL:-ci@example.com}"
-      git config --global user.name "${GITLAB_USER_NAME:-GitLab CI}"
-    - git tag -a "$VERSION" -m "Release $VERSION"
-    - |
-      PUSH_TOKEN="${GIT_PUSH_TOKEN:-${GL_RELEASE_TOKEN:-$CI_JOB_TOKEN}}"
-      if [ "$PUSH_TOKEN" = "$CI_JOB_TOKEN" ]; then
-        PUSH_USER="${GIT_PUSH_USER:-gitlab-ci-token}"
-      else
-        PUSH_USER="${GIT_PUSH_USER:-oauth2}"
-      fi
-      git push "https://${PUSH_USER}:${PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "$VERSION"
-    - |
-      if [ -n "${GL_RELEASE_TOKEN:-}" ]; then
-        curl --header "PRIVATE-TOKEN: ${GL_RELEASE_TOKEN}" \
-          --data-urlencode "name=$VERSION" \
-          --data-urlencode "tag_name=$VERSION" \
-          --data-urlencode "description=$(cat changelog.md)" \
-          --request POST "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
-      fi
   artifacts:
     paths:
       - version.txt
-      - changelog.md
     expire_in: 1 week
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -74,7 +52,7 @@ container-build-default-amd64:
     name: gcr.io/kaniko-project/executor:v1.24.0-debug
     entrypoint: [""]
   needs:
-    - semver-tag
+    - compute-version
   script:
     - VERSION=$(cat version.txt)
     - mkdir -p /kaniko/.docker
@@ -104,7 +82,7 @@ container-build-default-arm64:
   tags:
     - saas-linux-small-arm64
   needs:
-    - semver-tag
+    - compute-version
   script:
     - VERSION=$(cat version.txt)
     - mkdir -p /kaniko/.docker
@@ -133,7 +111,7 @@ manifest-default:
   needs:
     - container-build-default-amd64
     - container-build-default-arm64
-    - semver-tag
+    - compute-version
   script:
     - VERSION=$(cat version.txt)
     - |
@@ -148,6 +126,10 @@ manifest-default:
         --platforms linux/amd64,linux/arm64 \
         --template "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-ARCH" \
         --target "${CI_REGISTRY_IMAGE}:latest"
+  artifacts:
+    paths:
+      - version.txt
+    expire_in: 1 week
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
@@ -156,6 +138,41 @@ manifest-default:
         - package-lock.json
         - src/**/*
         - .gitlab-ci.yml
+      when: on_success
+
+semver-tag:
+  stage: manifest
+  image: alpine:3.23
+  needs:
+    - manifest-default
+  before_script:
+    - apk add --no-cache git curl bash
+  script:
+    - VERSION=$(cat version.txt)
+    - chmod +x scripts/generate-changelog.sh
+    - scripts/generate-changelog.sh "$VERSION" > changelog.md
+    - |
+      git config --global user.email "${GITLAB_USER_EMAIL:-ci@example.com}"
+      git config --global user.name "${GITLAB_USER_NAME:-GitLab CI}"
+    - git tag -a "$VERSION" -m "Release $VERSION"
+    - |
+      PUSH_TOKEN="${GIT_PUSH_TOKEN:-${GL_RELEASE_TOKEN:-$CI_JOB_TOKEN}}"
+      if [ "$PUSH_TOKEN" = "$CI_JOB_TOKEN" ]; then
+        PUSH_USER="${GIT_PUSH_USER:-gitlab-ci-token}"
+      else
+        PUSH_USER="${GIT_PUSH_USER:-oauth2}"
+      fi
+      git push "https://${PUSH_USER}:${PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "$VERSION"
+    - |
+      if [ -n "${GL_RELEASE_TOKEN:-}" ]; then
+        curl --header "PRIVATE-TOKEN: ${GL_RELEASE_TOKEN}" \
+          --data-urlencode "name=$VERSION" \
+          --data-urlencode "tag_name=$VERSION" \
+          --data-urlencode "description=$(cat changelog.md)" \
+          --request POST "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: on_success
 
 container-build-branch:

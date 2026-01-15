@@ -24,7 +24,7 @@ Schautrack is built to stay out of your way. Just enter your calories and stay u
 ## Quickstart (Docker)
 1) Clone the repository:
 ```
-git clone https://gitlab.com/florianschauer/schautrack.git
+git clone https://gitlab.com/schauer.to/schautrack.git
 cd schautrack
 ```
 2) Copy env template and adjust secrets as needed:
@@ -50,7 +50,7 @@ Pre-built Docker images are available in the registry:
   <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
 </a>
 
-Build it yourself from [schautrack-android](https://gitlab.com/florianschauer/schautrack-android).
+Build it yourself from [schautrack-android](https://gitlab.com/schauer.to/schautrack-android).
 
 ## Environment Variables
 
