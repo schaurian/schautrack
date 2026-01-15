@@ -1154,11 +1154,20 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
-  res.redirect('/login');
+  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
+  const effectiveImprintUrl = await getEffectiveSetting('imprint_url', process.env.IMPRINT_URL);
+  res.render('landing', {
+    currentUser: null,
+    activePage: 'home',
+    isAdmin: false,
+    enableLegal: effectiveEnableLegal.value === 'true',
+    imprintUrl: effectiveImprintUrl.value || '/imprint',
+    buildVersion: process.env.BUILD_VERSION || null
+  });
 });
 
 app.get('/imprint/address.svg', async (req, res) => {

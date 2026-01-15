@@ -1,0 +1,72 @@
+<%- include('partials/header', { title: null }) %>
+  <section class="landing">
+    <div class="landing-hero">
+      <h1 class="landing-title">Track calories, not complexity</h1>
+      <p class="landing-subtitle">
+        Schautrack is a free, open-source calorie counter that stays out of your way.
+        Just log what you eat and stay under your daily goal.
+      </p>
+      <div class="landing-cta">
+        <a href="/login" class="btn primary large">Get Started</a>
+        <a href="https://gitlab.com/florianschauer/schautrack" target="_blank" rel="noopener" class="btn ghost large">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+            <path d="M23.955 13.587l-1.342-4.135-2.664-8.189a.455.455 0 0 0-.867 0L16.418 9.45H7.582L4.918 1.263a.455.455 0 0 0-.867 0L1.386 9.452.044 13.587a.924.924 0 0 0 .331 1.023L12 23.054l11.625-8.443a.92.92 0 0 0 .33-1.024"/>
+          </svg>View Source</a>
+      </div>
+    </div>
+
+    <div class="landing-features">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M2 12h20"/>
+          </svg>
+        </div>
+        <h3>Simple Logging</h3>
+        <p>Add calories in seconds. No barcode scanning, no food databases to search through.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </div>
+        <h3>AI Estimation</h3>
+        <p>Snap a photo and let AI estimate the calories via external API.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <h3>Share with Friends</h3>
+        <p>Link accounts with friends or partners to keep each other accountable.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>Self-Hostable</h3>
+        <p>Run your own instance. Your data stays yours.</p>
+      </div>
+    </div>
+
+    <div class="landing-apps">
+      <p class="muted">Available on</p>
+      <div class="app-badges">
+        <a href="https://play.google.com/apps/testing/to.schauer.schautrack" target="_blank" rel="noopener" class="app-badge">
+          <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="60">
+        </a>
+      </div>
+    </div>
+  </section>
+<%- include('partials/footer') %>
