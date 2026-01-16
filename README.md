@@ -109,8 +109,8 @@ Photo-based calorie estimation with support for OpenAI, Claude, and Ollama.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | AES-256-GCM key for encrypting user API keys (generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
-| `AI_PROVIDER` | *(required)* | AI provider to use: `openai`, `claude`, or `ollama` |
+| `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string |
+| `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, or `ollama`. Required to enable AI features. |
 | `AI_KEY` | *(empty)* | Global API key (fallback when users don't have their own) |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
 | `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o-mini`, `claude-sonnet-4-20250514`, `gemma3:12b`). Required for OpenAI and Claude. |
