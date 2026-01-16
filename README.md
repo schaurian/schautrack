@@ -58,49 +58,18 @@ Settings can be configured via environment variables (in .env or passed to the c
 
 ### Required
 
-| Variable | Description |
-|----------|-------------|
-| `SESSION_SECRET` | Session encryption key (change in production!) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | *(empty)* | PostgreSQL connection string (e.g. `postgresql://user:pass@host:5432/db`) |
+| `SESSION_SECRET` | *(empty)* | Random secret for session encryption |
 
-### Database
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (e.g. `postgresql://user:pass@host:5432/db`) |
-
-### Server
+### General
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | Port to listen on |
-
-### Admin
-
-| Variable | Default | Description |
-|----------|---------|-------------|
 | `ADMIN_EMAIL` | *(empty)* | Email that gets access to `/admin` page |
 | `SUPPORT_EMAIL` | *(empty)* | Contact email shown on support/error pages |
-
-### Legal Pages
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENABLE_LEGAL` | `false` | Set to `true` to enable `/imprint`, `/privacy`, `/terms` |
-| `IMPRINT_NAME` | `Operator` | Operator name on imprint page |
-| `IMPRINT_URL` | `/imprint` | URL for imprint link |
-| `IMPRINT_ADDRESS` | *(empty)* | Physical address (use `\n` for line breaks) |
-| `IMPRINT_EMAIL` | *(empty)* | Contact email (rendered as SVG for spam protection) |
-
-### SMTP (Password Reset)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SMTP_HOST` | *(empty)* | SMTP server hostname |
-| `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | *(empty)* | SMTP username |
-| `SMTP_PASS` | *(empty)* | SMTP password |
-| `SMTP_FROM` | `SUPPORT_EMAIL` | From address for emails |
-| `SMTP_SECURE` | `false` | Set to `true` for SSL/TLS |
 
 ### AI Features
 
@@ -116,6 +85,26 @@ Photo-based calorie estimation with support for OpenAI, Claude, and Ollama.
 | `AI_DAILY_LIMIT` | *(empty)* | Daily limit for AI requests per user when using global key (0 or empty = unlimited) |
 
 **Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.
+
+### SMTP (Password Reset)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SMTP_HOST` | *(empty)* | SMTP server hostname |
+| `SMTP_PORT` | `587` | SMTP port |
+| `SMTP_USER` | *(empty)* | SMTP username |
+| `SMTP_PASS` | *(empty)* | SMTP password |
+| `SMTP_FROM` | `SUPPORT_EMAIL` | From address for emails |
+| `SMTP_SECURE` | `false` | Set to `true` for SSL/TLS |
+
+### Legal Pages
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_LEGAL` | `false` | Set to `true` to enable `/imprint`, `/privacy`, `/terms` |
+| `IMPRINT_URL` | `/imprint` | URL for imprint link |
+| `IMPRINT_ADDRESS` | *(empty)* | Full name and address (use `\n` for line breaks) |
+| `IMPRINT_EMAIL` | *(empty)* | Contact email (rendered as SVG for spam protection) |
 
 ## Contributing
 

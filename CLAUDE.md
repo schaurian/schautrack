@@ -136,9 +136,8 @@ Required:
 
 Optional:
 - `SUPPORT_EMAIL`: Contact email for support pages
-- `IMPRINT_NAME`: Operator name (default: 'Operator')
 - `IMPRINT_URL`: Custom imprint page URL (default: '/imprint')
-- `IMPRINT_ADDRESS`: Address text (rendered as SVG)
+- `IMPRINT_ADDRESS`: Full name and address text (rendered as SVG, use \n for line breaks)
 - `IMPRINT_EMAIL`: Email text (rendered as SVG)
 - `BUILD_VERSION`: Injected during build, displayed in footer
 

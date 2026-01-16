@@ -25,7 +25,6 @@ const DEFAULT_RANGE_DAYS = 14;
 const userEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || null;
 const enableLegal = process.env.ENABLE_LEGAL === 'true';
-const imprintName = process.env.IMPRINT_NAME || 'Operator';
 const imprintUrl = process.env.IMPRINT_URL || '/imprint';
 const imprintAddress = process.env.IMPRINT_ADDRESS || null;
 // Display email (image/text)
@@ -1042,7 +1041,6 @@ app.use(async (req, res, next) => {
   // Load configurable settings (env vars take precedence over DB)
   const effectiveSupportEmail = await getEffectiveSetting('support_email', supportEmail);
   const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
-  const effectiveImprintName = await getEffectiveSetting('imprint_name', imprintName);
   const effectiveImprintUrl = await getEffectiveSetting('imprint_url', imprintUrl);
   const effectiveImprintAddress = await getEffectiveSetting('imprint_address', imprintAddress);
   const effectiveImprintEmail = await getEffectiveSetting('imprint_email', imprintEmail);
@@ -1054,9 +1052,6 @@ app.use(async (req, res, next) => {
   const hasImprintContent = !!effectiveImprintAddress.value && !!effectiveImprintEmail.value;
   res.locals.enableLegal = legalEnabled && hasImprintContent;
   res.locals.imprintUrl = effectiveImprintUrl.value || '/imprint';
-  res.locals.imprint = {
-    name: effectiveImprintName.value || 'Operator',
-  };
   next();
 });
 
@@ -3582,7 +3577,6 @@ app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
 
   const settings = {
     support_email: await getEffectiveSetting('support_email', process.env.SUPPORT_EMAIL),
-    imprint_name: await getEffectiveSetting('imprint_name', process.env.IMPRINT_NAME),
     imprint_address: await getEffectiveSetting('imprint_address', process.env.IMPRINT_ADDRESS),
     imprint_email: await getEffectiveSetting('imprint_email', process.env.IMPRINT_EMAIL),
     enable_legal: await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL),
@@ -3610,7 +3604,6 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
 
   const allowedKeys = {
     support_email: 'SUPPORT_EMAIL',
-    imprint_name: 'IMPRINT_NAME',
     imprint_address: 'IMPRINT_ADDRESS',
     imprint_email: 'IMPRINT_EMAIL',
     enable_legal: 'ENABLE_LEGAL',
