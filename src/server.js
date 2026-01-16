@@ -2936,7 +2936,7 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
   const prompt = `Analyze this food image and estimate the calories.${contextHint}
 
 Respond in JSON format with these fields:
-- calories: estimated total calories (number, must be > 0 if food is detected)
+- calories: estimated total calories (number, must be > 0 if food is detected). Round to nearest 50 for values >= 50.
 - food: brief description of the food items (string, max 50 chars)
 - confidence: your confidence level ("high", "medium", or "low")
 
@@ -2957,9 +2957,13 @@ Only respond with the JSON object, no other text.`;
       await incrementAIUsage(user.id);
     }
 
+    // Round calories: keep exact if <50, otherwise round to nearest 50
+    const rawCalories = result.calories;
+    const calories = rawCalories < 50 ? rawCalories : Math.round(rawCalories / 50) * 50;
+
     return res.json({
       ok: true,
-      calories: result.calories,
+      calories,
       food: result.food,
       confidence: result.confidence,
     });
