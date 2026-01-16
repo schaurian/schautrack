@@ -155,7 +155,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           build-args: |
-            BUILD_VERSION=v${{ needs.compute-version.outputs.version }}
+            BUILD_VERSION=${{ needs.compute-version.outputs.version }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
