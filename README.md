@@ -1,4 +1,10 @@
 # Schautrack
+
+[![Build Status](https://github.com/schaurian/schautrack/actions/workflows/build.yml/badge.svg)](https://github.com/schaurian/schautrack/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/schaurian/schautrack)](https://github.com/schaurian/schautrack/releases)
+[![License](https://img.shields.io/github/license/schaurian/schautrack)](LICENSE)
+[![Docker Pulls](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/schaurian/schautrack/pkgs/container/schautrack)
+
 Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you and your friends.
 
 **Try it:** [schautrack.schauer.to](https://schautrack.schauer.to)
@@ -24,7 +30,7 @@ Schautrack is built to stay out of your way. Just enter your calories and stay u
 ## Quickstart (Docker)
 1) Clone the repository:
 ```
-git clone https://gitlab.com/schauer.to/schautrack.git
+git clone https://github.com/schaurian/schautrack.git
 cd schautrack
 ```
 2) Copy env template and adjust secrets as needed:
@@ -39,10 +45,10 @@ docker compose up --build
 
 ### Pre-built Images
 Pre-built Docker images are available in the registry:
-[`registry.gitlab.com/schauer.to/schautrack`](https://gitlab.com/schauer.to/schautrack/container_registry)
+[`ghcr.io/schaurian/schautrack`](https://github.com/schaurian/schautrack/pkgs/container/schautrack)
 
-- **Production:** `registry.gitlab.com/schauer.to/schautrack:v1.2.3`
-- **Staging:** `registry.gitlab.com/schauer.to/schautrack:staging-123`
+- **Production:** `ghcr.io/schaurian/schautrack:latest` or `ghcr.io/schaurian/schautrack:v0.1.2`
+- **Staging:** `ghcr.io/schaurian/schautrack:staging-4`
 
 ## Android App
 
@@ -50,7 +56,7 @@ Pre-built Docker images are available in the registry:
   <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
 </a>
 
-Source code available at [schautrack-android](https://gitlab.com/schauer.to/schautrack-android).
+Source code available at [schautrack-android](https://github.com/schaurian/schautrack-android).
 
 ## Environment Variables
 
