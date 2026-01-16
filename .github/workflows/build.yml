@@ -84,9 +84,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: compute-version
     if: needs.compute-version.outputs.should_tag == 'true'
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Create and push tag
         run: |
@@ -94,8 +99,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${{ needs.compute-version.outputs.version }}" -m "Release v${{ needs.compute-version.outputs.version }}"
           git push origin "v${{ needs.compute-version.outputs.version }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-push:
     runs-on: ubuntu-latest
