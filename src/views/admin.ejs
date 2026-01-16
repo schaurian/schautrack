@@ -20,8 +20,10 @@
         imprint_address: 'Imprint Address',
         imprint_email: 'Imprint Email',
         enable_legal: 'Enable Legal Pages',
-        openai_api_key: 'OpenAI API Key (Global)',
-        claude_api_key: 'Claude API Key (Global)',
+        ai_provider: 'AI Provider (Global)',
+        ai_key: 'AI API Key (Global)',
+        ai_endpoint: 'AI Custom Endpoint (Global)',
+        ai_model: 'AI Model (Global)',
         ai_daily_limit: 'AI Daily Limit',
       }; %>
       <% for (const [key, setting] of Object.entries(settings)) { %>
@@ -47,6 +49,18 @@
             </div>
             <% if (isApiKey) { %>
               <p class="muted small">Global key used when users don't have their own. Leave blank to clear.</p>
+            <% } %>
+            <% if (key === 'ai_provider') { %>
+              <p class="muted small">Default AI provider: openai, claude, or ollama.</p>
+            <% } %>
+            <% if (key === 'ai_key') { %>
+              <p class="muted small">Global fallback API key. Works with whichever provider users select.</p>
+            <% } %>
+            <% if (key === 'ai_endpoint') { %>
+              <p class="muted small">Global custom endpoint override. Leave blank to use provider defaults.</p>
+            <% } %>
+            <% if (key === 'ai_model') { %>
+              <p class="muted small">Specify AI model to use. Examples: gpt-4o-mini (OpenAI), claude-sonnet-4-20250514 (Claude), gemma3:12b (Ollama).</p>
             <% } %>
             <% if (key === 'ai_daily_limit') { %>
               <p class="muted small">Max AI requests per user per day (using global key). Leave blank or 0 for unlimited.</p>

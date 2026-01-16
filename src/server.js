@@ -74,12 +74,12 @@ const textToSvg = (text, color = '#e5e7eb') => {
 const KG_TO_LB = 2.20462;
 
 // API Key Encryption (AES-256-GCM)
-const API_KEY_ENCRYPTION_SECRET = process.env.API_KEY_ENCRYPTION_SECRET;
+const AI_KEY_ENCRYPTION_SECRET = process.env.AI_KEY_ENCRYPTION_SECRET;
 
 const encryptApiKey = (plaintext) => {
-  if (!API_KEY_ENCRYPTION_SECRET || !plaintext) return null;
+  if (!AI_KEY_ENCRYPTION_SECRET || !plaintext) return null;
   try {
-    const key = Buffer.from(API_KEY_ENCRYPTION_SECRET, 'hex');
+    const key = Buffer.from(AI_KEY_ENCRYPTION_SECRET, 'hex');
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     let encrypted = cipher.update(plaintext, 'utf8', 'base64');
@@ -93,10 +93,10 @@ const encryptApiKey = (plaintext) => {
 };
 
 const decryptApiKey = (ciphertext) => {
-  if (!API_KEY_ENCRYPTION_SECRET || !ciphertext) return null;
+  if (!AI_KEY_ENCRYPTION_SECRET || !ciphertext) return null;
   try {
     const [ivB64, tagB64, encrypted] = ciphertext.split(':');
-    const key = Buffer.from(API_KEY_ENCRYPTION_SECRET, 'hex');
+    const key = Buffer.from(AI_KEY_ENCRYPTION_SECRET, 'hex');
     const iv = Buffer.from(ivB64, 'base64');
     const authTag = Buffer.from(tagB64, 'base64');
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
@@ -107,6 +107,75 @@ const decryptApiKey = (ciphertext) => {
   } catch (err) {
     console.error('Failed to decrypt API key', err);
     return null;
+  }
+};
+
+// AI Provider Configurations
+const AI_PROVIDER_CONFIGS = {
+  openai: {
+    defaultEndpoint: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    authHeader: (key) => ({ 'Authorization': `Bearer ${key}` }),
+    formatMessages: (prompt, base64Data, mediaType) => [{
+      role: 'user',
+      content: [
+        { type: 'text', text: prompt },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${mediaType};base64,${base64Data}`,
+            detail: 'low'
+          }
+        }
+      ]
+    }],
+    getEndpointPath: () => '/chat/completions',
+    parseResponse: (data) => data.choices[0]?.message?.content
+  },
+
+  claude: {
+    defaultEndpoint: 'https://api.anthropic.com/v1',
+    model: null, // No default - must be specified via AI_MODEL
+    authHeader: (key) => ({
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01'
+    }),
+    formatMessages: (prompt, base64Data, mediaType) => [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mediaType,
+            data: base64Data
+          }
+        },
+        { type: 'text', text: prompt }
+      ]
+    }],
+    getEndpointPath: () => '/messages',
+    parseResponse: (data) => data.content[0]?.text
+  },
+
+  ollama: {
+    defaultEndpoint: 'http://localhost:11434/v1',
+    model: 'gemma3:12b',
+    authHeader: (key) => ({ 'Authorization': `Bearer ${key || 'ollama'}` }),
+    formatMessages: (prompt, base64Data, mediaType) => [{
+      role: 'user',
+      content: [
+        { type: 'text', text: prompt },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${mediaType};base64,${base64Data}`
+          }
+        }
+      ]
+    }],
+    getEndpointPath: () => '/chat/completions',
+    parseResponse: (data) => data.choices[0]?.message?.content
   }
 };
 
@@ -381,11 +450,25 @@ async function ensureAdminSettingsSchema() {
 }
 
 async function ensureAIKeysSchema() {
+  // Add new unified columns
   await pool.query(`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS openai_api_key TEXT,
       ADD COLUMN IF NOT EXISTS claude_api_key TEXT,
-      ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai';
+      ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai',
+      ADD COLUMN IF NOT EXISTS ai_key TEXT,
+      ADD COLUMN IF NOT EXISTS ai_endpoint TEXT;
+  `);
+
+  // Migrate existing keys to unified field
+  await pool.query(`
+    UPDATE users
+    SET ai_key = CASE
+      WHEN preferred_ai_provider = 'claude' THEN claude_api_key
+      ELSE openai_api_key
+    END
+    WHERE (openai_api_key IS NOT NULL OR claude_api_key IS NOT NULL)
+      AND ai_key IS NULL;
   `);
 }
 
@@ -1083,30 +1166,21 @@ const renderSettings = async (req, res) => {
   const timezones = Intl.supportedValuesOf('timeZone');
 
   // Prepare AI key info for display (masked)
-  const hasOpenaiKey = Boolean(user.openai_api_key);
-  const hasClaudeKey = Boolean(user.claude_api_key);
-  let openaiKeyLast4 = '';
-  let claudeKeyLast4 = '';
-  if (hasOpenaiKey) {
-    const decrypted = decryptApiKey(user.openai_api_key);
+  const hasAiKey = Boolean(user.ai_key);
+  let aiKeyLast4 = '';
+
+  if (hasAiKey) {
+    const decrypted = decryptApiKey(user.ai_key);
     if (decrypted && decrypted.length >= 4) {
-      openaiKeyLast4 = decrypted.slice(-4);
-    }
-  }
-  if (hasClaudeKey) {
-    const decrypted = decryptApiKey(user.claude_api_key);
-    if (decrypted && decrypted.length >= 4) {
-      claudeKeyLast4 = decrypted.slice(-4);
+      aiKeyLast4 = decrypted.slice(-4);
     }
   }
 
   res.render('settings', {
     user: {
       ...user,
-      hasOpenaiKey,
-      hasClaudeKey,
-      openaiKeyLast4,
-      claudeKeyLast4,
+      hasAiKey,
+      aiKeyLast4,
     },
     hasTempSecret: Boolean(tempSecret),
     totpSecret: tempSecret || null,
@@ -1128,7 +1202,7 @@ const renderSettings = async (req, res) => {
 
 async function getUserById(id) {
   const { rows } = await pool.query(
-    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual, openai_api_key, claude_api_key, preferred_ai_provider FROM users WHERE id = $1',
+    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual, preferred_ai_provider, ai_key, ai_endpoint FROM users WHERE id = $1',
     [id]
   );
   const user = rows[0];
@@ -2046,25 +2120,27 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     }
   }
 
-  // Check if AI estimation is enabled (user or global API key for selected provider)
+  // Check if AI estimation is enabled (user or global API key)
   let hasAiEnabled = false;
   let aiUsingGlobalKey = false;
-  const prefersClaude = user.preferred_ai_provider === 'claude';
-  if (prefersClaude) {
-    if (user.claude_api_key) {
-      hasAiEnabled = true;
-    } else {
-      const globalKey = await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY);
-      hasAiEnabled = Boolean(globalKey.value);
-      aiUsingGlobalKey = hasAiEnabled;
-    }
+
+  if (user.ai_key) {
+    hasAiEnabled = true;
   } else {
-    if (user.openai_api_key) {
-      hasAiEnabled = true;
-    } else {
-      const globalKey = await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY);
-      hasAiEnabled = Boolean(globalKey.value);
-      aiUsingGlobalKey = hasAiEnabled;
+    const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
+    const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+
+    // AI is enabled if provider is set and requirements are met
+    if (globalProvider.value) {
+      if (globalProvider.value === 'ollama') {
+        // Ollama just needs to be configured
+        hasAiEnabled = true;
+        aiUsingGlobalKey = true;
+      } else if (globalKey.value) {
+        // OpenAI/Claude need API key
+        hasAiEnabled = true;
+        aiUsingGlobalKey = true;
+      }
     }
   }
 
@@ -2888,37 +2964,74 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
   }
 
   const user = req.currentUser;
-  const provider = user.preferred_ai_provider || 'openai';
 
-  // Get API key: first try user's key, then fall back to global key
+  // Determine provider from global setting only
+  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+  const provider = globalProvider.value;
+
+  if (!provider) {
+    return res.status(400).json({ ok: false, error: 'AI_PROVIDER must be configured (openai, claude, or ollama)' });
+  }
+
+  if (!['openai', 'claude', 'ollama'].includes(provider)) {
+    return res.status(400).json({ ok: false, error: 'Invalid provider' });
+  }
+
+  // Get unified API key and endpoint
   let apiKey = null;
+  let endpoint = null;
   let usingGlobalKey = false;
-  if (provider === 'openai') {
-    if (user.openai_api_key) {
-      apiKey = decryptApiKey(user.openai_api_key);
-    } else {
-      // Fallback to global key (env var or admin setting)
-      const globalKey = await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY);
-      if (globalKey.value) {
-        apiKey = globalKey.value;
-        usingGlobalKey = true;
-      }
-    }
-  } else if (provider === 'claude') {
-    if (user.claude_api_key) {
-      apiKey = decryptApiKey(user.claude_api_key);
-    } else {
-      // Fallback to global key (env var or admin setting)
-      const globalKey = await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY);
-      if (globalKey.value) {
-        apiKey = globalKey.value;
-        usingGlobalKey = true;
-      }
+
+  // User's personal key
+  if (user.ai_key) {
+    apiKey = decryptApiKey(user.ai_key);
+  }
+
+  // User's custom endpoint
+  if (user.ai_endpoint) {
+    endpoint = user.ai_endpoint;
+  }
+
+  // Fallback to global settings
+  if (!apiKey) {
+    const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
+    if (globalKey.value) {
+      apiKey = globalKey.value;
+      usingGlobalKey = true;
     }
   }
 
-  if (!apiKey) {
-    return res.status(400).json({ ok: false, error: 'No API key configured for selected provider' });
+  if (!endpoint) {
+    const globalEndpoint = await getEffectiveSetting('ai_endpoint', process.env.AI_ENDPOINT);
+    if (globalEndpoint.value) {
+      endpoint = globalEndpoint.value;
+    }
+  }
+
+  // Provider-specific validation
+  if (provider === 'openai' || provider === 'claude') {
+    // OpenAI and Claude require API key
+    if (!apiKey) {
+      return res.status(400).json({
+        ok: false,
+        error: `${provider === 'openai' ? 'OpenAI' : 'Claude'} requires an API key. Please configure AI_KEY.`
+      });
+    }
+  }
+
+  if (provider === 'ollama') {
+    // Ollama requires endpoint
+    if (!endpoint) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Ollama requires AI_ENDPOINT to be configured (e.g., http://ollama:11434/v1)'
+      });
+    }
+    // Ollama: API key is optional
+    if (!apiKey) {
+      apiKey = 'ollama';
+      usingGlobalKey = true; // Count Ollama usage as global
+    }
   }
 
   // Rate limiting: only applies when using global key
@@ -2941,6 +3054,23 @@ app.post('/api/ai/estimate', requireAuth, async (req, res) => {
   const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
   const mediaType = image.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
 
+  // Get custom model from settings/env
+  let customModel = null;
+  const globalModel = await getEffectiveSetting('ai_model', process.env.AI_MODEL);
+  if (globalModel.value) {
+    customModel = globalModel.value;
+  }
+
+  // Provider-specific model validation
+  if (provider === 'openai' || provider === 'claude') {
+    if (!customModel) {
+      return res.status(400).json({
+        ok: false,
+        error: `${provider === 'openai' ? 'OpenAI' : 'Claude'} requires AI_MODEL to be configured (e.g., ${provider === 'openai' ? 'gpt-4o-mini' : 'claude-sonnet-4-20250514'})`
+      });
+    }
+  }
+
   const contextHint = context ? `\n\nUser provided context: "${context}"` : '';
   const prompt = `Analyze this food image and estimate the calories.${contextHint}
 
@@ -2954,12 +3084,15 @@ If you cannot identify any food in the image, set calories to 0 and food to "No 
 Only respond with the JSON object, no other text.`;
 
   try {
-    let result;
-    if (provider === 'openai') {
-      result = await callOpenAI(apiKey, base64Data, mediaType, prompt);
-    } else {
-      result = await callClaude(apiKey, base64Data, mediaType, prompt);
-    }
+    const result = await callAIProvider(
+      provider,
+      apiKey,
+      endpoint,
+      base64Data,
+      mediaType,
+      prompt,
+      customModel
+    );
 
     // Increment usage after successful request (only for global key)
     if (usingGlobalKey) {
@@ -2989,99 +3122,46 @@ Only respond with the JSON object, no other text.`;
   }
 });
 
-async function callOpenAI(apiKey, base64Data, mediaType, prompt) {
+async function callAIProvider(providerName, apiKey, endpoint, base64Data, mediaType, prompt, customModel = null) {
+  const config = AI_PROVIDER_CONFIGS[providerName];
+  if (!config) throw new Error(`Unknown provider: ${providerName}`);
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  const timeout = setTimeout(() => controller.abort(), 600000); // 10 minutes
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const messages = config.formatMessages(prompt, base64Data, mediaType);
+    const body = {
+      model: customModel || config.model, // Use custom model if provided, otherwise use default
+      messages: messages,
+      max_tokens: 200
+    };
+
+    const baseUrl = endpoint || config.defaultEndpoint;
+    const url = `${baseUrl}${config.getEndpointPath()}`;
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        ...config.authHeader(apiKey),
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mediaType};base64,${base64Data}`,
-                  detail: 'low',
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 200,
-      }),
-      signal: controller.signal,
+      body: JSON.stringify(body),
+      signal: controller.signal
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenAI API error: ${error}`);
+      const errorText = await response.text();
+      throw new Error(`${providerName} API error (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content || '';
-    return parseAIResponse(content);
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again.');
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+    const content = config.parseResponse(data);
 
-async function callClaude(apiKey, base64Data, mediaType, prompt) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 200,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType,
-                  data: base64Data,
-                },
-              },
-              { type: 'text', text: prompt },
-            ],
-          },
-        ],
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Claude API error: ${error}`);
+    if (!content) {
+      throw new Error(`No content in ${providerName} response`);
     }
 
-    const data = await response.json();
-    const content = data.content[0]?.text || '';
     return parseAIResponse(content);
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -3241,45 +3321,56 @@ app.post('/settings/preferences', requireAuth, async (req, res) => {
 });
 
 app.post('/settings/ai', requireAuth, async (req, res) => {
-  const { preferred_ai_provider, openai_api_key, claude_api_key, clear_keys } = req.body;
+  const { ai_key, ai_endpoint, clear_settings } = req.body;
 
-  if (clear_keys === 'true') {
+  if (clear_settings === 'true') {
     try {
-      await pool.query('UPDATE users SET openai_api_key = NULL, claude_api_key = NULL WHERE id = $1', [req.currentUser.id]);
-      req.session.aiFeedback = { type: 'success', message: 'API keys cleared.' };
+      await pool.query('UPDATE users SET ai_key = NULL, ai_endpoint = NULL WHERE id = $1', [req.currentUser.id]);
+      req.session.aiFeedback = { type: 'success', message: 'AI settings cleared.' };
     } catch (err) {
-      console.error('Failed to clear AI keys', err);
-      req.session.aiFeedback = { type: 'error', message: 'Could not clear keys.' };
+      console.error('Failed to clear AI settings', err);
+      req.session.aiFeedback = { type: 'error', message: 'Could not clear settings.' };
     }
     return res.redirect('/settings');
   }
 
-  const provider = ['openai', 'claude'].includes(preferred_ai_provider) ? preferred_ai_provider : 'openai';
-  const updates = ['preferred_ai_provider = $1'];
-  const values = [provider];
-  let idx = 2;
+  const updates = [];
+  const values = [];
+  let idx = 1;
 
-  if (openai_api_key && openai_api_key.trim()) {
-    const encrypted = encryptApiKey(openai_api_key.trim());
+  // API key
+  if (ai_key && ai_key.trim()) {
+    const encrypted = encryptApiKey(ai_key.trim());
     if (encrypted) {
-      updates.push(`openai_api_key = $${idx}`);
+      updates.push(`ai_key = $${idx}`);
       values.push(encrypted);
       idx++;
     }
   }
 
-  if (claude_api_key && claude_api_key.trim()) {
-    const encrypted = encryptApiKey(claude_api_key.trim());
-    if (encrypted) {
-      updates.push(`claude_api_key = $${idx}`);
-      values.push(encrypted);
-      idx++;
+  // Endpoint
+  if (ai_endpoint !== undefined) {
+    const trimmed = ai_endpoint.trim();
+
+    // Basic URL validation
+    if (trimmed && !trimmed.match(/^https?:\/\/.+/)) {
+      req.session.aiFeedback = {
+        type: 'error',
+        message: 'Invalid endpoint URL. Must start with http:// or https://'
+      };
+      return res.redirect('/settings');
     }
+
+    updates.push(`ai_endpoint = $${idx}`);
+    values.push(trimmed || null);
+    idx++;
   }
 
   try {
-    values.push(req.currentUser.id);
-    await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);
+    if (updates.length > 0) {
+      values.push(req.currentUser.id);
+      await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);
+    }
     req.session.aiFeedback = { type: 'success', message: 'AI settings saved.' };
   } catch (err) {
     console.error('Failed to save AI settings', err);
@@ -3495,8 +3586,10 @@ app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
     imprint_address: await getEffectiveSetting('imprint_address', process.env.IMPRINT_ADDRESS),
     imprint_email: await getEffectiveSetting('imprint_email', process.env.IMPRINT_EMAIL),
     enable_legal: await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL),
-    openai_api_key: await getEffectiveSetting('openai_api_key', process.env.OPENAI_API_KEY),
-    claude_api_key: await getEffectiveSetting('claude_api_key', process.env.CLAUDE_API_KEY),
+    ai_provider: await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
+    ai_key: await getEffectiveSetting('ai_key', process.env.AI_KEY),
+    ai_endpoint: await getEffectiveSetting('ai_endpoint', process.env.AI_ENDPOINT),
+    ai_model: await getEffectiveSetting('ai_model', process.env.AI_MODEL),
     ai_daily_limit: await getEffectiveSetting('ai_daily_limit', process.env.AI_DAILY_LIMIT),
   };
 
@@ -3521,8 +3614,10 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     imprint_address: 'IMPRINT_ADDRESS',
     imprint_email: 'IMPRINT_EMAIL',
     enable_legal: 'ENABLE_LEGAL',
-    openai_api_key: 'OPENAI_API_KEY',
-    claude_api_key: 'CLAUDE_API_KEY',
+    ai_provider: 'AI_PROVIDER',
+    ai_key: 'AI_KEY',
+    ai_endpoint: 'AI_ENDPOINT',
+    ai_model: 'AI_MODEL',
     ai_daily_limit: 'AI_DAILY_LIMIT',
   };
 
@@ -3590,9 +3685,98 @@ async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   }
 }
 
+// Validate AI configuration at startup
+async function validateAIConfig() {
+  const provider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+
+  // If no provider is set, skip AI validation (AI features are disabled)
+  if (!provider.value) {
+    return;
+  }
+
+  // Validate provider is valid
+  if (!['openai', 'claude', 'ollama'].includes(provider.value)) {
+    console.error('');
+    console.error('═══════════════════════════════════════════════════════════════');
+    console.error('  STARTUP ERROR: Invalid AI Configuration');
+    console.error('═══════════════════════════════════════════════════════════════');
+    console.error('');
+    console.error(`  AI_PROVIDER is set to '${provider.value}' but must be one of: openai, claude, ollama`);
+    console.error('');
+    console.error('═══════════════════════════════════════════════════════════════');
+    console.error('');
+    process.exit(1);
+  }
+
+  // OpenAI and Claude require API key + model
+  if (provider.value === 'openai' || provider.value === 'claude') {
+    const apiKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
+    const model = await getEffectiveSetting('ai_model', process.env.AI_MODEL);
+
+    const providerName = provider.value === 'openai' ? 'OpenAI' : 'Claude';
+    const exampleModel = provider.value === 'openai' ? 'gpt-4o-mini' : 'claude-sonnet-4-20250514';
+
+    if (!apiKey.value || !model.value) {
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════════════');
+      console.error('  STARTUP ERROR: Invalid AI Configuration');
+      console.error('═══════════════════════════════════════════════════════════════');
+      console.error('');
+      console.error(`  AI_PROVIDER is set to '${provider.value}' but required configuration is missing:`);
+      console.error('');
+      if (!apiKey.value) console.error('  ✗ AI_KEY is not set');
+      if (!model.value) console.error('  ✗ AI_MODEL is not set');
+      console.error('');
+      console.error(`  ${providerName} requires both AI_KEY and AI_MODEL to be configured.`);
+      console.error('');
+      console.error('  Example configuration:');
+      console.error(`    AI_PROVIDER=${provider.value}`);
+      console.error(`    AI_KEY=sk-...`);
+      console.error(`    AI_MODEL=${exampleModel}`);
+      console.error('');
+      console.error('  Please set these in your environment variables or .env file.');
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════════════');
+      console.error('');
+      process.exit(1);
+    }
+  }
+
+  // Ollama requires endpoint
+  if (provider.value === 'ollama') {
+    const endpoint = await getEffectiveSetting('ai_endpoint', process.env.AI_ENDPOINT);
+
+    if (!endpoint.value) {
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════════════');
+      console.error('  STARTUP ERROR: Invalid AI Configuration');
+      console.error('═══════════════════════════════════════════════════════════════');
+      console.error('');
+      console.error(`  AI_PROVIDER is set to 'ollama' but AI_ENDPOINT is not configured.`);
+      console.error('');
+      console.error('  Ollama requires AI_ENDPOINT to be set.');
+      console.error('');
+      console.error('  Example configuration:');
+      console.error('    AI_PROVIDER=ollama');
+      console.error('    AI_ENDPOINT=http://ollama:11434/v1');
+      console.error('');
+      console.error('  Please set AI_ENDPOINT in your environment variables or .env file.');
+      console.error('');
+      console.error('═══════════════════════════════════════════════════════════════');
+      console.error('');
+      process.exit(1);
+    }
+  }
+}
+
 initSchemaWithRetry()
-  .finally(() => {
+  .then(() => validateAIConfig())
+  .then(() => {
     app.listen(PORT, () => {
       console.log(`Schautrack listening on port ${PORT}`);
     });
+  })
+  .catch(err => {
+    console.error('Startup failed:', err);
+    process.exit(1);
   });

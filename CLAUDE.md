@@ -7,6 +7,7 @@ This document contains important context and decisions for Claude Code when work
 **Schautrack** is a calorie tracking web application built with Node.js, Express, and PostgreSQL. It supports:
 - User authentication with optional 2FA (TOTP)
 - Calorie entry tracking with daily goals
+- AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
 - Weight tracking
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
@@ -114,6 +115,19 @@ schautrack/
 - Links can have custom labels
 - Shared data is read-only (no editing other users' entries)
 
+### AI Providers
+- **Unified configuration:** Single `ai_key` and `ai_endpoint` fields work for all providers
+- **Supported providers:**
+  - **OpenAI:** GPT-4o-mini via `https://api.openai.com/v1` (default)
+  - **Claude:** Sonnet 4.5 via `https://api.anthropic.com/v1`
+  - **Ollama:** Local/self-hosted via `http://localhost:11434/v1` (API key optional)
+- **Three-tier key hierarchy:**
+  1. User personal API key (encrypted in database)
+  2. Global admin API key (set in admin panel or environment variable)
+  3. Environment variable fallback
+- **Custom endpoints:** Users can override default API endpoints for proxies or self-hosted deployments
+- **Rate limiting:** Global API key usage is limited per user per day (configurable via `AI_DAILY_LIMIT`)
+
 ## Environment Variables
 
 Required:
@@ -128,6 +142,13 @@ Optional:
 - `IMPRINT_ADDRESS`: Address text (rendered as SVG)
 - `IMPRINT_EMAIL`: Email text (rendered as SVG)
 - `BUILD_VERSION`: Injected during build, displayed in footer
+
+AI Configuration (Global Fallbacks):
+- `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
+- `AI_KEY`: Global API key (fallback when users don't have their own)
+- `AI_ENDPOINT`: Optional custom endpoint override (leave blank to use provider defaults)
+- `AI_MODEL`: Optional model override (e.g., `gpt-4o`, `claude-opus-4-20250514`, `gemma3:12b`)
+- `AI_DAILY_LIMIT`: Daily AI request limit per user when using global key (default: unlimited)
 
 ## Development Workflow
 

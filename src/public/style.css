@@ -1802,7 +1802,6 @@ a:focus-visible,
 .ai-photo-btn.disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  pointer-events: none;
 }
 
 .ai-photo-wrap {

@@ -14,7 +14,7 @@ Schautrack is built to stay out of your way. Just enter your calories and stay u
 ## Features
 - Log calories consumed or burned
 - Daily calorie goals with progress tracking
-- AI-powered calorie estimation from food photos (OpenAI or Claude)
+- AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
 - Weight tracking
 - Account linking to share data with friends
 - Real-time updates via SSE
@@ -50,7 +50,7 @@ Pre-built Docker images are available in the registry:
   <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
 </a>
 
-Build it yourself from [schautrack-android](https://gitlab.com/schauer.to/schautrack-android).
+Source code available at [schautrack-android](https://gitlab.com/schauer.to/schautrack-android).
 
 ## Environment Variables
 
@@ -105,12 +105,18 @@ Settings can be configured via environment variables (in .env or passed to the c
 
 ### AI Features
 
+Photo-based calorie estimation with support for OpenAI, Claude, and Ollama.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_KEY_ENCRYPTION_SECRET` | *(empty)* | AES-256-GCM key for encrypting user API keys |
-| `OPENAI_API_KEY` | *(empty)* | Global OpenAI API key (fallback for all users) |
-| `CLAUDE_API_KEY` | *(empty)* | Global Claude API key (fallback for all users) |
-| `AI_DAILY_LIMIT` | `*(empty)*` | Daily limit for AI requests per user |
+| `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | AES-256-GCM key for encrypting user API keys (generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+| `AI_PROVIDER` | *(required)* | AI provider to use: `openai`, `claude`, or `ollama` |
+| `AI_KEY` | *(empty)* | Global API key (fallback when users don't have their own) |
+| `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
+| `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o-mini`, `claude-sonnet-4-20250514`, `gemma3:12b`). Required for OpenAI and Claude. |
+| `AI_DAILY_LIMIT` | *(empty)* | Daily limit for AI requests per user when using global key (0 or empty = unlimited) |
+
+**Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.
 
 ## Contributing
 

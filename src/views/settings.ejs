@@ -304,43 +304,6 @@
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <div>
-        <h2>AI settings</h2>
-      </div>
-    </div>
-    <% if (aiFeedback) { %>
-      <div class="alert <%= aiFeedback.type === 'error' ? 'danger' : 'success' %>"><%= aiFeedback.message %></div>
-    <% } %>
-    <form action="/settings/ai" method="POST" class="stack compact">
-      <div class="field">
-        <span>AI provider</span>
-        <select name="preferred_ai_provider" data-ai-provider-select>
-          <option value="openai" <%= (user.preferred_ai_provider || 'openai') === 'openai' ? 'selected' : '' %>>OpenAI (GPT-4o)</option>
-          <option value="claude" <%= user.preferred_ai_provider === 'claude' ? 'selected' : '' %>>Claude (Sonnet)</option>
-        </select>
-        <p class="muted small">Choose which AI service to use for photo analysis.</p>
-      </div>
-      <label class="field" data-ai-key-openai style="<%= user.preferred_ai_provider === 'claude' ? 'display: none;' : '' %>">
-        <span>OpenAI API Key</span>
-        <input type="password" name="openai_api_key" placeholder="<%= user.hasOpenaiKey ? '••••••••' + user.openaiKeyLast4 : 'sk-...' %>" autocomplete="off">
-        <p class="muted small"><%= user.hasOpenaiKey ? 'Key configured. Leave blank to keep current.' : 'Get your key at platform.openai.com' %></p>
-      </label>
-      <label class="field" data-ai-key-claude style="<%= user.preferred_ai_provider !== 'claude' ? 'display: none;' : '' %>">
-        <span>Claude API Key</span>
-        <input type="password" name="claude_api_key" placeholder="<%= user.hasClaudeKey ? '••••••••' + user.claudeKeyLast4 : 'sk-ant-...' %>" autocomplete="off">
-        <p class="muted small"><%= user.hasClaudeKey ? 'Key configured. Leave blank to keep current.' : 'Get your key at console.anthropic.com' %></p>
-      </label>
-      <div class="stack horizontal" style="gap: var(--space-sm);">
-        <button type="submit" class="primary">Save AI settings</button>
-        <% if (user.hasOpenaiKey || user.hasClaudeKey) { %>
-          <button type="submit" name="clear_keys" value="true" class="ghost danger">Clear all keys</button>
-        <% } %>
-      </div>
-    </form>
-  </section>
-
   <script>
     (() => {
       const importForm = document.getElementById('import-form');
@@ -360,17 +323,6 @@
           unitGroup.querySelectorAll('.pill').forEach((pill) => pill.classList.remove('active'));
           const label = evt.target.closest('.pill');
           if (label) label.classList.add('active');
-        });
-      }
-
-      const aiProviderSelect = document.querySelector('[data-ai-provider-select]');
-      const openaiKeyField = document.querySelector('[data-ai-key-openai]');
-      const claudeKeyField = document.querySelector('[data-ai-key-claude]');
-      if (aiProviderSelect && openaiKeyField && claudeKeyField) {
-        aiProviderSelect.addEventListener('change', () => {
-          const isOpenai = aiProviderSelect.value === 'openai';
-          openaiKeyField.style.display = isOpenai ? '' : 'none';
-          claudeKeyField.style.display = isOpenai ? 'none' : '';
         });
       }
 

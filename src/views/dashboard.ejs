@@ -33,19 +33,22 @@
       <div>
         <h2>Munch log</h2>
       </div>
-      <% if (hasAiEnabled) { %>
-        <div class="ai-photo-wrap">
-          <% if (aiUsage) { %>
-            <span class="ai-usage-badge <%= aiUsage.remaining === 0 ? 'exhausted' : '' %>" title="<%= aiUsage.used %>/<%= aiUsage.limit %> today"><%= aiUsage.remaining %></span>
-          <% } %>
-          <button type="button" class="ai-photo-btn <%= aiUsage && aiUsage.remaining === 0 ? 'disabled' : '' %>" data-ai-photo-trigger title="Estimate calories from photo" <%= aiUsage && aiUsage.remaining === 0 ? 'disabled' : '' %>>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-          </button>
-        </div>
-      <% } %>
+      <div class="ai-photo-wrap">
+        <% if (hasAiEnabled && aiUsage) { %>
+          <span class="ai-usage-badge <%= aiUsage.remaining === 0 ? 'exhausted' : '' %>" title="<%= aiUsage.used %>/<%= aiUsage.limit %> today"><%= aiUsage.remaining %></span>
+        <% } %>
+        <button
+          type="button"
+          class="ai-photo-btn <%= !hasAiEnabled || (aiUsage && aiUsage.remaining === 0) ? 'disabled' : '' %>"
+          data-ai-photo-trigger
+          <% if (!hasAiEnabled) { %>title="AI not configured by server admin"<% } else { %>title="Estimate calories from photo"<% } %>
+          <%= !hasAiEnabled || (aiUsage && aiUsage.remaining === 0) ? 'disabled' : '' %>>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </button>
+      </div>
     </div>
     <form action="/entries" method="POST" class="stack horizontal" data-log-form>
       <label class="field">
@@ -1313,6 +1316,25 @@
       }, 60_000);
     })();
   </script>
+
+  <script>
+    // Handle disabled AI button clicks
+    (() => {
+      const trigger = document.querySelector('[data-ai-photo-trigger]');
+      if (!trigger) return;
+
+      <% if (!hasAiEnabled) { %>
+      trigger.addEventListener('click', (e) => {
+        if (trigger.disabled) {
+          e.preventDefault();
+          e.stopPropagation();
+          alert('AI calorie estimation is not configured by the server admin.');
+        }
+      });
+      <% } %>
+    })();
+  </script>
+
   <% if (hasAiEnabled) { %>
   <script>
     // AI Photo Estimation
@@ -1381,6 +1403,7 @@
               <div class="ai-loading" data-ai-loading style="display: none;">
                 <div class="ai-loading-spinner"></div>
                 <p class="muted">Analyzing your food...</p>
+                <button type="button" class="ghost danger" data-ai-abort>Cancel</button>
               </div>
               <div class="ai-result" data-ai-result style="display: none;">
                 <div class="ai-result-calories" data-ai-calories></div>
@@ -1467,13 +1490,20 @@
         closeModal();
       };
 
+      let currentAbortController = null;
+
       const analyzeImage = async (base64Image, context = '') => {
         showLoading();
+
+        // Create abort controller for this request
+        currentAbortController = new AbortController();
+
         try {
           const res = await fetch('/api/ai/estimate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: base64Image, context }),
+            signal: currentAbortController.signal,
           });
           const data = await res.json();
           if (!data.ok) {
@@ -1491,8 +1521,15 @@
           closeModal();
           if (calorieInput) calorieInput.dispatchEvent(new Event('input'));
         } catch (err) {
+          if (err.name === 'AbortError') {
+            console.log('AI analysis cancelled');
+            closeModal();
+            return;
+          }
           console.error('AI analysis failed', err);
           showError(err.message);
+        } finally {
+          currentAbortController = null;
         }
       };
 
@@ -1598,6 +1635,12 @@
           if (e.target.closest('[data-ai-analyze]')) {
             const context = modal.querySelector('[data-ai-context-input]').value.trim();
             if (currentImage) analyzeImage(currentImage, context);
+          }
+          if (e.target.closest('[data-ai-abort]')) {
+            if (currentAbortController) {
+              currentAbortController.abort();
+              currentAbortController = null;
+            }
           }
           if (e.target.closest('[data-ai-add]')) {
             const calories = modal.querySelector('[data-ai-calories]').textContent.replace(/[^\d]/g, '');
