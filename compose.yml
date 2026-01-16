@@ -11,38 +11,32 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: schautrack-ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-    environment:
-      # CPU optimization settings
-      - OLLAMA_NUM_PARALLEL=1              # Process one request at a time
-      - OLLAMA_MAX_LOADED_MODELS=1         # Keep only one model in memory
-      - OLLAMA_NUM_THREAD=12               # Use all 12 CPU cores
-      - OLLAMA_FLASH_ATTENTION=1           # Enable flash attention for faster inference
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  ollama-pull:
-    image: ollama/ollama:latest
-    container_name: schautrack-ollama-pull
-    depends_on:
-      ollama:
-        condition: service_healthy
-    entrypoint: ["sh", "-c", "ollama pull ${AI_MODEL:-gemma3:12b}"]
-    environment:
-      - OLLAMA_HOST=ollama:11434
-    env_file:
-      - .env
-    restart: "no"
+#  ollama:
+#    image: ollama/ollama:latest
+#    container_name: schautrack-ollama
+#    ports:
+#      - "11434:11434"
+#    volumes:
+#      - ollama-data:/root/.ollama
+#    healthcheck:
+#      test: ["CMD", "ollama", "list"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#    restart: unless-stopped
+#
+#  ollama-pull:
+#    image: ollama/ollama:latest
+#    container_name: schautrack-ollama-pull
+#    depends_on:
+#      ollama:
+#        condition: service_healthy
+#    entrypoint: ["sh", "-c", "ollama pull ${AI_MODEL:-gemma3:12b}"]
+#    environment:
+#      - OLLAMA_HOST=ollama:11434
+#    env_file:
+#      - .env
+#    restart: "no"
 
   db:
     image: postgres:18-alpine
@@ -65,4 +59,4 @@ services:
 
 volumes:
   db-data:
-  ollama-data:
+#  ollama-data:
