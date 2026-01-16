@@ -32,24 +32,26 @@
         <button type="submit" class="ghost danger full">Delete my account</button>
       </form>
     <% } else { %>
-      <div class="data-card stack">
-        <h2>Request deletion without signing in</h2>
-        <ol class="stack" style="padding-left: 1.2rem;">
-          <li>Send an email to <a href="mailto:<%= supportEmail %>?subject=Schautrack%20Account%20Deletion%20Request"><%= supportEmail %></a>.</li>
-          <li>Use the subject line: <code>Schautrack Account Deletion Request</code>.</li>
-          <li>From the email address associated with your account, include:
-            <ul style="padding-left: 1.1rem; margin-top: 0.35rem;">
-              <li>A statement requesting deletion of your Schautrack account and data.</li>
-              <li>Any additional context that might help us locate your account (optional).</li>
-            </ul>
-          </li>
-          <li>We will confirm the request and remove associated data as required.</li>
-        </ol>
-        <p class="muted">
-          If you no longer have access to the email on file, mention that in your message and provide details
-          that help us verify ownership. We will guide you through the next steps.
-        </p>
-      </div>
+      <% if (supportEmail) { %>
+        <div class="data-card stack">
+          <h2>Request deletion without signing in</h2>
+          <ol class="stack" style="padding-left: 1.2rem;">
+            <li>Send an email to <a href="mailto:<%= supportEmail %>?subject=Schautrack%20Account%20Deletion%20Request"><%= supportEmail %></a>.</li>
+            <li>Use the subject line: <code>Schautrack Account Deletion Request</code>.</li>
+            <li>From the email address associated with your account, include:
+              <ul style="padding-left: 1.1rem; margin-top: 0.35rem;">
+                <li>A statement requesting deletion of your Schautrack account and data.</li>
+                <li>Any additional context that might help us locate your account (optional).</li>
+              </ul>
+            </li>
+            <li>We will confirm the request and remove associated data as required.</li>
+          </ol>
+          <p class="muted">
+            If you no longer have access to the email on file, mention that in your message and provide details
+            that help us verify ownership. We will guide you through the next steps.
+          </p>
+        </div>
+      <% } %>
 
       <div class="data-card stack">
         <h3>Prefer to delete while signed in?</h3>
@@ -57,7 +59,9 @@
         <a class="primary" href="/login?next=/delete">Login to delete</a>
       </div>
 
-      <p class="muted small">Need help? Email <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>.</p>
+      <% if (supportEmail) { %>
+        <p class="muted small">Need help? Email <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>.</p>
+      <% } %>
     <% } %>
   </section>
 <%- include('partials/footer') %>

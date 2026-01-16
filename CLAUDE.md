@@ -133,10 +133,9 @@ schautrack/
 Required:
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Session encryption key
-- `SUPPORT_EMAIL`: Contact email for support pages
-- `COOKIE_SECURE`: Set to 'true' for HTTPS environments
 
 Optional:
+- `SUPPORT_EMAIL`: Contact email for support pages
 - `IMPRINT_NAME`: Operator name (default: 'Operator')
 - `IMPRINT_URL`: Custom imprint page URL (default: '/imprint')
 - `IMPRINT_ADDRESS`: Address text (rendered as SVG)

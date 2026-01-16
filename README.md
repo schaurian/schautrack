@@ -61,7 +61,6 @@ Settings can be configured via environment variables (in .env or passed to the c
 | Variable | Description |
 |----------|-------------|
 | `SESSION_SECRET` | Session encryption key (change in production!) |
-| `SUPPORT_EMAIL` | Contact email shown on support/error pages |
 
 ### Database
 
@@ -74,13 +73,13 @@ Settings can be configured via environment variables (in .env or passed to the c
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | Port to listen on |
-| `COOKIE_SECURE` | `false` | Set to `true` when serving over HTTPS |
 
 ### Admin
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ADMIN_EMAIL` | *(empty)* | Email that gets access to `/admin` page |
+| `SUPPORT_EMAIL` | *(empty)* | Contact email shown on support/error pages |
 
 ### Legal Pages
 

@@ -15,7 +15,6 @@ const svgCaptcha = require('svg-captcha');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const sessionCookieSecure = process.env.COOKIE_SECURE === 'true';
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -24,10 +23,7 @@ const MAX_LINKS = 3;
 const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
 const userEventClients = new Map(); // userId -> Set(res)
-const supportEmail = process.env.SUPPORT_EMAIL;
-if (!supportEmail) {
-  throw new Error('SUPPORT_EMAIL environment variable is required');
-}
+const supportEmail = process.env.SUPPORT_EMAIL || null;
 const enableLegal = process.env.ENABLE_LEGAL === 'true';
 const imprintName = process.env.IMPRINT_NAME || 'Operator';
 const imprintUrl = process.env.IMPRINT_URL || '/imprint';
@@ -184,7 +180,7 @@ const smtpHost = process.env.SMTP_HOST;
 const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
-const smtpFrom = process.env.SMTP_FROM || supportEmail;
+const smtpFrom = process.env.SMTP_FROM || supportEmail || 'noreply@example.com';
 const smtpSecure = process.env.SMTP_SECURE === 'true';
 
 const isSmtpConfigured = () => Boolean(smtpHost && smtpUser && smtpPass);
@@ -1030,6 +1026,10 @@ const getAIDailyLimit = async () => {
   return Number.isNaN(limit) || limit <= 0 ? null : limit; // null means unlimited
 };
 
+// Trust proxy headers (X-Forwarded-Proto, X-Forwarded-For, etc.)
+// Required for secure cookies behind reverse proxy (nginx, Caddy, etc.)
+app.set('trust proxy', true);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -1047,7 +1047,7 @@ app.use(async (req, res, next) => {
   const effectiveImprintAddress = await getEffectiveSetting('imprint_address', imprintAddress);
   const effectiveImprintEmail = await getEffectiveSetting('imprint_email', imprintEmail);
 
-  res.locals.supportEmail = effectiveSupportEmail.value || supportEmail;
+  res.locals.supportEmail = effectiveSupportEmail.value || supportEmail || null;
 
   // Only enable legal UI if flag is true AND we have the required content
   const legalEnabled = effectiveEnableLegal.value === 'true';
@@ -1071,7 +1071,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7,
-      secure: sessionCookieSecure,
+      secure: 'auto', // Auto-detect HTTPS from X-Forwarded-Proto header
       sameSite: 'lax',
     },
   })
