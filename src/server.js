@@ -2293,7 +2293,7 @@ app.get('/events/entries', requireAuth, (req, res) => {
 app.get('/settings/export', requireAuth, async (req, res) => {
   const user = req.currentUser;
   const { rows: entries } = await pool.query(
-    'SELECT entry_date, amount, entry_name FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
+    'SELECT entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
     [user.id]
   );
 
@@ -2316,6 +2316,7 @@ app.get('/settings/export', requireAuth, async (req, res) => {
       date: row.entry_date.toISOString().slice(0, 10),
       amount: row.amount,
       name: row.entry_name || null,
+      created_at: row.created_at ? row.created_at.toISOString() : null,
     })),
   };
 
@@ -2351,7 +2352,8 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
     if (!ok || amount === 0) return;
     const nameRaw = entry.name || entry.entry_name || '';
     const nameSafe = nameRaw ? String(nameRaw).trim().slice(0, 120) : null;
-    toInsert.push({ date: dateStr, amount, name: nameSafe });
+    const createdAt = entry.created_at ? new Date(entry.created_at) : null;
+    toInsert.push({ date: dateStr, amount, name: nameSafe, created_at: createdAt });
   });
 
   const weightToInsert = [];
@@ -2375,10 +2377,17 @@ app.post('/settings/import', requireAuth, upload.single('import_file'), async (r
     }
 
     for (const entry of toInsert) {
-      await pool.query(
-        'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
-        [req.currentUser.id, entry.date, entry.amount, entry.name]
-      );
+      if (entry.created_at) {
+        await pool.query(
+          'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, created_at) VALUES ($1, $2, $3, $4, $5)',
+          [req.currentUser.id, entry.date, entry.amount, entry.name, entry.created_at]
+        );
+      } else {
+        await pool.query(
+          'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
+          [req.currentUser.id, entry.date, entry.amount, entry.name]
+        );
+      }
     }
     for (const w of weightToInsert) {
       await upsertWeightEntry(req.currentUser.id, w.date, w.weight);
