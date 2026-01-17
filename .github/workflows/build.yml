@@ -359,6 +359,9 @@ jobs:
           CHANNEL_PATH="gh-pages/${{ steps.channel.outputs.path }}"
           mkdir -p "$CHANNEL_PATH"
 
+          # Ensure .nojekyll exists to prevent Jekyll processing
+          touch gh-pages/.nojekyll
+
           # Copy new package
           cp .helm-packages/*.tgz "$CHANNEL_PATH/"
 
