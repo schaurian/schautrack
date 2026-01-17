@@ -8,8 +8,12 @@ metadata:
 spec:
   accessModes:
     - {{ .Values.postgresql.persistence.accessMode }}
-  {{- if .Values.postgresql.persistence.storageClass }}
+  {{- if or .Values.postgresql.persistence.storageClass (eq .Values.postgresql.persistence.storageClass "") }}
+  {{- if eq .Values.postgresql.persistence.storageClass "-" }}
+  storageClassName: ""
+  {{- else }}
   storageClassName: {{ .Values.postgresql.persistence.storageClass | quote }}
+  {{- end }}
   {{- end }}
   resources:
     requests:

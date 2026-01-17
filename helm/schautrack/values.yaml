@@ -112,6 +112,10 @@ postgresql:
   persistence:
     enabled: true
     size: 5Gi
+    # Storage class for dynamic provisioning
+    # - "" (empty): use cluster default storage class
+    # - "-": disable dynamic provisioning (use pre-bound PV)
+    # - "my-storage-class": use specific storage class
     storageClass: ""
     accessMode: ReadWriteOnce
   resources: {}
