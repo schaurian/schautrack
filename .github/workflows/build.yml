@@ -77,7 +77,7 @@ jobs:
               PATCH=$((PATCH + 1))
             fi
 
-            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
             echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "should_tag=true" >> $GITHUB_OUTPUT
 
@@ -245,7 +245,7 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          VERSION="v${{ needs.compute-version.outputs.version }}"
+          VERSION="v${{ needs.compute-version.outputs.version }}"  # Add v prefix for changelog display
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
           if [ -z "$PREV_TAG" ]; then
