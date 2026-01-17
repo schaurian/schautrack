@@ -16,7 +16,7 @@
     "express-session": "^1.17.3",
     "multer": "^2.0.2",
     "pg": "^8.11.5",
-    "nodemailer": "^7.0.0",
+    "nodemailer": "^7.0.12",
     "svg-captcha": "^1.4.0",
     "qrcode": "^1.5.3",
     "speakeasy": "^2.0.0"
