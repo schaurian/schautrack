@@ -58,7 +58,7 @@ A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
 
 ```bash
 # Add the Helm repository
-helm repo add schautrack https://schaurian.github.io/schautrack
+helm repo add schautrack https://helm.schautrack.schauer.to
 helm repo update
 
 # Install with required values
