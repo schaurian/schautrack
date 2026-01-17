@@ -3,7 +3,7 @@ name: schautrack
 description: A simple calorie tracking web application
 type: application
 version: 0.1.0
-appVersion: "0.1.8"
+appVersion: "0.1.9"
 keywords:
   - calorie
   - tracking
