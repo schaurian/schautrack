@@ -1,4 +1,5 @@
 // Schautrack server
+// Build trigger: 2026-01-17
 require('dotenv').config();
 const path = require('path');
 const crypto = require('crypto');
