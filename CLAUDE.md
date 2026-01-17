@@ -150,6 +150,12 @@ AI Configuration (Global Fallbacks):
 
 ## Development Workflow
 
+### Branch Strategy
+**IMPORTANT:** Never commit directly to `main`. Always work in the `staging` branch:
+1. Make all changes and commits on the `staging` branch
+2. Push to `staging` for testing
+3. Once verified, merge `staging` into `main` and push
+
 ### Local Development
 ```bash
 docker compose up -d --build
@@ -160,7 +166,7 @@ docker compose up -d --build
 
 ### Deployment
 1. Push to `staging` branch to test on staging environment
-2. Merge to `main` via `/home/schaurian/Sync/bin/push-main.sh`
+2. Once staging is verified, merge to `main`: `git checkout main && git merge staging --no-edit && git push origin main`
 3. CI automatically creates semver tags and builds containers
 4. Deploy using tagged container images
 
@@ -229,4 +235,5 @@ const time = formatTimeInTz(entry.created_at, tz);
 5. **Keep** all app code in `src/` directory
 6. **Maintain** the blue-purple color scheme
 7. **Never** auto-push to staging or main - user handles deployments
-8. **Footer quote:** "You got this. Trust me."
+8. **Never** commit directly to main - always commit to staging first, then merge to main
+9. **Footer quote:** "You got this. Trust me."
