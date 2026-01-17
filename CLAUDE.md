@@ -155,6 +155,7 @@ AI Configuration (Global Fallbacks):
 1. Make all changes and commits on the `staging` branch
 2. Push to `staging` for testing
 3. Once verified, merge `staging` into `main` and push
+4. **Always switch back to `staging` after pushing to main**: `git checkout staging`
 
 ### Local Development
 ```bash
