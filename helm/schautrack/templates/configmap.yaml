@@ -6,8 +6,14 @@ metadata:
     {{- include "schautrack.labels" . | nindent 4 }}
 data:
   NODE_ENV: "production"
+  {{- if .Values.config.adminEmail }}
+  ADMIN_EMAIL: {{ .Values.config.adminEmail | quote }}
+  {{- end }}
   {{- if .Values.config.supportEmail }}
   SUPPORT_EMAIL: {{ .Values.config.supportEmail | quote }}
+  {{- end }}
+  {{- if .Values.config.enableLegal }}
+  ENABLE_LEGAL: {{ .Values.config.enableLegal | quote }}
   {{- end }}
   {{- if .Values.config.imprintUrl }}
   IMPRINT_URL: {{ .Values.config.imprintUrl | quote }}
@@ -17,6 +23,18 @@ data:
   {{- end }}
   {{- if .Values.config.imprintEmail }}
   IMPRINT_EMAIL: {{ .Values.config.imprintEmail | quote }}
+  {{- end }}
+  {{- if .Values.smtp.host }}
+  SMTP_HOST: {{ .Values.smtp.host | quote }}
+  {{- end }}
+  {{- if .Values.smtp.port }}
+  SMTP_PORT: {{ .Values.smtp.port | quote }}
+  {{- end }}
+  {{- if .Values.smtp.from }}
+  SMTP_FROM: {{ .Values.smtp.from | quote }}
+  {{- end }}
+  {{- if .Values.smtp.secure }}
+  SMTP_SECURE: {{ .Values.smtp.secure | quote }}
   {{- end }}
   {{- if .Values.ai.provider }}
   AI_PROVIDER: {{ .Values.ai.provider | quote }}

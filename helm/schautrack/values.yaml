@@ -57,8 +57,12 @@ affinity: {}
 config:
   # Session secret (required) - generate with: openssl rand -base64 32
   sessionSecret: ""
+  # Admin email - gets access to /admin page
+  adminEmail: ""
   # Support email shown on support pages
   supportEmail: ""
+  # Enable legal pages (/imprint, /privacy, /terms)
+  enableLegal: false
   # Imprint page URL
   imprintUrl: "/imprint"
   # Imprint address (rendered as SVG, use \n for line breaks)
@@ -66,12 +70,23 @@ config:
   # Imprint email (rendered as SVG)
   imprintEmail: ""
 
+# SMTP configuration (for password reset emails)
+smtp:
+  host: ""
+  port: 587
+  user: ""
+  pass: ""
+  from: ""
+  secure: false
+
 # AI configuration (optional)
 ai:
   # AI provider: openai, claude, or ollama
   provider: ""
   # API key for AI provider
   key: ""
+  # Encryption secret for user API keys - generate with: openssl rand -hex 32
+  keyEncryptionSecret: ""
   # Custom API endpoint (leave empty for defaults)
   endpoint: ""
   # Model override (e.g., gpt-4o, claude-sonnet-4-20250514)
