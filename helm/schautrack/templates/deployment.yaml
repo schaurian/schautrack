@@ -47,13 +47,13 @@ spec:
                 name: {{ include "schautrack.fullname" . }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
