@@ -316,6 +316,46 @@ const lbsToKg = (lbs) => {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// Create base tables that other migrations depend on
+async function ensureBaseSchema() {
+  // Create users table first (many other tables reference it)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      daily_goal INTEGER,
+      totp_secret TEXT,
+      totp_enabled BOOLEAN DEFAULT FALSE,
+      email_verified BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Create calorie_entries table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calorie_entries (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      entry_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      amount INTEGER NOT NULL,
+      entry_name TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Create session table for express-session
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid" VARCHAR NOT NULL,
+      "sess" JSON NOT NULL,
+      "expire" TIMESTAMP(6) NOT NULL,
+      CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+  `);
+}
+
 async function ensureAccountLinksSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS account_links (
@@ -3662,7 +3702,22 @@ app.post('/admin/users/:id/delete', requireAuth, requireAdmin, async (req, res) 
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await Promise.all([ensureAccountLinksSchema(), ensureWeightEntriesSchema(), ensureUserPrefsSchema(), ensureCalorieEntriesSchema(), ensurePasswordResetSchema(), ensureEmailVerificationSchema(), ensureAdminSettingsSchema(), ensureAIKeysSchema(), ensureAIUsageSchema()]);
+      // First create base tables (users, calorie_entries, session)
+      // These must exist before other migrations that ALTER or reference them
+      await ensureBaseSchema();
+
+      // Then run all other migrations in parallel
+      await Promise.all([
+        ensureAccountLinksSchema(),
+        ensureWeightEntriesSchema(),
+        ensureUserPrefsSchema(),
+        ensureCalorieEntriesSchema(),
+        ensurePasswordResetSchema(),
+        ensureEmailVerificationSchema(),
+        ensureAdminSettingsSchema(),
+        ensureAIKeysSchema(),
+        ensureAIUsageSchema()
+      ]);
       console.log('Schema initialization successful');
       return;
     } catch (err) {
