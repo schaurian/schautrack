@@ -1,0 +1,17 @@
+apiVersion: v2
+name: schautrack
+description: A simple calorie tracking web application
+type: application
+version: 0.1.0
+appVersion: "0.1.8"
+keywords:
+  - calorie
+  - tracking
+  - health
+  - fitness
+home: https://github.com/schaurian/schautrack
+sources:
+  - https://github.com/schaurian/schautrack
+maintainers:
+  - name: schaurian
+    url: https://github.com/schaurian

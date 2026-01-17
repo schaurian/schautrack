@@ -1,0 +1,17 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "schautrack.postgresql.fullname" . }}
+  labels:
+    {{- include "schautrack.postgresql.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: postgresql
+      protocol: TCP
+      name: postgresql
+  selector:
+    {{- include "schautrack.postgresql.selectorLabels" . | nindent 4 }}
+{{- end }}

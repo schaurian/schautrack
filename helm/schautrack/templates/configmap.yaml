@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "schautrack.fullname" . }}
+  labels:
+    {{- include "schautrack.labels" . | nindent 4 }}
+data:
+  NODE_ENV: "production"
+  {{- if .Values.config.supportEmail }}
+  SUPPORT_EMAIL: {{ .Values.config.supportEmail | quote }}
+  {{- end }}
+  {{- if .Values.config.imprintUrl }}
+  IMPRINT_URL: {{ .Values.config.imprintUrl | quote }}
+  {{- end }}
+  {{- if .Values.config.imprintAddress }}
+  IMPRINT_ADDRESS: {{ .Values.config.imprintAddress | quote }}
+  {{- end }}
+  {{- if .Values.config.imprintEmail }}
+  IMPRINT_EMAIL: {{ .Values.config.imprintEmail | quote }}
+  {{- end }}
+  {{- if .Values.ai.provider }}
+  AI_PROVIDER: {{ .Values.ai.provider | quote }}
+  {{- end }}
+  {{- if .Values.ai.endpoint }}
+  AI_ENDPOINT: {{ .Values.ai.endpoint | quote }}
+  {{- end }}
+  {{- if .Values.ai.model }}
+  AI_MODEL: {{ .Values.ai.model | quote }}
+  {{- end }}
+  {{- if .Values.ai.dailyLimit }}
+  AI_DAILY_LIMIT: {{ .Values.ai.dailyLimit | quote }}
+  {{- end }}

@@ -50,6 +50,58 @@ Pre-built Docker images are available in the registry:
 - **Production:** `ghcr.io/schaurian/schautrack:latest` or `ghcr.io/schaurian/schautrack:v0.1.2`
 - **Staging:** `ghcr.io/schaurian/schautrack:staging-4`
 
+## Kubernetes (Helm)
+
+A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
+
+### Install
+
+```bash
+# Add the Helm repository
+helm repo add schautrack https://schaurian.github.io/schautrack
+helm repo update
+
+# Install with required values
+helm install schautrack schautrack/schautrack \
+  --set config.sessionSecret="$(openssl rand -base64 32)" \
+  --set postgresql.auth.password="$(openssl rand -base64 16)"
+```
+
+### With Ingress
+
+```bash
+helm install schautrack schautrack/schautrack \
+  --set config.sessionSecret="$(openssl rand -base64 32)" \
+  --set postgresql.auth.password="$(openssl rand -base64 16)" \
+  --set ingress.enabled=true \
+  --set ingress.className=nginx \
+  --set ingress.hosts[0].host=schautrack.example.com \
+  --set ingress.hosts[0].paths[0].path=/ \
+  --set ingress.hosts[0].paths[0].pathType=Prefix
+```
+
+### With External Database
+
+```bash
+helm install schautrack schautrack/schautrack \
+  --set config.sessionSecret="$(openssl rand -base64 32)" \
+  --set postgresql.enabled=false \
+  --set externalDatabase.url="postgres://user:pass@host:5432/schautrack"
+```
+
+### With AI Features
+
+```bash
+helm install schautrack schautrack/schautrack \
+  --set config.sessionSecret="$(openssl rand -base64 32)" \
+  --set postgresql.auth.password="$(openssl rand -base64 16)" \
+  --set ai.provider=openai \
+  --set ai.key="sk-your-api-key" \
+  --set ai.model="gpt-4o-mini"
+```
+
+See [helm/schautrack/values.yaml](helm/schautrack/values.yaml) for all configuration options.
+
 ## Android App
 
 <a href="https://play.google.com/apps/testing/to.schauer.schautrack">
