@@ -1,4 +1,4 @@
-// Schautrack server
+// Schautrack server - v1.0.0
 require('dotenv').config();
 const path = require('path');
 const crypto = require('crypto');
