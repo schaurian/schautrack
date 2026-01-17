@@ -328,11 +328,9 @@ jobs:
           # Update appVersion to match container version
           sed -i "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" helm/schautrack/Chart.yaml
 
-          # For staging, add pre-release suffix to chart version
+          # For staging, use simple incrementing number
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            BASE_VERSION=$(grep '^version:' helm/schautrack/Chart.yaml | awk '{print $2}')
-            CHART_VERSION="${BASE_VERSION}-staging.${{ github.run_number }}"
-            sed -i "s/^version: .*/version: ${CHART_VERSION}/" helm/schautrack/Chart.yaml
+            sed -i "s/^version: .*/version: staging-${{ github.run_number }}/" helm/schautrack/Chart.yaml
           fi
           # For main, keep chart version as-is (manually bumped when chart changes)
 
