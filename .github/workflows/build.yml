@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'src/**'
+      - 'helm/**'
       - '.github/workflows/build.yml'
     tags:
       - 'v*'
@@ -22,6 +23,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'src/**'
+      - 'helm/**'
       - '.github/workflows/build.yml'
 
 env:
@@ -321,24 +323,18 @@ jobs:
 
       - name: Update chart versions
         run: |
-          VERSION="${{ needs.compute-version.outputs.version }}"
-          CHART_VERSION="${VERSION}"
+          APP_VERSION="${{ needs.compute-version.outputs.version }}"
 
-          # For staging, modify the chart version to include staging suffix
+          # Update appVersion to match container version
+          sed -i "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" helm/schautrack/Chart.yaml
+
+          # For staging, add pre-release suffix to chart version
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
             BASE_VERSION=$(grep '^version:' helm/schautrack/Chart.yaml | awk '{print $2}')
             CHART_VERSION="${BASE_VERSION}-staging.${{ github.run_number }}"
-          fi
-
-          # Update appVersion to match container version
-          sed -i "s/^appVersion: .*/appVersion: \"${VERSION}\"/" helm/schautrack/Chart.yaml
-
-          # For main branch, also update the chart version
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            sed -i "s/^version: .*/version: ${VERSION}/" helm/schautrack/Chart.yaml
-          else
             sed -i "s/^version: .*/version: ${CHART_VERSION}/" helm/schautrack/Chart.yaml
           fi
+          # For main, keep chart version as-is (manually bumped when chart changes)
 
           echo "Updated Chart.yaml:"
           cat helm/schautrack/Chart.yaml
