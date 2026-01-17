@@ -46,7 +46,8 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
+            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${VERSION##v}"  # Strip all leading v's
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "should_tag=false" >> $GITHUB_OUTPUT
             exit 0
@@ -55,7 +56,7 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             # Get latest tag
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            VERSION="${LATEST_TAG#v}"
+            VERSION="${LATEST_TAG##v}"  # Strip all leading v's
 
             # Parse semantic version
             MAJOR=$(echo $VERSION | cut -d. -f1)
