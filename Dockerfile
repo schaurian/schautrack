@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN npm install --omit=dev && \
     npm cache clean --force && \
     rm -rf /root/.npm
 
-FROM node:24-alpine
+FROM node:25-alpine
 
 RUN apk add --no-cache dumb-init
 
