@@ -1077,6 +1077,7 @@ app.use(express.json({ limit: '10mb' }));
 
 app.use(async (req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
+  res.locals.noindex = process.env.NOINDEX === 'true';
 
   // Load configurable settings (env vars take precedence over DB)
   const effectiveSupportEmail = await getEffectiveSetting('support_email', supportEmail);

@@ -164,6 +164,12 @@ Photo-based calorie estimation with support for OpenAI, Claude, and Ollama.
 | `IMPRINT_ADDRESS` | *(empty)* | Full name and address (use `\n` for line breaks) |
 | `IMPRINT_EMAIL` | *(empty)* | Contact email (rendered as SVG for spam protection) |
 
+### SEO / Deployment
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NOINDEX` | `false` | Set to `true` to add `noindex, nofollow` meta tags (use for staging environments) |
+
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
