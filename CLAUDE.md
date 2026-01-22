@@ -77,6 +77,13 @@ schautrack/
 - All app code in `src/` for simpler COPY command
 - Runs as non-root `node` user
 
+### Kubernetes / Health Checks
+- **Health endpoint:** `GET /api/health` - checks database connectivity, returns 200 with app info or 503 on failure
+- **Liveness probe:** Use HTTP GET to `/api/health` - restarts container if app is unresponsive
+- **Readiness probe:** Use HTTP GET to `/api/health` - removes pod from service if DB connection fails
+- **Deployment strategy:** RollingUpdate with `maxUnavailable: 0` ensures zero-downtime deployments (old pod stays until new pod is ready)
+- **Helm chart:** Includes probes and strategy by default
+
 ## CI/CD Pipeline
 
 ### GitLab CI
