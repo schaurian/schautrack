@@ -28,27 +28,28 @@ Schautrack is built to stay out of your way. Just enter your calories and stay u
 - Android app on Google Play
 
 ## Quickstart (Docker)
-1) Clone the repository:
+
+```bash
+mkdir schautrack && cd schautrack
+curl -O https://raw.githubusercontent.com/schaurian/schautrack/main/compose.yml
+curl -O https://raw.githubusercontent.com/schaurian/schautrack/main/.env.example
+mv .env.example .env
+sed -i "s/please-change-me/$(openssl rand -hex 32)/" .env
+docker compose up -d
 ```
+
+App is available at http://localhost:3000
+
+### Development Setup
+
+To build from source instead of using pre-built images:
+
+```bash
 git clone https://github.com/schaurian/schautrack.git
 cd schautrack
-```
-2) Copy env template and adjust secrets as needed:
-```
 cp .env.example .env
+docker compose -f compose.dev.yml up --build
 ```
-3) Build and run:
-```
-docker compose up --build
-```
-4) App is available at http://localhost:3000
-
-### Pre-built Images
-Pre-built Docker images are available in the registry:
-[`ghcr.io/schaurian/schautrack`](https://github.com/schaurian/schautrack/pkgs/container/schautrack)
-
-- **Production:** `ghcr.io/schaurian/schautrack:latest` or `ghcr.io/schaurian/schautrack:v0.1.2`
-- **Staging:** `ghcr.io/schaurian/schautrack:staging-4`
 
 ## Kubernetes (Helm)
 

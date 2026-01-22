@@ -1,0 +1,62 @@
+services:
+  web:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+#  ollama:
+#    image: ollama/ollama:latest
+#    container_name: schautrack-ollama
+#    ports:
+#      - "11434:11434"
+#    volumes:
+#      - ollama-data:/root/.ollama
+#    healthcheck:
+#      test: ["CMD", "ollama", "list"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#    restart: unless-stopped
+#
+#  ollama-pull:
+#    image: ollama/ollama:latest
+#    container_name: schautrack-ollama-pull
+#    depends_on:
+#      ollama:
+#        condition: service_healthy
+#    entrypoint: ["sh", "-c", "ollama pull ${AI_MODEL:-gemma3:12b}"]
+#    environment:
+#      - OLLAMA_HOST=ollama:11434
+#    env_file:
+#      - .env
+#    restart: "no"
+
+  db:
+    image: postgres:18-alpine
+    env_file:
+      - .env
+    environment:
+      - TZ=UTC
+      - PGTZ=UTC
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+
+volumes:
+  db-data:
+#  ollama-data:
