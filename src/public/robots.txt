@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /dashboard
-Disallow: /settings
-Disallow: /admin
-Disallow: /api/
-
-Sitemap: https://schautrack.schauer.to/sitemap.xml
