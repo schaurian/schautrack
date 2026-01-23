@@ -48,3 +48,6 @@ data:
   {{- if .Values.ai.dailyLimit }}
   AI_DAILY_LIMIT: {{ .Values.ai.dailyLimit | quote }}
   {{- end }}
+  {{- if .Values.config.robotsIndex }}
+  ROBOTS_INDEX: {{ .Values.config.robotsIndex | quote }}
+  {{- end }}

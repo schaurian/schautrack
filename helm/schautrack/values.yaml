@@ -69,6 +69,8 @@ config:
   imprintAddress: ""
   # Imprint email (rendered as SVG)
   imprintEmail: ""
+  # Allow search engine indexing (sets ROBOTS_INDEX env var)
+  robotsIndex: false
 
 # SMTP configuration (for password reset emails)
 smtp:
