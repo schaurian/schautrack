@@ -332,8 +332,10 @@ jobs:
           # For staging, use simple incrementing number
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
             sed -i "s/^version: .*/version: staging-${{ github.run_number }}/" helm/schautrack/Chart.yaml
+          else
+            # For main, set chart version to match app version
+            sed -i "s/^version: .*/version: ${APP_VERSION}/" helm/schautrack/Chart.yaml
           fi
-          # For main, keep chart version as-is (manually bumped when chart changes)
 
           echo "Updated Chart.yaml:"
           cat helm/schautrack/Chart.yaml
