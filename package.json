@@ -15,11 +15,11 @@
     "express": "^5.1.0",
     "express-session": "^1.17.3",
     "multer": "^2.0.2",
-    "pg": "^8.11.5",
     "nodemailer": "^7.0.0",
-    "svg-captcha": "^1.4.0",
+    "pg": "^8.17.2",
     "qrcode": "^1.5.3",
-    "speakeasy": "^2.0.0"
+    "speakeasy": "^2.0.0",
+    "svg-captcha": "^1.4.0"
   },
   "devDependencies": {
     "ejs-lint": "^2.0.1",
