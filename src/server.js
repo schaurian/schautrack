@@ -25,6 +25,7 @@ const DEFAULT_RANGE_DAYS = 14;
 const userEventClients = new Map(); // userId -> Set(res)
 const supportEmail = process.env.SUPPORT_EMAIL || null;
 const enableLegal = process.env.ENABLE_LEGAL === 'true';
+const configuredBaseUrl = process.env.BASE_URL || null;
 const imprintUrl = process.env.IMPRINT_URL || '/imprint';
 const imprintAddress = process.env.IMPRINT_ADDRESS || null;
 // Display email (image/text)
@@ -1101,6 +1102,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(async (req, res, next) => {
   res.locals.buildVersion = process.env.BUILD_VERSION || null;
   res.locals.robotsIndex = process.env.ROBOTS_INDEX === 'true';
+  res.locals.baseUrl = configuredBaseUrl || `${req.protocol}://${req.get('host')}`;
 
   // Load configurable settings (env vars take precedence over DB)
   const effectiveSupportEmail = await getEffectiveSetting('support_email', supportEmail);
@@ -1271,7 +1273,7 @@ async function getUserById(id) {
 
 // SEO: Sitemap for search engines
 app.get('/sitemap.xml', (req, res) => {
-  const baseUrl = 'https://schautrack.schauer.to';
+  const baseUrl = configuredBaseUrl || `${req.protocol}://${req.get('host')}`;
   const pages = [
     { loc: '/', priority: '1.0', changefreq: 'weekly' },
     { loc: '/login', priority: '0.8', changefreq: 'monthly' },

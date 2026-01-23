@@ -71,6 +71,8 @@ config:
   imprintEmail: ""
   # Allow search engine indexing (sets ROBOTS_INDEX env var)
   robotsIndex: false
+  # Base URL for SEO meta tags (leave empty to auto-detect from request)
+  baseUrl: ""
 
 # SMTP configuration (for password reset emails)
 smtp:

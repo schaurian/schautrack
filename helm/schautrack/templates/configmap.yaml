@@ -51,3 +51,6 @@ data:
   {{- if .Values.config.robotsIndex }}
   ROBOTS_INDEX: {{ .Values.config.robotsIndex | quote }}
   {{- end }}
+  {{- if .Values.config.baseUrl }}
+  BASE_URL: {{ .Values.config.baseUrl | quote }}
+  {{- end }}

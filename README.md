@@ -7,7 +7,7 @@
 
 Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you and your friends.
 
-**Try it:** [schautrack.schauer.to](https://schautrack.schauer.to)
+**Try it:** [schautrack.com](https://schautrack.com)
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -59,7 +59,7 @@ A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
 
 ```bash
 # Add the Helm repository
-helm repo add schautrack https://helm.schautrack.schauer.to
+helm repo add schautrack https://helm.schautrack.com
 helm repo update
 
 # Install with required values
@@ -129,6 +129,7 @@ Settings can be configured via environment variables (in .env or passed to the c
 | `PORT` | `3000` | Port to listen on |
 | `ADMIN_EMAIL` | *(empty)* | Email that gets access to `/admin` page |
 | `SUPPORT_EMAIL` | *(empty)* | Contact email shown on support/error pages |
+| `BASE_URL` | *(auto-detect)* | Base URL for SEO meta tags (e.g., `https://schautrack.com`). Auto-detects from request if not set. |
 
 ### AI Features
 
