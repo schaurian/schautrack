@@ -1071,6 +1071,29 @@ app.set('trust proxy', true);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+// Dynamic robots.txt based on ROBOTS_INDEX environment variable
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  if (process.env.ROBOTS_INDEX === 'true') {
+    const host = req.get('host');
+    const protocol = req.protocol;
+    res.send(`User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: ${protocol}://${host}/sitemap.xml
+`);
+  } else {
+    res.send(`User-agent: *
+Disallow: /
+`);
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: '10mb' }));
