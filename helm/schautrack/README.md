@@ -2,16 +2,6 @@
 
 A simple, self-hosted calorie tracking application.
 
-## TL;DR
-
-```bash
-helm repo add schautrack https://helm.schautrack.com
-helm repo update
-helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
-  --set postgresql.auth.password="$(openssl rand -base64 16)"
-```
-
 ## Introduction
 
 This chart deploys [Schautrack](https://github.com/schaurian/schautrack) on a Kubernetes cluster using Helm.
