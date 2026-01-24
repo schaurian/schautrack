@@ -13,11 +13,12 @@ Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you a
 
 ## Goals
 
-Counting calories is painful. But it helps you reach your weight goals.
+Counting calories is tedious. But it helps you reach your weight goals.
 
 Schautrack is built to stay out of your way. Just enter your calories and stay under your daily goal. Or snap a photo and let AI estimate it for you.
 
 ## Features
+
 - Log calories consumed or burned
 - Daily calorie goals with progress tracking
 - AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
@@ -26,6 +27,14 @@ Schautrack is built to stay out of your way. Just enter your calories and stay u
 - Real-time updates via SSE
 - Docker and Kubernetes ready
 - Android app on Google Play
+
+## Android App
+
+<a href="https://play.google.com/apps/testing/to.schauer.schautrack">
+  <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
+</a>
+
+Source code available at [schautrack-android](https://github.com/schaurian/schautrack-android).
 
 ## Quickstart (Docker)
 
@@ -38,7 +47,21 @@ sed -i "s/please-change-me/$(openssl rand -hex 32)/" .env
 docker compose up -d
 ```
 
-App is available at http://localhost:3000
+App is available at http://localhost:3000.
+
+## Kubernetes (Helm)
+
+A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
+
+```bash
+helm repo add schautrack https://helm.schautrack.com
+helm repo update
+helm install schautrack schautrack/schautrack \
+  --set config.sessionSecret="$(openssl rand -base64 32)" \
+  --set postgresql.auth.password="$(openssl rand -base64 16)"
+```
+
+See [Helm Chart Documentation](helm/schautrack/README.md) for Ingress, TLS, external databases, AI configuration, and all parameters.
 
 ### Development Setup
 
@@ -50,66 +73,6 @@ cd schautrack
 cp .env.example .env
 docker compose -f compose.dev.yml up --build
 ```
-
-## Kubernetes (Helm)
-
-A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
-
-### Install
-
-```bash
-# Add the Helm repository
-helm repo add schautrack https://helm.schautrack.com
-helm repo update
-
-# Install with required values
-helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
-  --set postgresql.auth.password="$(openssl rand -base64 16)"
-```
-
-### With Ingress
-
-```bash
-helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
-  --set postgresql.auth.password="$(openssl rand -base64 16)" \
-  --set ingress.enabled=true \
-  --set ingress.className=nginx \
-  --set ingress.hosts[0].host=schautrack.example.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
-```
-
-### With External Database
-
-```bash
-helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
-  --set postgresql.enabled=false \
-  --set externalDatabase.url="postgres://user:pass@host:5432/schautrack"
-```
-
-### With AI Features
-
-```bash
-helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
-  --set postgresql.auth.password="$(openssl rand -base64 16)" \
-  --set ai.provider=openai \
-  --set ai.key="sk-your-api-key" \
-  --set ai.model="gpt-4o-mini"
-```
-
-See [helm/schautrack/values.yaml](helm/schautrack/values.yaml) for all configuration options.
-
-## Android App
-
-<a href="https://play.google.com/apps/testing/to.schauer.schautrack">
-  <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
-</a>
-
-Source code available at [schautrack-android](https://github.com/schaurian/schautrack-android).
 
 ## Environment Variables
 
@@ -141,8 +104,8 @@ Photo-based calorie estimation with support for OpenAI, Claude, and Ollama.
 | `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, or `ollama`. Required to enable AI features. |
 | `AI_KEY` | *(empty)* | Global API key (fallback when users don't have their own) |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
-| `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o-mini`, `claude-sonnet-4-20250514`, `gemma3:12b`). Required for OpenAI and Claude. |
-| `AI_DAILY_LIMIT` | *(empty)* | Daily limit for AI requests per user when using global key (0 or empty = unlimited) |
+| `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
+| `AI_DAILY_LIMIT` | `10` | Daily limit for AI requests per user when using global key (0 = unlimited) |
 
 **Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.
 

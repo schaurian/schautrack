@@ -32,8 +32,8 @@ schautrack/
 │   └── init.sql           # Database schema
 ├── scripts/               # Build and deployment scripts
 ├── Dockerfile             # Optimized multi-stage build
-├── docker-compose.yml     # Local development setup
-├── .gitlab-ci.yml         # CI/CD pipeline (Kaniko-based)
+├── compose.yml            # Production Docker Compose
+├── compose.dev.yml        # Local development setup
 └── package.json
 ```
 
@@ -152,7 +152,7 @@ AI Configuration (Global Fallbacks):
 - `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
 - `AI_KEY`: Global API key (fallback when users don't have their own)
 - `AI_ENDPOINT`: Optional custom endpoint override (leave blank to use provider defaults)
-- `AI_MODEL`: Optional model override (e.g., `gpt-4o`, `claude-opus-4-20250514`, `gemma3:12b`)
+- `AI_MODEL`: Optional model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`)
 - `AI_DAILY_LIMIT`: Daily AI request limit per user when using global key (default: unlimited)
 
 ## Development Workflow
