@@ -47,7 +47,7 @@ sed -i "s/please-change-me/$(openssl rand -hex 32)/" .env
 docker compose up -d
 ```
 
-App is available at http://localhost:3000
+App is available at http://localhost:3000.
 
 ## Kubernetes (Helm)
 
