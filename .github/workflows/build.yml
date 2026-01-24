@@ -331,10 +331,10 @@ jobs:
 
           # Calculate chart version
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            # For staging, get latest tag and create prerelease version
+            # For staging: X.Y.Z-staging.N (e.g., 1.2.3-staging.68)
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
             BASE_VERSION="${LATEST_TAG#v}"
-            CHART_VERSION="${BASE_VERSION}-staging"
+            CHART_VERSION="${BASE_VERSION}-staging.${{ github.run_number }}"
             sed -i "s/^version: .*/version: ${CHART_VERSION}/" helm/schautrack/Chart.yaml
           else
             sed -i "s/^version: .*/version: ${APP_VERSION}/" helm/schautrack/Chart.yaml
