@@ -115,6 +115,9 @@ postgresql:
   # Persistence configuration
   persistence:
     enabled: true
+    # Use an existing PVC instead of creating one
+    # If set, all other persistence options are ignored
+    existingClaim: ""
     size: 5Gi
     # Storage class for dynamic provisioning
     # - "" (empty): use cluster default storage class
@@ -122,6 +125,10 @@ postgresql:
     # - "my-storage-class": use specific storage class
     storageClass: ""
     accessMode: ReadWriteOnce
+    # Annotations for the PVC (e.g., for backup tools like Velero)
+    annotations: {}
+    # Labels for the PVC
+    labels: {}
   resources: {}
     # limits:
     #   cpu: 500m

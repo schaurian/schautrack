@@ -68,6 +68,6 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "schautrack.postgresql.fullname" . }}
+            claimName: {{ .Values.postgresql.persistence.existingClaim | default (include "schautrack.postgresql.fullname" .) }}
       {{- end }}
 {{- end }}
