@@ -121,10 +121,12 @@ Schautrack supports AI-powered calorie estimation from food photos:
 ai:
   provider: openai  # or: claude, ollama
   key: "sk-..."
-  model: "gpt-4o-mini"
+  model: "gpt-4o"
   keyEncryptionSecret: ""  # Generate with: openssl rand -hex 32
-  dailyLimit: 50  # Per-user limit when using global key
+  dailyLimit: 10  # Per-user limit when using global key
 ```
+
+> **Note:** Ollama models must be downloaded before use. Models specified in API requests will fail if not pre-downloaded on your Ollama server.
 
 ### Enabling SMTP (password reset)
 
@@ -156,6 +158,7 @@ smtp:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `config.port` | Port the application listens on | `3000` |
 | `config.sessionSecret` | Session encryption key (**required**) | `""` |
 | `config.adminEmail` | Email with admin access | `""` |
 | `config.supportEmail` | Support contact email | `""` |
@@ -174,8 +177,8 @@ smtp:
 | `ai.key` | API key for AI provider | `""` |
 | `ai.keyEncryptionSecret` | Secret for encrypting user API keys | `""` |
 | `ai.endpoint` | Custom API endpoint | `""` |
-| `ai.model` | Model override (e.g., `gpt-4o-mini`) | `""` |
-| `ai.dailyLimit` | Daily requests per user (0 = unlimited) | `0` |
+| `ai.model` | Model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`) | `""` |
+| `ai.dailyLimit` | Daily requests per user (0 = unlimited) | `10` |
 
 ### SMTP
 
@@ -199,9 +202,12 @@ smtp:
 | `postgresql.auth.username` | Database user | `schautrack` |
 | `postgresql.auth.password` | Database password (**required**) | `""` |
 | `postgresql.persistence.enabled` | Enable persistence | `true` |
+| `postgresql.persistence.existingClaim` | Use existing PVC (ignores other persistence options if set) | `""` |
 | `postgresql.persistence.size` | PVC size | `5Gi` |
 | `postgresql.persistence.storageClass` | Storage class | `""` |
 | `postgresql.persistence.accessMode` | PVC access mode | `ReadWriteOnce` |
+| `postgresql.persistence.annotations` | PVC annotations (e.g., for Velero backups) | `{}` |
+| `postgresql.persistence.labels` | PVC labels | `{}` |
 | `postgresql.resources` | Resource requests/limits | `{}` |
 
 ### External Database

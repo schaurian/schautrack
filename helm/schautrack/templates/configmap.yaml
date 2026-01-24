@@ -6,6 +6,7 @@ metadata:
     {{- include "schautrack.labels" . | nindent 4 }}
 data:
   NODE_ENV: "production"
+  PORT: {{ .Values.config.port | quote }}
   {{- if .Values.config.adminEmail }}
   ADMIN_EMAIL: {{ .Values.config.adminEmail | quote }}
   {{- end }}

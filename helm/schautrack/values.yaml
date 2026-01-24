@@ -31,15 +31,15 @@ ingress:
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: letsencrypt-prod
-  hosts:
-    - host: schautrack.local
-      paths:
-        - path: /
-          pathType: Prefix
+  hosts: []
+    # - host: schautrack.local
+    #   paths:
+    #     - path: /
+    #       pathType: Prefix
   tls: []
-  #  - secretName: schautrack-tls
-  #    hosts:
-  #      - schautrack.local
+    # - secretName: schautrack-tls
+    #   hosts:
+    #     - schautrack.local
 
 resources: {}
   # limits:
@@ -55,6 +55,8 @@ affinity: {}
 
 # Application configuration
 config:
+  # Port to listen on
+  port: 3000
   # Session secret (required) - generate with: openssl rand -base64 32
   sessionSecret: ""
   # Admin email - gets access to /admin page
@@ -93,10 +95,10 @@ ai:
   keyEncryptionSecret: ""
   # Custom API endpoint (leave empty for defaults)
   endpoint: ""
-  # Model override (e.g., gpt-4o, claude-sonnet-4-20250514)
+  # Model override (e.g., gpt-4o, claude-sonnet-4-5-20250929, gemma3:12b)
   model: ""
   # Daily request limit per user when using global key (0 = unlimited)
-  dailyLimit: 0
+  dailyLimit: 10
 
 # PostgreSQL configuration
 postgresql:
