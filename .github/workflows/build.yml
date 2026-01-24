@@ -329,9 +329,9 @@ jobs:
           # Update appVersion to match container version
           sed -i "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" helm/schautrack/Chart.yaml
 
-          # For staging, use simple incrementing number
+          # For staging, use valid semver prerelease format (0.0.0-staging.N)
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            sed -i "s/^version: .*/version: staging-${{ github.run_number }}/" helm/schautrack/Chart.yaml
+            sed -i "s/^version: .*/version: 0.0.0-staging.${{ github.run_number }}/" helm/schautrack/Chart.yaml
           else
             # For main, set chart version to match app version
             sed -i "s/^version: .*/version: ${APP_VERSION}/" helm/schautrack/Chart.yaml
@@ -364,9 +364,9 @@ jobs:
 
           # Update or create index
           if [ -f "$CHANNEL_PATH/index.yaml" ]; then
-            helm repo index "$CHANNEL_PATH" --url "https://schaurian.github.io/schautrack/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
+            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
           else
-            helm repo index "$CHANNEL_PATH" --url "https://schaurian.github.io/schautrack/${{ steps.channel.outputs.path }}"
+            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}"
           fi
 
       - name: Push to gh-pages
