@@ -329,11 +329,14 @@ jobs:
           # Update appVersion to match container version
           sed -i "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" helm/schautrack/Chart.yaml
 
-          # For staging, use valid semver prerelease format (0.0.0-staging.N)
+          # Calculate chart version
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            sed -i "s/^version: .*/version: 0.0.0-staging.${{ github.run_number }}/" helm/schautrack/Chart.yaml
+            # For staging, get latest tag and create prerelease version
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            BASE_VERSION="${LATEST_TAG#v}"
+            CHART_VERSION="${BASE_VERSION}-staging"
+            sed -i "s/^version: .*/version: ${CHART_VERSION}/" helm/schautrack/Chart.yaml
           else
-            # For main, set chart version to match app version
             sed -i "s/^version: .*/version: ${APP_VERSION}/" helm/schautrack/Chart.yaml
           fi
 
