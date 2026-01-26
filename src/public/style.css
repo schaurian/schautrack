@@ -2081,6 +2081,11 @@ a:focus-visible,
   margin-bottom: var(--space-md);
 }
 
+.ai-disclaimer {
+  text-align: center;
+  margin-top: var(--space-md);
+}
+
 .ai-loading {
   display: flex;
   flex-direction: column;

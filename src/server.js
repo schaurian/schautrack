@@ -2219,23 +2219,28 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   // Check if AI estimation is enabled (user or global API key)
   let hasAiEnabled = false;
   let aiUsingGlobalKey = false;
+  let aiProviderName = null;
+
+  const userProvider = user.ai_provider;
+  const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
+  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
 
   if (user.ai_key) {
     hasAiEnabled = true;
+    aiProviderName = userProvider || globalProvider.value || 'openai';
   } else {
-    const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
-    const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
-
     // AI is enabled if provider is set and requirements are met
     if (globalProvider.value) {
       if (globalProvider.value === 'ollama') {
         // Ollama just needs to be configured
         hasAiEnabled = true;
         aiUsingGlobalKey = true;
+        aiProviderName = 'ollama';
       } else if (globalKey.value) {
         // OpenAI/Claude need API key
         hasAiEnabled = true;
         aiUsingGlobalKey = true;
+        aiProviderName = globalProvider.value;
       }
     }
   }
@@ -2277,6 +2282,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     lastWeightEntry,
     hasAiEnabled,
     aiUsage,
+    aiProviderName,
     activePage: 'dashboard',
   });
 });
