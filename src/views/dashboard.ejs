@@ -1399,11 +1399,11 @@
                   <input type="text" data-ai-context-input placeholder="e.g. large portion, 200g chicken, homemade...">
                 </label>
                 <button type="button" class="primary full" data-ai-analyze>Analyze photo</button>
-                <p class="ai-disclaimer muted small">Powered by <%= aiProviderName === 'claude' ? 'Claude' : aiProviderName === 'ollama' ? 'Ollama' : 'OpenAI' %>. Estimates may not be accurate.</p>
+                <p class="ai-disclaimer muted small">Data is sent to <%= aiProviderName === 'claude' ? 'Anthropic' : aiProviderName === 'ollama' ? 'your Ollama server' : 'OpenAI' %>. Estimates may not be accurate.</p>
               </div>
               <div class="ai-loading" data-ai-loading style="display: none;">
                 <div class="ai-loading-spinner"></div>
-                <p class="muted">Analyzing with <%= aiProviderName === 'claude' ? 'Claude' : aiProviderName === 'ollama' ? 'Ollama' : 'OpenAI' %>...</p>
+                <p class="muted">Sending to <%= aiProviderName === 'claude' ? 'Anthropic' : aiProviderName === 'ollama' ? 'Ollama' : 'OpenAI' %>...</p>
                 <button type="button" class="ghost danger" data-ai-abort>Cancel</button>
               </div>
               <div class="ai-result" data-ai-result style="display: none;">
