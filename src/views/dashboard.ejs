@@ -1399,7 +1399,7 @@
                   <input type="text" data-ai-context-input placeholder="e.g. large portion, 200g chicken, homemade...">
                 </label>
                 <button type="button" class="primary full" data-ai-analyze>Analyze photo</button>
-                <p class="ai-disclaimer muted small">Data is sent to <%= aiProviderName === 'claude' ? 'Anthropic' : aiProviderName === 'ollama' ? 'your Ollama server' : 'OpenAI' %>. Estimates may not be accurate.</p>
+                <p class="ai-disclaimer muted small">Data will be sent to <%= aiProviderName === 'claude' ? 'Anthropic' : aiProviderName === 'ollama' ? 'your Ollama server' : 'OpenAI' %>. Estimates may not be accurate.</p>
               </div>
               <div class="ai-loading" data-ai-loading style="display: none;">
                 <div class="ai-loading-spinner"></div>
