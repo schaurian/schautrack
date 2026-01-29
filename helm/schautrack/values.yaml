@@ -122,10 +122,9 @@ postgresql:
     existingClaim: ""
     size: 5Gi
     # Storage class for dynamic provisioning
-    # - "" (empty): use cluster default storage class
-    # - "-": disable dynamic provisioning (use pre-bound PV)
+    # - "-" (default): disable dynamic provisioning (use pre-bound PV)
     # - "my-storage-class": use specific storage class
-    storageClass: ""
+    storageClass: "-"
     accessMode: ReadWriteOnce
     # Annotations for the PVC (e.g., for backup tools like Velero)
     annotations: {}

@@ -13,6 +13,16 @@ const multer = require('multer');
 const nodemailer = require('nodemailer');
 const svgCaptcha = require('svg-captcha');
 
+// Validate required environment variables
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET environment variable is required');
+  process.exit(1);
+}
+if (!process.env.DATABASE_URL) {
+  console.error('FATAL: DATABASE_URL environment variable is required');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const upload = multer({
@@ -180,10 +190,10 @@ const smtpHost = process.env.SMTP_HOST;
 const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
-const smtpFrom = process.env.SMTP_FROM || supportEmail || 'noreply@example.com';
+const smtpFrom = process.env.SMTP_FROM || supportEmail;
 const smtpSecure = process.env.SMTP_SECURE === 'true';
 
-const isSmtpConfigured = () => Boolean(smtpHost && smtpUser && smtpPass);
+const isSmtpConfigured = () => Boolean(smtpHost && smtpUser && smtpPass && smtpFrom);
 
 let smtpTransporter = null;
 if (isSmtpConfigured()) {
@@ -1127,7 +1137,7 @@ app.use(
       pool,
       tableName: 'session',
     }),
-    secret: process.env.SESSION_SECRET || 'dev-secret',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -2209,23 +2219,28 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   // Check if AI estimation is enabled (user or global API key)
   let hasAiEnabled = false;
   let aiUsingGlobalKey = false;
+  let aiProviderName = null;
+
+  const userProvider = user.ai_provider;
+  const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
+  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
 
   if (user.ai_key) {
     hasAiEnabled = true;
+    aiProviderName = userProvider || globalProvider.value || 'openai';
   } else {
-    const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
-    const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
-
     // AI is enabled if provider is set and requirements are met
     if (globalProvider.value) {
       if (globalProvider.value === 'ollama') {
         // Ollama just needs to be configured
         hasAiEnabled = true;
         aiUsingGlobalKey = true;
+        aiProviderName = 'ollama';
       } else if (globalKey.value) {
         // OpenAI/Claude need API key
         hasAiEnabled = true;
         aiUsingGlobalKey = true;
+        aiProviderName = globalProvider.value;
       }
     }
   }
@@ -2267,6 +2282,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     lastWeightEntry,
     hasAiEnabled,
     aiUsage,
+    aiProviderName,
     activePage: 'dashboard',
   });
 });

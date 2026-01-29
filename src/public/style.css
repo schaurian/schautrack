@@ -2075,10 +2075,22 @@ a:focus-visible,
 
 .ai-context {
   margin-top: var(--space-md);
+  padding: 0 var(--space-xl);
+}
+
+@media (max-width: 768px) {
+  .ai-context {
+    padding: 0;
+  }
 }
 
 .ai-context .field {
   margin-bottom: var(--space-md);
+}
+
+.ai-disclaimer {
+  text-align: center;
+  margin-top: var(--space-md);
 }
 
 .ai-loading {

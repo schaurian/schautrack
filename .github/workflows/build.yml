@@ -329,11 +329,14 @@ jobs:
           # Update appVersion to match container version
           sed -i "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" helm/schautrack/Chart.yaml
 
-          # For staging, use simple incrementing number
+          # Calculate chart version
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            sed -i "s/^version: .*/version: staging-${{ github.run_number }}/" helm/schautrack/Chart.yaml
+            # For staging: X.Y.Z-staging.N (e.g., 1.2.3-staging.68)
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            BASE_VERSION="${LATEST_TAG#v}"
+            CHART_VERSION="${BASE_VERSION}-staging.${{ github.run_number }}"
+            sed -i "s/^version: .*/version: ${CHART_VERSION}/" helm/schautrack/Chart.yaml
           else
-            # For main, set chart version to match app version
             sed -i "s/^version: .*/version: ${APP_VERSION}/" helm/schautrack/Chart.yaml
           fi
 
@@ -364,9 +367,9 @@ jobs:
 
           # Update or create index
           if [ -f "$CHANNEL_PATH/index.yaml" ]; then
-            helm repo index "$CHANNEL_PATH" --url "https://schaurian.github.io/schautrack/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
+            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
           else
-            helm repo index "$CHANNEL_PATH" --url "https://schaurian.github.io/schautrack/${{ steps.channel.outputs.path }}"
+            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}"
           fi
 
       - name: Push to gh-pages
