@@ -15,7 +15,7 @@
     "express": "^5.1.0",
     "express-session": "^1.19.0",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.0",
+    "nodemailer": "^7.0.13",
     "pg": "^8.18.0",
     "qrcode": "^1.5.3",
     "speakeasy": "^2.0.0",
