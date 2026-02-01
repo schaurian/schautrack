@@ -16,7 +16,7 @@
         <a href="/settings" class="primary">Go to settings</a>
       </div>
     <% } else { %>
-      <p class="muted">Enter the 6-digit code sent to <strong><%= pendingEmail %></strong>.</p>
+      <p class="muted">If <strong><%= pendingEmail %></strong> is a valid address, we've sent a 6-digit code. Check your spam folder if you don't see it.</p>
       <form action="/settings/email/verify" method="POST" class="stack">
         <label class="field">
           <span>Verification code</span>

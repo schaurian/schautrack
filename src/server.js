@@ -212,13 +212,19 @@ const sendEmail = async (to, subject, text, html) => {
   if (!smtpTransporter) {
     throw new Error('SMTP not configured');
   }
-  return smtpTransporter.sendMail({
-    from: smtpFrom,
-    to,
-    subject,
-    text,
-    html,
-  });
+  try {
+    return await smtpTransporter.sendMail({
+      from: smtpFrom,
+      to,
+      subject,
+      text,
+      html,
+    });
+  } catch (err) {
+    // Log SMTP errors but don't expose them to users (privacy protection)
+    console.warn('SMTP send failed:', err.message);
+    return null;
+  }
 };
 
 const generateResetCode = () => {

@@ -16,7 +16,7 @@
         <a href="/login" class="primary">Go to login</a>
       </div>
     <% } else { %>
-      <p class="muted">Enter the 6-digit code sent to <strong><%= email %></strong>.</p>
+      <p class="muted">If <strong><%= email %></strong> is a valid address, we've sent a 6-digit code. Check your spam folder if you don't see it.</p>
       <form action="/verify-email" method="POST" class="stack">
         <label class="field">
           <span>Verification code</span>
