@@ -86,24 +86,32 @@ schautrack/
 
 ## CI/CD Pipeline
 
-### GitLab CI
-- **Runner:** Kubernetes-based (not Docker-in-Docker)
-- **Builder:** Kaniko (works without privileged containers)
-- **Branches:**
-  - `main`: Builds with semver tags (v1.2.3) + latest
-  - `staging`: Builds with `staging-{PIPELINE_IID}` tags
-  - Other branches: Builds with commit SHA only
+### GitHub Actions
+- **Workflow:** `.github/workflows/build.yml`
+- **Registry:** GitHub Container Registry (ghcr.io)
+- **Architectures:** linux/amd64, linux/arm64
+
+### Automatic Versioning (Conventional Commits)
+The CI automatically computes semantic versions based on commit message prefixes:
+- `breaking:` or `major:` → **Major** bump (X.0.0)
+- `feat:` or `feature:` or `minor:` → **Minor** bump (x.Y.0)
+- `fix:` or `patch:` or `chore:` or `docs:` or `refactor:` → **Patch** bump (x.y.Z)
+- No recognized prefix → defaults to **Patch** bump
+
+**Important:** Tags are created automatically by CI on main branch - do NOT create version tags manually.
+
+### Branch Behavior
+- `main`: Auto-creates semver tag (vX.Y.Z), builds container with version + `latest` tags, creates GitHub Release, publishes Helm chart to stable channel
+- `staging`: Builds with `staging-{run_number}` tag, publishes Helm chart to staging channel
+- Other branches/PRs: Builds with commit SHA only
 
 ### Jobs
-1. `semver-tag`: Creates version tags (main branch only)
-2. `container-build-default`: Builds and pushes to registry (main)
-3. `container-build-branch`: Builds for staging/feature branches
-4. `registry-expiration-policy`: Manages container cleanup
-
-### Known Issues
-- Registry cleanup policy script uses form-encoded data (not JSON)
-- Token `REGISTRY_POLICY_TOKEN` must be set in GitLab CI/CD variables
-- Runner must support non-privileged containers (no Docker-in-Docker)
+1. `compute-version`: Analyzes commits and calculates next version
+2. `create-tag`: Creates git tag on main (automatic)
+3. `build-and-push`: Builds multi-arch container images
+4. `create-manifest`: Creates multi-arch manifest
+5. `create-release`: Creates GitHub Release with changelog
+6. `publish-helm`: Publishes Helm chart to gh-pages
 
 ## Database Schema Notes
 
