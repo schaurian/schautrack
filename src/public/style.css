@@ -314,6 +314,13 @@ a:focus-visible,
   color: var(--muted);
 }
 
+.hint {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: var(--space-xs);
+}
+
 .grid.two {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
