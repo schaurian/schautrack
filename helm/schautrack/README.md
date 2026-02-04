@@ -65,7 +65,7 @@ Then install:
 helm install schautrack schautrack/schautrack -f values.yaml
 ```
 
-> **Tip:** For production, use [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) or [external-secrets](https://external-secrets.io/) to manage sensitive values.
+> **Tip:** For production, use [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) or [external-secrets](https://external-secrets.io/) to manage sensitive values. See [Using an existing secret](#using-an-existing-secret) below.
 
 ## Uninstalling
 
@@ -81,6 +81,55 @@ helm uninstall schautrack
 ## Configuration
 
 See [values.yaml](values.yaml) for the full list of configurable parameters.
+
+### Using an existing secret
+
+For production environments with external secret management (e.g., External Secrets Operator, Sealed Secrets), you can reference a pre-existing Kubernetes Secret instead of having the chart create one:
+
+```yaml
+existingSecret: "my-schautrack-secrets"
+
+# These values are ignored when existingSecret is set:
+# config.sessionSecret, smtp.user, smtp.pass, ai.key, ai.keyEncryptionSecret,
+# postgresql.auth.password, externalDatabase.url
+```
+
+The referenced Secret must contain these keys:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `SESSION_SECRET` | Yes | Session encryption key |
+| `POSTGRES_PASSWORD` | If postgresql.enabled | Password for bundled PostgreSQL |
+| `SMTP_USER` | No | SMTP username |
+| `SMTP_PASS` | No | SMTP password |
+| `AI_KEY` | No | API key for AI provider |
+| `AI_KEY_ENCRYPTION_SECRET` | No | Secret for encrypting user API keys |
+
+Example External Secrets Operator configuration:
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: schautrack-secrets
+spec:
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: my-schautrack-secrets
+  data:
+    - secretKey: DATABASE_URL
+      remoteRef:
+        key: schautrack/database
+        property: url
+    - secretKey: SESSION_SECRET
+      remoteRef:
+        key: schautrack/session
+        property: secret
+    # ... additional keys as needed
+```
 
 ### Using an external database
 
@@ -153,6 +202,7 @@ smtp:
 | `imagePullSecrets` | Image pull secrets | `[]` |
 | `nameOverride` | Override chart name | `""` |
 | `fullnameOverride` | Override full name | `""` |
+| `existingSecret` | Use existing Secret (skips Secret creation) | `""` |
 
 ### Application
 

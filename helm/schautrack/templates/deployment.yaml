@@ -47,7 +47,7 @@ spec:
               protocol: TCP
           envFrom:
             - secretRef:
-                name: {{ include "schautrack.fullname" . }}
+                name: {{ .Values.existingSecret | default (include "schautrack.fullname" .) }}
             - configMapRef:
                 name: {{ include "schautrack.fullname" . }}
           livenessProbe:

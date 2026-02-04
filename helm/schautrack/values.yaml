@@ -9,6 +9,17 @@ image:
   tag: ""
 
 imagePullSecrets: []
+
+# Use an existing secret instead of creating one from values
+# The secret must contain these keys:
+#   - DATABASE_URL (required)
+#   - SESSION_SECRET (required)
+#   - POSTGRES_PASSWORD (required if postgresql.enabled)
+#   - SMTP_USER (optional)
+#   - SMTP_PASS (optional)
+#   - AI_KEY (optional)
+#   - AI_KEY_ENCRYPTION_SECRET (optional)
+existingSecret: ""
 nameOverride: ""
 fullnameOverride: ""
 
