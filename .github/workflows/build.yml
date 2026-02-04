@@ -331,7 +331,7 @@ jobs:
 
           # Calculate chart version
           if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            # For staging: use run number as patch version (e.g., 0.0.84)
+            # For staging: use 0.0.N format (e.g., 0.0.84)
             # This avoids prerelease format which helm search hides by default
             CHART_VERSION="0.0.${{ github.run_number }}"
             sed -i "s/^version: .*/version: ${CHART_VERSION}/" helm/schautrack/Chart.yaml
