@@ -30,9 +30,9 @@ Schautrack is built to stay out of your way. Just enter your calories and stay u
 
 ## Android App
 
-<a href="https://play.google.com/apps/testing/to.schauer.schautrack">
-  <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
-</a>
+<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Coming soon to Google Play" height="80" style="opacity: 0.5; filter: grayscale(100%);">
+
+> **Want to test?** The app is currently in closed testing. Write "hi" with your Google Play email to [getschautrackapp@schauer.to](mailto:getschautrackapp@schauer.to) and I'll add you and send you the link. I really appreciate early testers - this will change to open access once we have enough users!
 
 Source code available at [schautrack-android](https://github.com/schaurian/schautrack-android).
 
