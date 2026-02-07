@@ -377,3 +377,25 @@ jobs:
           git add .
           git commit -m "Update Helm chart (${{ steps.channel.outputs.channel }}) - appVersion ${{ needs.compute-version.outputs.version }}" || exit 0
           git push
+
+  notify-argocd:
+    runs-on: ubuntu-latest
+    needs: [compute-version, publish-helm]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    steps:
+      - name: Determine ArgoCD application
+        id: app
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "name=schautrack" >> $GITHUB_OUTPUT
+          else
+            echo "name=schautrack-staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Refresh ArgoCD application
+        run: |
+          curl -sSf -X GET \
+            "${{ secrets.ARGOCD_SERVER }}/api/v1/applications/${{ steps.app.outputs.name }}?refresh=normal" \
+            -H "Authorization: Bearer ${{ secrets.ARGOCD_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -o /dev/null -w "ArgoCD refresh: HTTP %{http_code}\n"
