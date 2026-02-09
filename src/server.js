@@ -932,8 +932,20 @@ function sendUserEvent(userId, eventName, payload) {
   const set = userEventClients.get(userId);
   if (!set || set.size === 0) return;
   const data = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  const staleConnections = [];
+  
   for (const res of set) {
-    res.write(data);
+    try {
+      res.write(data);
+    } catch (err) {
+      // Connection is stale, mark for removal
+      staleConnections.push(res);
+    }
+  }
+  
+  // Clean up stale connections
+  for (const staleRes of staleConnections) {
+    removeUserEventClient(userId, staleRes);
   }
 }
 
@@ -2646,6 +2658,28 @@ app.get('/events/entries', requireAuth, (req, res) => {
     res.end();
   });
 });
+
+// Periodic cleanup for stale SSE connections
+setInterval(() => {
+  for (const [userId, resSet] of userEventClients.entries()) {
+    const staleConnections = [];
+    
+    for (const res of resSet) {
+      try {
+        // Test connection by writing a ping
+        res.write('event: cleanup-ping\ndata: {}\n\n');
+      } catch (err) {
+        // Connection is stale
+        staleConnections.push(res);
+      }
+    }
+    
+    // Remove stale connections
+    for (const staleRes of staleConnections) {
+      removeUserEventClient(userId, staleRes);
+    }
+  }
+}, 5 * 60 * 1000); // Run every 5 minutes
 
 app.get('/settings/export', requireAuth, async (req, res) => {
   const user = req.currentUser;
