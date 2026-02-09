@@ -229,7 +229,7 @@ const sendEmail = async (to, subject, text, html) => {
 };
 
 const generateResetCode = () => {
-  return crypto.randomInt(100000, 1000000).toString();
+  return crypto.randomBytes(32).toString('hex');
 };
 
 // SVG CAPTCHA helper (self-hosted image captcha)
