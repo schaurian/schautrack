@@ -1363,6 +1363,42 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+// Middleware to handle link authorization for routes with ?user= parameter
+const requireLinkAuth = async (req, res, next) => {
+  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
+  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
+
+  // Set targetUserId on request for use in the route handler
+  req.targetUserId = targetUserId;
+
+  // Fetch target user if different from current user
+  if (targetUserId !== req.currentUser.id) {
+    const targetUser = await getUserById(targetUserId);
+    req.targetUser = targetUser;
+
+    // Check if users are linked
+    try {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM account_links
+          WHERE status = 'accepted'
+            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
+          LIMIT 1`,
+        [req.currentUser.id, targetUserId]
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ ok: false, error: 'Not authorized' });
+      }
+    } catch (err) {
+      console.error('Link authorization check failed:', err);
+      return res.status(500).json({ ok: false, error: 'Authorization check failed' });
+    }
+  } else {
+    req.targetUser = req.currentUser;
+  }
+
+  next();
+};
+
 const isAdmin = (user) => {
   return adminEmail && user && user.email.toLowerCase() === adminEmail.toLowerCase();
 };
@@ -2478,36 +2514,15 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   });
 });
 
-app.get('/overview', requireAuth, async (req, res) => {
+app.get('/overview', requireAuth, requireLinkAuth, async (req, res) => {
   const requestedRange = parseInt(req.query.range, 10);
   const rangeDays = Number.isInteger(requestedRange)
     ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
     : DEFAULT_RANGE_DAYS;
 
-  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
-  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
-
-  // Fetch target user early to get their timezone
-  const targetUser =
-    targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
-
-  if (targetUserId !== req.currentUser.id) {
-    try {
-      const { rows } = await pool.query(
-        `SELECT 1 FROM account_links
-          WHERE status = 'accepted'
-            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
-          LIMIT 1`,
-        [req.currentUser.id, targetUserId]
-      );
-      if (rows.length === 0) {
-        return res.status(403).json({ ok: false, error: 'Not authorized' });
-      }
-    } catch (err) {
-      console.error('Link check failed for overview', err);
-      return res.status(500).json({ ok: false, error: 'Failed to load overview' });
-    }
-  }
+  // Use values set by requireLinkAuth middleware
+  const targetUserId = req.targetUserId;
+  const targetUser = req.targetUser;
 
   // Use viewer's timezone for building the date range
   const viewerTz = getUserTimezone(req, res);
@@ -2563,18 +2578,15 @@ app.get('/overview', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/entries/day', requireAuth, async (req, res) => {
+app.get('/entries/day', requireAuth, requireLinkAuth, async (req, res) => {
   const dateStr = (req.query.date || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return res.status(400).json({ ok: false, error: 'Invalid date' });
   }
 
-  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
-  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
-
-  // Fetch target user early to get their timezone for timestamp display
-  const targetUser =
-    targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
+  // Use values set by requireLinkAuth middleware
+  const targetUserId = req.targetUserId;
+  const targetUser = req.targetUser;
 
   // Use viewer's timezone for date range validation (matches the dots shown in UI)
   const viewerTz = getUserTimezone(req, res);
@@ -2591,24 +2603,6 @@ app.get('/entries/day', requireAuth, async (req, res) => {
 
   if (dateStr < oldestStr || dateStr > todayStr) {
     return res.status(400).json({ ok: false, error: 'Date must be within the last 14 days' });
-  }
-
-  if (targetUserId !== req.currentUser.id) {
-    try {
-      const { rows } = await pool.query(
-        `SELECT 1 FROM account_links
-          WHERE status = 'accepted'
-            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
-          LIMIT 1`,
-        [req.currentUser.id, targetUserId]
-      );
-      if (rows.length === 0) {
-        return res.status(403).json({ ok: false, error: 'Not authorized to view entries' });
-      }
-    } catch (err) {
-      console.error('Link check failed', err);
-      return res.status(500).json({ ok: false, error: 'Failed to load entries' });
-    }
   }
 
   try {
@@ -2992,18 +2986,15 @@ app.post('/goal', requireAuth, async (req, res) => {
   res.redirect('/settings');
 });
 
-app.get('/weight/day', requireAuth, async (req, res) => {
+app.get('/weight/day', requireAuth, requireLinkAuth, async (req, res) => {
   const dateStr = (req.query.date || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return res.status(400).json({ ok: false, error: 'Invalid date' });
   }
 
-  const targetUserIdRaw = req.query.user ? parseInt(req.query.user, 10) : req.currentUser.id;
-  const targetUserId = Number.isNaN(targetUserIdRaw) ? req.currentUser.id : targetUserIdRaw;
-
-  // Fetch target user early to get their timezone
-  const targetUser =
-    targetUserId === req.currentUser.id ? req.currentUser : await getUserById(targetUserId);
+  // Use values set by requireLinkAuth middleware
+  const targetUserId = req.targetUserId;
+  const targetUser = req.targetUser;
 
   // Use target user's timezone for linked users, viewer's timezone for self
   const tz = targetUserId === req.currentUser.id
@@ -3018,24 +3009,6 @@ app.get('/weight/day', requireAuth, async (req, res) => {
 
   if (dateStr < oldestStr || dateStr > todayStr) {
     return res.status(400).json({ ok: false, error: 'Date outside supported range' });
-  }
-
-  if (targetUserId !== req.currentUser.id) {
-    try {
-      const { rows } = await pool.query(
-        `SELECT 1 FROM account_links
-          WHERE status = 'accepted'
-            AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
-          LIMIT 1`,
-        [req.currentUser.id, targetUserId]
-      );
-      if (rows.length === 0) {
-        return res.status(403).json({ ok: false, error: 'Not authorized to view weight' });
-      }
-    } catch (err) {
-      console.error('Link check failed', err);
-      return res.status(500).json({ ok: false, error: 'Failed to load weight' });
-    }
   }
 
   try {
