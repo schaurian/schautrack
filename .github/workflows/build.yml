@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'src/**'
+      - 'db/init.sql'
       - 'helm/**'
       - '.github/workflows/build.yml'
     tags:
@@ -23,6 +24,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'src/**'
+      - 'db/init.sql'
       - 'helm/**'
       - '.github/workflows/build.yml'
 
