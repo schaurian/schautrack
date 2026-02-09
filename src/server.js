@@ -332,7 +332,13 @@ const lbsToKg = (lbs) => {
   return Math.round((num / KG_TO_LB) * 100) / 100;
 };
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: 20, // maximum pool size
+  min: 2,  // minimum pool size  
+  idleTimeoutMillis: 30000, // 30 seconds
+  connectionTimeoutMillis: 10000, // 10 seconds
+});
 
 // Create base tables that other migrations depend on
 async function ensureBaseSchema() {
