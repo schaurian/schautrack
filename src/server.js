@@ -13,6 +13,7 @@ const multer = require('multer');
 const nodemailer = require('nodemailer');
 const svgCaptcha = require('svg-captcha');
 const rateLimit = require('express-rate-limit');
+const { doubleCsrf } = require('csrf-csrf');
 
 // Validate required environment variables
 if (!process.env.SESSION_SECRET) {
@@ -1330,6 +1331,23 @@ const strictLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// CSRF Protection
+const {
+  invalidCsrfTokenError,
+  generateToken,
+  doubleCsrfProtection,
+} = doubleCsrf({
+  getSecret: () => process.env.SESSION_SECRET,
+  cookieName: '__Host-schautrack.x-csrf-token',
+  cookieOptions: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+});
+
 app.use(async (req, res, next) => {
   if (!req.session.userId) {
     req.currentUser = null;
@@ -1347,6 +1365,8 @@ app.use(async (req, res, next) => {
     console.error('Failed to load user from session', err);
     res.locals.isAdmin = false;
   }
+  // Add CSRF token to response locals for templates
+  res.locals.csrfToken = generateToken(req, res);
   next();
 });
 
@@ -1613,7 +1633,7 @@ app.get('/register', (req, res) => {
   res.render('register', { error: null, email: '', requireCaptcha: false, captchaSvg: null });
 });
 
-app.post('/register', authLimiter, async (req, res) => {
+app.post('/register', authLimiter, doubleCsrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -1773,7 +1793,7 @@ app.get('/login', (req, res) => {
   res.render('login', { error: null, requireToken: false, email: '', captchaSvg });
 });
 
-app.post('/login', authLimiter, async (req, res) => {
+app.post('/login', authLimiter, doubleCsrfProtection, async (req, res) => {
   const { email, password, token, captcha } = req.body;
   const pendingUserId = req.session.pendingUserId;
   const failedAttempts = req.session.loginFailedAttempts || 0;
@@ -1902,7 +1922,7 @@ app.get('/forgot-password', (req, res) => {
   });
 });
 
-app.post('/forgot-password', strictLimiter, async (req, res) => {
+app.post('/forgot-password', strictLimiter, doubleCsrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -1983,7 +2003,7 @@ app.get('/reset-password', (req, res) => {
   res.render('reset-password', { error: null, success: null, email, codeVerified });
 });
 
-app.post('/reset-password', async (req, res) => {
+app.post('/reset-password', doubleCsrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -3065,7 +3085,7 @@ app.post('/weight/upsert', requireAuth, async (req, res) => {
   return res.redirect('/dashboard');
 });
 
-app.post('/entries', requireAuth, async (req, res) => {
+app.post('/entries', requireAuth, doubleCsrfProtection, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const userTz = getUserTimezone(req, res);
   const { value: amount, ok: amountOk } = parseAmount(req.body.amount);
@@ -3670,7 +3690,7 @@ app.post('/settings/ai', requireAuth, async (req, res) => {
   res.redirect('/settings');
 });
 
-app.post('/settings/password', requireAuth, async (req, res) => {
+app.post('/settings/password', requireAuth, doubleCsrfProtection, async (req, res) => {
   const currentPassword = req.body.current_password || '';
   const newPassword = req.body.new_password || '';
   const confirmPassword = req.body.confirm_password || '';

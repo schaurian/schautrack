@@ -13,6 +13,7 @@
     <% if (requireCaptcha) { %>
       <p class="muted">Verify you're human to create your account.</p>
       <form action="/register" method="POST" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="step" value="captcha">
         <div class="field">
           <span>Enter the text shown below</span>
@@ -23,6 +24,7 @@
       </form>
     <% } else { %>
       <form action="/register" method="POST" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="timezone" id="timezoneField">
         <input type="hidden" name="step" value="credentials">
         <label class="field">

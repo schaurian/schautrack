@@ -11,6 +11,7 @@
       <div class="alert danger"><%= error %></div>
     <% } %>
     <form action="/login" method="POST" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <% if (!requireToken) { %>
         <label class="field">
           <span>Email</span>
