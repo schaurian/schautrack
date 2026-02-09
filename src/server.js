@@ -14,6 +14,7 @@ const nodemailer = require('nodemailer');
 const svgCaptcha = require('svg-captcha');
 const rateLimit = require('express-rate-limit');
 const { doubleCsrf } = require('csrf-csrf');
+const helmet = require('helmet');
 
 // Validate required environment variables
 if (!process.env.SESSION_SECRET) {
@@ -1263,6 +1264,20 @@ Disallow: /
 `);
   }
 });
+
+// Security headers via Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for timezone detection
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow file uploads
+}));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: false }));

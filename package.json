@@ -15,6 +15,7 @@
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-session": "^1.19.0",
+    "helmet": "^8.1.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.13",
     "pg": "^8.18.0",
