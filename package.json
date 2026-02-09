@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js"
   },
   "dependencies": {
+    "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",
     "connect-pg-simple": "^10.0.0",
     "csrf-csrf": "^4.0.3",

@@ -6,7 +6,7 @@ const express = require('express');
 const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
+const argon2 = require('argon2');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const multer = require('multer');
@@ -1695,7 +1695,7 @@ app.post('/register', authLimiter, doubleCsrfProtection, async (req, res) => {
 
       // Store credentials in session and show CAPTCHA (hash password for security)
       const detectedTz = timezone || getClientTimezone(req) || 'UTC';
-      const passwordHash = await bcrypt.hash(password, 12);
+      const passwordHash = await argon2.hash(password);
       req.session.pendingRegistration = { email, passwordHash, timezone: detectedTz };
 
       const newCaptcha = generateCaptcha();
@@ -1886,7 +1886,7 @@ app.post('/login', authLimiter, doubleCsrfProtection, async (req, res) => {
       return renderLogin('Invalid credentials.', { email });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const validPassword = await argon2.verify(user.password_hash, password);
     if (!validPassword) {
       recordFailure();
       return renderLogin('Invalid credentials.', { email });
@@ -2122,7 +2122,7 @@ app.post('/reset-password', doubleCsrfProtection, async (req, res) => {
       return res.redirect('/forgot-password');
     }
 
-    const hash = await bcrypt.hash(password, 12);
+    const hash = await argon2.hash(password);
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
     await markTokenUsed(tokenId);
     await cleanExpiredTokens();
@@ -2330,7 +2330,7 @@ app.post('/delete', requireAuth, async (req, res) => {
       return res.redirect('/login?next=/delete');
     }
 
-    const validPassword = await bcrypt.compare(password || '', user.password_hash || '');
+    const validPassword = await argon2.verify(user.password_hash || '', password || '');
     if (!validPassword) {
       req.session.deleteFeedback = { type: 'error', message: 'Incorrect password.' };
       return res.redirect('/delete');
@@ -3744,13 +3744,13 @@ app.post('/settings/password', requireAuth, doubleCsrfProtection, async (req, re
       return res.redirect('/settings');
     }
 
-    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    const validPassword = await argon2.verify(user.password_hash, currentPassword);
     if (!validPassword) {
       req.session.passwordFeedback = { type: 'error', message: 'Current password is incorrect.' };
       return res.redirect('/settings');
     }
 
-    const hash = await bcrypt.hash(newPassword, 12);
+    const hash = await argon2.hash(newPassword);
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.currentUser.id]);
 
     req.session.passwordFeedback = { type: 'success', message: 'Password updated successfully.' };
@@ -3802,7 +3802,7 @@ app.post('/settings/email/request', strictLimiter, requireAuth, async (req, res)
       return res.redirect('/settings');
     }
 
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const validPassword = await argon2.verify(user.password_hash, password);
     if (!validPassword) {
       req.session.emailFeedback = { type: 'error', message: 'Incorrect password.' };
       return res.redirect('/settings');
