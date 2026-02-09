@@ -2335,9 +2335,16 @@ app.post('/delete', requireAuth, async (req, res) => {
     }
 
     await pool.query('BEGIN');
+    
+    // Delete all user data from all tables
     await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM weight_entries WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM ai_usage WHERE user_id = $1', [userId]);
     await pool.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    
     await pool.query('COMMIT');
 
     return req.session.destroy(() => {
@@ -3964,9 +3971,21 @@ app.post('/admin/users/:id/delete', requireAuth, requireAdmin, async (req, res) 
   }
 
   try {
+    await pool.query('BEGIN');
+    
+    // Delete all user data from all tables (admin deletion)
+    await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM weight_entries WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM ai_usage WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-    req.session.adminFeedback = { type: 'success', message: 'User deleted.' };
+    
+    await pool.query('COMMIT');
+    req.session.adminFeedback = { type: 'success', message: 'User deleted completely.' };
   } catch (err) {
+    await pool.query('ROLLBACK');
     console.error('Failed to delete user', err);
     req.session.adminFeedback = { type: 'error', message: 'Failed to delete user.' };
   }
