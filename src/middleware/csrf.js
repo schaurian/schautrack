@@ -1,31 +1,59 @@
-const { doubleCsrf } = require('csrf-csrf');
+const crypto = require('crypto');
 
-// CSRF Protection
-const {
-  invalidCsrfTokenError,
-  generateToken,
-  doubleCsrfProtection,
-} = doubleCsrf({
-  getSecret: () => process.env.SESSION_SECRET,
-  cookieName: '__Host-schautrack.x-csrf-token',
-  cookieOptions: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  },
-  size: 64,
-  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
-});
+// Simple session-based CSRF protection
+// Generates a random token, stores it in the session, and validates on POST
 
+function generateCsrfToken(req) {
+  if (!req.session) return '';
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  return req.session.csrfToken;
+}
+
+function validateCsrfToken(req) {
+  const bodyToken = req.body?._csrf;
+  const headerToken = req.headers['x-csrf-token'];
+  const token = bodyToken || headerToken;
+  if (!token || !req.session?.csrfToken) return false;
+  return crypto.timingSafeEqual(
+    Buffer.from(token),
+    Buffer.from(req.session.csrfToken)
+  );
+}
+
+// Middleware: attach CSRF token to res.locals for templates
 const addCsrfToken = (req, res, next) => {
-  // Add CSRF token to response locals for templates
-  res.locals.csrfToken = generateToken(req, res);
+  if (!req.session) return next();
+  const hadToken = !!req.session.csrfToken;
+  res.locals.csrfToken = generateCsrfToken(req);
+  // Force session save if we just created a new token (needed with saveUninitialized: false)
+  if (!hadToken && req.session.csrfToken) {
+    req.session.save(() => next());
+  } else {
+    next();
+  }
+};
+
+// Middleware: validate CSRF token on state-changing requests
+const csrfProtection = (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+  if (!validateCsrfToken(req)) {
+    const wantsJson = req.headers.accept?.includes('application/json');
+    if (wantsJson) {
+      return res.status(403).json({ error: 'Invalid CSRF token' });
+    }
+    req.session.flashError = 'Invalid or expired form submission. Please try again.';
+    return res.redirect('back');
+  }
   next();
 };
 
 module.exports = {
-  invalidCsrfTokenError,
-  generateToken,
-  doubleCsrfProtection,
-  addCsrfToken
+  addCsrfToken,
+  csrfProtection,
+  generateCsrfToken,
+  validateCsrfToken
 };

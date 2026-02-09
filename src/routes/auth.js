@@ -4,7 +4,7 @@ const argon2 = require('argon2');
 const speakeasy = require('speakeasy');
 const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
-const { doubleCsrfProtection } = require('../middleware/csrf');
+const { csrfProtection } = require('../middleware/csrf');
 const { generateCaptcha, verifyCaptcha } = require('../lib/captcha');
 const { 
   isSmtpConfigured, 
@@ -24,6 +24,7 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 const strictLimiter = rateLimit({
@@ -32,6 +33,7 @@ const strictLimiter = rateLimit({
   message: { error: 'Too many attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 // Helper functions for tokens
@@ -144,7 +146,7 @@ router.get('/register', (req, res) => {
   res.render('register', { error: null, email: '', requireCaptcha: false, captchaSvg: null });
 });
 
-router.post('/register', authLimiter, doubleCsrfProtection, async (req, res) => {
+router.post('/register', authLimiter, csrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -304,7 +306,7 @@ router.get('/login', (req, res) => {
   res.render('login', { error: null, requireToken: false, email: '', captchaSvg });
 });
 
-router.post('/login', authLimiter, doubleCsrfProtection, async (req, res) => {
+router.post('/login', authLimiter, csrfProtection, async (req, res) => {
   const { email, password, token, captcha } = req.body;
   const pendingUserId = req.session.pendingUserId;
   const failedAttempts = req.session.loginFailedAttempts || 0;
@@ -434,7 +436,7 @@ router.get('/forgot-password', (req, res) => {
   });
 });
 
-router.post('/forgot-password', strictLimiter, doubleCsrfProtection, async (req, res) => {
+router.post('/forgot-password', strictLimiter, csrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -515,7 +517,7 @@ router.get('/reset-password', (req, res) => {
   res.render('reset-password', { error: null, success: null, email, codeVerified });
 });
 
-router.post('/reset-password', doubleCsrfProtection, async (req, res) => {
+router.post('/reset-password', csrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }

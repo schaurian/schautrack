@@ -4,7 +4,7 @@ const QRCode = require('qrcode');
 const argon2 = require('argon2');
 const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
-const { doubleCsrfProtection } = require('../middleware/csrf');
+const { csrfProtection } = require('../middleware/csrf');
 const { encryptApiKey } = require('../lib/ai');
 const { toInt } = require('../lib/utils');
 
@@ -272,7 +272,7 @@ router.post('/settings/ai', requireLogin, async (req, res) => {
   res.redirect('/settings');
 });
 
-router.post('/settings/password', requireLogin, doubleCsrfProtection, async (req, res) => {
+router.post('/settings/password', requireLogin, csrfProtection, async (req, res) => {
   const currentPassword = req.body.current_password || '';
   const newPassword = req.body.new_password || '';
   const confirmPassword = req.body.confirm_password || '';

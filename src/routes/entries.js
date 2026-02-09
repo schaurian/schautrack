@@ -3,7 +3,7 @@ const multer = require('multer');
 const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
 const { requireLinkAuth } = require('../middleware/links');
-const { doubleCsrfProtection } = require('../middleware/csrf');
+const { csrfProtection } = require('../middleware/csrf');
 const { parseAmount } = require('../lib/math-parser');
 const { 
   parseWeight, 
@@ -569,7 +569,7 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
   }
 });
 
-router.post('/entries', requireLogin, doubleCsrfProtection, async (req, res) => {
+router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const userTz = getUserTimezone(req, res);
   const { value: amount, ok: amountOk } = parseAmount(req.body.amount);
