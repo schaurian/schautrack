@@ -3415,7 +3415,9 @@ async function callAIProvider(providerName, apiKey, endpoint, base64Data, mediaT
   if (!config) throw new Error(`Unknown provider: ${providerName}`);
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 600000); // 10 minutes
+  // Set timeout based on provider: 60s for Ollama (local), 30s for others (cloud)
+  const timeoutMs = providerName === 'ollama' ? 60000 : 30000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const messages = config.formatMessages(prompt, base64Data, mediaType);
