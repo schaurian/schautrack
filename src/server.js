@@ -12,6 +12,7 @@ const QRCode = require('qrcode');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const svgCaptcha = require('svg-captcha');
+const rateLimit = require('express-rate-limit');
 
 // Validate required environment variables
 if (!process.env.SESSION_SECRET) {
@@ -1256,6 +1257,30 @@ app.use(
   })
 );
 
+// Rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // max 10 attempts per windowMs
+  message: { error: 'Too many attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // max 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 5, // max 5 attempts per windowMs
+  message: { error: 'Too many attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(async (req, res, next) => {
   if (!req.session.userId) {
     req.currentUser = null;
@@ -1503,7 +1528,7 @@ app.get('/register', (req, res) => {
   res.render('register', { error: null, email: '', requireCaptcha: false, captchaSvg: null });
 });
 
-app.post('/register', async (req, res) => {
+app.post('/register', authLimiter, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -1663,7 +1688,7 @@ app.get('/login', (req, res) => {
   res.render('login', { error: null, requireToken: false, email: '', captchaSvg });
 });
 
-app.post('/login', async (req, res) => {
+app.post('/login', authLimiter, async (req, res) => {
   const { email, password, token, captcha } = req.body;
   const pendingUserId = req.session.pendingUserId;
   const failedAttempts = req.session.loginFailedAttempts || 0;
@@ -1792,7 +1817,7 @@ app.get('/forgot-password', (req, res) => {
   });
 });
 
-app.post('/forgot-password', async (req, res) => {
+app.post('/forgot-password', strictLimiter, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -3175,7 +3200,7 @@ app.post('/weight/:id/delete', requireAuth, async (req, res) => {
 });
 
 // AI Calorie Estimation API
-app.post('/api/ai/estimate', requireAuth, async (req, res) => {
+app.post('/api/ai/estimate', strictLimiter, requireAuth, async (req, res) => {
   const { image, context } = req.body;
 
   if (!image || !image.startsWith('data:image/')) {
@@ -3646,7 +3671,7 @@ app.post('/settings/password', requireAuth, async (req, res) => {
 });
 
 // Email change routes
-app.post('/settings/email/request', requireAuth, async (req, res) => {
+app.post('/settings/email/request', strictLimiter, requireAuth, async (req, res) => {
   const newEmail = (req.body.new_email || '').trim().toLowerCase();
   const password = req.body.password || '';
   const totpCode = req.body.totp_code || '';
