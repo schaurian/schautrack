@@ -1524,6 +1524,15 @@ app.post('/register', async (req, res) => {
       });
     }
 
+    if (password.length < 10) {
+      return res.render('register', {
+        error: 'Password must be at least 10 characters.',
+        email,
+        requireCaptcha: false,
+        captchaSvg: null,
+      });
+    }
+
     try {
       const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
       if (existing.rows.length > 0) {
@@ -1942,9 +1951,9 @@ app.post('/reset-password', async (req, res) => {
     });
   }
 
-  if (password.length < 6) {
+  if (password.length < 10) {
     return res.render('reset-password', {
-      error: 'Password must be at least 6 characters.',
+      error: 'Password must be at least 10 characters.',
       success: null,
       email,
       codeVerified: true,
@@ -3605,8 +3614,8 @@ app.post('/settings/password', requireAuth, async (req, res) => {
     return res.redirect('/settings');
   }
 
-  if (newPassword.length < 6) {
-    req.session.passwordFeedback = { type: 'error', message: 'New password must be at least 6 characters.' };
+  if (newPassword.length < 10) {
+    req.session.passwordFeedback = { type: 'error', message: 'New password must be at least 10 characters.' };
     return res.redirect('/settings');
   }
 
