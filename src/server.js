@@ -1279,7 +1279,11 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false, // Allow file uploads
 }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { 
+  maxAge: '7d', // Cache static assets for 7 days
+  etag: true,
+  lastModified: true,
+}));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: '10mb' }));
 
