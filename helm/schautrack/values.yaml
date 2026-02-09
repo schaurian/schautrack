@@ -68,7 +68,9 @@ affinity: {}
 config:
   # Port to listen on
   port: 3000
+  # ⚠️  SECURITY WARNING: Change sessionSecret before production deployment!
   # Session secret (required) - generate with: openssl rand -base64 32
+  # DO NOT commit real secrets to Git - use existingSecret instead
   sessionSecret: ""
   # Admin email - gets access to /admin page
   adminEmail: ""
@@ -88,21 +90,26 @@ config:
   baseUrl: ""
 
 # SMTP configuration (for password reset emails)
+# ⚠️  SECURITY WARNING: SMTP credentials are sensitive! 
+# Use existingSecret in production instead of storing passwords here
 smtp:
   host: ""
   port: 587
   user: ""
-  pass: ""
+  pass: ""  # DO NOT commit real passwords to Git
   from: ""
   secure: false
 
 # AI configuration (optional)
+# ⚠️  SECURITY WARNING: AI keys are sensitive and can incur costs!
+# Use existingSecret in production - never commit API keys to Git
 ai:
   # AI provider: openai, claude, or ollama
   provider: ""
-  # API key for AI provider
+  # API key for AI provider - DO NOT commit real keys to Git
   key: ""
   # Encryption secret for user API keys - generate with: openssl rand -hex 32
+  # This must be kept secret and stable (changing it breaks existing user keys)
   keyEncryptionSecret: ""
   # Custom API endpoint (leave empty for defaults)
   endpoint: ""
@@ -119,11 +126,14 @@ postgresql:
     repository: postgres
     tag: "18-alpine"
     pullPolicy: IfNotPresent
-  # Database credentials
+  # Database credentials  
+  # ⚠️  SECURITY WARNING: Database passwords are critical secrets!
+  # Use existingSecret in production - never commit passwords to Git
   auth:
     database: schautrack
     username: schautrack
     # Password (required) - generate with: openssl rand -base64 16
+    # DO NOT use default passwords in production
     password: ""
   # Persistence configuration
   persistence:

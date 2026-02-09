@@ -1,3 +1,12 @@
+# ============================================================================
+# SECURITY WARNING: Change default database credentials before deploying!
+# 
+# 1. Copy .env.example to .env
+# 2. Generate a strong POSTGRES_PASSWORD (not the default "schautrack")  
+# 3. Set a secure SESSION_SECRET (use: openssl rand -hex 32)
+# 4. Configure SMTP settings for email functionality
+# ============================================================================
+
 services:
   web:
     image: ghcr.io/schaurian/schautrack:latest
@@ -7,6 +16,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - app-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -21,6 +32,8 @@ services:
     environment:
       - TZ=UTC
       - PGTZ=UTC
+    networks:
+      - app-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 5s
@@ -72,3 +85,8 @@ services:
 volumes:
   db-data:
   # ollama-data:
+
+networks:
+  app-network:
+    driver: bridge
+    internal: false  # Web service needs external access for SMTP/AI APIs
