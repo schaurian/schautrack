@@ -1,7 +1,27 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const argon2 = require('argon2');
+const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
+
+/**
+ * Verify password against hash, supporting both argon2 and legacy bcrypt.
+ * If bcrypt hash matches, re-hashes with argon2 and updates the DB.
+ */
+async function verifyAndMigratePassword(passwordHash, password, userId) {
+  if (!passwordHash || !password) return false;
+  
+  if (passwordHash.startsWith('$2b$') || passwordHash.startsWith('$2a$')) {
+    const valid = await bcrypt.compare(password, passwordHash);
+    if (valid && userId) {
+      const newHash = await argon2.hash(password);
+      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+    }
+    return valid;
+  }
+  
+  return argon2.verify(passwordHash, password);
+}
 const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
 const { csrfProtection } = require('../middleware/csrf');
@@ -381,7 +401,7 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
       return renderLogin('Invalid credentials.', { email });
     }
 
-    const validPassword = await argon2.verify(user.password_hash, password);
+    const validPassword = await verifyAndMigratePassword(user.password_hash, password, user.id);
     if (!validPassword) {
       recordFailure();
       return renderLogin('Invalid credentials.', { email });
@@ -830,7 +850,7 @@ router.post('/delete', requireLogin, async (req, res) => {
       return res.redirect('/login?next=/delete');
     }
 
-    const validPassword = await argon2.verify(user.password_hash || '', password || '');
+    const validPassword = await verifyAndMigratePassword(user.password_hash, password, user.id);
     if (!validPassword) {
       req.session.deleteFeedback = { type: 'error', message: 'Incorrect password.' };
       return res.redirect('/delete');
@@ -920,7 +940,7 @@ router.post('/settings/email/request', strictLimiter, requireLogin, async (req, 
       return res.redirect('/settings');
     }
 
-    const validPassword = await argon2.verify(user.password_hash, password);
+    const validPassword = await verifyAndMigratePassword(user.password_hash, password, req.currentUser.id);
     if (!validPassword) {
       req.session.emailFeedback = { type: 'error', message: 'Incorrect password.' };
       return res.redirect('/settings');
