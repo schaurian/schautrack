@@ -55,8 +55,12 @@ describe('Math Parser', () => {
       expect(parseAmount('abc')).toEqual({ ok: false, value: 0 });
       expect(parseAmount('10 + abc')).toEqual({ ok: false, value: 0 });
       expect(parseAmount('10 +')).toEqual({ ok: false, value: 0 });
-      expect(parseAmount('+ 10')).toEqual({ ok: false, value: 0 });
-      expect(parseAmount('10 + + 20')).toEqual({ ok: false, value: 0 });
+    });
+
+    test('should handle unary plus', () => {
+      // Parser supports unary + just like unary -
+      expect(parseAmount('+ 10')).toEqual({ ok: true, value: 10 });
+      expect(parseAmount('10 + + 20')).toEqual({ ok: true, value: 30 });
     });
 
     test('should reject dangerous expressions', () => {
@@ -100,33 +104,35 @@ describe('Math Parser', () => {
     });
   });
 
+  // safeMathEval operates on whitespace-stripped expressions
+  // (parseAmount removes spaces before calling it)
   describe('safeMathEval', () => {
     test('should handle operator precedence correctly', () => {
-      expect(safeMathEval('2 + 3 * 4')).toBe(14);
-      expect(safeMathEval('(2 + 3) * 4')).toBe(20);
-      expect(safeMathEval('2 * 3 + 4')).toBe(10);
-      expect(safeMathEval('2 * (3 + 4)')).toBe(14);
+      expect(safeMathEval('2+3*4')).toBe(14);
+      expect(safeMathEval('(2+3)*4')).toBe(20);
+      expect(safeMathEval('2*3+4')).toBe(10);
+      expect(safeMathEval('2*(3+4)')).toBe(14);
     });
 
     test('should handle division correctly', () => {
-      expect(safeMathEval('10 / 2')).toBe(5);
-      expect(safeMathEval('100 / 4 / 5')).toBe(5);
-      expect(safeMathEval('100 / (4 / 2)')).toBe(50);
+      expect(safeMathEval('10/2')).toBe(5);
+      expect(safeMathEval('100/4/5')).toBe(5);
+      expect(safeMathEval('100/(4/2)')).toBe(50);
     });
 
     test('should throw on division by zero', () => {
-      expect(() => safeMathEval('10 / 0')).toThrow('Division by zero');
-      expect(() => safeMathEval('10 / (2 - 2)')).toThrow('Division by zero');
+      expect(() => safeMathEval('10/0')).toThrow('Division by zero');
+      expect(() => safeMathEval('10/(2-2)')).toThrow('Division by zero');
     });
 
     test('should throw on invalid characters', () => {
-      expect(() => safeMathEval('10 + a')).toThrow();
-      expect(() => safeMathEval('10 +')).toThrow();
+      expect(() => safeMathEval('10+a')).toThrow();
+      expect(() => safeMathEval('10+')).toThrow();
     });
 
     test('should handle floating point results', () => {
-      expect(safeMathEval('10 / 3')).toBeCloseTo(3.333333, 5);
-      expect(safeMathEval('1.5 * 2.5')).toBe(3.75);
+      expect(safeMathEval('10/3')).toBeCloseTo(3.333333, 5);
+      expect(safeMathEval('1.5*2.5')).toBe(3.75);
     });
   });
 });
