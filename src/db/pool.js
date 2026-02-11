@@ -14,9 +14,8 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000, // 10 seconds
 });
 
-// Admin settings cache with TTL
-let settingsCache = new Map();
-let settingsCacheTime = 0;
+// Admin settings cache with per-key TTL
+const settingsCache = new Map(); // Map<key, { result, timestamp }>
 const SETTINGS_CACHE_TTL = 60000; // 1 minute
 
 const getEffectiveSetting = async (key, envValue) => {
@@ -25,26 +24,18 @@ const getEffectiveSetting = async (key, envValue) => {
   }
 
   const now = Date.now();
-  
-  // Return cached value if still fresh
-  if (settingsCache.has(key) && (now - settingsCacheTime) < SETTINGS_CACHE_TTL) {
-    return settingsCache.get(key);
+  const cached = settingsCache.get(key);
+  if (cached && (now - cached.timestamp) < SETTINGS_CACHE_TTL) {
+    return cached.result;
   }
 
   try {
-    const result = await pool.query('SELECT value FROM admin_settings WHERE key = $1', [key]);
-    let settingResult;
-    if (result.rows.length > 0 && result.rows[0].value !== null) {
-      settingResult = { value: result.rows[0].value, source: 'db' };
-    } else {
-      settingResult = { value: null, source: 'none' };
-    }
-    
-    // Cache the result
-    settingsCache.set(key, settingResult);
-    settingsCacheTime = now;
-    
-    return settingResult;
+    const { rows } = await pool.query('SELECT value FROM admin_settings WHERE key = $1', [key]);
+    const result = rows.length > 0 && rows[0].value !== null
+      ? { value: rows[0].value, source: 'db' }
+      : { value: null, source: 'none' };
+    settingsCache.set(key, { result, timestamp: now });
+    return result;
   } catch (err) {
     console.error('Failed to get admin setting', key, err);
     return { value: null, source: 'none' };
@@ -54,7 +45,6 @@ const getEffectiveSetting = async (key, envValue) => {
 // Helper to invalidate settings cache (call after admin updates)
 const invalidateSettingsCache = () => {
   settingsCache.clear();
-  settingsCacheTime = 0;
 };
 
 const setAdminSetting = async (key, value) => {
