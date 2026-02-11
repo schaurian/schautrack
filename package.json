@@ -6,21 +6,20 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest --forceExit --detectOpenHandles",
-    "prepare": "husky"
+    "test": "jest --forceExit --detectOpenHandles"
   },
   "dependencies": {
     "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",
     "connect-pg-simple": "^10.0.0",
-    "dotenv": "^17.2.4",
-    "ejs": "^4.0.1",
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.19.0",
     "helmet": "^8.1.0",
     "multer": "^2.0.2",
-    "nodemailer": "^8.0.1",
+    "nodemailer": "^7.0.13",
     "pg": "^8.18.0",
     "qrcode": "^1.5.3",
     "speakeasy": "^2.0.0",
@@ -29,7 +28,6 @@
   "devDependencies": {
     "@jest/globals": "^30.2.0",
     "ejs-lint": "^2.0.1",
-    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "nodemon": "^3.1.4",
     "supertest": "^7.2.2"

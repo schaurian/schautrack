@@ -16,10 +16,10 @@ function validateCsrfToken(req) {
   const headerToken = req.headers['x-csrf-token'];
   const token = bodyToken || headerToken;
   if (!token || !req.session?.csrfToken) return false;
-  const a = Buffer.from(token);
-  const b = Buffer.from(req.session.csrfToken);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  return crypto.timingSafeEqual(
+    Buffer.from(token),
+    Buffer.from(req.session.csrfToken)
+  );
 }
 
 // Middleware: attach CSRF token to res.locals for templates

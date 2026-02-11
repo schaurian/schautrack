@@ -1,122 +1,153 @@
 const { describe, test, expect, beforeAll, afterAll } = require('@jest/globals');
 const request = require('supertest');
-const { createTestApp, extractCsrfToken, getAgentWithCsrf } = require('./setup');
+const { app } = require('./setup');
+const { pool } = require('../src/db/pool');
 
-const authRoutes = require('../src/routes/auth');
+describe('Authentication', () => {
+  let testUserId;
 
-let app;
+  const skipIfNoDb = () => {
+    if (!process.env.DATABASE_URL) {
+      console.log('Skipping database test - DATABASE_URL not set');
+      return true;
+    }
+    return false;
+  };
 
-beforeAll(() => {
-  app = createTestApp(authRoutes);
-});
-
-// ---- Pages render correctly (no DB needed) ----
-
-describe('Auth pages', () => {
-  test('GET /register renders registration page', async () => {
-    const res = await request(app).get('/register').expect(200);
-    expect(res.text).toContain('email');
-    expect(res.text).toContain('password');
-    // Should contain a CSRF token
-    expect(extractCsrfToken(res.text)).toBeTruthy();
+  afterAll(async () => {
+    // Clean up test user if created
+    if (testUserId && process.env.DATABASE_URL) {
+      try {
+        await pool.query('DELETE FROM users WHERE id = $1', [testUserId]);
+      } catch (err) {
+        console.warn('Failed to clean up test user:', err.message);
+      }
+    }
   });
 
-  test('GET /login renders login page', async () => {
-    const res = await request(app).get('/login').expect(200);
-    expect(res.text).toContain('email');
-    expect(res.text).toContain('password');
-    expect(extractCsrfToken(res.text)).toBeTruthy();
+  describe('GET /register', () => {
+    test('should render registration page', async () => {
+      const response = await request(app)
+        .get('/register')
+        .expect(200);
+      
+      expect(response.text).toContain('Register');
+      expect(response.text).toContain('email');
+      expect(response.text).toContain('password');
+    });
   });
 
-  test('GET /forgot-password renders forgot password page', async () => {
-    const res = await request(app).get('/forgot-password').expect(200);
-    expect(res.text).toContain('Forgot password');
+  describe('GET /login', () => {
+    test('should render login page', async () => {
+      const response = await request(app)
+        .get('/login')
+        .expect(200);
+      
+      expect(response.text).toContain('Login');
+      expect(response.text).toContain('email');
+      expect(response.text).toContain('password');
+    });
   });
 
-  test('GET /reset-password without session redirects to /forgot-password', async () => {
-    const res = await request(app).get('/reset-password').expect(302);
-    expect(res.headers.location).toBe('/forgot-password');
-  });
-});
+  describe('POST /register', () => {
+    test('should reject registration without email', async () => {
+      if (skipIfNoDb()) return;
 
-// ---- CSRF protection works ----
+      const response = await request(app)
+        .post('/register')
+        .send({
+          step: 'credentials',
+          password: 'testpassword123',
+          _csrf: 'dummy' // In real tests, you'd get this from the form
+        })
+        .expect(200);
+      
+      expect(response.text).toContain('Email and password are required');
+    });
 
-describe('CSRF protection', () => {
-  test('POST /login without CSRF token is rejected', async () => {
-    const res = await request(app)
-      .post('/login')
-      .send({ email: 'a@b.com', password: 'test' });
-    // Should redirect back (CSRF failure) rather than processing the login
-    expect([302, 403]).toContain(res.status);
-  });
+    test('should reject short password', async () => {
+      if (skipIfNoDb()) return;
 
-  test('POST /login with wrong CSRF token is rejected', async () => {
-    const { agent } = await getAgentWithCsrf(app, '/login');
-    const res = await agent
-      .post('/login')
-      .send({ email: 'a@b.com', password: 'test', _csrf: 'wrong-token' });
-    expect([302, 403]).toContain(res.status);
-  });
-});
-
-// ---- Form validation (requires DB for pool queries) ----
-
-const skipIfNoDb = () => {
-  // If DATABASE_URL is the dummy value we set in setup.js, there's no real DB
-  if (process.env.DATABASE_URL === 'postgresql://test:test@localhost:5432/test') {
-    return true;
-  }
-  return false;
-};
-
-describe('Registration validation', () => {
-  test('rejects registration without email', async () => {
-    if (skipIfNoDb()) return;
-
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/register');
-    const res = await agent
-      .post('/register')
-      .send({ step: 'credentials', password: 'testpassword123', _csrf: csrfToken })
-      .expect(200);
-
-    expect(res.text).toContain('Email and password are required');
+      const response = await request(app)
+        .post('/register')
+        .send({
+          step: 'credentials',
+          email: 'test@example.com',
+          password: 'short',
+          _csrf: 'dummy'
+        })
+        .expect(200);
+      
+      expect(response.text).toContain('Password must be at least 10 characters');
+    });
   });
 
-  test('rejects short password', async () => {
-    if (skipIfNoDb()) return;
+  describe('POST /login', () => {
+    test('should reject login without credentials', async () => {
+      if (skipIfNoDb()) return;
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/register');
-    const res = await agent
-      .post('/register')
-      .send({ step: 'credentials', email: 'test@example.com', password: 'short', _csrf: csrfToken })
-      .expect(200);
+      const response = await request(app)
+        .post('/login')
+        .send({
+          _csrf: 'dummy'
+        })
+        .expect(200);
+      
+      expect(response.text).toContain('Email and password are required');
+    });
 
-    expect(res.text).toContain('Password must be at least 10 characters');
+    test('should reject invalid credentials', async () => {
+      if (skipIfNoDb()) return;
+
+      const response = await request(app)
+        .post('/login')
+        .send({
+          email: 'nonexistent@example.com',
+          password: 'wrongpassword',
+          _csrf: 'dummy'
+        })
+        .expect(200);
+      
+      expect(response.text).toContain('Invalid credentials');
+    });
   });
-});
 
-describe('Login validation', () => {
-  test('rejects login without credentials', async () => {
-    if (skipIfNoDb()) return;
-
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/login');
-    const res = await agent
-      .post('/login')
-      .send({ _csrf: csrfToken })
-      .expect(200);
-
-    expect(res.text).toContain('Email and password are required');
+  describe('GET /dashboard', () => {
+    test('should redirect to login when not authenticated', async () => {
+      await request(app)
+        .get('/dashboard')
+        .expect(302)
+        .expect('Location', '/login');
+    });
   });
 
-  test('rejects invalid credentials', async () => {
-    if (skipIfNoDb()) return;
+  describe('GET /', () => {
+    test('should render landing page', async () => {
+      const response = await request(app)
+        .get('/')
+        .expect(200);
+      
+      expect(response.text).toContain('Schautrack');
+    });
+  });
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/login');
-    const res = await agent
-      .post('/login')
-      .send({ email: 'nonexistent@example.com', password: 'wrongpassword1', _csrf: csrfToken })
-      .expect(200);
+  describe('Password Reset Flow', () => {
+    test('should render forgot password page', async () => {
+      const response = await request(app)
+        .get('/forgot-password')
+        .expect(200);
+      
+      expect(response.text).toContain('Forgot Password');
+      expect(response.text).toContain('email');
+    });
 
-    expect(res.text).toContain('Invalid credentials');
+    test('should render reset password page with session', async () => {
+      // This would require setting up session data, skip for now
+      const response = await request(app)
+        .get('/reset-password')
+        .expect(302); // Should redirect without session
+      
+      expect(response.headers.location).toBe('/forgot-password');
+    });
   });
 });

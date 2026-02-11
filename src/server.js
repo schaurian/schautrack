@@ -2,7 +2,6 @@ const app = require('./app');
 const { initSchemaWithRetry } = require('./db/migrations');
 const { validateAIConfig } = require('./lib/ai');
 const { pool } = require('./db/pool');
-const { markShuttingDown } = require('./routes/health');
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,7 +15,6 @@ initSchemaWithRetry()
     // Graceful shutdown handler
     const gracefulShutdown = (signal) => {
       console.log(`Received ${signal}. Starting graceful shutdown...`);
-      markShuttingDown();
       server.close(async (err) => {
         if (err) {
           console.error('Error closing server:', err);

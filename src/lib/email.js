@@ -13,7 +13,7 @@ const isSmtpConfigured = () => Boolean(smtpHost && smtpUser && smtpPass && smtpF
 
 let smtpTransporter = null;
 if (isSmtpConfigured()) {
-  smtpTransporter = nodemailer.createTransport({
+  smtpTransporter = nodemailer.createTransporter({
     host: smtpHost,
     port: smtpPort,
     secure: smtpSecure,

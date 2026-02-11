@@ -2,12 +2,90 @@ const express = require('express');
 const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
 const { toInt } = require('../lib/utils');
-const { countAcceptedLinks, getLinkBetween } = require('../lib/links');
 const { broadcastLinkLabelChange } = require('./sse');
 
 const router = express.Router();
 
 const MAX_LINKS = 3;
+
+async function countAcceptedLinks(userId) {
+  const uid = toInt(userId);
+  if (uid === null) return 0;
+  const { rows } = await pool.query(
+    'SELECT COUNT(*) AS count FROM account_links WHERE status = $1 AND (requester_id = $2 OR target_id = $2)',
+    ['accepted', uid]
+  );
+  return parseInt(rows[0]?.count || 0, 10);
+}
+
+async function getLinkBetween(userId, otherUserId) {
+  const uid = toInt(userId);
+  const oid = toInt(otherUserId);
+  if (uid === null || oid === null) return null;
+  const { rows } = await pool.query(
+    `SELECT *
+       FROM account_links
+      WHERE LEAST(requester_id, target_id) = LEAST($1::int, $2::int)
+        AND GREATEST(requester_id, target_id) = GREATEST($1::int, $2::int)
+      LIMIT 1`,
+    [uid, oid]
+  );
+  return rows[0] || null;
+}
+
+async function getLinkRequests(userId) {
+  const uid = toInt(userId);
+  if (uid === null) {
+    return { incoming: [], outgoing: [], accepted: [] };
+  }
+  const { rows: incomingRows } = await pool.query(
+    `SELECT al.id, al.created_at, u.email
+       FROM account_links al
+       JOIN users u ON u.id = al.requester_id
+      WHERE al.target_id = $1
+        AND al.status = 'pending'
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  const { rows: outgoingRows } = await pool.query(
+    `SELECT al.id, al.created_at, u.email
+       FROM account_links al
+       JOIN users u ON u.id = al.target_id
+      WHERE al.requester_id = $1
+        AND al.status = 'pending'
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  const { rows: acceptedRows } = await pool.query(
+    `SELECT al.id, al.created_at, u.email
+       FROM account_links al
+       JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
+      WHERE al.status = 'accepted'
+        AND ($1 = al.requester_id OR $1 = al.target_id)
+      ORDER BY al.created_at DESC`,
+    [uid]
+  );
+
+  return {
+    incoming: incomingRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      created_at: row.created_at,
+    })),
+    outgoing: outgoingRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      created_at: row.created_at,
+    })),
+    accepted: acceptedRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      created_at: row.created_at,
+    })),
+  };
+}
 
 function setLinkFeedback(req, type, message) {
   req.session.linkFeedback = { type, message };

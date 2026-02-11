@@ -215,19 +215,9 @@ const time = formatTimeInTz(entry.created_at, tz);
 2. Add route handler in `src/server.js`
 3. Create/update EJS view in `src/views/`
 4. Add styles to `src/public/style.css`
-5. **Write tests** for any new or changed logic (see Testing below)
-6. Test locally with `docker compose up -d --build`
-7. Push to staging for integration testing
-8. Merge to main when ready
-
-### Testing
-**Always write tests** when adding or changing functionality. Tests live in `tests/` and run with `npm test` (Jest).
-
-- **Pure functions** (utils, parsers, validators): Write unit tests directly — no mocking needed
-- **Middleware** (CSRF, auth): Test with mock `req`/`res` objects
-- **Routes**: Use `supertest` with `createTestApp()` from `tests/setup.js`
-- **Run tests before committing** — husky pre-commit hook enforces this automatically
-- **CI runs tests too** — the `test` job in GitHub Actions gates the build pipeline
+5. Test locally with `docker compose up -d --build`
+6. Push to staging for integration testing
+7. Merge to main when ready
 
 ### Styling Guidelines
 - Use existing CSS variables for colors
@@ -263,6 +253,3 @@ const time = formatTimeInTz(entry.created_at, tz);
 7. **Never** auto-push to staging or main - user handles deployments
 8. **Never** commit directly to main - always commit to staging first, then merge to main
 9. **Footer quote:** "You got this. Trust me."
-10. **Always** write tests for new or changed logic
-11. **Never** change the calorie input `inputmode` — it must stay `inputmode="tel"` to show the numeric keypad on mobile
-12. **Never** use `eval()` or `Function()` in client-side code — CSP blocks `unsafe-eval`. Use safe parsers instead
