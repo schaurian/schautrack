@@ -3,6 +3,7 @@ const { initSchemaWithRetry } = require('./db/migrations');
 const { validateAIConfig } = require('./lib/ai');
 const { pool } = require('./db/pool');
 
+
 const PORT = process.env.PORT || 3000;
 
 initSchemaWithRetry()
