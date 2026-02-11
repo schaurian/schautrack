@@ -23,24 +23,17 @@
 
 **Priority: LOW** — cosmetic, not a bug
 
-### 3. No API token auth for mobile
-Only session-based auth exists. Mobile apps (Android) need to manage cookies awkwardly.
-
-**Fix:** Add JWT or API key auth as an alternative.
-
-**Priority: LOW** (unless Android app is actively developed)
-
-### 4. No pagination in admin panel
+### 3. No pagination in admin panel
 `routes/admin.js` loads all users at once. Will degrade with many users.
 
 **Priority: LOW** — not a problem at current scale
 
-### 5. No Prometheus metrics
+### 4. No Prometheus metrics
 No `/metrics` endpoint for monitoring request latency, error rates, or AI usage.
 
 **Priority: LOW**
 
-### 6. No Helm HPA template
+### 5. No Helm HPA template
 No HorizontalPodAutoscaler in the Helm chart.
 
 **Priority: LOW**
@@ -53,7 +46,6 @@ No HorizontalPodAutoscaler in the Helm chart.
 |---|-------|----------|--------|
 | 1 | Inconsistent error handling in auth | MEDIUM | Medium |
 | 2 | SVG text input format docs | LOW | Tiny |
-| 3 | No API token auth for mobile | LOW | Medium |
-| 4 | No admin pagination | LOW | Small |
-| 5 | No Prometheus metrics | LOW | Medium |
-| 6 | No Helm HPA | LOW | Small |
+| 3 | No admin pagination | LOW | Small |
+| 4 | No Prometheus metrics | LOW | Medium |
+| 5 | No Helm HPA | LOW | Small |
