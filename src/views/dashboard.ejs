@@ -60,19 +60,23 @@
           name="amount"
           placeholder="e.g. 250 or -200"
           autocomplete="off"
+          autofocus
           id="math-input"
           data-calorie-input
         >
       </label>
       <label class="field">
         <span>What</span>
-        <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack...">
+        <input type="text" name="entry_name" maxlength="120" placeholder="Optional label">
       </label>
-      <label class="field">
+      <label class="field date-field hidden">
         <span>Date</span>
         <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
       </label>
-      <button type="submit" class="primary" disabled data-submit-btn>Record</button>
+      <div class="form-actions">
+        <button type="button" class="date-toggle" title="Toggle date field">📅</button>
+        <button type="submit" class="primary" disabled data-submit-btn>Record</button>
+      </div>
     </form>
   </section>
 
@@ -1314,6 +1318,16 @@
           window.location.reload();
         }
       }, 60_000);
+
+      // Date toggle functionality
+      const dateToggle = document.querySelector('.date-toggle');
+      const dateField = document.querySelector('.date-field');
+      
+      if (dateToggle && dateField) {
+        dateToggle.addEventListener('click', () => {
+          dateField.classList.toggle('hidden');
+        });
+      }
     })();
   </script>
 

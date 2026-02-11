@@ -985,6 +985,34 @@ a:focus-visible,
   display: none !important;
 }
 
+.date-field.hidden {
+  display: none;
+}
+
+.date-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--stroke);
+  color: var(--text);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 18px;
+  min-width: auto;
+  min-height: auto;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.date-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(14, 165, 233, 0.5);
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .data-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
