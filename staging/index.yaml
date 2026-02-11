@@ -2,8 +2,29 @@ apiVersion: v1
 entries:
   schautrack:
   - apiVersion: v2
+    appVersion: staging-97
+    created: "2026-02-11T15:13:06.778603428Z"
+    description: A simple calorie tracking web application
+    digest: 13dcf4bd10d23ba3bd6562296fd26c7bcee34a09998016acad016c1b50252f9c
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - calorie
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/staging/schautrack-0.0.97.tgz
+    version: 0.0.97
+  - apiVersion: v2
     appVersion: staging-94
-    created: "2026-02-11T15:07:14.725850611Z"
+    created: "2026-02-11T15:13:06.777696277Z"
     description: A simple calorie tracking web application
     digest: 4184087b9bfdb83c345b89c7a43279fc3e4eba834420ce038a9824df86bf753a
     home: https://github.com/schaurian/schautrack
@@ -24,7 +45,7 @@ entries:
     version: 0.0.94
   - apiVersion: v2
     appVersion: staging-92
-    created: "2026-02-11T15:07:14.725289624Z"
+    created: "2026-02-11T15:13:06.77710231Z"
     description: A simple calorie tracking web application
     digest: 79a8bf24eb7823b37d41ca3b20adf8829839a6a8b4834fccec692259e1361a3f
     home: https://github.com/schaurian/schautrack
@@ -45,7 +66,7 @@ entries:
     version: 0.0.92
   - apiVersion: v2
     appVersion: staging-88
-    created: "2026-02-11T15:07:14.724750548Z"
+    created: "2026-02-11T15:13:06.776514856Z"
     description: A simple calorie tracking web application
     digest: 0b7aeee639445de0359357d37753a45f275d04ebadccefe32694d158fc66599c
     home: https://github.com/schaurian/schautrack
@@ -66,7 +87,7 @@ entries:
     version: 0.0.88
   - apiVersion: v2
     appVersion: staging-86
-    created: "2026-02-11T15:07:14.724179372Z"
+    created: "2026-02-11T15:13:06.775951105Z"
     description: A simple calorie tracking web application
     digest: a6b7d0ea580f0e592c7bc55afdba7e2aba4a6b41b7e3a27384a8cd0418111560
     home: https://github.com/schaurian/schautrack
@@ -85,4 +106,4 @@ entries:
     urls:
     - https://helm.schautrack.com/staging/schautrack-0.0.86.tgz
     version: 0.0.86
-generated: "2026-02-11T15:07:14.722926994Z"
+generated: "2026-02-11T15:13:06.775234249Z"
