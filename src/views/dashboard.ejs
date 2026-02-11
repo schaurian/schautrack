@@ -55,7 +55,7 @@
         <span>Calories</span>
         <input
           type="text"
-          inputmode="text"
+          inputmode="tel"
           pattern="[0-9+\-*/().\s]*"
           name="amount"
           placeholder="e.g. 250 or -200"
@@ -1253,16 +1253,59 @@
       const calorieInput = logForm?.querySelector('input[name="amount"]');
       const submitBtn = logForm?.querySelector('[data-submit-btn]');
 
+      // Safe math evaluator (recursive descent parser, no eval/Function)
+      const safeMathEval = (expr) => {
+        let pos = 0;
+        const peek = () => pos < expr.length ? expr[pos] : null;
+        const consume = () => pos < expr.length ? expr[pos++] : null;
+        const parseNumber = () => {
+          let num = '';
+          while (pos < expr.length && /[0-9.]/.test(expr[pos])) num += consume();
+          if (!num || num === '.') throw new Error('Invalid');
+          const v = parseFloat(num);
+          if (!Number.isFinite(v)) throw new Error('Invalid');
+          return v;
+        };
+        const parseFactor = () => {
+          const ch = peek();
+          if (ch === '(') { consume(); const r = parseExpr(); if (consume() !== ')') throw new Error('Invalid'); return r; }
+          if (ch === '-') { consume(); return -parseFactor(); }
+          if (ch === '+') { consume(); return parseFactor(); }
+          if (/[0-9]/.test(ch)) return parseNumber();
+          throw new Error('Invalid');
+        };
+        const parseTerm = () => {
+          let left = parseFactor();
+          while (pos < expr.length) {
+            const op = peek();
+            if (op === '*') { consume(); left *= parseFactor(); }
+            else if (op === '/') { consume(); const r = parseFactor(); if (r === 0) throw new Error('Invalid'); left /= r; }
+            else break;
+          }
+          return left;
+        };
+        const parseExpr = () => {
+          let left = parseTerm();
+          while (pos < expr.length) {
+            const op = peek();
+            if (op === '+') { consume(); left += parseTerm(); }
+            else if (op === '-') { consume(); left -= parseTerm(); }
+            else break;
+          }
+          return left;
+        };
+        const result = parseExpr();
+        if (pos < expr.length) throw new Error('Invalid');
+        return result;
+      };
+
       const isValidCalorieInput = (value) => {
         if (!value || !value.trim()) return false;
-        const trimmed = value.trim();
-        // Allow: numbers with math operators (+, -, *, /) and parentheses
-        // Only allow safe characters to prevent code injection
-        if (!/^[\d+\-*/() ]+$/.test(trimmed)) return false;
-        // Must contain at least one digit
-        if (!/\d/.test(trimmed)) return false;
+        const expr = value.trim().replace(/\s+/g, '');
+        if (!/^[\d+\-*/().]+$/.test(expr)) return false;
+        if (!/\d/.test(expr)) return false;
         try {
-          const result = Function('"use strict"; return (' + trimmed + ')')();
+          const result = safeMathEval(expr);
           return typeof result === 'number' && isFinite(result);
         } catch {
           return false;
@@ -1276,10 +1319,10 @@
 
       if (calorieInput) {
         // Filter input to only allow numbers and math operators
-        const validCalorieChars = /^[\d+\-*/() ]+$/;
+        const validCalorieChars = /^[\d+\-*/() .]+$/;
         calorieInput.addEventListener('beforeinput', (e) => {
           if (e.inputType === 'insertText' && e.data) {
-            // Allow: digits, +, -, *, /, (, ), spaces
+            // Allow: digits, +, -, *, /, (, ), spaces, dots
             if (!validCalorieChars.test(e.data)) {
               e.preventDefault();
             }
@@ -1292,7 +1335,7 @@
           if (!validCalorieChars.test(paste)) {
             e.preventDefault();
             // Insert only valid characters from paste
-            const filtered = paste.replace(/[^\d+\-*/() ]/g, '');
+            const filtered = paste.replace(/[^\d+\-*/() .]/g, '');
             if (filtered) {
               document.execCommand('insertText', false, filtered);
             }
