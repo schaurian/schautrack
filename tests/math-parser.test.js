@@ -91,6 +91,12 @@ describe('Math Parser', () => {
       expect(parseAmount('100 / (5 - 5)')).toEqual({ ok: false, value: 0 });
     });
 
+    test('should reject Infinity from huge numbers', () => {
+      // 1e999 overflows to Infinity
+      const huge = '1' + '0'.repeat(999);
+      expect(parseAmount(huge)).toEqual({ ok: false, value: 0 });
+    });
+
     test('should handle negative numbers', () => {
       expect(parseAmount('-10')).toEqual({ ok: true, value: -10 });
       expect(parseAmount('10 + (-5)')).toEqual({ ok: true, value: 5 });

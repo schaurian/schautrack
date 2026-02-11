@@ -29,6 +29,12 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
     return res.status(400).json({ ok: false, error: 'Invalid image data' });
   }
 
+  // Reject oversized images (~10MB decoded limit)
+  const MAX_BASE64_LENGTH = 14 * 1024 * 1024; // ~10MB decoded
+  if (image.length > MAX_BASE64_LENGTH) {
+    return res.status(413).json({ ok: false, error: 'Image too large. Maximum size is 10MB.' });
+  }
+
   const user = req.currentUser;
 
   // Determine provider from global setting only

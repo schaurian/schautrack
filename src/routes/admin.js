@@ -93,7 +93,9 @@ router.post('/admin/users/:id/delete', requireLogin, requireAdmin, async (req, r
     await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
     await pool.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-    
+    // Clean up any active sessions for the deleted user
+    await pool.query(`DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = $1`, [userId]);
+
     await pool.query('COMMIT');
     req.session.adminFeedback = { type: 'success', message: 'User deleted completely.' };
   } catch (err) {

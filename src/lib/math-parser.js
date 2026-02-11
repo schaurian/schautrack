@@ -46,7 +46,11 @@ function safeMathEval(expr) {
     if (num === '' || num === '.') {
       throw new Error('Invalid number');
     }
-    return parseFloat(num);
+    const value = parseFloat(num);
+    if (!Number.isFinite(value)) {
+      throw new Error('Number out of range');
+    }
+    return value;
   }
   
   function parseFactor() {

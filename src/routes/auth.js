@@ -210,7 +210,7 @@ router.post('/register', authLimiter, csrfProtection, async (req, res) => {
       // Store credentials in session and show CAPTCHA (hash password for security)
       const detectedTz = timezone || getClientTimezone(req) || 'UTC';
       const passwordHash = await argon2.hash(password);
-      req.session.pendingRegistration = { email, passwordHash, timezone: detectedTz };
+      req.session.pendingRegistration = { email, passwordHash, timezone: detectedTz, createdAt: Date.now() };
 
       const newCaptcha = generateCaptcha();
       req.session.captchaAnswer = newCaptcha.text;
@@ -235,7 +235,10 @@ router.post('/register', authLimiter, csrfProtection, async (req, res) => {
   // Step 2: CAPTCHA submitted - verify and create account
   if (step === 'captcha') {
     const pending = req.session.pendingRegistration;
-    if (!pending || !pending.email || !pending.passwordHash) {
+    const PENDING_REG_EXPIRY = 30 * 60 * 1000; // 30 minutes
+    if (!pending || !pending.email || !pending.passwordHash ||
+        (pending.createdAt && Date.now() - pending.createdAt > PENDING_REG_EXPIRY)) {
+      delete req.session.pendingRegistration;
       return res.render('register', {
         error: 'Registration session expired. Please start again.',
         email: '',
@@ -970,6 +973,7 @@ router.post('/settings/email/request', strictLimiter, requireLogin, async (req, 
 
     // Store pending email in session for the verification page
     req.session.pendingEmailChange = newEmail;
+    req.session.pendingEmailChangeCreatedAt = Date.now();
     req.session.emailChangeAttempts = 0;
 
     res.redirect('/settings/email/verify');
@@ -982,7 +986,12 @@ router.post('/settings/email/request', strictLimiter, requireLogin, async (req, 
 
 router.get('/settings/email/verify', requireLogin, (req, res) => {
   const pendingEmail = req.session.pendingEmailChange;
-  if (!pendingEmail) {
+  const PENDING_EMAIL_EXPIRY = 30 * 60 * 1000; // 30 minutes
+  if (!pendingEmail ||
+      (req.session.pendingEmailChangeCreatedAt && Date.now() - req.session.pendingEmailChangeCreatedAt > PENDING_EMAIL_EXPIRY)) {
+    delete req.session.pendingEmailChange;
+    delete req.session.pendingEmailChangeCreatedAt;
+    delete req.session.emailChangeAttempts;
     return res.redirect('/settings');
   }
 
@@ -999,7 +1008,13 @@ router.get('/settings/email/verify', requireLogin, (req, res) => {
 
 router.post('/settings/email/verify', requireLogin, async (req, res) => {
   const pendingEmail = req.session.pendingEmailChange;
-  if (!pendingEmail) {
+  const PENDING_EMAIL_EXPIRY = 30 * 60 * 1000; // 30 minutes
+  if (!pendingEmail ||
+      (req.session.pendingEmailChangeCreatedAt && Date.now() - req.session.pendingEmailChangeCreatedAt > PENDING_EMAIL_EXPIRY)) {
+    delete req.session.pendingEmailChange;
+    delete req.session.pendingEmailChangeCreatedAt;
+    delete req.session.emailChangeAttempts;
+    req.session.emailFeedback = { type: 'error', message: 'Email change request expired. Please start again.' };
     return res.redirect('/settings');
   }
 
@@ -1031,6 +1046,7 @@ router.post('/settings/email/verify', requireLogin, async (req, res) => {
 
     // Clear session state
     delete req.session.pendingEmailChange;
+    delete req.session.pendingEmailChangeCreatedAt;
     delete req.session.emailChangeAttempts;
 
     req.session.emailFeedback = { type: 'success', message: 'Email address updated successfully.' };
@@ -1044,6 +1060,7 @@ router.post('/settings/email/verify', requireLogin, async (req, res) => {
 
 router.post('/settings/email/cancel', requireLogin, (req, res) => {
   delete req.session.pendingEmailChange;
+  delete req.session.pendingEmailChangeCreatedAt;
   delete req.session.emailChangeAttempts;
   res.redirect('/settings');
 });
