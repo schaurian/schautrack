@@ -1,11 +1,37 @@
 <%- include('partials/header', { title: 'Dashboard' }) %>
+  <section class="grid two">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Calorie balance</h2>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Daily goal</div>
+          <div class="stat-value" data-stat-goal><%= user.daily_goal ? `${user.daily_goal} kcal` : 'Not set' %></div>
+        </div>
+        <div class="stat stat-balance <%= !user.daily_goal ? '' : goalStatus === 'under' ? 'stat-success' : goalStatus === 'over_threshold' ? 'stat-danger' : 'stat-warning' %>" data-stat-balance>
+          <div class="stat-label">Balance</div>
+          <div class="stat-value" data-stat-logged><%= todayTotal %> kcal</div>
+          <div class="stat-detail muted small" data-stat-status-detail>
+            <% if (!user.daily_goal) { %>
+              Set a goal to track
+            <% } else if (goalStatus === 'under') { %>
+              <%= goalDelta %> kcal remaining
+            <% } else { %>
+              <%= goalDelta %> kcal over
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="panel-header">
       <div>
         <h2>Munch log</h2>
-        <div class="balance-inline <%= !user.daily_goal ? '' : goalStatus === 'under' ? 'balance-success' : goalStatus === 'over_threshold' ? 'balance-danger' : 'balance-warning' %>" data-stat-balance>
-          <span data-stat-logged><%= todayTotal %></span> / <span data-stat-goal><%= user.daily_goal || '—' %></span> kcal
-        </div>
       </div>
       <div class="ai-photo-wrap">
         <% if (hasAiEnabled && aiUsage) { %>
@@ -252,6 +278,7 @@
       const statGoal = document.querySelector('[data-stat-goal]');
       const statLogged = document.querySelector('[data-stat-logged]');
       const statBalance = document.querySelector('[data-stat-balance]');
+      const statStatusDetail = document.querySelector('[data-stat-status-detail]');
       const initialWeight = <%- JSON.stringify(weightEntry || null) %>;
       const lastWeight = <%- JSON.stringify(lastWeightEntry || null) %>;
       const weightCache = new Map();
@@ -328,21 +355,30 @@
       const updateTopStats = (data) => {
         if (!data) return;
         if (statGoal) {
-          statGoal.textContent = data.dailyGoal || '—';
+          statGoal.textContent = data.dailyGoal ? `${data.dailyGoal} kcal` : 'Not set';
         }
         if (statLogged) {
-          statLogged.textContent = data.todayTotal || 0;
+          statLogged.textContent = `${data.todayTotal || 0} kcal`;
         }
         if (statBalance) {
-          statBalance.classList.remove('balance-success', 'balance-warning', 'balance-danger');
+          statBalance.classList.remove('stat-success', 'stat-warning', 'stat-danger');
           if (data.dailyGoal) {
             if (data.goalStatus === 'under') {
-              statBalance.classList.add('balance-success');
+              statBalance.classList.add('stat-success');
             } else if (data.goalStatus === 'over_threshold') {
-              statBalance.classList.add('balance-danger');
+              statBalance.classList.add('stat-danger');
             } else {
-              statBalance.classList.add('balance-warning');
+              statBalance.classList.add('stat-warning');
             }
+          }
+        }
+        if (statStatusDetail) {
+          if (!data.dailyGoal) {
+            statStatusDetail.textContent = 'Set a goal to track';
+          } else if (data.goalStatus === 'under') {
+            statStatusDetail.textContent = `${Math.abs(data.goalDelta || 0)} kcal remaining`;
+          } else {
+            statStatusDetail.textContent = `${Math.abs(data.goalDelta || 0)} kcal over`;
           }
         }
       };
