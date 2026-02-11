@@ -271,17 +271,31 @@ jobs:
       - name: Install git-cliff
         uses: taiki-e/install-action@git-cliff
 
+      - name: Fetch tags
+        run: git fetch --tags --force
+
       - name: Generate changelog
         id: changelog
         run: |
           VERSION="v${{ needs.compute-version.outputs.version }}"
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
-          # Generate grouped changelog with git-cliff
+          # Find the previous tag (the one before our new tag)
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
+
+          # Generate grouped changelog with git-cliff for the range
           if [ -z "$PREV_TAG" ]; then
-            CHANGES=$(git-cliff --config cliff.toml --unreleased --strip header)
+            CHANGES=$(git-cliff --config cliff.toml --latest --strip header 2>/dev/null || echo "")
           else
-            CHANGES=$(git-cliff --config cliff.toml --unreleased --tag "$VERSION" --strip header)
+            CHANGES=$(git-cliff --config cliff.toml "${PREV_TAG}..${VERSION}" --strip header 2>/dev/null || echo "")
+          fi
+
+          # Fallback to flat commit list if git-cliff produced no output
+          if [ -z "$CHANGES" ]; then
+            if [ -n "$PREV_TAG" ]; then
+              CHANGES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+            else
+              CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges)
+            fi
           fi
 
           cat <<EOF > changelog.md
