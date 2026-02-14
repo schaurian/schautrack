@@ -396,10 +396,14 @@ jobs:
           # Ensure .nojekyll exists to prevent Jekyll processing
           touch gh-pages/.nojekyll
 
-          # Copy new package
+          # Remove stale .tgz files to prevent cross-channel contamination
+          # (helm repo index scans all .tgz in the directory and adds them to the index)
+          rm -f "$CHANNEL_PATH"/*.tgz
+
+          # Copy only the new package
           cp .helm-packages/*.tgz "$CHANNEL_PATH/"
 
-          # Update or create index
+          # Update or create index (--merge preserves previous valid entries)
           if [ -f "$CHANNEL_PATH/index.yaml" ]; then
             helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
           else
