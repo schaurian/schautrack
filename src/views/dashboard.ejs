@@ -51,6 +51,7 @@
       </div>
     </div>
     <form action="/entries" method="POST" class="stack horizontal" data-log-form>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label class="field">
         <span>Calories</span>
         <input

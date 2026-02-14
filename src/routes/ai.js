@@ -138,7 +138,7 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
     if (!customModel) {
       return res.status(400).json({
         ok: false,
-        error: `${provider === 'openai' ? 'OpenAI' : 'Claude'} requires AI_MODEL to be configured (e.g., ${provider === 'openai' ? 'gpt-4o-mini' : 'claude-sonnet-4-20250514'})`
+        error: `${provider === 'openai' ? 'OpenAI' : 'Claude'} requires AI_MODEL to be configured (e.g., ${provider === 'openai' ? 'gpt-4o-mini' : 'claude-sonnet-4-5-20250929'})`
       });
     }
   }
