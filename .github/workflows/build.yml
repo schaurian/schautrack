@@ -426,7 +426,7 @@ jobs:
         id: app
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "name=schautrack" >> $GITHUB_OUTPUT
+            echo "name=schautrack-prod" >> $GITHUB_OUTPUT
           else
             echo "name=schautrack-staging" >> $GITHUB_OUTPUT
           fi
