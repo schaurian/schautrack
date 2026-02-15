@@ -3,6 +3,25 @@ const rateLimit = require('express-rate-limit');
 const argon2 = require('argon2');
 const speakeasy = require('speakeasy');
 const { pool } = require('../db/pool');
+
+/**
+ * Verify password against hash, supporting both argon2 and legacy bcrypt.
+ * If bcrypt hash matches, re-hashes with argon2 and updates the DB.
+ */
+async function verifyAndMigratePassword(passwordHash, password, userId) {
+  if (!passwordHash || !password) return false;
+
+  if (passwordHash.startsWith('$2b$') || passwordHash.startsWith('$2a$')) {
+    const valid = await bcrypt.compare(password, passwordHash);
+    if (valid && userId) {
+      const newHash = await argon2.hash(password);
+      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+    }
+    return valid;
+  }
+
+  return argon2.verify(passwordHash, password);
+}
 const { requireLogin } = require('../middleware/auth');
 const { csrfProtection } = require('../middleware/csrf');
 const { generateCaptcha, verifyCaptcha } = require('../lib/captcha');

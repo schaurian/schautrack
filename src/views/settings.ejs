@@ -85,6 +85,7 @@
         <div class="alert <%= passwordFeedback.type === 'error' ? 'danger' : 'success' %>"><%= passwordFeedback.message %></div>
       <% } %>
       <form action="/settings/password" method="POST" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label class="field">
           <span>Current password</span>
           <input type="password" name="current_password" required autocomplete="current-password">
