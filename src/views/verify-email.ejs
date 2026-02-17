@@ -24,6 +24,42 @@
         </label>
         <button type="submit" class="primary">Verify email</button>
       </form>
+      <% if (verifyAttempts >= 2) { %>
+        <form action="/verify-email/resend" method="POST" style="margin-top: var(--space-md);">
+          <button type="submit" class="ghost" id="resend-btn">Resend code</button>
+        </form>
+        <script>
+          (function() {
+            var btn = document.getElementById('resend-btn');
+            var cooldown = 60;
+            var key = 'resendCooldownUntil';
+            var until = parseInt(sessionStorage.getItem(key) || '0', 10);
+            var now = Date.now();
+            if (until > now) {
+              var left = Math.ceil((until - now) / 1000);
+              startCountdown(left);
+            }
+            btn.closest('form').addEventListener('submit', function() {
+              sessionStorage.setItem(key, String(Date.now() + cooldown * 1000));
+            });
+            function startCountdown(seconds) {
+              btn.disabled = true;
+              btn.textContent = 'Resend code (' + seconds + 's)';
+              var iv = setInterval(function() {
+                seconds--;
+                if (seconds <= 0) {
+                  clearInterval(iv);
+                  btn.disabled = false;
+                  btn.textContent = 'Resend code';
+                  sessionStorage.removeItem(key);
+                } else {
+                  btn.textContent = 'Resend code (' + seconds + 's)';
+                }
+              }, 1000);
+            }
+          })();
+        </script>
+      <% } %>
     <% } %>
   </section>
 <%- include('partials/footer') %>

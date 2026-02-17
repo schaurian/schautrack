@@ -682,7 +682,7 @@ router.get('/verify-email', (req, res) => {
     return res.redirect('/login');
   }
 
-  res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail });
+  res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail, verifyAttempts: req.session.verifyAttempts || 0 });
 });
 
 router.post('/verify-email', async (req, res) => {
@@ -708,6 +708,7 @@ router.post('/verify-email', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
     });
   }
 
@@ -718,6 +719,7 @@ router.post('/verify-email', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
     });
   }
 
@@ -731,6 +733,7 @@ router.post('/verify-email', async (req, res) => {
         email,
         codeVerified: false,
         supportEmail,
+        verifyAttempts: verifyAttempts + 1,
       });
     }
 
@@ -755,6 +758,7 @@ router.post('/verify-email', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
     });
   }
 });
@@ -774,6 +778,7 @@ router.post('/verify-email/resend', async (req, res) => {
 
   // Rate limit: max 3 resend attempts per session
   const resendAttempts = req.session.resendAttempts || 0;
+  const verifyAttempts = req.session.verifyAttempts || 0;
   if (resendAttempts >= 3) {
     return res.render('verify-email', {
       error: 'Too many resend requests. Please wait and try again later.',
@@ -781,6 +786,22 @@ router.post('/verify-email/resend', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
+    });
+  }
+
+  // Cooldown: 1 minute between resends
+  const lastResendAt = req.session.lastResendAt || 0;
+  const elapsed = Date.now() - lastResendAt;
+  if (elapsed < 60000) {
+    const remaining = Math.ceil((60000 - elapsed) / 1000);
+    return res.render('verify-email', {
+      error: `Please wait ${remaining} seconds before requesting another code.`,
+      success: null,
+      email,
+      codeVerified: false,
+      supportEmail,
+      verifyAttempts,
     });
   }
 
@@ -802,6 +823,7 @@ router.post('/verify-email/resend', async (req, res) => {
         email: '',
         codeVerified: true,
         supportEmail,
+        verifyAttempts: 0,
       });
     }
 
@@ -809,9 +831,10 @@ router.post('/verify-email/resend', async (req, res) => {
     const code = await createEmailVerificationToken(user.id);
     await sendVerificationEmail(email, code);
 
-    // Increment resend counter and reset verify attempts
+    // Increment resend counter, reset verify attempts, record timestamp
     req.session.resendAttempts = resendAttempts + 1;
     req.session.verifyAttempts = 0;
+    req.session.lastResendAt = Date.now();
 
     res.render('verify-email', {
       error: null,
@@ -819,6 +842,7 @@ router.post('/verify-email/resend', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts: 0,
     });
   } catch (err) {
     console.error('Resend verification error', err);
@@ -828,6 +852,7 @@ router.post('/verify-email/resend', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
     });
   }
 });
