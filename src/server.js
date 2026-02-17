@@ -4,7 +4,6 @@ const { validateAIConfig } = require('./lib/ai');
 const { pool } = require('./db/pool');
 const { markShuttingDown } = require('./routes/health');
 
-
 const PORT = process.env.PORT || 3000;
 
 initSchemaWithRetry()
