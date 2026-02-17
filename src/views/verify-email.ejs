@@ -18,6 +18,7 @@
     <% } else { %>
       <p class="muted">If <strong><%= email %></strong> is a valid address, we've sent a 6-digit code. Check your spam folder if you don't see it.</p>
       <form action="/verify-email" method="POST" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label class="field">
           <span>Verification code</span>
           <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" required autocomplete="off" autofocus>
@@ -25,6 +26,7 @@
         <button type="submit" class="primary">Verify email</button>
       </form>
       <form action="/verify-email/resend" method="POST" class="stack" style="margin-top: var(--space-md);">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% if (captchaSvg) { %>
           <div><%- captchaSvg %></div>
           <label class="field">
