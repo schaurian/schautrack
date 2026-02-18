@@ -22,17 +22,27 @@ function validateCsrfToken(req) {
   return crypto.timingSafeEqual(a, b);
 }
 
-// Middleware: attach CSRF token to res.locals for templates
+// Middleware: attach CSRF token as lazy getter on res.locals
+// The token is only generated (and session saved) when a template actually reads <%= csrfToken %>
+// This prevents bots/crawlers from creating thousands of empty sessions
 const addCsrfToken = (req, res, next) => {
   if (!req.session) return next();
-  const hadToken = !!req.session.csrfToken;
-  res.locals.csrfToken = generateCsrfToken(req);
-  // Force session save if we just created a new token (needed with saveUninitialized: false)
-  if (!hadToken && req.session.csrfToken) {
-    req.session.save(() => next());
-  } else {
-    next();
-  }
+  let cached;
+  Object.defineProperty(res.locals, 'csrfToken', {
+    get() {
+      if (cached !== undefined) return cached;
+      const hadToken = !!req.session.csrfToken;
+      cached = generateCsrfToken(req);
+      // Force session save if we just created a new token (needed with saveUninitialized: false)
+      if (!hadToken && req.session.csrfToken) {
+        req.session.save();
+      }
+      return cached;
+    },
+    configurable: true,
+    enumerable: true,
+  });
+  next();
 };
 
 // Middleware: validate CSRF token on state-changing requests

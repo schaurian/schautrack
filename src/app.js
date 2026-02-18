@@ -109,22 +109,14 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Refresh cookie expiry on every response (7-day inactivity timeout, not absolute)
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-      secure: false, // Dynamically upgraded via middleware below
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      secure: 'auto', // Uses X-Forwarded-Proto via trust proxy
       sameSite: 'lax',
     },
   })
 );
-
-// Upgrade cookie to secure when behind HTTPS reverse proxy
-// (done as middleware instead of secure:'auto' to avoid health probes flipping the flag)
-app.use((req, res, next) => {
-  if (req.protocol === 'https' && req.session) {
-    req.session.cookie.secure = true;
-  }
-  next();
-});
 
 // Rate limiting is handled in individual route modules
 
