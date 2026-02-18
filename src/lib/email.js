@@ -44,7 +44,7 @@ const sendEmail = async (to, subject, text, html) => {
 };
 
 const generateResetCode = () => {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 const sendVerificationEmail = async (email, code) => {

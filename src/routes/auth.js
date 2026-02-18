@@ -94,7 +94,16 @@ async function markTokenUsed(tokenId) {
 async function cleanExpiredTokens() {
   await pool.query('DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE');
   await pool.query('DELETE FROM email_verification_tokens WHERE expires_at < NOW() OR used = TRUE');
+  // Delete unverified users with no remaining verification tokens
+  await pool.query(`
+    DELETE FROM users
+    WHERE email_verified = FALSE
+      AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
+  `);
 }
+
+// Run cleanup every 15 minutes
+setInterval(() => { cleanExpiredTokens().catch(err => console.error('Token cleanup error', err)); }, 15 * 60 * 1000);
 
 // Email verification helpers
 async function createEmailVerificationToken(userId) {
@@ -682,7 +691,7 @@ router.get('/verify-email', (req, res) => {
     return res.redirect('/login');
   }
 
-  res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail });
+  res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail, verifyAttempts: req.session.verifyAttempts || 0, captchaSvg: null });
 });
 
 router.post('/verify-email', async (req, res) => {
@@ -708,6 +717,8 @@ router.post('/verify-email', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
+      captchaSvg: null,
     });
   }
 
@@ -718,6 +729,8 @@ router.post('/verify-email', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
+      captchaSvg: null,
     });
   }
 
@@ -731,6 +744,8 @@ router.post('/verify-email', async (req, res) => {
         email,
         codeVerified: false,
         supportEmail,
+        verifyAttempts: verifyAttempts + 1,
+        captchaSvg: null,
       });
     }
 
@@ -744,6 +759,8 @@ router.post('/verify-email', async (req, res) => {
     delete req.session.verifyCodeVerified;
     delete req.session.verifyAttempts;
     delete req.session.resendAttempts;
+    delete req.session.lastResendAt;
+    delete req.session.resendCaptchaAnswer;
     req.session.userId = tokenResult.userId;
 
     return res.redirect('/dashboard');
@@ -755,6 +772,8 @@ router.post('/verify-email', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
+      captchaSvg: null,
     });
   }
 });
@@ -774,6 +793,7 @@ router.post('/verify-email/resend', async (req, res) => {
 
   // Rate limit: max 3 resend attempts per session
   const resendAttempts = req.session.resendAttempts || 0;
+  const verifyAttempts = req.session.verifyAttempts || 0;
   if (resendAttempts >= 3) {
     return res.render('verify-email', {
       error: 'Too many resend requests. Please wait and try again later.',
@@ -781,7 +801,45 @@ router.post('/verify-email/resend', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
+      captchaSvg: null,
     });
+  }
+
+  // After the first resend: require 5-minute cooldown and captcha
+  if (resendAttempts > 0) {
+    const lastResendAt = req.session.lastResendAt || 0;
+    const elapsed = Date.now() - lastResendAt;
+    if (elapsed < 300000) {
+      const remaining = Math.ceil((300000 - elapsed) / 1000);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      return res.render('verify-email', {
+        error: `Please wait ${mins}:${secs < 10 ? '0' : ''}${secs} before requesting another code.`,
+        success: null,
+        email,
+        codeVerified: false,
+        supportEmail,
+        verifyAttempts,
+        captchaSvg: null,
+      });
+    }
+
+    const captchaAnswer = (req.body.captcha || '').trim();
+    if (!verifyCaptcha(req.session.resendCaptchaAnswer, captchaAnswer)) {
+      const captcha = generateCaptcha();
+      req.session.resendCaptchaAnswer = captcha.text;
+      return res.render('verify-email', {
+        error: captchaAnswer ? 'Incorrect captcha. Please try again.' : null,
+        success: null,
+        email,
+        codeVerified: false,
+        supportEmail,
+        verifyAttempts,
+        captchaSvg: captcha.data,
+      });
+    }
+    delete req.session.resendCaptchaAnswer;
   }
 
   try {
@@ -802,6 +860,8 @@ router.post('/verify-email/resend', async (req, res) => {
         email: '',
         codeVerified: true,
         supportEmail,
+        verifyAttempts: 0,
+        captchaSvg: null,
       });
     }
 
@@ -809,9 +869,10 @@ router.post('/verify-email/resend', async (req, res) => {
     const code = await createEmailVerificationToken(user.id);
     await sendVerificationEmail(email, code);
 
-    // Increment resend counter and reset verify attempts
+    // Increment resend counter, reset verify attempts, record timestamp
     req.session.resendAttempts = resendAttempts + 1;
     req.session.verifyAttempts = 0;
+    req.session.lastResendAt = Date.now();
 
     res.render('verify-email', {
       error: null,
@@ -819,6 +880,8 @@ router.post('/verify-email/resend', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts: 0,
+      captchaSvg: null,
     });
   } catch (err) {
     console.error('Resend verification error', err);
@@ -828,6 +891,8 @@ router.post('/verify-email/resend', async (req, res) => {
       email,
       codeVerified: false,
       supportEmail,
+      verifyAttempts,
+      captchaSvg: null,
     });
   }
 });
