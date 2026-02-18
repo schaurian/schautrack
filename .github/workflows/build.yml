@@ -440,15 +440,17 @@ jobs:
             VERSION="${{ needs.compute-version.outputs.version }}"
             URL="https://helm.schautrack.com/index.yaml"
           fi
-          for i in $(seq 1 60); do
-            if curl -sf "$URL" | grep -q "version: $VERSION"; then
+          MAX_ATTEMPTS=90
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            if curl -sf "$URL?_=$(date +%s)" | grep -q "version: $VERSION"; then
               echo "Chart version $VERSION is live on GitHub Pages"
               exit 0
             fi
-            echo "Waiting for GitHub Pages to serve $VERSION... ($i/60)"
-            sleep 2
+            echo "Waiting for GitHub Pages to serve $VERSION... ($i/$MAX_ATTEMPTS)"
+            sleep 5
           done
-          echo "Timed out waiting for GitHub Pages, refreshing ArgoCD anyway"
+          echo "::error::Timed out waiting for chart $VERSION on GitHub Pages after $((MAX_ATTEMPTS * 5))s"
+          exit 1
 
       - name: Refresh ArgoCD application
         run: |
