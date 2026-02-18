@@ -431,6 +431,25 @@ jobs:
             echo "name=schautrack-staging" >> $GITHUB_OUTPUT
           fi
 
+      - name: Wait for Helm chart on GitHub Pages
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            VERSION="0.0.${{ github.run_number }}"
+            URL="https://helm.schautrack.com/staging/index.yaml"
+          else
+            VERSION="${{ needs.compute-version.outputs.version }}"
+            URL="https://helm.schautrack.com/index.yaml"
+          fi
+          for i in $(seq 1 60); do
+            if curl -sf "$URL" | grep -q "version: $VERSION"; then
+              echo "Chart version $VERSION is live on GitHub Pages"
+              exit 0
+            fi
+            echo "Waiting for GitHub Pages to serve $VERSION... ($i/60)"
+            sleep 2
+          done
+          echo "Timed out waiting for GitHub Pages, refreshing ArgoCD anyway"
+
       - name: Refresh ArgoCD application
         run: |
           curl -sSf -X GET \
