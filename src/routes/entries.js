@@ -609,7 +609,7 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
   const todayStr = formatDateInTz(today, viewerTz);
 
   if (dateStr < oldestStr || dateStr > todayStr) {
-    return res.status(400).json({ ok: false, error: 'Date must be within the last 14 days' });
+    return res.status(400).json({ ok: false, error: `Date must be within the last ${MAX_HISTORY_DAYS} days` });
   }
 
   try {
@@ -657,13 +657,6 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   const hasCalorieEntry = amountOk && amount !== 0;
   const hasWeight = weightOk && weightVal !== null;
 
-  if (!hasCalorieEntry && !hasWeight) {
-    if (wantsJson) {
-      return res.status(400).json({ ok: false, error: 'Invalid entry data' });
-    }
-    return res.redirect('/dashboard');
-  }
-
   // Parse macro values (save any that are provided, regardless of enabled state)
   const macroValues = {};
   for (const key of MACRO_KEYS) {
@@ -672,11 +665,21 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
       macroValues[key] = value;
     }
   }
+  const hasMacroEntry = Object.keys(macroValues).length > 0;
+
+  if (!hasCalorieEntry && !hasMacroEntry && !hasWeight) {
+    if (wantsJson) {
+      return res.status(400).json({ ok: false, error: 'Invalid entry data' });
+    }
+    return res.redirect('/dashboard');
+  }
 
   try {
     await pool.query('BEGIN');
 
-    if (hasCalorieEntry) {
+    if (hasCalorieEntry || hasMacroEntry) {
+      // Use provided calorie amount, or 0 if only macros were provided
+      const entryAmount = hasCalorieEntry ? amount : 0;
       // Build dynamic query for macros
       const macroKeys = Object.keys(macroValues);
       const macroColumns = macroKeys.length > 0 ? ', ' + macroKeys.map(k => `${k}_g`).join(', ') : '';
@@ -685,7 +688,7 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
 
       await pool.query(
         `INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name${macroColumns}) VALUES ($1, $2, $3, $4${macroPlaceholders})`,
-        [req.currentUser.id, entryDate, amount, entryNameSafe, ...macroVals]
+        [req.currentUser.id, entryDate, entryAmount, entryNameSafe, ...macroVals]
       );
     }
 
@@ -695,7 +698,7 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
 
     await pool.query('COMMIT');
 
-    if (hasCalorieEntry) {
+    if (hasCalorieEntry || hasMacroEntry) {
       await broadcastEntryChange(req.currentUser.id);
     }
 
@@ -830,21 +833,6 @@ router.post('/entries/:id/delete', requireLogin, async (req, res) => {
   res.redirect('/dashboard');
 });
 
-router.post('/goal', requireLogin, async (req, res) => {
-  const goal = parseInt(req.body.goal, 10);
-  if (Number.isNaN(goal) || goal < 0) {
-    return res.redirect('/settings');
-  }
-
-  try {
-    await pool.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [goal, req.currentUser.id]);
-  } catch (err) {
-    console.error('Failed to update goal', err);
-  }
-
-  res.redirect('/settings');
-});
-
 // Import/Export
 router.get('/settings/export', requireLogin, async (req, res) => {
   const user = req.currentUser;
@@ -945,12 +933,32 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
         req.currentUser.id,
       ]);
     }
-    // Import macro preferences if present
+    // Import macro preferences if present (validate keys against known macros)
     const importedMacrosEnabled = parsed.user?.macros_enabled;
     const importedMacroGoals = parsed.user?.macro_goals;
     if (importedMacrosEnabled || importedMacroGoals) {
-      const macrosEnabled = importedMacrosEnabled && typeof importedMacrosEnabled === 'object' ? importedMacrosEnabled : {};
-      const macroGoalsImport = importedMacroGoals && typeof importedMacroGoals === 'object' ? importedMacroGoals : {};
+      const validToggleKeys = [...MACRO_KEYS, 'calories'];
+      const validGoalKeys = [...MACRO_KEYS.map(k => k), ...MACRO_KEYS.map(k => `${k}_mode`), 'calories_mode'];
+
+      const macrosEnabled = {};
+      if (importedMacrosEnabled && typeof importedMacrosEnabled === 'object') {
+        for (const key of validToggleKeys) {
+          if (key in importedMacrosEnabled && typeof importedMacrosEnabled[key] === 'boolean') {
+            macrosEnabled[key] = importedMacrosEnabled[key];
+          }
+        }
+      }
+      const macroGoalsImport = {};
+      if (importedMacroGoals && typeof importedMacroGoals === 'object') {
+        for (const key of validGoalKeys) {
+          const val = importedMacroGoals[key];
+          if (key.endsWith('_mode')) {
+            if (val === 'limit' || val === 'target') macroGoalsImport[key] = val;
+          } else if (Number.isInteger(val) && val >= 0) {
+            macroGoalsImport[key] = val;
+          }
+        }
+      }
       await pool.query('UPDATE users SET macros_enabled = $1, macro_goals = $2 WHERE id = $3', [
         JSON.stringify(macrosEnabled),
         JSON.stringify(macroGoalsImport),

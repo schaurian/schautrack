@@ -73,7 +73,7 @@
       <div class="entry-form-row">
         <label class="field entry-field-name">
           <span>What</span>
-          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack..." data-name-input>
+          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack...">
         </label>
         <% if (caloriesEnabled) { %>
         <label class="field entry-field-nutrient" data-nutrient-field="kcal">
@@ -242,13 +242,13 @@
         </div>
       </div>
       <div class="entry-table-wrap <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %> <%= (!enabledMacros || enabledMacros.length === 0) ? 'no-macros' : '' %>" data-entry-list>
-        <% if (enabledMacros && enabledMacros.length > 0) { %>
+        <% if ((enabledMacros && enabledMacros.length > 0) || caloriesEnabled) { %>
         <div class="entry-table-header" data-entry-header>
           <span class="entry-th entry-th-name">What</span>
-          <span class="entry-th entry-th-kcal">kcal</span>
-          <% enabledMacros.forEach((key) => { %>
+          <% if (caloriesEnabled) { %><span class="entry-th entry-th-kcal">kcal</span><% } %>
+          <% if (enabledMacros) { enabledMacros.forEach((key) => { %>
             <span class="entry-th entry-th-macro"><%= macroLabels[key].label %></span>
-          <% }) %>
+          <% }) } %>
           <span class="entry-th entry-th-time">Time</span>
           <span class="entry-th entry-th-actions"></span>
         </div>
@@ -257,7 +257,7 @@
           <% recentEntries.forEach((entry) => { %>
             <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
               <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              <button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
+              <% if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button><% } %>
               <% if (enabledMacros && enabledMacros.length > 0) { %>
                 <% enabledMacros.forEach((key) => { %>
                   <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></button>
@@ -293,15 +293,22 @@
       let activeShareLabelEdit = null;
       let entryEventSource = null;
       let pollTimer = null;
-      const initialEntries = <%- JSON.stringify(recentEntries.map((entry) => ({
-        id: entry.id,
-        date: entry.entry_date ? entry.entry_date.toISOString().slice(0, 10) : selectedDate,
-        time: entry.timeFormatted || '',
-        amount: entry.amount,
-        name: entry.entry_name || null,
-        macros: entry.macros || null,
-      }))) %>;
+      const initialEntries = <%- JSON.stringify(recentEntries.map((entry) => {
+        const macros = {};
+        (enabledMacros || []).forEach((key) => {
+          macros[key] = entry[key + '_g'] != null ? entry[key + '_g'] : null;
+        });
+        return {
+          id: entry.id,
+          date: entry.entry_date ? entry.entry_date.toISOString().slice(0, 10) : selectedDate,
+          time: entry.timeFormatted || '',
+          amount: entry.amount,
+          name: entry.entry_name || null,
+          macros: Object.keys(macros).length > 0 ? macros : null,
+        };
+      })) %>;
       const enabledMacrosJs = <%- JSON.stringify(enabledMacros || []) %>;
+      const caloriesEnabledJs = <%- JSON.stringify(caloriesEnabled !== false) %>;
       const macroLabelsJs = <%- JSON.stringify(macroLabels || {}) %>;
       const weightDateInput = document.querySelector('[data-weight-date]');
       const weightSlot = document.querySelector('[data-weight-slot]');
@@ -605,16 +612,17 @@
         // Toggle no-macros class
         entryList.classList.toggle('no-macros', enabledMacrosJs.length === 0);
 
-        // Build header if macros are enabled
+        // Build header if macros or calories are enabled
         let headerHtml = '';
-        if (enabledMacrosJs.length > 0) {
+        if (enabledMacrosJs.length > 0 || caloriesEnabledJs) {
+          const kcalHeader = caloriesEnabledJs ? '<span class="entry-th entry-th-kcal">kcal</span>' : '';
           const macroHeaders = enabledMacrosJs.map(key =>
             `<span class="entry-th entry-th-macro">${macroLabelsJs[key]?.label || key}</span>`
           ).join('');
           headerHtml = `
             <div class="entry-table-header" data-entry-header>
               <span class="entry-th entry-th-name">What</span>
-              <span class="entry-th entry-th-kcal">kcal</span>
+              ${kcalHeader}
               ${macroHeaders}
               <span class="entry-th entry-th-time">Time</span>
               <span class="entry-th entry-th-actions"></span>
@@ -646,11 +654,18 @@
             return `<button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="${key}">${displayVal}</button>`;
           }).join('');
 
+          const kcalCellLocked = caloriesEnabledJs
+            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount} kcal</button>`
+            : '';
+          const kcalCellEditable = caloriesEnabledJs
+            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>`
+            : '';
+
           if (!canEdit) {
             return `
             <div class="entry-row view-only" data-entry-row data-entry-id="${entry.id}">
               <button type="button" class="edit-trigger entry-cell entry-name is-locked" data-locked="true">${safeName}</button>
-              <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount} kcal</button>
+              ${kcalCellLocked}
               ${macroCells}
               <span class="entry-cell entry-time muted small">${entry.time || ''}</span>
               <form class="inline-form entry-cell entry-delete delete-placeholder" aria-hidden="true">
@@ -662,7 +677,7 @@
           return `
           <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
             <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name>${safeName}</button>
-            <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>
+            ${kcalCellEditable}
             ${macroCells}
             <span class="entry-cell entry-time muted small" data-entry-time>${entry.time || ''}</span>
             <form action="/entries/${entry.id}/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
@@ -1430,9 +1445,18 @@
         }
       };
 
+      const macroInputs = Array.from(logForm ? logForm.querySelectorAll('[data-macro-input]') : []);
+
+      const hasAnyMacroValue = () => macroInputs.some(inp => {
+        const v = inp.value.trim();
+        return v !== '' && !Number.isNaN(parseInt(v, 10));
+      });
+
       const updateSubmitState = () => {
-        if (!submitBtn || !calorieInput) return;
-        submitBtn.disabled = !isValidCalorieInput(calorieInput.value);
+        if (!submitBtn) return;
+        const hasCalories = calorieInput ? isValidCalorieInput(calorieInput.value) : false;
+        const hasMacros = hasAnyMacroValue();
+        submitBtn.disabled = !hasCalories && !hasMacros;
       };
 
       if (calorieInput) {
@@ -1461,8 +1485,9 @@
         });
 
         calorieInput.addEventListener('input', updateSubmitState);
-        updateSubmitState();
       }
+      macroInputs.forEach(inp => inp.addEventListener('input', updateSubmitState));
+      updateSubmitState();
 
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel, true, todayStr);
@@ -1691,6 +1716,10 @@
           }
           closeModal();
           if (calorieInput) calorieInput.dispatchEvent(new Event('input'));
+          // Also trigger macro inputs so updateSubmitState fires when only macros were filled
+          document.querySelectorAll('[data-macro-input]').forEach(inp => {
+            if (inp.value) inp.dispatchEvent(new Event('input'));
+          });
         } catch (err) {
           if (err.name === 'AbortError') {
             console.log('AI analysis cancelled');

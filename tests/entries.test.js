@@ -54,11 +54,4 @@ describe('Entries — authentication required', () => {
       .expect('Location', '/login');
   });
 
-  test('POST /goal redirects to /login', async () => {
-    await request(app)
-      .post('/goal')
-      .send({ goal: '2000' })
-      .expect(302)
-      .expect('Location', '/login');
-  });
 });
