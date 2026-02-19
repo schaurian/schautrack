@@ -12,7 +12,10 @@ const {
   getMacroModes,
   computeMacroStatus,
   parseMacroInput,
+  getMacroTotalsByDate,
 } = require('../src/lib/macros');
+
+const { pool } = require('../src/db/pool');
 
 describe('MACRO_KEYS', () => {
   test('contains the expected macro nutrients', () => {
@@ -241,5 +244,45 @@ describe('computeMacroStatus', () => {
       expect(result.statusClass).toBe('');
       expect(result.statusText).toBe('100 remaining');
     });
+  });
+});
+
+describe('getMacroTotalsByDate', () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  test('returns empty map when no rows', async () => {
+    pool.query.mockResolvedValue({ rows: [] });
+    const result = await getMacroTotalsByDate(1, '2024-01-01', '2024-01-07');
+    expect(result).toBeInstanceOf(Map);
+    expect(result.size).toBe(0);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT entry_date'),
+      [1, '2024-01-01', '2024-01-07']
+    );
+  });
+
+  test('aggregates rows by date', async () => {
+    pool.query.mockResolvedValue({
+      rows: [
+        { entry_date: new Date('2024-01-01'), protein: '120', carbs: '200', fat: '60', fiber: '25', sugar: '40' },
+        { entry_date: new Date('2024-01-02'), protein: '0', carbs: '0', fat: '0', fiber: '0', sugar: '0' },
+      ],
+    });
+    const result = await getMacroTotalsByDate(1, '2024-01-01', '2024-01-02');
+    expect(result.size).toBe(2);
+    expect(result.get('2024-01-01')).toEqual({ protein: 120, carbs: 200, fat: 60, fiber: 25, sugar: 40 });
+    expect(result.get('2024-01-02')).toEqual({ protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 });
+  });
+
+  test('handles non-numeric values gracefully', async () => {
+    pool.query.mockResolvedValue({
+      rows: [
+        { entry_date: new Date('2024-01-01'), protein: null, carbs: '', fat: 'abc', fiber: '10', sugar: '0' },
+      ],
+    });
+    const result = await getMacroTotalsByDate(1, '2024-01-01', '2024-01-01');
+    expect(result.get('2024-01-01')).toEqual({ protein: 0, carbs: 0, fat: 0, fiber: 10, sugar: 0 });
   });
 });

@@ -140,13 +140,11 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
 
   for (const key of MACRO_KEYS) {
     enabledMacros[key] = req.body[`${key}_enabled`] === 'on' || req.body[`${key}_enabled`] === 'true';
-    if (enabledMacros[key]) {
-      const goal = parseMacroInput(req.body[`${key}_goal`]);
-      if (goal !== null) {
-        macroGoals[key] = goal;
-      }
+    // Always store goals regardless of enabled state so they survive disable/re-enable
+    const goal = parseMacroInput(req.body[`${key}_goal`]);
+    if (goal !== null) {
+      macroGoals[key] = goal;
     }
-    // Store mode for enabled macros with goals
     const mode = req.body[`${key}_mode`];
     if (mode === 'limit' || mode === 'target') {
       macroGoals[`${key}_mode`] = mode;

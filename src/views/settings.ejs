@@ -364,6 +364,14 @@
         });
       }
 
+      // Re-enable disabled fields before submit so goals survive disable/re-enable
+      const macroForm = document.querySelector('form[action="/settings/macros"]');
+      if (macroForm) {
+        macroForm.addEventListener('submit', () => {
+          macroForm.querySelectorAll('input:disabled, select:disabled').forEach(el => el.disabled = false);
+        });
+      }
+
       // Macro toggle handling
       document.querySelectorAll('[data-macro-toggle]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
