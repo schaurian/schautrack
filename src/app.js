@@ -105,6 +105,7 @@ app.use(
     store: new PgSession({
       pool,
       tableName: 'session',
+      pruneSessionInterval: 300, // Clean expired sessions every 5 minutes
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
