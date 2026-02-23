@@ -35,7 +35,7 @@ function createTestApp(...routeModules) {
       secret: 'test-secret',
       resave: false,
       saveUninitialized: true,
-      cookie: { secure: false },
+      cookie: { secure: false, maxAge: 1000 * 60 * 15 }, // 15 min default (matches production)
     })
   );
 

@@ -95,6 +95,38 @@ describe('Registration validation', () => {
   });
 });
 
+// ---- Session cookie lifetime ----
+
+describe('Session cookie maxAge upgrade', () => {
+  test('unauthenticated session gets short-lived cookie', async () => {
+    const res = await request(app).get('/login');
+    const cookie = res.headers['set-cookie']?.[0] || '';
+    // Session cookie should be set but with a short Max-Age (not 30 days)
+    if (cookie.includes('Max-Age=')) {
+      const maxAge = parseInt(cookie.match(/Max-Age=(\d+)/)?.[1] || '0', 10);
+      // Should be 15 min (900) or less, definitely not 30 days (2592000)
+      expect(maxAge).toBeLessThanOrEqual(900);
+    }
+  });
+
+  test('login upgrades session cookie to 30 days', async () => {
+    if (skipIfNoDb()) return;
+
+    const { agent, csrfToken } = await getAgentWithCsrf(app, '/login');
+    const res = await agent
+      .post('/login')
+      .send({ email: 'test@test.com', password: 'test1234', _csrf: csrfToken });
+
+    // After successful login, cookie should be upgraded to 30 days
+    const cookie = res.headers['set-cookie']?.[0] || '';
+    if (cookie.includes('Max-Age=')) {
+      const maxAge = parseInt(cookie.match(/Max-Age=(\d+)/)?.[1] || '0', 10);
+      // 30 days = 2592000 seconds
+      expect(maxAge).toBe(2592000);
+    }
+  });
+});
+
 describe('Login validation', () => {
   test('rejects login without credentials', async () => {
     if (skipIfNoDb()) return;

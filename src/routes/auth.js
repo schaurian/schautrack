@@ -5,6 +5,10 @@ const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
 const { pool } = require('../db/pool');
 
+// Authenticated sessions last 30 days (rolling). Anonymous sessions use a
+// shorter default (set in app.js) so bot/crawler sessions expire quickly.
+const AUTH_SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 30; // 30 days
+
 /**
  * Verify password against hash, supporting both argon2 and legacy bcrypt.
  * If bcrypt hash matches, re-hashes with argon2 and updates the DB.
@@ -311,6 +315,7 @@ router.post('/register', authLimiter, csrfProtection, async (req, res) => {
         );
         delete req.session.pendingRegistration;
         req.session.userId = rows[0].id;
+        req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
         return res.redirect('/dashboard');
       }
     } catch (err) {
@@ -386,9 +391,10 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
         return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email: pendingUser.email, captchaSvg: null });
       }
 
-      // Success - clear failed attempts
+      // Success - clear failed attempts and upgrade session to full duration
       req.session.loginFailedAttempts = 0;
       req.session.userId = pendingUser.id;
+      req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
       delete req.session.pendingUserId;
       return res.redirect('/dashboard');
     }
@@ -438,9 +444,10 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
       });
     }
 
-    // Success - clear failed attempts
+    // Success - clear failed attempts and upgrade session to full duration
     req.session.loginFailedAttempts = 0;
     req.session.userId = user.id;
+    req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
     return res.redirect('/dashboard');
   } catch (err) {
     console.error('Login error', err);
@@ -762,6 +769,7 @@ router.post('/verify-email', async (req, res) => {
     delete req.session.lastResendAt;
     delete req.session.resendCaptchaAnswer;
     req.session.userId = tokenResult.userId;
+    req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
 
     return res.redirect('/dashboard');
   } catch (err) {

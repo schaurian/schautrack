@@ -100,6 +100,11 @@ ${pages.map(p => `  <url>
 app.use(loadGlobalSettings);
 
 // Session middleware
+// Default maxAge is short (15 min) so anonymous/bot sessions expire quickly.
+// Authenticated sessions get upgraded to 30 days on login (see routes/auth.js).
+const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 30; // 30 days
+const ANON_MAX_AGE = 1000 * 60 * 15; // 15 minutes
+
 app.use(
   session({
     store: new PgSession({
@@ -110,9 +115,9 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    rolling: true, // Refresh cookie expiry on every response (7-day inactivity timeout, not absolute)
+    rolling: true, // Refresh cookie expiry on every response (inactivity timeout, not absolute)
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
+      maxAge: ANON_MAX_AGE,
       secure: 'auto', // Uses X-Forwarded-Proto via trust proxy
       sameSite: 'lax',
     },
