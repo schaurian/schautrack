@@ -26,6 +26,12 @@ const CSRF_PROTECTED_ACTIONS = [
   '/2fa/disable',
 ];
 
+// Regex routes for POST forms with dynamic IDs (EJS-generated paths).
+const CSRF_PROTECTED_ACTION_PATTERNS = [
+  /^\/entries\/.*\/delete$/,
+  /^\/weight\/.*\/delete$/,
+];
+
 const viewsDir = path.join(__dirname, '..', 'src', 'views');
 
 /** Recursively find all .ejs files under a directory. */
@@ -101,6 +107,33 @@ describe('CSRF token presence in POST forms', () => {
     });
   }
 
+  for (const actionPattern of CSRF_PROTECTED_ACTION_PATTERNS) {
+    test(`forms matching "${actionPattern}" include _csrf token`, () => {
+      const missingCsrf = [];
+
+      for (const file of ejsFiles) {
+        const forms = extractPostForms(file);
+        for (const form of forms) {
+          if (!form.action) continue;
+          const cleanAction = form.action
+            .replace(/<%.*?%>/g, '')
+            .replace(/\$\{[^}]*\}/g, '');
+
+          if (actionPattern.test(cleanAction) && !form.hasCsrf) {
+            missingCsrf.push(`${form.file}:${form.line}`);
+          }
+        }
+      }
+
+      if (missingCsrf.length > 0) {
+        throw new Error(
+          `Missing _csrf hidden input in form(s) matching "${actionPattern}":\n` +
+            missingCsrf.map((loc) => `  - ${loc}`).join('\n')
+        );
+      }
+    });
+  }
+
   test('no POST form to a CSRF-protected route is missing _csrf', () => {
     const allMissing = [];
 
@@ -112,9 +145,13 @@ describe('CSRF token presence in POST forms', () => {
         const cleanAction = form.action
           .replace(/<%.*?%>/g, '')
           .replace(/\$\{[^}]*\}/g, '');
-        const isProtected = CSRF_PROTECTED_ACTIONS.some(
+        const isProtectedExact = CSRF_PROTECTED_ACTIONS.some(
           (route) => cleanAction === route
         );
+        const isProtectedPattern = CSRF_PROTECTED_ACTION_PATTERNS.some(
+          (pattern) => pattern.test(cleanAction)
+        );
+        const isProtected = isProtectedExact || isProtectedPattern;
         if (isProtected && !form.hasCsrf) {
           allMissing.push(`${form.file}:${form.line} (action="${form.action}")`);
         }

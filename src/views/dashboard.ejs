@@ -234,6 +234,7 @@
           </div>
           <% if (weightEntry && weightEntry.id) { %>
             <form action="/weight/<%= weightEntry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-weight-delete-form>
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="ghost danger small" data-delete-weight data-weight-id="<%= weightEntry.id %>">Delete</button>
             </form>
           <% } else { %>
@@ -269,6 +270,7 @@
                 <span class="entry-cell entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
               </div>
               <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
               </form>
             </div>
@@ -286,6 +288,7 @@
       const emptyState = document.querySelector('[data-entry-empty]');
       const daySelected = document.querySelector('[data-day-selected]');
       const selfUserId = '<%= user.id %>';
+      const csrfToken = <%- JSON.stringify(csrfToken) %>;
       const clientTz = '<%= timeZone %>' || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const todayStr = '<%= todayStr %>';
       const weightUnit = '<%= (weightUnit || "lb").toLowerCase() %>';
@@ -383,15 +386,21 @@
         }
       };
 
-      const saveShareLabel = async (linkId, label) => {
-        const res = await fetch(`/links/${linkId}/label`, {
+      const postJson = async (url, payload = {}) => {
+        const res = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
+            'X-CSRF-Token': csrfToken,
           },
-          body: JSON.stringify({ label }),
+          body: JSON.stringify(payload),
         });
+        return res;
+      };
+
+      const saveShareLabel = async (linkId, label) => {
+        const res = await postJson(`/links/${linkId}/label`, { label });
         if (!res.ok) {
           throw new Error('Label request failed');
         }
@@ -691,6 +700,7 @@
               <span class="entry-cell entry-time muted small" data-entry-time>${entry.time || ''}</span>
             </div>
             <form action="/entries/${entry.id}/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
+              <input type="hidden" name="_csrf" value="${csrfToken}">
               <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
             </form>
           </div>
@@ -761,10 +771,18 @@
               form.method = 'POST';
               form.className = 'inline-form entry-cell entry-delete';
               form.dataset.weightDeleteForm = 'true';
-              form.innerHTML = `<button type="submit" class="ghost danger small" data-delete-weight data-weight-id="${entry.id}">Delete</button>`;
+              form.innerHTML = `<input type="hidden" name="_csrf" value="${csrfToken}"><button type="submit" class="ghost danger small" data-delete-weight data-weight-id="${entry.id}">Delete</button>`;
               weightRow.appendChild(form);
             } else {
               existingDeleteForm.action = `/weight/${entry.id}/delete`;
+              let csrfInput = existingDeleteForm.querySelector('input[name="_csrf"]');
+              if (!csrfInput) {
+                csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_csrf';
+                existingDeleteForm.insertAdjacentElement('afterbegin', csrfInput);
+              }
+              csrfInput.value = csrfToken;
               const btn = existingDeleteForm.querySelector('[data-delete-weight]');
               if (btn) btn.dataset.weightId = entry.id;
             }
@@ -899,11 +917,7 @@
 
       const saveWeight = async (value) => {
         const payload = { weight: value, entry_date: currentDate };
-        const res = await fetch('/weight/upsert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        const res = await postJson('/weight/upsert', payload);
         if (!res.ok) {
           throw new Error('Request failed');
         }
@@ -1152,7 +1166,10 @@
         try {
           const res = await fetch(`/entries/${entryId}/delete`, {
             method: 'POST',
-            headers: { Accept: 'application/json' },
+            headers: {
+              Accept: 'application/json',
+              'X-CSRF-Token': csrfToken,
+            },
           });
           if (res.ok) {
             loadEntries(currentUserId, currentDate, currentCanEdit);
@@ -1173,7 +1190,10 @@
         try {
           const res = await fetch(`/weight/${weightId}/delete`, {
             method: 'POST',
-            headers: { Accept: 'application/json' },
+            headers: {
+              Accept: 'application/json',
+              'X-CSRF-Token': csrfToken,
+            },
           });
           if (res.ok) {
             weightCache.delete(`${selfUserId}:${currentDate}`);
@@ -1185,14 +1205,7 @@
       });
 
       const updateEntry = async (entryId, payload) => {
-        const res = await fetch(`/entries/${entryId}/update`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+        const res = await postJson(`/entries/${entryId}/update`, payload);
         if (!res.ok) {
           throw new Error('Request failed');
         }
@@ -1736,7 +1749,10 @@
         try {
           const res = await fetch('/api/ai/estimate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken,
+            },
             body: JSON.stringify({ image: base64Image, context }),
             signal: currentAbortController.signal,
           });
@@ -1906,17 +1922,10 @@
             const entryDate = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
 
             try {
-              const res = await fetch('/entries', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                  amount: calories,
-                  entry_name: food,
-                  entry_date: entryDate
-                }),
+              const res = await postJson('/entries', {
+                amount: calories,
+                entry_name: food,
+                entry_date: entryDate
               });
               const data = await res.json();
               if (data.ok) {

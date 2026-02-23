@@ -674,9 +674,10 @@ a:focus-visible,
 
 .inline-edit--amount {
   flex-wrap: nowrap;
-  position: absolute;
-  left: 0;
-  z-index: 10;
+  position: static;
+  left: auto;
+  z-index: 1;
+  margin-top: 0;
 }
 
 .inline-edit--amount .inline-edit-input {
@@ -2548,21 +2549,32 @@ a:focus-visible,
 .entry-table-wrap {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 55%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .entry-table-header {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--stroke);
-  margin-bottom: var(--space-xs);
+  padding: 8px 12px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(8, 13, 25, 0.72);
+  backdrop-filter: blur(6px);
 }
 
 .entry-th {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
   color: var(--muted);
   font-weight: 600;
 }
@@ -2573,12 +2585,12 @@ a:focus-visible,
 }
 
 .entry-th-kcal {
-  width: 80px;
+  width: 88px;
   text-align: right;
 }
 
 .entry-th-macro {
-  width: 56px;
+  width: 64px;
   text-align: right;
 }
 
@@ -2588,7 +2600,7 @@ a:focus-visible,
 }
 
 .entry-th-actions {
-  width: 60px;
+  width: 72px;
 }
 
 .entry-cell {
@@ -2597,35 +2609,47 @@ a:focus-visible,
 
 .entry-cell.entry-name {
   flex: 1;
-  min-width: 80px;
+  min-width: 120px;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .entry-cell.entry-amount {
-  width: 80px;
+  width: 88px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .entry-cell.entry-macro {
-  width: 56px;
-  min-height: 44px;
+  width: 64px;
+  min-height: 34px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.entry-macro-value {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .entry-cell.entry-time {
-  width: 50px;
+  width: 54px;
   text-align: right;
+  opacity: 0.75;
 }
 
 .entry-cell.entry-delete {
-  width: 60px;
+  width: 72px;
   text-align: right;
 }
 
@@ -2639,9 +2663,84 @@ a:focus-visible,
   display: none;
 }
 
+.log-list .entry-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.log-list .entry-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.45);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 12px 24px rgba(3, 10, 30, 0.35);
+}
+
+.log-list .entry-row.view-only {
+  opacity: 0.82;
+}
+
+.log-list .entry-row.weight-row {
+  border-color: rgba(125, 211, 252, 0.42);
+  background:
+    linear-gradient(120deg, rgba(14, 165, 233, 0.2), rgba(8, 20, 36, 0.82)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+}
+
+.log-list .entry-row.weight-row .entry-name {
+  color: #dbeafe;
+}
+
+.log-list .entry-row.is-editing {
+  border-color: rgba(14, 165, 233, 0.6);
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.25), 0 8px 22px rgba(2, 18, 45, 0.4);
+}
+
+.log-list .entry-cell.entry-delete .ghost {
+  border-radius: 999px;
+  padding: 6px 10px;
+  min-height: 30px;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+.log-list .entry-cell.entry-delete .ghost.danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(127, 29, 29, 0.26);
+}
+
+.log-list .entry-cell.entry-delete .ghost.danger:hover {
+  background: rgba(153, 27, 27, 0.4);
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.entry-row > .inline-edit:not(.inline-edit--compact) {
+  margin-top: 0;
+}
+
+.entry-row .inline-edit--compact {
+  width: 72px;
+  margin-top: 0;
+}
+
+.entry-row .inline-edit-input--compact {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  text-align: right;
+  border-radius: 8px;
+}
+
 /* No-macros fallback: simpler row layout */
 .entry-table-wrap.no-macros .entry-row {
-  gap: var(--space-sm);
+  gap: 10px;
 }
 
 .entry-table-wrap.no-macros .entry-cell.entry-amount {
@@ -2651,13 +2750,13 @@ a:focus-visible,
 
 /* Inline edit compact variant for table cells */
 .inline-edit--compact {
-  width: 60px;
+  width: 72px;
 }
 
 .inline-edit-input--compact {
   width: 100%;
-  padding: var(--space-xs) var(--space-sm);
-  font-size: 0.85rem;
+  padding: 6px 8px;
+  font-size: 0.82rem;
   text-align: right;
 }
 
@@ -2718,54 +2817,116 @@ a:focus-visible,
     flex: 1 0 100%;
   }
 
-  /* Entry table mobile - two-line card layout */
+  /* Timeline entries: stacked, touch-friendly cards */
+  .entry-table-wrap {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    gap: var(--space-sm);
+  }
+
   .entry-table-header {
     display: none;
   }
 
-  .entry-row {
-    flex-wrap: wrap;
-    gap: 2px var(--space-sm);
+  .log-list .entry-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-sm);
     padding: var(--space-sm) var(--space-md);
+    border-radius: 14px;
+    border-color: rgba(148, 163, 184, 0.26);
+    background:
+      linear-gradient(160deg, rgba(14, 165, 233, 0.16), rgba(10, 16, 33, 0.85) 45%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
   }
 
-  .entry-cell.entry-name {
-    flex: 1 1 0;
+  .log-list .entry-row:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .log-list .entry-cell.entry-name {
+    grid-column: 1;
     min-width: 0;
+    padding: 4px 2px;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
-  .entry-cell.entry-delete {
-    flex: 0 0 auto;
+  .log-list .entry-cell.entry-delete {
+    grid-column: 2;
     width: auto;
+    margin-left: 0;
   }
 
-  /* Data cells become a flex row on the second line */
+  .log-list .entry-cell.entry-delete .ghost {
+    padding: 5px 9px;
+    min-height: 28px;
+  }
+
   .entry-data {
     display: flex;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-sm);
-    flex: 1 0 100%;
-    order: 1;
+    gap: 6px;
+    width: 100%;
   }
 
-  .entry-data .entry-cell {
+  .log-list .entry-cell.entry-amount,
+  .log-list .entry-cell.entry-macro {
     width: auto;
-    flex: 0 0 auto;
-    min-height: 0;
+    min-width: 0;
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(10, 16, 33, 0.75);
+    text-align: left;
   }
 
-  .entry-cell.entry-macro {
-    font-size: 0.8rem;
+  .log-list .entry-cell.entry-time {
+    width: auto;
+    margin-left: auto;
+    padding: 5px 0;
+    text-align: right;
+    font-size: 0.74rem;
   }
 
-  /* Show macro short labels on mobile */
   .entry-macro-label {
     display: inline;
-    font-size: 0.65rem;
-    font-weight: 600;
+    margin-right: 4px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
-    margin-right: 2px;
+  }
+
+  .entry-macro-value {
+    font-size: 0.82rem;
+  }
+
+  .log-list .entry-row > .inline-edit,
+  .log-list .entry-data .inline-edit {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .log-list .entry-row .inline-edit-input--compact {
+    text-align: left;
+  }
+
+  .log-list .weight-row .entry-data {
+    justify-content: space-between;
+  }
+
+  .log-list .weight-row .entry-cell.entry-time {
+    margin-left: 0;
   }
 }
 
@@ -2776,5 +2937,33 @@ a:focus-visible,
 
   .entry-th {
     font-size: 0.6rem;
+  }
+
+  .edit-trigger {
+    padding: 6px 6px;
+  }
+
+  .log-list .entry-row {
+    padding: 10px;
+  }
+
+  .log-list .entry-cell.entry-name {
+    font-size: 0.86rem;
+    padding: 2px 0;
+  }
+
+  .log-list .entry-cell.entry-amount,
+  .log-list .entry-cell.entry-macro {
+    padding: 4px 8px;
+    font-size: 0.76rem;
+  }
+
+  .log-list .entry-cell.entry-time {
+    font-size: 0.66rem;
+  }
+
+  .log-list .entry-cell.entry-delete .ghost {
+    font-size: 0.68rem;
+    padding: 4px 8px;
   }
 }
