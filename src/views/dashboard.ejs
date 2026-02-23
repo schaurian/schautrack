@@ -166,9 +166,6 @@
                 <% } %>
               </h3>
             </div>
-            <div class="chip <%= view.dailyGoal ? '' : 'muted' %>">
-              <%= view.dailyGoal ? `${view.dailyGoal} calorie goal` : 'Goal not set' %>
-            </div>
           </div>
           <div class="dot-row">
             <% view.dailyStats.forEach((day) => { %>
@@ -468,11 +465,6 @@
 
       const renderShareCardMeta = (card, data) => {
         if (!card || !data) return;
-        const chip = card.querySelector('.chip');
-        if (chip) {
-          chip.textContent = data.dailyGoal ? `${data.dailyGoal} calorie goal` : 'Goal not set';
-          chip.classList.toggle('muted', !data.dailyGoal);
-        }
       };
 
       const dotHtmlForDay = (day, view) => {

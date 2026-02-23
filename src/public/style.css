@@ -1607,7 +1607,7 @@ a:focus-visible,
   .dot-row {
     grid-template-columns: repeat(auto-fit, minmax(20px, 36px));
     row-gap: 18px;
-    column-gap: var(--space-xs);
+    column-gap: 10px;
     justify-content: space-between;
   }
 
