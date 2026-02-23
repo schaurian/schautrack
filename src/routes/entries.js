@@ -708,46 +708,74 @@ router.post('/entries/:id/delete', requireLogin, csrfProtection, async (req, res
 // Import/Export
 router.get('/settings/export', requireLogin, async (req, res) => {
   const user = req.currentUser;
-  const { rows: entries } = await pool.query(
-    'SELECT entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
-    [user.id]
-  );
 
-  const { rows: weights } = await pool.query(
-    'SELECT entry_date, weight FROM weight_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
-    [user.id]
-  );
+  try {
+    const { rows: entries } = await pool.query(
+      'SELECT entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC LIMIT 100000',
+      [user.id]
+    );
 
-  const payload = {
-    exported_at: new Date().toISOString(),
-    user: {
+    const { rows: weights } = await pool.query(
+      'SELECT entry_date, weight FROM weight_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC LIMIT 100000',
+      [user.id]
+    );
+
+    const filename = `schautrack-export-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Stream JSON in chunks to avoid building one massive string in memory
+    res.write('{\n');
+    res.write(`"exported_at":${JSON.stringify(new Date().toISOString())},\n`);
+    res.write(`"user":${JSON.stringify({
       email: user.email,
       daily_goal: user.daily_goal,
       macros_enabled: user.macros_enabled || {},
       macro_goals: user.macro_goals || {},
-    },
-    weights: weights.map((row) => ({
-      date: row.entry_date.toISOString().slice(0, 10),
-      weight: Number(row.weight),
-    })),
-    entries: entries.map((row) => ({
-      date: row.entry_date.toISOString().slice(0, 10),
-      amount: row.amount,
-      name: row.entry_name || null,
-      created_at: row.created_at ? row.created_at.toISOString() : null,
-      // Include macro data only if present
-      ...(row.protein_g != null && { protein_g: row.protein_g }),
-      ...(row.carbs_g != null && { carbs_g: row.carbs_g }),
-      ...(row.fat_g != null && { fat_g: row.fat_g }),
-      ...(row.fiber_g != null && { fiber_g: row.fiber_g }),
-      ...(row.sugar_g != null && { sugar_g: row.sugar_g }),
-    })),
-  };
+    })},\n`);
 
-  const filename = `schautrack-export-${new Date().toISOString().slice(0, 10)}.json`;
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(JSON.stringify(payload, null, 2));
+    // Write weights
+    res.write('"weights":[');
+    for (let i = 0; i < weights.length; i++) {
+      if (i > 0) res.write(',');
+      const row = weights[i];
+      res.write(JSON.stringify({
+        date: row.entry_date.toISOString().slice(0, 10),
+        weight: Number(row.weight),
+      }));
+    }
+    res.write('],\n');
+
+    // Write entries
+    res.write('"entries":[');
+    for (let i = 0; i < entries.length; i++) {
+      if (i > 0) res.write(',');
+      const row = entries[i];
+      const entry = {
+        date: row.entry_date.toISOString().slice(0, 10),
+        amount: row.amount,
+        name: row.entry_name || null,
+        created_at: row.created_at ? row.created_at.toISOString() : null,
+      };
+      if (row.protein_g != null) entry.protein_g = row.protein_g;
+      if (row.carbs_g != null) entry.carbs_g = row.carbs_g;
+      if (row.fat_g != null) entry.fat_g = row.fat_g;
+      if (row.fiber_g != null) entry.fiber_g = row.fiber_g;
+      if (row.sugar_g != null) entry.sugar_g = row.sugar_g;
+      res.write(JSON.stringify(entry));
+    }
+    res.write(']\n');
+
+    res.write('}');
+    res.end();
+  } catch (err) {
+    console.error('Export failed', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Export failed' });
+    } else {
+      res.end();
+    }
+  }
 });
 
 router.post('/settings/import', requireLogin, upload.single('import_file'), async (req, res) => {
