@@ -13,6 +13,13 @@ const {
   formatTimeInTz
 } = require('../lib/utils');
 const {
+  upsertWeightEntry,
+  getWeightEntry,
+  getLastWeightEntry,
+} = require('../lib/weight');
+const { getAcceptedLinkUsers } = require('../lib/links');
+const { broadcastEntryChange } = require('./sse');
+const {
   MACRO_KEYS,
   MACRO_LABELS,
   getEnabledMacros,
@@ -139,146 +146,13 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal) {
 }
 
 // Weight helper functions
-async function upsertWeightEntry(userId, dateStr, weight) {
-  const { rows } = await pool.query(
-    `INSERT INTO weight_entries (user_id, entry_date, weight)
-       VALUES ($1, $2, $3)
-      ON CONFLICT (user_id, entry_date)
-        DO UPDATE SET weight = EXCLUDED.weight, updated_at = NOW()
-      RETURNING id, entry_date, weight, created_at, updated_at`,
-    [userId, dateStr, weight]
-  );
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row.id,
-    date: row.entry_date.toISOString().slice(0, 10),
-    weight: Number(row.weight),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+// Weight functions now imported from ../lib/weight.js
 
-async function getWeightEntry(userId, dateStr) {
-  const { rows } = await pool.query(
-    'SELECT id, entry_date, weight, created_at, updated_at FROM weight_entries WHERE user_id = $1 AND entry_date = $2 LIMIT 1',
-    [userId, dateStr]
-  );
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row.id,
-    date: row.entry_date.toISOString().slice(0, 10),
-    weight: Number(row.weight),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+// Removed duplicate weight functions - now using shared ../lib/weight.js
 
-async function getLastWeightEntry(userId, beforeOrOnDate = null) {
-  let query = 'SELECT id, entry_date, weight, created_at, updated_at FROM weight_entries WHERE user_id = $1';
-  const params = [userId];
-  if (beforeOrOnDate) {
-    query += ' AND entry_date <= $2';
-    params.push(beforeOrOnDate);
-  }
-  query += ' ORDER BY entry_date DESC LIMIT 1';
-  const { rows } = await pool.query(query, params);
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row.id,
-    date: row.entry_date.toISOString().slice(0, 10),
-    weight: Number(row.weight),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+// Account linking function now imported from ../lib/links.js
 
-// Account linking helpers
-async function getAcceptedLinkUsers(userId) {
-  const uid = toInt(userId);
-  if (uid === null) return [];
-  const { rows } = await pool.query(
-    `SELECT al.id AS link_id,
-            al.created_at,
-            CASE WHEN al.requester_id = $1 THEN al.requester_label ELSE al.target_label END AS label,
-            CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END AS other_id,
-            u.email AS other_email,
-            u.daily_goal AS other_daily_goal,
-            u.timezone AS other_timezone
-       FROM account_links al
-        JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
-      WHERE al.status = 'accepted'
-        AND ($1 = al.requester_id OR $1 = al.target_id)
-      ORDER BY al.created_at DESC`,
-    [uid]
-  );
-
-  return rows.map((row) => ({
-    linkId: row.link_id,
-    userId: row.other_id,
-    label: row.label,
-    email: row.other_email,
-    daily_goal: row.other_daily_goal,
-    timezone: row.other_timezone || 'UTC',
-    since: row.created_at,
-  }));
-}
-
-// SSE for real-time updates
-const userEventClients = new Map(); // userId -> Set(res)
-
-function addUserEventClient(userId, res) {
-  if (!userEventClients.has(userId)) {
-    userEventClients.set(userId, new Set());
-  }
-  userEventClients.get(userId).add(res);
-}
-
-function removeUserEventClient(userId, res) {
-  const set = userEventClients.get(userId);
-  if (!set) return;
-  set.delete(res);
-  if (set.size === 0) {
-    userEventClients.delete(userId);
-  }
-}
-
-function sendUserEvent(userId, eventName, payload) {
-  const set = userEventClients.get(userId);
-  if (!set || set.size === 0) return;
-  const data = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
-  const staleConnections = [];
-  
-  for (const res of set) {
-    try {
-      res.write(data);
-    } catch (err) {
-      // Connection is stale, mark for removal
-      staleConnections.push(res);
-    }
-  }
-  
-  // Clean up stale connections
-  for (const staleRes of staleConnections) {
-    removeUserEventClient(userId, staleRes);
-  }
-}
-
-async function broadcastEntryChange(sourceUserId) {
-  const uid = toInt(sourceUserId);
-  if (uid === null) return;
-  const targets = new Set([uid]);
-  try {
-    const links = await getAcceptedLinkUsers(uid);
-    links.forEach((link) => targets.add(link.userId));
-  } catch (err) {
-    console.error('Failed to load linked users for broadcast', err);
-  }
-  const payload = { sourceUserId: uid, at: Date.now() };
-  targets.forEach((targetId) => sendUserEvent(targetId, 'entry-change', payload));
-}
+// SSE functions now imported from ./sse.js
 
 // Check AI availability
 const { getEffectiveSetting } = require('../db/pool');
@@ -717,7 +591,7 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   res.redirect('/dashboard');
 });
 
-router.post('/entries/:id/update', requireLogin, async (req, res) => {
+router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const tz = getUserTimezone(req, res);
@@ -807,7 +681,7 @@ router.post('/entries/:id/update', requireLogin, async (req, res) => {
   return res.redirect('/dashboard');
 });
 
-router.post('/entries/:id/delete', requireLogin, async (req, res) => {
+router.post('/entries/:id/delete', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
   if (Number.isNaN(entryId)) {
@@ -922,6 +796,12 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     if (!weightOk || weightVal === null) return;
     weightToInsert.push({ date: dateStr, weight: weightVal });
   });
+
+  // Validate that we have at least some valid data before deleting existing data
+  if (toInsert.length === 0 && weightToInsert.length === 0) {
+    req.session.importFeedback = { type: 'error', message: 'No valid entries found in import file.' };
+    return res.redirect('/settings');
+  }
 
   try {
     await pool.query('BEGIN');
