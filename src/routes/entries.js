@@ -145,51 +145,9 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal) {
   });
 }
 
-// Weight helper functions
-async function upsertWeightEntry(userId, dateStr, weight) {
-  const { rows } = await pool.query(
-    `INSERT INTO weight_entries (user_id, entry_date, weight)
-       VALUES ($1, $2, $3)
-      ON CONFLICT (user_id, entry_date)
-        DO UPDATE SET weight = EXCLUDED.weight, updated_at = NOW()
-      RETURNING id, entry_date, weight, created_at, updated_at`,
-    [userId, dateStr, weight]
-  );
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row.id,
-    date: row.entry_date.toISOString().slice(0, 10),
-    weight: Number(row.weight),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+// Weight functions now imported from ../lib/weight.js
 
-async function getWeightEntry(userId, dateStr) {
-  const { rows } = await pool.query(
-    'SELECT id, entry_date, weight, created_at, updated_at FROM weight_entries WHERE user_id = $1 AND entry_date = $2 LIMIT 1',
-    [userId, dateStr]
-  );
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row.id,
-    date: row.entry_date.toISOString().slice(0, 10),
-    weight: Number(row.weight),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
-async function getLastWeightEntry(userId, beforeOrOnDate = null) {
-  let query = 'SELECT id, entry_date, weight, created_at, updated_at FROM weight_entries WHERE user_id = $1';
-  const params = [userId];
-  if (beforeOrOnDate) {
-    query += ' AND entry_date <= $2';
-    params.push(beforeOrOnDate);
-  }
-  query += ' ORDER BY entry_date DESC LIMIT 1';
+query += ' ORDER BY entry_date DESC LIMIT 1';
   const { rows } = await pool.query(query, params);
   const row = rows[0];
   if (!row) return null;
@@ -202,11 +160,9 @@ async function getLastWeightEntry(userId, beforeOrOnDate = null) {
   };
 }
 
-// Account linking helpers
-async function getAcceptedLinkUsers(userId) {
-  const uid = toInt(userId);
-  if (uid === null) return [];
-  const { rows } = await pool.query(
+// Account linking function now imported from ../lib/links.js
+
+= await pool.query(
     `SELECT al.id AS link_id,
             al.created_at,
             CASE WHEN al.requester_id = $1 THEN al.requester_label ELSE al.target_label END AS label,
@@ -233,54 +189,9 @@ async function getAcceptedLinkUsers(userId) {
   }));
 }
 
-// SSE for real-time updates
-const userEventClients = new Map(); // userId -> Set(res)
+// SSE functions now imported from ./sse.js
 
-function addUserEventClient(userId, res) {
-  if (!userEventClients.has(userId)) {
-    userEventClients.set(userId, new Set());
-  }
-  userEventClients.get(userId).add(res);
-}
-
-function removeUserEventClient(userId, res) {
-  const set = userEventClients.get(userId);
-  if (!set) return;
-  set.delete(res);
-  if (set.size === 0) {
-    userEventClients.delete(userId);
-  }
-}
-
-function sendUserEvent(userId, eventName, payload) {
-  const set = userEventClients.get(userId);
-  if (!set || set.size === 0) return;
-  const data = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
-  const staleConnections = [];
-  
-  for (const res of set) {
-    try {
-      res.write(data);
-    } catch (err) {
-      // Connection is stale, mark for removal
-      staleConnections.push(res);
-    }
-  }
-  
-  // Clean up stale connections
-  for (const staleRes of staleConnections) {
-    removeUserEventClient(userId, staleRes);
-  }
-}
-
-async function broadcastEntryChange(sourceUserId) {
-  const uid = toInt(sourceUserId);
-  if (uid === null) return;
-  const targets = new Set([uid]);
-  try {
-    const links = await getAcceptedLinkUsers(uid);
-    links.forEach((link) => targets.add(link.userId));
-  } catch (err) {
+catch (err) {
     console.error('Failed to load linked users for broadcast', err);
   }
   const payload = { sourceUserId: uid, at: Date.now() };
