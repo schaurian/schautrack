@@ -36,26 +36,28 @@ const DEFAULT_RANGE_DAYS = 14;
 
 // Helper functions for dashboard data
 function buildDayOptions(daysToShow) {
+  // Use UTC to avoid timezone shifting when calculating date range
   const today = new Date();
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - (daysToShow - 1));
-  return buildDayOptionsBetween(startDate, today);
+  const todayStr = today.toISOString().slice(0, 10);
+  
+  // Calculate start date using UTC to avoid DST/timezone issues
+  const startDate = new Date(todayStr + 'T00:00:00Z');
+  startDate.setUTCDate(startDate.getUTCDate() - (daysToShow - 1));
+  const startDateStr = startDate.toISOString().slice(0, 10);
+  
+  return buildDayOptionsBetween(startDateStr, todayStr);
 }
 
 function buildDayOptionsBetween(startDateStr, endDateStr) {
   const dayOptions = [];
-  // Work with date strings directly to avoid timezone issues
-  // Parse as local date by appending time component
-  const cursor = new Date(endDateStr + 'T12:00:00');
-  const minDate = new Date(startDateStr + 'T12:00:00');
+  // Use UTC explicitly to avoid any timezone shifting
+  const cursor = new Date(endDateStr + 'T00:00:00Z');
+  const minDate = new Date(startDateStr + 'T00:00:00Z');
+  
   for (let i = 0; i < MAX_HISTORY_DAYS; i += 1) {
     if (cursor < minDate) break;
-    // Format as YYYY-MM-DD without timezone conversion
-    const year = cursor.getFullYear();
-    const month = String(cursor.getMonth() + 1).padStart(2, '0');
-    const day = String(cursor.getDate()).padStart(2, '0');
-    dayOptions.push(`${year}-${month}-${day}`);
-    cursor.setDate(cursor.getDate() - 1);
+    dayOptions.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
   return dayOptions;
 }
@@ -195,90 +197,9 @@ async function getLastWeightEntry(userId, beforeOrOnDate = null) {
   };
 }
 
-// Account linking helpers
-async function getAcceptedLinkUsers(userId) {
-  const uid = toInt(userId);
-  if (uid === null) return [];
-  const { rows } = await pool.query(
-    `SELECT al.id AS link_id,
-            al.created_at,
-            CASE WHEN al.requester_id = $1 THEN al.requester_label ELSE al.target_label END AS label,
-            CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END AS other_id,
-            u.email AS other_email,
-            u.daily_goal AS other_daily_goal,
-            u.timezone AS other_timezone
-       FROM account_links al
-        JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
-      WHERE al.status = 'accepted'
-        AND ($1 = al.requester_id OR $1 = al.target_id)
-      ORDER BY al.created_at DESC`,
-    [uid]
-  );
+// Account linking function now imported from ../lib/links.js
 
-  return rows.map((row) => ({
-    linkId: row.link_id,
-    userId: row.other_id,
-    label: row.label,
-    email: row.other_email,
-    daily_goal: row.other_daily_goal,
-    timezone: row.other_timezone || 'UTC',
-    since: row.created_at,
-  }));
-}
-
-// SSE for real-time updates
-const userEventClients = new Map(); // userId -> Set(res)
-
-function addUserEventClient(userId, res) {
-  if (!userEventClients.has(userId)) {
-    userEventClients.set(userId, new Set());
-  }
-  userEventClients.get(userId).add(res);
-}
-
-function removeUserEventClient(userId, res) {
-  const set = userEventClients.get(userId);
-  if (!set) return;
-  set.delete(res);
-  if (set.size === 0) {
-    userEventClients.delete(userId);
-  }
-}
-
-function sendUserEvent(userId, eventName, payload) {
-  const set = userEventClients.get(userId);
-  if (!set || set.size === 0) return;
-  const data = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
-  const staleConnections = [];
-  
-  for (const res of set) {
-    try {
-      res.write(data);
-    } catch (err) {
-      // Connection is stale, mark for removal
-      staleConnections.push(res);
-    }
-  }
-  
-  // Clean up stale connections
-  for (const staleRes of staleConnections) {
-    removeUserEventClient(userId, staleRes);
-  }
-}
-
-async function broadcastEntryChange(sourceUserId) {
-  const uid = toInt(sourceUserId);
-  if (uid === null) return;
-  const targets = new Set([uid]);
-  try {
-    const links = await getAcceptedLinkUsers(uid);
-    links.forEach((link) => targets.add(link.userId));
-  } catch (err) {
-    console.error('Failed to load linked users for broadcast', err);
-  }
-  const payload = { sourceUserId: uid, at: Date.now() };
-  targets.forEach((targetId) => sendUserEvent(targetId, 'entry-change', payload));
-}
+// SSE functions now imported from ./sse.js
 
 // Check AI availability
 const { getEffectiveSetting } = require('../db/pool');
@@ -422,8 +343,10 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   let aiProviderName = null;
 
   const userProvider = user.ai_provider;
-  const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
-  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+  const [globalKey, globalProvider] = await Promise.all([
+    getEffectiveSetting('ai_key', process.env.AI_KEY),
+    getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
+  ]);
 
   if (user.ai_key) {
     hasAiEnabled = true;
@@ -717,7 +640,7 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   res.redirect('/dashboard');
 });
 
-router.post('/entries/:id/update', requireLogin, async (req, res) => {
+router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const tz = getUserTimezone(req, res);
