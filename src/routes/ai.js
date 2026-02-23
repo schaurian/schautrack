@@ -38,8 +38,14 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
 
   const user = req.currentUser;
 
-  // Determine provider from global setting only
-  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+  // Batch all global settings queries
+  const [globalProvider, globalKey, globalEndpoint, globalModel] = await Promise.all([
+    getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
+    getEffectiveSetting('ai_key', process.env.AI_KEY),
+    getEffectiveSetting('ai_endpoint', process.env.AI_ENDPOINT),
+    getEffectiveSetting('ai_model', process.env.AI_MODEL),
+  ]);
+
   const provider = globalProvider.value;
 
   if (!provider) {
@@ -67,7 +73,6 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
 
   // Fallback to global settings
   if (!apiKey) {
-    const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
     if (globalKey.value) {
       apiKey = globalKey.value;
       usingGlobalKey = true;
@@ -75,7 +80,6 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
   }
 
   if (!endpoint) {
-    const globalEndpoint = await getEffectiveSetting('ai_endpoint', process.env.AI_ENDPOINT);
     if (globalEndpoint.value) {
       endpoint = globalEndpoint.value;
     }
@@ -129,7 +133,6 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
 
   // Get custom model from settings/env
   let customModel = null;
-  const globalModel = await getEffectiveSetting('ai_model', process.env.AI_MODEL);
   if (globalModel.value) {
     customModel = globalModel.value;
   }

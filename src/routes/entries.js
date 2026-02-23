@@ -422,8 +422,10 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   let aiProviderName = null;
 
   const userProvider = user.ai_provider;
-  const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
-  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+  const [globalKey, globalProvider] = await Promise.all([
+    getEffectiveSetting('ai_key', process.env.AI_KEY),
+    getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
+  ]);
 
   if (user.ai_key) {
     hasAiEnabled = true;
