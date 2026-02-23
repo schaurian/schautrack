@@ -22,6 +22,13 @@ const {
   parseMacroInput,
   getMacroTotalsByDate,
 } = require('../lib/macros');
+const {
+  upsertWeightEntry,
+  getWeightEntry,
+  getLastWeightEntry,
+} = require('../lib/weight');
+const { getAcceptedLinkUsers } = require('../lib/links');
+const { broadcastEntryChange } = require('./sse');
 
 const router = express.Router();
 
