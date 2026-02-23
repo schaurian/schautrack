@@ -1655,6 +1655,7 @@
       const trigger = document.querySelector('[data-ai-photo-trigger]');
       if (!trigger) return;
 
+      const csrfToken = <%- JSON.stringify(csrfToken) %>;
       const calorieInput = document.querySelector('[data-calorie-input]');
       const nameInput = document.querySelector('input[name="entry_name"]');
       const usageBadge = document.querySelector('.ai-usage-badge');
