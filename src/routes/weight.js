@@ -3,7 +3,7 @@ const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
 const { requireLinkAuth } = require('../middleware/links');
 const { csrfProtection } = require('../middleware/csrf');
-const { parseWeight, getUserTimezone, formatDateInTz, toIsoDate } = require('../lib/utils');
+const { parseWeight, getUserTimezone, formatDateInTz } = require('../lib/utils');
 const { upsertWeightEntry, getWeightEntry, getLastWeightEntry } = require('../lib/weight');
 
 const router = express.Router();

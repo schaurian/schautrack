@@ -21,7 +21,12 @@ router.get('/health', async (req, res) => {
     res.json({
       app: 'schautrack',
       status: 'ok',
-      version: process.env.BUILD_VERSION || 'dev'
+      version: process.env.BUILD_VERSION || 'dev',
+      pool: {
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+        waitingCount: pool.waitingCount
+      }
     });
   } catch {
     res.status(503).json({

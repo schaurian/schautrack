@@ -15,6 +15,13 @@ const {
   formatTimeInTz
 } = require('../lib/utils');
 const {
+  upsertWeightEntry,
+  getWeightEntry,
+  getLastWeightEntry,
+} = require('../lib/weight');
+const { getAcceptedLinkUsers } = require('../lib/links');
+const { broadcastEntryChange } = require('./sse');
+const {
   MACRO_KEYS,
   MACRO_LABELS,
   getEnabledMacros,
@@ -788,6 +795,12 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     if (!weightOk || weightVal === null) return;
     weightToInsert.push({ date: dateStr, weight: weightVal });
   });
+
+  // Validate that we have at least some valid data before deleting existing data
+  if (toInsert.length === 0 && weightToInsert.length === 0) {
+    req.session.importFeedback = { type: 'error', message: 'No valid entries found in import file.' };
+    return res.redirect('/settings');
+  }
 
   try {
     await pool.query('BEGIN');
