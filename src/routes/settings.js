@@ -96,7 +96,7 @@ const renderSettings = async (req, res) => {
 
 router.get('/settings', requireLogin, renderSettings);
 
-router.post('/settings/preferences', requireLogin, async (req, res) => {
+router.post('/settings/preferences', requireLogin, csrfProtection, async (req, res) => {
   const unitRaw = (req.body.weight_unit || '').toLowerCase();
   const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'kg';
 

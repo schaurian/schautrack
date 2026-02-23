@@ -125,6 +125,10 @@ async function ensureCalorieEntriesSchema() {
         ADD COLUMN IF NOT EXISTS entry_name TEXT,
         ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
     `);
+    // Add composite index on user_id, entry_date for common queries
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS calorie_entries_user_date_idx ON calorie_entries (user_id, entry_date);
+    `);
   });
 }
 
