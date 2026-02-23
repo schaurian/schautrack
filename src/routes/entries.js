@@ -583,7 +583,7 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   res.redirect('/dashboard');
 });
 
-router.post('/entries/:id/update', requireLogin, async (req, res) => {
+router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const tz = getUserTimezone(req, res);
@@ -673,7 +673,7 @@ router.post('/entries/:id/update', requireLogin, async (req, res) => {
   return res.redirect('/dashboard');
 });
 
-router.post('/entries/:id/delete', requireLogin, async (req, res) => {
+router.post('/entries/:id/delete', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
   const wantsJson = (req.headers.accept || '').includes('application/json');
   if (Number.isNaN(entryId)) {
