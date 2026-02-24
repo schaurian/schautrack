@@ -106,8 +106,10 @@ async function cleanExpiredTokens() {
   `);
 }
 
-// Run cleanup every 15 minutes
-setInterval(() => { cleanExpiredTokens().catch(err => console.error('Token cleanup error', err)); }, 15 * 60 * 1000).unref();
+// Run cleanup every 15 minutes (skip in tests to avoid open handles)
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(() => { cleanExpiredTokens().catch(err => console.error('Token cleanup error', err)); }, 15 * 60 * 1000).unref();
+}
 
 // Email verification helpers
 async function createEmailVerificationToken(userId) {

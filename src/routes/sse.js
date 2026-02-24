@@ -91,27 +91,29 @@ router.get('/events/entries', requireLogin, (req, res) => {
   });
 });
 
-// Periodic cleanup for stale SSE connections
-setInterval(() => {
-  for (const [userId, resSet] of userEventClients.entries()) {
-    const staleConnections = [];
-    
-    for (const res of resSet) {
-      try {
-        // Test connection by writing a ping
-        res.write('event: cleanup-ping\ndata: {}\n\n');
-      } catch (err) {
-        // Connection is stale
-        staleConnections.push(res);
+// Periodic cleanup for stale SSE connections (skip in tests to avoid open handles)
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(() => {
+    for (const [userId, resSet] of userEventClients.entries()) {
+      const staleConnections = [];
+      
+      for (const res of resSet) {
+        try {
+          // Test connection by writing a ping
+          res.write('event: cleanup-ping\ndata: {}\n\n');
+        } catch (err) {
+          // Connection is stale
+          staleConnections.push(res);
+        }
+      }
+      
+      // Remove stale connections
+      for (const staleRes of staleConnections) {
+        removeUserEventClient(userId, staleRes);
       }
     }
-    
-    // Remove stale connections
-    for (const staleRes of staleConnections) {
-      removeUserEventClient(userId, staleRes);
-    }
-  }
-}, 5 * 60 * 1000).unref(); // Run every 5 minutes
+  }, 5 * 60 * 1000).unref(); // Run every 5 minutes
+}
 
 module.exports = {
   router,
