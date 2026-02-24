@@ -111,11 +111,17 @@ const getCalorieGoal = (user) => {
   return user?.daily_goal ?? null;
 };
 
-const isAutoCalcCalories = (user) => {
+const canEnableAutoCalcCalories = (user) => {
   const enabled = user?.macros_enabled || {};
-  return enabled.protein === true
+  return enabled.calories !== false
+    && enabled.protein === true
     && enabled.carbs === true
     && enabled.fat === true;
+};
+
+const isAutoCalcCalories = (user) => {
+  const enabled = user?.macros_enabled || {};
+  return enabled.auto_calc_calories === true;
 };
 
 const computeCaloriesFromMacros = (protein, carbs, fat) => {
@@ -167,6 +173,7 @@ module.exports = {
   computeDotStatus,
   worstDotStatus,
   parseMacroInput,
+  canEnableAutoCalcCalories,
   isAutoCalcCalories,
   computeCaloriesFromMacros,
   getMacroTotalsByDate,

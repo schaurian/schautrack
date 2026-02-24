@@ -77,17 +77,14 @@
         </label>
         <% if (caloriesEnabled) { %>
         <label class="field entry-field-nutrient" data-nutrient-field="kcal">
-          <span>Calories<% if (autoCalcCalories) { %> <small class="auto-calc-badge">auto</small><% } %></span>
+          <span>Calories</span>
           <input
             type="text"
-            inputmode="tel"
-            pattern="[0-9+\-*/().\s]*"
-            maxlength="24"
-            name="amount"
             placeholder="-"
             autocomplete="off"
             id="math-input"
             data-calorie-input
+            <% if (autoCalcCalories) { %>readonly data-auto-calc-locked<% } else { %>inputmode="tel" pattern="[0-9+\-*/().\s]*" maxlength="24" name="amount"<% } %>
           >
         </label>
         <% } %>
@@ -242,7 +239,7 @@
           <% recentEntries.forEach((entry) => { %>
             <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
               <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              <% if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><span class="entry-macro-label">Calories </span><%= entry.amount %></button><% } %>
+              <% if (caloriesEnabled && autoCalcCalories) { %><span class="entry-cell entry-amount entry-amount-locked <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-locked-amount><span class="entry-macro-label">Calories </span><%= entry.amount %></span><% } else if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><span class="entry-macro-label">Calories </span><%= entry.amount %></button><% } %>
               <% if (enabledMacros && enabledMacros.length > 0) { %>
                 <% enabledMacros.forEach((key) => { %>
                   <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>" data-macro-key="<%= key %>"><span class="entry-macro-label"><%= macroLabels[key].label %> </span><span class="entry-macro-value"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></span></button>
@@ -748,7 +745,9 @@
             ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true"><span class="entry-macro-label">Calories </span>${entry.amount}</button>`
             : '';
           const kcalCellEditable = caloriesEnabledJs
-            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount><span class="entry-macro-label">Calories </span>${entry.amount}</button>`
+            ? (autoCalcCaloriesJs
+              ? `<span class="entry-cell entry-amount entry-amount-locked ${entry.amount >= 0 ? 'pos' : 'neg'}" data-locked-amount><span class="entry-macro-label">Calories </span>${entry.amount}</span>`
+              : `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount><span class="entry-macro-label">Calories </span>${entry.amount}</button>`)
             : '';
 
           if (!canEdit) {
@@ -1314,7 +1313,7 @@
 
       const applyEntryUpdate = (row, entry) => {
         const nameBtn = row.querySelector('[data-edit-name]');
-        const amountBtn = row.querySelector('[data-edit-amount]');
+        const amountBtn = row.querySelector('[data-edit-amount]') || row.querySelector('[data-locked-amount]');
         const timeEl = row.querySelector('[data-entry-time]');
         if (nameBtn) {
           nameBtn.textContent = entry.name || 'Untitled';
@@ -1501,7 +1500,7 @@
           return;
         }
         const amountBtn = evt.target.closest('[data-edit-amount]');
-        if (amountBtn) {
+        if (amountBtn && !autoCalcCaloriesJs) {
           createInlineEditor({
             btn: amountBtn,
             type: 'amount',
@@ -1530,7 +1529,7 @@
 
       // Calorie input validation for submit button
       const logForm = document.querySelector('[data-log-form]');
-      const calorieInput = logForm?.querySelector('input[name="amount"]');
+      const calorieInput = logForm?.querySelector('[data-calorie-input]');
       const submitBtn = logForm?.querySelector('[data-submit-btn]');
 
       // Safe math evaluator (recursive descent parser, no eval/Function)
@@ -1682,34 +1681,34 @@
 
       // Auto-calculate calories from macros (P×4 + C×4 + F×9)
       if (autoCalcCaloriesJs && calorieInput) {
-        let userOverride = false;
-
         const autoFillCalories = () => {
-          if (userOverride) return;
           const p = clampMacroFieldValue(document.querySelector('[data-macro-input="protein"]')?.value) || 0;
           const c = clampMacroFieldValue(document.querySelector('[data-macro-input="carbs"]')?.value) || 0;
           const f = clampMacroFieldValue(document.querySelector('[data-macro-input="fat"]')?.value) || 0;
-          if (p === 0 && c === 0 && f === 0) return;
+          if (p === 0 && c === 0 && f === 0) {
+            calorieInput.value = '';
+            updateSubmitState();
+            return;
+          }
           calorieInput.value = Math.min(MAX_ENTRY_CALORIES, (p * 4) + (c * 4) + (f * 9));
-          calorieInput.dispatchEvent(new Event('input'));
+          updateSubmitState();
         };
 
         ['protein', 'carbs', 'fat'].forEach(key => {
           const inp = document.querySelector('[data-macro-input="' + key + '"]');
           if (inp) {
-            inp.addEventListener('input', () => {
-              userOverride = false;
-              autoFillCalories();
-            });
+            inp.addEventListener('input', () => autoFillCalories());
           }
         });
+      }
 
-        calorieInput.addEventListener('input', (e) => {
-          if (e.isTrusted) userOverride = true;
+      // Click message for locked calorie fields (entry form + timeline)
+      if (autoCalcCaloriesJs) {
+        document.addEventListener('click', (evt) => {
+          if (evt.target.closest('[data-auto-calc-locked]') || evt.target.closest('[data-locked-amount]')) {
+            alert('Calories are auto-calculated from protein, carbs, and fat. You can change this in Settings.');
+          }
         });
-
-        const logForm = document.querySelector('[data-log-form]');
-        if (logForm) logForm.addEventListener('reset', () => { userOverride = false; });
       }
 
       renderEntries(initialEntries, true);

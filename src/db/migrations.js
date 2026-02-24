@@ -280,6 +280,20 @@ async function migrateCalorieGoalToMacroGoals() {
   });
 }
 
+// Migrate implicit auto-calc (P+C+F all enabled) to explicit toggle
+async function migrateAutoCalcCalories() {
+  await withTransaction(async (client) => {
+    await client.query(`
+      UPDATE users
+         SET macros_enabled = macros_enabled || '{"auto_calc_calories": true}'::jsonb
+       WHERE macros_enabled->>'protein' = 'true'
+         AND macros_enabled->>'carbs' = 'true'
+         AND macros_enabled->>'fat' = 'true'
+         AND NOT (macros_enabled ? 'auto_calc_calories')
+    `);
+  });
+}
+
 // Retry schema initialization with exponential backoff
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -304,6 +318,7 @@ async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
 
       // Data migrations (must run after schema migrations)
       await migrateCalorieGoalToMacroGoals();
+      await migrateAutoCalcCalories();
 
       console.log('Schema initialization successful');
       return;

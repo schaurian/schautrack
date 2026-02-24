@@ -31,6 +31,7 @@ const {
   worstDotStatus,
   parseMacroInput,
   isAutoCalcCalories,
+  computeCaloriesFromMacros,
   getMacroTotalsByDate,
 } = require('../lib/macros');
 
@@ -587,13 +588,13 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const userTz = getUserTimezone(req, res);
   const rawAmountInput = String(req.body.amount ?? '').trim();
-  const { value: amount, ok: amountOk } = parseEntryAmount(req.body.amount);
+  let { value: amount, ok: amountOk } = parseEntryAmount(req.body.amount);
   const { ok: weightOk, value: weightVal } = parseWeight(req.body.weight);
   const entryDate = req.body.entry_date || formatDateInTz(new Date(), userTz);
   const entryName = (req.body.entry_name || '').trim();
   const entryNameSafe = entryName ? entryName.slice(0, 120) : null;
 
-  const hasCalorieEntry = amountOk && amount !== 0;
+  let hasCalorieEntry = amountOk && amount !== 0;
   const hasWeight = weightOk && weightVal !== null;
 
   // Parse macro values (save any that are provided, regardless of enabled state)
@@ -616,6 +617,20 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
     return res.redirect('/dashboard');
   }
   const hasMacroEntry = Object.keys(macroValues).length > 0;
+
+  // Auto-calculate calories from macros when enabled
+  if (isAutoCalcCalories(req.currentUser) && hasMacroEntry) {
+    const computedCals = computeCaloriesFromMacros(
+      macroValues.protein ?? 0,
+      macroValues.carbs ?? 0,
+      macroValues.fat ?? 0
+    );
+    if (computedCals !== null && computedCals > 0) {
+      amount = computedCals;
+      amountOk = true;
+      hasCalorieEntry = true;
+    }
+  }
 
   if (rawAmountInput && !amountOk) {
     if (wantsJson) {
@@ -698,7 +713,9 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
     idx += 1;
   }
 
-  if (req.body.amount !== undefined) {
+  const autoCalc = isAutoCalcCalories(req.currentUser);
+
+  if (req.body.amount !== undefined && !autoCalc) {
     const { value: amount, ok } = parseEntryAmount(req.body.amount);
     if (!ok || amount === 0) {
       return wantsJson
@@ -743,6 +760,23 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
     }
 
     const updated = rows[0];
+
+    // Recompute calories from macros when auto-calc is enabled
+    if (autoCalc) {
+      const computedCals = computeCaloriesFromMacros(
+        updated.protein_g,
+        updated.carbs_g,
+        updated.fat_g
+      );
+      if (computedCals !== null) {
+        await pool.query(
+          'UPDATE calorie_entries SET amount = $1 WHERE id = $2 AND user_id = $3',
+          [computedCals, entryId, req.currentUser.id]
+        );
+        updated.amount = computedCals;
+      }
+    }
+
     const userEnabledMacros = getEnabledMacros(req.currentUser);
     const macros = {};
     for (const key of userEnabledMacros) {
@@ -939,7 +973,7 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     const importedMacrosEnabled = parsed.user?.macros_enabled;
     const importedMacroGoals = parsed.user?.macro_goals;
     if (importedMacrosEnabled || importedMacroGoals || (Number.isInteger(goalCandidate) && goalCandidate >= 0)) {
-      const validToggleKeys = [...MACRO_KEYS, 'calories'];
+      const validToggleKeys = [...MACRO_KEYS, 'calories', 'auto_calc_calories'];
       const validGoalKeys = ['calories', ...MACRO_KEYS.map(k => k), ...MACRO_KEYS.map(k => `${k}_mode`), 'calories_mode'];
 
       const macrosEnabled = {};

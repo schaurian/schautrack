@@ -16,6 +16,7 @@ const {
   computeDotStatus,
   worstDotStatus,
   parseMacroInput,
+  canEnableAutoCalcCalories,
   isAutoCalcCalories,
   computeCaloriesFromMacros,
   getMacroTotalsByDate,
@@ -334,26 +335,51 @@ describe('worstDotStatus', () => {
   });
 });
 
+describe('canEnableAutoCalcCalories', () => {
+  test('returns false for null/undefined user', () => {
+    expect(canEnableAutoCalcCalories(null)).toBe(false);
+    expect(canEnableAutoCalcCalories(undefined)).toBe(false);
+  });
+
+  test('returns false when not all three macros enabled', () => {
+    expect(canEnableAutoCalcCalories({ macros_enabled: { protein: true, carbs: true, fat: false } })).toBe(false);
+    expect(canEnableAutoCalcCalories({ macros_enabled: { protein: true, carbs: false, fat: true } })).toBe(false);
+    expect(canEnableAutoCalcCalories({ macros_enabled: { protein: false, carbs: true, fat: true } })).toBe(false);
+  });
+
+  test('returns true when calories (default) + protein + carbs + fat enabled', () => {
+    expect(canEnableAutoCalcCalories({ macros_enabled: { protein: true, carbs: true, fat: true } })).toBe(true);
+  });
+
+  test('returns false when calories explicitly disabled', () => {
+    expect(canEnableAutoCalcCalories({ macros_enabled: { calories: false, protein: true, carbs: true, fat: true } })).toBe(false);
+  });
+
+  test('returns true with extra macros enabled', () => {
+    expect(canEnableAutoCalcCalories({ macros_enabled: { protein: true, carbs: true, fat: true, fiber: true } })).toBe(true);
+  });
+
+  test('returns false when macros_enabled is empty', () => {
+    expect(canEnableAutoCalcCalories({ macros_enabled: {} })).toBe(false);
+  });
+});
+
 describe('isAutoCalcCalories', () => {
   test('returns false for null/undefined user', () => {
     expect(isAutoCalcCalories(null)).toBe(false);
     expect(isAutoCalcCalories(undefined)).toBe(false);
   });
 
-  test('returns false when not all three macros enabled', () => {
-    expect(isAutoCalcCalories({ macros_enabled: { protein: true, carbs: true, fat: false } })).toBe(false);
-    expect(isAutoCalcCalories({ macros_enabled: { protein: true, carbs: false, fat: true } })).toBe(false);
-    expect(isAutoCalcCalories({ macros_enabled: { protein: false, carbs: true, fat: true } })).toBe(false);
+  test('returns false when auto_calc_calories not set', () => {
+    expect(isAutoCalcCalories({ macros_enabled: { protein: true, carbs: true, fat: true } })).toBe(false);
   });
 
-  test('returns true when protein, carbs, and fat are all enabled', () => {
-    const user = { macros_enabled: { protein: true, carbs: true, fat: true } };
-    expect(isAutoCalcCalories(user)).toBe(true);
+  test('returns false when auto_calc_calories is false', () => {
+    expect(isAutoCalcCalories({ macros_enabled: { auto_calc_calories: false } })).toBe(false);
   });
 
-  test('returns true with extra macros enabled', () => {
-    const user = { macros_enabled: { protein: true, carbs: true, fat: true, fiber: true, sugar: true } };
-    expect(isAutoCalcCalories(user)).toBe(true);
+  test('returns true when auto_calc_calories is true', () => {
+    expect(isAutoCalcCalories({ macros_enabled: { auto_calc_calories: true } })).toBe(true);
   });
 
   test('returns false when macros_enabled is empty', () => {

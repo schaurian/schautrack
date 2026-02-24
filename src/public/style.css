@@ -2559,6 +2559,18 @@ a:focus-visible,
   vertical-align: middle;
 }
 
+/* Readonly calorie input when auto-calc is enabled */
+input[data-auto-calc-locked] {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+/* Locked calorie cell in timeline (auto-calc) */
+.entry-amount-locked {
+  cursor: pointer;
+  opacity: 0.75;
+}
+
 /* Dashboard: Entry form */
 .entry-form {
   display: flex;

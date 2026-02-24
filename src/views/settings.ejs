@@ -46,6 +46,23 @@
             </div>
           <% }) %>
         </div>
+        <%
+          const autoCalcEnabled = (user.macros_enabled || {}).auto_calc_calories === true;
+          const caloriesOn = (user.macros_enabled || {}).calories !== false;
+          const proteinOn = (user.macros_enabled || {}).protein === true;
+          const carbsOn = (user.macros_enabled || {}).carbs === true;
+          const fatOn = (user.macros_enabled || {}).fat === true;
+          const canAutoCalc = caloriesOn && proteinOn && carbsOn && fatOn;
+        %>
+        <div class="macro-row <%= !autoCalcEnabled ? 'macro-row--off' : '' %>" style="border-color: rgba(14, 165, 233, 0.2); background: rgba(14, 165, 233, 0.04);" data-auto-calc-row>
+          <label class="macro-toggle">
+            <input type="checkbox" name="auto_calc_calories" <%= autoCalcEnabled ? 'checked' : '' %> data-auto-calc-toggle>
+            <span class="macro-label" style="color: var(--accent);">Auto-calculate calories</span>
+          </label>
+          <div class="macro-row-fields">
+            <span class="muted small">P×4 + C×4 + F×9</span>
+          </div>
+        </div>
         <div class="macro-row" style="border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.04);">
           <span class="macro-label" style="color: #fcd34d;">Threshold</span>
           <div class="macro-row-fields">
@@ -423,6 +440,23 @@
         prefForm.addEventListener('submit', (e) => e.preventDefault());
       }
 
+      // --- Auto-calc toggle management ---
+      const autoCalcToggle = document.querySelector('[data-auto-calc-toggle]');
+      const autoCalcRow = document.querySelector('[data-auto-calc-row]');
+
+      function updateAutoCalcAvailability() {
+        if (!autoCalcToggle || !autoCalcRow) return;
+        const cal = document.querySelector('[data-macro-toggle="calories"]');
+        const pro = document.querySelector('[data-macro-toggle="protein"]');
+        const carb = document.querySelector('[data-macro-toggle="carbs"]');
+        const fat = document.querySelector('[data-macro-toggle="fat"]');
+        const canEnable = (!cal || cal.checked) && pro && pro.checked && carb && carb.checked && fat && fat.checked;
+        if (!canEnable && autoCalcToggle.checked) {
+          autoCalcToggle.checked = false;
+          autoCalcRow.classList.add('macro-row--off');
+        }
+      }
+
       // --- Macro toggle handling ---
       document.querySelectorAll('[data-macro-toggle]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
@@ -438,8 +472,34 @@
             fieldsWrap.classList.add('disabled');
             fieldsWrap.querySelectorAll('input, select').forEach(el => el.disabled = true);
           }
+          updateAutoCalcAvailability();
         });
       });
+
+      function enableMacroToggle(key) {
+        const cb = document.querySelector('[data-macro-toggle="' + key + '"]');
+        if (!cb || cb.checked) return;
+        cb.checked = true;
+        const row = cb.closest('.macro-row');
+        const fieldsWrap = row && row.querySelector('.macro-row-fields');
+        if (row) row.classList.remove('macro-row--off');
+        if (fieldsWrap) {
+          fieldsWrap.classList.remove('disabled');
+          fieldsWrap.querySelectorAll('input, select').forEach(el => el.disabled = false);
+        }
+      }
+
+      if (autoCalcToggle) {
+        autoCalcToggle.addEventListener('change', () => {
+          if (autoCalcToggle.checked) {
+            autoCalcRow.classList.remove('macro-row--off');
+            // Auto-enable required nutrients
+            ['calories', 'protein', 'carbs', 'fat'].forEach(enableMacroToggle);
+          } else {
+            autoCalcRow.classList.add('macro-row--off');
+          }
+        });
+      }
 
       // --- Weight unit pill styling ---
       const unitGroup = document.querySelector('[data-weight-unit]');

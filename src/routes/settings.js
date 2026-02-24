@@ -160,6 +160,14 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
     }
   }
 
+  // Auto-calculate calories toggle (only valid when calories + protein + carbs + fat are all enabled)
+  const wantsAutoCalc = req.body.auto_calc_calories === 'on' || req.body.auto_calc_calories === 'true';
+  const canAutoCalc = enabledMacros.calories !== false
+    && enabledMacros.protein === true
+    && enabledMacros.carbs === true
+    && enabledMacros.fat === true;
+  enabledMacros.auto_calc_calories = wantsAutoCalc && canAutoCalc;
+
   // Parse goal threshold (0-99)
   const rawThreshold = parseMacroInput(req.body.goal_threshold);
   const goalThreshold = rawThreshold != null ? Math.min(Math.max(rawThreshold, 0), 99) : 10;
