@@ -155,11 +155,12 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
 } = {}) {
   return dayOptions.map((dateStr) => {
     const total = totalsByDate.get(dateStr) || 0;
+    const hasEntries = totalsByDate.has(dateStr);
     const statuses = [];
 
-    // Calorie goal status
+    // Calorie goal status (grey if no entries at all, otherwise evaluate against goal)
     if (dailyGoal) {
-      if (total === 0) {
+      if (!hasEntries) {
         statuses.push('zero');
       } else {
         const calStatus = computeMacroStatus(total, dailyGoal, macroModes.calories || 'limit', threshold);
@@ -167,8 +168,8 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
       }
     }
 
-    // Macro goal statuses
-    if (macroTotalsByDate && enabledMacros.length > 0) {
+    // Macro goal statuses (skip on days with no entries)
+    if (hasEntries && macroTotalsByDate && enabledMacros.length > 0) {
       const dayMacros = macroTotalsByDate.get(dateStr) || {};
       for (const key of enabledMacros) {
         const goal = macroGoals[key] != null ? macroGoals[key] : null;
