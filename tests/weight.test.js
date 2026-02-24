@@ -72,4 +72,17 @@ describe('Weight unit conversion (unit tests)', () => {
     expect(lbsToKg('-10')).toBe(null);
     expect(lbsToKg('abc')).toBe(null);
   });
+
+  // Regression: lb → kg → parseWeight → kg → lb round-trip must not drift
+  test('lb → kg → parseWeight → kgToLbs round-trip preserves value', () => {
+    const { parseWeight } = require('../src/lib/utils');
+    const testLbs = [100, 150, 155.5, 200, 250.3, 99.9];
+    for (const lbs of testLbs) {
+      const kg = lbsToKg(lbs);
+      const parsed = parseWeight(kg);
+      expect(parsed.ok).toBe(true);
+      const backToLbs = kgToLbs(parsed.value);
+      expect(backToLbs).toBeCloseTo(lbs, 0);
+    }
+  });
 });

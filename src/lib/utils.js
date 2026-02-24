@@ -135,7 +135,7 @@ const parseWeight = (input) => {
   if (!Number.isFinite(value) || value <= 0 || value > 1500) {
     return { ok: false, value: null };
   }
-  return { ok: true, value: Math.round(value * 10) / 10 };
+  return { ok: true, value: Math.round(value * 100) / 100 };
 };
 
 module.exports = {
