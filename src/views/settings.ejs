@@ -97,7 +97,7 @@
             <h2>Two-factor</h2>
           </div>
         </div>
-        <div class="stack">
+        <div class="stack totp-content">
           <% if (user.totp_enabled) { %>
             <div class="alert success">2FA is enabled.</div>
             <form action="/2fa/disable" method="POST" class="stack compact">
@@ -106,31 +106,29 @@
                 <span>Current 2FA code</span>
                 <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
               </label>
-              <button type="submit" class="ghost danger">Disable 2FA</button>
+              <button type="submit" class="ghost danger full">Disable 2FA</button>
             </form>
           <% } else if (hasTempSecret) { %>
             <p class="muted small">Scan the QR code or copy the secret, then enter the 6-digit code.</p>
             <div class="totp-setup">
               <div class="qr-center">
                 <% if (qrDataUrl) { %>
-                  <img src="<%= qrDataUrl %>" alt="2FA QR code">
+                  <img src="<%= qrDataUrl %>" alt="2FA QR code" id="qr-img" style="cursor: pointer;" title="Click to enlarge">
                 <% } %>
                 <% if (otpauthUrl) { %>
-                  <div class="totp-secret">
-                    <button type="button" class="ghost small" id="copy-totp-url" title="Copy TOTP URL">Copy URL</button>
-                    <script>
-                      document.getElementById('copy-totp-url').addEventListener('click', async function() {
-                        const url = <%- JSON.stringify(otpauthUrl) %>;
-                        try {
-                          await navigator.clipboard.writeText(url);
-                          this.textContent = 'Copied!';
-                          setTimeout(() => this.textContent = 'Copy URL', 1500);
-                        } catch (err) {
-                          console.error('Copy failed', err);
-                        }
-                      });
-                    </script>
-                  </div>
+                  <button type="button" class="ghost full" id="copy-totp-url">Copy setup URL</button>
+                  <script>
+                    document.getElementById('copy-totp-url').addEventListener('click', async function() {
+                      const url = <%- JSON.stringify(otpauthUrl) %>;
+                      try {
+                        await navigator.clipboard.writeText(url);
+                        this.textContent = 'Copied!';
+                        setTimeout(() => { this.textContent = 'Copy setup URL'; }, 1500);
+                      } catch (err) {
+                        console.error('Copy failed', err);
+                      }
+                    });
+                  </script>
                 <% } %>
               </div>
               <form action="/2fa/enable" method="POST" class="stack compact">
@@ -139,15 +137,15 @@
                   <span>6-digit code</span>
                   <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
                 </label>
-                <button type="submit" class="primary">Activate 2FA</button>
-                <button type="submit" class="ghost danger" formaction="/2fa/cancel" formnovalidate>Cancel</button>
+                <button type="submit" class="primary full">Activate 2FA</button>
+                <button type="submit" class="ghost danger full" formaction="/2fa/cancel" formnovalidate>Cancel</button>
               </form>
             </div>
           <% } else { %>
             <p class="muted small">Add extra security with an authenticator app.</p>
-            <form action="/2fa/setup" method="POST" class="inline-form">
+            <form action="/2fa/setup" method="POST">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <button type="submit" class="primary">Start setup</button>
+              <button type="submit" class="primary full">Start setup</button>
             </form>
           <% } %>
         </div>
@@ -485,6 +483,20 @@
           }
         });
       });
+
+      // --- QR code lightbox ---
+      const qrImg = document.getElementById('qr-img');
+      if (qrImg) {
+        qrImg.addEventListener('click', () => {
+          const overlay = document.createElement('div');
+          overlay.className = 'qr-lightbox';
+          const img = document.createElement('img');
+          img.src = qrImg.src;
+          overlay.appendChild(img);
+          overlay.addEventListener('click', () => overlay.remove());
+          document.body.appendChild(overlay);
+        });
+      }
     })();
   </script>
 <%- include('partials/footer') %>

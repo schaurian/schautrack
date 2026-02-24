@@ -144,6 +144,18 @@ main.shell {
   padding: var(--space-lg);
   margin-bottom: var(--space-lg);
   box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.panel > .stack:last-child,
+.panel > form:last-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.panel > form:last-child > button:last-child,
+.panel > .stack:last-child > form:last-child {
+  margin-top: auto;
 }
 
 .panel-header {
@@ -1183,11 +1195,15 @@ a:focus-visible,
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
+.totp-content {
+  flex: 1;
+}
+
 .totp-setup {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: var(--space-lg);
+  flex: 1;
 }
 
 .totp-setup form {
@@ -1198,31 +1214,35 @@ a:focus-visible,
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--space-sm);
 }
 
 .qr-center img {
-  width: 180px;
-  height: 180px;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
   background: #fff;
-  padding: 8px;
-  border-radius: 12px;
+  padding: 2px;
+  border-radius: 8px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
-.totp-secret {
+.qr-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
+  justify-content: center;
+  cursor: pointer;
 }
-
-.totp-secret code {
-  flex: 1;
-  font-size: 0.75rem;
-}
-
-.totp-secret button {
-  flex-shrink: 0;
+.qr-lightbox img {
+  width: min(85vw, 85vh);
+  height: min(85vw, 85vh);
+  background: #fff;
+  padding: 3px;
+  border-radius: 12px;
 }
 
 .break {
