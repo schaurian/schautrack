@@ -175,7 +175,7 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
 });
 
 router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
-  const { ai_key, ai_endpoint, clear_settings } = req.body;
+  const { ai_key, clear_settings } = req.body;
 
   if (clear_settings === 'true') {
     try {
@@ -192,7 +192,7 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
   const values = [];
   let idx = 1;
 
-  // API key
+  // API key (user-scoped)
   if (ai_key && ai_key.trim()) {
     const encrypted = encryptApiKey(ai_key.trim());
     if (encrypted) {
@@ -202,23 +202,8 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
     }
   }
 
-  // Endpoint
-  if (ai_endpoint !== undefined) {
-    const trimmed = ai_endpoint.trim();
-
-    // Basic URL validation
-    if (trimmed && !trimmed.match(/^https?:\/\/.+/)) {
-      req.session.aiFeedback = {
-        type: 'error',
-        message: 'Invalid endpoint URL. Must start with http:// or https://'
-      };
-      return res.redirect('/settings');
-    }
-
-    updates.push(`ai_endpoint = $${idx}`);
-    values.push(trimmed || null);
-    idx++;
-  }
+  // Endpoint is admin-only (global setting) — never accept user override
+  updates.push(`ai_endpoint = NULL`);
 
   try {
     if (updates.length > 0) {

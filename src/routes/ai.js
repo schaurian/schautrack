@@ -66,11 +66,6 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
     apiKey = decryptApiKey(user.ai_key);
   }
 
-  // User's custom endpoint
-  if (user.ai_endpoint) {
-    endpoint = user.ai_endpoint;
-  }
-
   // Fallback to global settings
   if (!apiKey) {
     if (globalKey.value) {
