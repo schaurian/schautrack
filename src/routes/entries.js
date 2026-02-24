@@ -941,8 +941,8 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     parsed.user?.macro_goals?.calories !== undefined ? parsed.user.macro_goals.calories
     : parsed.daily_goal !== undefined ? parsed.daily_goal
     : parsed.user?.daily_goal;
-  const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 500) : [];
-  const weights = Array.isArray(parsed.weights) ? parsed.weights.slice(0, 500) : [];
+  const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 10000) : [];
+  const weights = Array.isArray(parsed.weights) ? parsed.weights.slice(0, 10000) : [];
 
   const toInsert = [];
   entries.forEach((entry) => {

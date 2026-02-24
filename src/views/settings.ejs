@@ -197,6 +197,12 @@
           <span>Confirm new password</span>
           <input type="password" name="confirm_password" required autocomplete="new-password" minlength="6">
         </label>
+        <% if (user.totp_enabled) { %>
+          <label class="field">
+            <span>2FA code</span>
+            <input type="text" name="totp_code" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code">
+          </label>
+        <% } %>
         <button type="submit" class="primary">Update password</button>
       </form>
     </div>

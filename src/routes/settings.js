@@ -270,6 +270,24 @@ router.post('/settings/password', requireLogin, csrfProtection, async (req, res)
       return res.redirect('/settings');
     }
 
+    if (req.currentUser.totp_enabled) {
+      const totpCode = req.body.totp_code || '';
+      if (!totpCode) {
+        req.session.passwordFeedback = { type: 'error', message: 'Please enter your 2FA code.' };
+        return res.redirect('/settings');
+      }
+      const totpOk = speakeasy.totp.verify({
+        secret: req.currentUser.totp_secret,
+        encoding: 'base32',
+        token: totpCode,
+        window: 1,
+      });
+      if (!totpOk) {
+        req.session.passwordFeedback = { type: 'error', message: 'Invalid 2FA code.' };
+        return res.redirect('/settings');
+      }
+    }
+
     const hash = await argon2.hash(newPassword);
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.currentUser.id]);
 
