@@ -3,7 +3,7 @@ const { toInt } = require('../lib/utils');
 
 async function getUserById(id) {
   const { rows } = await pool.query(
-    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual, preferred_ai_provider, ai_key, ai_endpoint, macros_enabled, macro_goals FROM users WHERE id = $1',
+    'SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual, preferred_ai_provider, ai_key, macros_enabled, macro_goals FROM users WHERE id = $1',
     [id]
   );
   const user = rows[0];
