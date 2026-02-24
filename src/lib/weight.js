@@ -1,8 +1,9 @@
 const { pool } = require('../db/pool');
 const { toIsoDate } = require('./utils');
 
-async function upsertWeightEntry(userId, dateStr, weight) {
-  const { rows } = await pool.query(
+async function upsertWeightEntry(userId, dateStr, weight, queryFn) {
+  const query = queryFn || pool.query.bind(pool);
+  const { rows } = await query(
     `INSERT INTO weight_entries (user_id, entry_date, weight)
        VALUES ($1, $2, $3)
       ON CONFLICT (user_id, entry_date)

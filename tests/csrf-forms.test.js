@@ -24,6 +24,9 @@ const CSRF_PROTECTED_ACTIONS = [
   '/2fa/cancel',
   '/2fa/enable',
   '/2fa/disable',
+  '/settings/link/request',
+  '/settings/link/respond',
+  '/settings/link/remove',
 ];
 
 // Regex routes for POST forms with dynamic IDs (EJS-generated paths).

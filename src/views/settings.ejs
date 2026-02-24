@@ -235,6 +235,7 @@
     <% } %>
 
     <form action="/settings/link/request" method="POST" class="stack link-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label class="field">
         <span>Invite by email</span>
         <input type="email" name="email" placeholder="friend@example.com" required <%= availableSlots === 0 ? 'disabled' : '' %>>
@@ -267,11 +268,13 @@
               </div>
               <div class="table-actions">
                 <form action="/settings/link/respond" method="POST" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="request_id" value="<%= req.id %>">
                   <input type="hidden" name="action" value="accept">
                   <button type="submit" class="primary">Accept</button>
                 </form>
                 <form action="/settings/link/respond" method="POST" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="request_id" value="<%= req.id %>">
                   <input type="hidden" name="action" value="decline">
                   <button type="submit" class="ghost danger">Decline</button>
@@ -301,6 +304,7 @@
               </div>
               <div class="table-actions">
                 <form action="/settings/link/remove" method="POST" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="link_id" value="<%= req.id %>">
                   <button type="submit" class="ghost danger">Cancel</button>
                 </form>
@@ -328,6 +332,7 @@
             <div class="table-email"><%= link.email %></div>
             <div style="text-align: right;">
               <form action="/settings/link/remove" method="POST" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="link_id" value="<%= link.linkId %>">
                 <button type="submit" class="ghost danger">Remove</button>
               </form>

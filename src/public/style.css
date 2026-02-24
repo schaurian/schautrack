@@ -1984,6 +1984,10 @@ a:focus-visible,
 .ai-disclaimer {
   text-align: center;
   margin-top: var(--space-md);
+  font-size: 0.8rem;
+  color: #facc15;
+  opacity: 0.85;
+  line-height: 1.4;
 }
 
 .ai-loading {

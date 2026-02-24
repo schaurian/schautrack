@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
+const { csrfProtection } = require('../middleware/csrf');
 const { toInt } = require('../lib/utils');
 const { countAcceptedLinks, getLinkBetween } = require('../lib/links');
 const { broadcastLinkLabelChange } = require('./sse');
@@ -13,7 +14,7 @@ function setLinkFeedback(req, type, message) {
   req.session.linkFeedback = { type, message };
 }
 
-router.post('/settings/link/request', requireLogin, async (req, res) => {
+router.post('/settings/link/request', requireLogin, csrfProtection, async (req, res) => {
   const emailRaw = (req.body.email || '').trim();
   if (!emailRaw) {
     setLinkFeedback(req, 'error', 'Email is required.');
@@ -78,7 +79,7 @@ router.post('/settings/link/request', requireLogin, async (req, res) => {
   return res.redirect('/settings');
 });
 
-router.post('/settings/link/respond', requireLogin, async (req, res) => {
+router.post('/settings/link/respond', requireLogin, csrfProtection, async (req, res) => {
   const requestId = parseInt(req.body.request_id, 10);
   const action = (req.body.action || '').trim();
   if (Number.isNaN(requestId) || !['accept', 'decline'].includes(action)) {
@@ -133,7 +134,7 @@ router.post('/settings/link/respond', requireLogin, async (req, res) => {
   return res.redirect('/settings');
 });
 
-router.post('/settings/link/remove', requireLogin, async (req, res) => {
+router.post('/settings/link/remove', requireLogin, csrfProtection, async (req, res) => {
   const linkId = parseInt(req.body.link_id, 10);
   if (Number.isNaN(linkId)) {
     return res.redirect('/settings');
@@ -164,7 +165,7 @@ router.post('/settings/link/remove', requireLogin, async (req, res) => {
   return res.redirect('/settings');
 });
 
-router.post('/links/:id/label', requireLogin, async (req, res) => {
+router.post('/links/:id/label', requireLogin, csrfProtection, async (req, res) => {
   const linkId = toInt(req.params.id);
   if (linkId === null) {
     return res.status(400).json({ ok: false, error: 'Invalid link' });

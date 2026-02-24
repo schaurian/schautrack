@@ -391,12 +391,16 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
         return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email: pendingUser.email, captchaSvg: null });
       }
 
-      // Success - clear failed attempts and upgrade session to full duration
-      req.session.loginFailedAttempts = 0;
-      req.session.userId = pendingUser.id;
-      req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
-      delete req.session.pendingUserId;
-      return res.redirect('/dashboard');
+      // Success - regenerate session to prevent fixation, then upgrade to full duration
+      return req.session.regenerate((err) => {
+        if (err) {
+          console.error('Session regeneration failed', err);
+          return renderLogin('Could not log in. Please try again.');
+        }
+        req.session.userId = pendingUser.id;
+        req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
+        return res.redirect('/dashboard');
+      });
     }
 
     if (!email || !password) {
@@ -444,11 +448,16 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
       });
     }
 
-    // Success - clear failed attempts and upgrade session to full duration
-    req.session.loginFailedAttempts = 0;
-    req.session.userId = user.id;
-    req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
-    return res.redirect('/dashboard');
+    // Success - regenerate session to prevent fixation, then upgrade to full duration
+    return req.session.regenerate((err) => {
+      if (err) {
+        console.error('Session regeneration failed', err);
+        return renderLogin('Could not log in. Please try again.', { email });
+      }
+      req.session.userId = user.id;
+      req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
+      return res.redirect('/dashboard');
+    });
   } catch (err) {
     console.error('Login error', err);
     renderLogin('Could not log in.', { email: email || '' });
@@ -949,18 +958,26 @@ router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
       }
     }
 
-    await pool.query('BEGIN');
-    
-    // Delete all user data from all tables
-    await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM weight_entries WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM ai_usage WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
-    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-    
-    await pool.query('COMMIT');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Delete all user data from all tables
+      await client.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM weight_entries WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM ai_usage WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
+      await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
     return req.session.destroy(() => {
       res.render('delete', {
@@ -970,7 +987,6 @@ router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
     });
   } catch (err) {
     console.error('Account deletion failed', err);
-    await pool.query('ROLLBACK').catch(() => {});
     req.session.deleteFeedback = { type: 'error', message: 'Could not delete account. Please try again.' };
     return res.redirect('/delete');
   }

@@ -625,8 +625,9 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
     return res.redirect('/dashboard');
   }
 
+  const client = await pool.connect();
   try {
-    await pool.query('BEGIN');
+    await client.query('BEGIN');
 
     if (hasCalorieEntry || hasMacroEntry) {
       // Use provided calorie amount, or 0 if only macros were provided
@@ -637,17 +638,17 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
       const macroPlaceholders = macroKeys.length > 0 ? ', ' + macroKeys.map((_, i) => `$${5 + i}`).join(', ') : '';
       const macroVals = macroKeys.map(k => macroValues[k]);
 
-      await pool.query(
+      await client.query(
         `INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name${macroColumns}) VALUES ($1, $2, $3, $4${macroPlaceholders})`,
         [req.currentUser.id, entryDate, entryAmount, entryNameSafe, ...macroVals]
       );
     }
 
     if (hasWeight) {
-      await upsertWeightEntry(req.currentUser.id, entryDate, weightVal);
+      await upsertWeightEntry(req.currentUser.id, entryDate, weightVal, client.query.bind(client));
     }
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
 
     if (hasCalorieEntry || hasMacroEntry) {
       await broadcastEntryChange(req.currentUser.id);
@@ -657,11 +658,13 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
       return res.json({ ok: true });
     }
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Failed to add entry', err);
-    await pool.query('ROLLBACK').catch(() => {});
     if (wantsJson) {
       return res.status(500).json({ ok: false, error: 'Failed to save entry' });
     }
+  } finally {
+    client.release();
   }
 
   const dayParam = entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate) ? `?day=${entryDate}` : '';
@@ -918,12 +921,13 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     return res.redirect('/settings');
   }
 
+  const client = await pool.connect();
   try {
-    await pool.query('BEGIN');
-    await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
-    await pool.query('DELETE FROM weight_entries WHERE user_id = $1', [req.currentUser.id]);
+    await client.query('BEGIN');
+    await client.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
+    await client.query('DELETE FROM weight_entries WHERE user_id = $1', [req.currentUser.id]);
     if (Number.isInteger(goalCandidate) && goalCandidate >= 0) {
-      await pool.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [
+      await client.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [
         goalCandidate,
         req.currentUser.id,
       ]);
@@ -954,7 +958,7 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
           }
         }
       }
-      await pool.query('UPDATE users SET macros_enabled = $1, macro_goals = $2 WHERE id = $3', [
+      await client.query('UPDATE users SET macros_enabled = $1, macro_goals = $2 WHERE id = $3', [
         JSON.stringify(macrosEnabled),
         JSON.stringify(macroGoalsImport),
         req.currentUser.id,
@@ -963,24 +967,26 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
 
     for (const entry of toInsert) {
       if (entry.created_at) {
-        await pool.query(
+        await client.query(
           'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
           [req.currentUser.id, entry.date, entry.amount, entry.name, entry.created_at, entry.protein_g, entry.carbs_g, entry.fat_g, entry.fiber_g, entry.sugar_g]
         );
       } else {
-        await pool.query(
+        await client.query(
           'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, protein_g, carbs_g, fat_g, fiber_g, sugar_g) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
           [req.currentUser.id, entry.date, entry.amount, entry.name, entry.protein_g, entry.carbs_g, entry.fat_g, entry.fiber_g, entry.sugar_g]
         );
       }
     }
     for (const w of weightToInsert) {
-      await upsertWeightEntry(req.currentUser.id, w.date, w.weight);
+      await upsertWeightEntry(req.currentUser.id, w.date, w.weight, client.query.bind(client));
     }
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Import failed', err);
-    await pool.query('ROLLBACK');
+  } finally {
+    client.release();
   }
 
   res.redirect('/settings');

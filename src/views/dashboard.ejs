@@ -5,7 +5,7 @@
   <section class="panel today-panel">
     <div class="panel-header">
       <div>
-        <h2>Today</h2>
+        <h2 data-panel-heading>Today</h2>
       </div>
     </div>
     <div class="macro-summary" data-macro-summary>
@@ -317,6 +317,11 @@
       const macroLabelsJs = <%- JSON.stringify(macroLabels || {}) %>;
       const macroHeaderShortJs = { protein: 'Pro', carbs: 'Carb', fat: 'Fat', fiber: 'Fib', sugar: 'Sug' };
       const timelineMetricCountJs = (caloriesEnabledJs ? 1 : 0) + enabledMacrosJs.length + 1;
+      const macroGoalsJs = <%- JSON.stringify(macroGoals || {}) %>;
+      const macroModesJs = <%- JSON.stringify(macroModes || {}) %>;
+      const goalThresholdJs = <%- JSON.stringify(user.goal_threshold != null ? user.goal_threshold : 10) %>;
+      const selfDailyGoalJs = <%- JSON.stringify(user.daily_goal || null) %>;
+      const panelHeading = document.querySelector('[data-panel-heading]');
       const MAX_ENTRY_CALORIES = 9999;
       const MAX_ENTRY_MACRO = 999;
       const weightDateInput = document.querySelector('[data-weight-date]');
@@ -412,6 +417,70 @@
         return data.label || '';
       };
 
+      // Mirror of computeMacroStatus() in src/lib/macros.js — keep in sync!
+      const computeMacroStatusJs = (total, goal, mode, threshold) => {
+        if (goal == null || goal === 0) {
+          return { statusClass: '', statusText: 'No goal set' };
+        }
+        const pctT = threshold != null ? threshold : 10;
+        if (mode === 'target') {
+          if (total >= goal) {
+            const over = total - goal;
+            return {
+              statusClass: 'macro-stat--success',
+              statusText: over > 0 ? `${over} over target` : 'Goal met',
+            };
+          }
+          const under = goal - total;
+          if (under * 100 > goal * pctT) {
+            return { statusClass: 'macro-stat--danger', statusText: `${under} remaining` };
+          }
+          return { statusClass: 'macro-stat--warning', statusText: `${under} remaining` };
+        }
+        if (total <= goal) {
+          return { statusClass: 'macro-stat--success', statusText: `${goal - total} remaining` };
+        }
+        const over = total - goal;
+        if (over * 100 > goal * pctT) {
+          return { statusClass: 'macro-stat--danger', statusText: `${over} over` };
+        }
+        return { statusClass: 'macro-stat--warning', statusText: `${over} over` };
+      };
+
+      const computeStatsFromEntries = (entries, dailyGoal) => {
+        let total = 0;
+        const macroTotals = {};
+        enabledMacrosJs.forEach((key) => { macroTotals[key] = 0; });
+        for (const entry of entries) {
+          total += entry.amount || 0;
+          if (entry.macros) {
+            enabledMacrosJs.forEach((key) => {
+              macroTotals[key] += entry.macros[key] || 0;
+            });
+          }
+        }
+        const calorieStatus = caloriesEnabledJs
+          ? computeMacroStatusJs(total, dailyGoal, macroModesJs.calories, goalThresholdJs)
+          : { statusClass: '', statusText: '' };
+        const macroStatuses = {};
+        enabledMacrosJs.forEach((key) => {
+          const goal = macroGoalsJs[key] != null ? macroGoalsJs[key] : null;
+          macroStatuses[key] = computeMacroStatusJs(macroTotals[key], goal, macroModesJs[key], goalThresholdJs);
+        });
+        return {
+          todayTotal: total,
+          dailyGoal,
+          calorieStatus,
+          todayMacroTotals: macroTotals,
+          macroStatuses,
+        };
+      };
+
+      const updatePanelHeading = (date, isSelf) => {
+        if (!panelHeading) return;
+        panelHeading.textContent = (isSelf && date === todayStr) ? 'Today' : date;
+      };
+
       const updateTopStats = (data) => {
         if (!data) return;
         // Update calorie stat
@@ -437,19 +506,19 @@
         }
         // Update macro stats
         if (data.todayMacroTotals) {
-          const macroGoalsMap = <%- JSON.stringify(macroGoals || {}) %>;
           enabledMacrosJs.forEach((key) => {
             const chip = document.querySelector(`[data-macro-chip="${key}"]`);
             if (!chip) return;
+            chip.classList.remove('hidden');
             const totalEl = chip.querySelector(`[data-macro-total="${key}"]`);
             if (totalEl) totalEl.textContent = data.todayMacroTotals[key] || 0;
-            const goal = macroGoalsMap[key];
+            const goal = macroGoalsJs[key];
             if (goal) {
               const pct = Math.min(Math.round(((data.todayMacroTotals[key] || 0) / goal) * 100), 100);
               const fill = chip.querySelector(`[data-macro-fill="${key}"]`);
               if (fill) fill.style.width = `${pct}%`;
             }
-            // Apply status classes from overview response
+            // Apply status classes
             chip.classList.remove('macro-stat--success', 'macro-stat--warning', 'macro-stat--danger');
             const macroStatus = data.macroStatuses && data.macroStatuses[key];
             if (macroStatus && macroStatus.statusClass) {
@@ -459,6 +528,12 @@
             if (statusEl && macroStatus) {
               statusEl.textContent = macroStatus.statusText;
             }
+          });
+        } else {
+          // No macro data (e.g. viewing linked user) — hide macro chips
+          enabledMacrosJs.forEach((key) => {
+            const chip = document.querySelector(`[data-macro-chip="${key}"]`);
+            if (chip) chip.classList.add('hidden');
           });
         }
       };
@@ -863,8 +938,11 @@
           }
           setActiveDay(currentUserId, currentDate, currentLabel, currentCanEdit, stats.todayStr);
         }
-        if (String(userId) === String(selfUserId)) {
+        if (String(userId) === String(selfUserId)
+            && currentDate === stats.todayStr
+            && String(currentUserId) === String(selfUserId)) {
           updateTopStats(stats);
+          updatePanelHeading(currentDate, true);
         }
       };
 
@@ -1069,7 +1147,8 @@
 
       const loadEntries = async (userId, date, canEdit) => {
         const params = new URLSearchParams({ date });
-        if (String(userId) !== String(selfUserId)) {
+        const isSelf = String(userId) === String(selfUserId);
+        if (!isSelf) {
           params.set('user', userId);
         }
         try {
@@ -1084,6 +1163,23 @@
               time: entry.time || formatTime(entry.created_at),
             }));
             renderEntries(normalized, canEdit);
+            // Update summary panel for the selected date
+            if (isSelf) {
+              updateTopStats(computeStatsFromEntries(normalized, selfDailyGoalJs));
+            } else {
+              const card = document.querySelector(`[data-share-block][data-user-id="${userId}"]`);
+              const linkedGoal = card?.dataset.dailyGoal ? Number(card.dataset.dailyGoal) : null;
+              const calTotal = normalized.reduce((sum, e) => sum + (e.amount || 0), 0);
+              const calStatus = computeMacroStatusJs(calTotal, linkedGoal, 'limit', goalThresholdJs);
+              updateTopStats({
+                todayTotal: calTotal,
+                dailyGoal: linkedGoal,
+                calorieStatus: calStatus,
+                todayMacroTotals: null,
+                macroStatuses: null,
+              });
+            }
+            updatePanelHeading(date, isSelf);
           }
         } catch (err) {
           console.error('Failed to load entries', err);
@@ -1618,6 +1714,10 @@
 
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel, true, todayStr);
+      if (currentDate !== todayStr) {
+        updateTopStats(computeStatsFromEntries(initialEntries, selfDailyGoalJs));
+        updatePanelHeading(currentDate, true);
+      }
       startEntryEvents();
 
       const initialDay = todayStr;
@@ -1726,7 +1826,7 @@
                   <input type="text" data-ai-context-input placeholder="e.g. large portion, 200g chicken, homemade...">
                 </label>
                 <button type="button" class="primary full" data-ai-analyze>Analyze photo</button>
-                <p class="ai-disclaimer muted small">Data will be sent to <%= aiProviderName === 'claude' ? 'Anthropic' : aiProviderName === 'ollama' ? 'your Ollama server' : 'OpenAI' %>. Estimates may not be accurate.</p>
+                <p class="ai-disclaimer">AI estimates may be significantly off depending on portion size, ingredients, and preparation. Use as a rough guide, not a definitive count. Data sent to <%= aiProviderName === 'claude' ? 'Anthropic' : aiProviderName === 'ollama' ? 'your Ollama server' : 'OpenAI' %>.</p>
               </div>
               <div class="ai-loading" data-ai-loading style="display: none;">
                 <div class="ai-loading-spinner"></div>

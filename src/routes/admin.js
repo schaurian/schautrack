@@ -82,26 +82,29 @@ router.post('/admin/users/:id/delete', requireLogin, requireAdmin, async (req, r
     return res.redirect('/admin');
   }
 
+  const client = await pool.connect();
   try {
-    await pool.query('BEGIN');
-    
-    // Delete all user data from all tables (admin deletion)
-    await pool.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM weight_entries WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM ai_usage WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
-    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-    // Clean up any active sessions for the deleted user
-    await pool.query(`DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = $1`, [userId]);
+    await client.query('BEGIN');
 
-    await pool.query('COMMIT');
+    // Delete all user data from all tables (admin deletion)
+    await client.query('DELETE FROM calorie_entries WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM weight_entries WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM ai_usage WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1', [userId]);
+    await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    // Clean up any active sessions for the deleted user
+    await client.query(`DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = $1`, [userId]);
+
+    await client.query('COMMIT');
     req.session.adminFeedback = { type: 'success', message: 'User deleted completely.' };
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Failed to delete user', err);
     req.session.adminFeedback = { type: 'error', message: 'Failed to delete user.' };
+  } finally {
+    client.release();
   }
   res.redirect('/admin');
 });

@@ -152,16 +152,21 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
   // Get user's enabled macros (for returning to client)
   const enabledMacros = getEnabledMacros(user);
 
-  // Always request protein/carbs/fat so we can compute calories from macros consistently
+  // Always request protein/carbs/fat (needed for auto-calc calories), plus any other enabled macros
+  const requestedMacros = new Set(['protein', 'carbs', 'fat']);
+  for (const key of enabledMacros) requestedMacros.add(key);
+  const macroList = [...requestedMacros].join(', ');
+  const macroExample = [...requestedMacros].map((k) => `"${k}": ${k === 'protein' ? 25 : k === 'carbs' ? 40 : k === 'fat' ? 12 : k === 'fiber' ? 5 : 8}`).join(', ');
+
   const prompt = `Analyze this food image and estimate the calories.${contextHint}
 
-Also estimate these macros (in grams, as whole numbers): protein, carbs, fat.
+Also estimate these macros (in grams, as whole numbers): ${macroList}.
 
 Respond in JSON format with these fields:
 - calories: estimated total calories (number, must be > 0 if food is detected)
 - food: brief description of the food items (string, max 50 chars)
 - confidence: your confidence level ("high", "medium", or "low")
-- macros: object with estimated values in grams for: protein, carbs, fat (e.g., {"protein": 25, "carbs": 40, "fat": 12})
+- macros: object with estimated values in grams for: ${macroList} (e.g., {${macroExample}})
 
 IMPORTANT: These are estimates only. Actual nutritional values may vary significantly based on portion size, preparation method, and ingredients.
 
