@@ -1350,6 +1350,8 @@ a:focus-visible,
 .hamburger {
   display: none;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
   background: none;
   border: none;
@@ -2813,7 +2815,7 @@ input[data-auto-calc-locked] {
 /* Row 1: name + time + delete */
 .log-list .entry-cell.entry-name {
   order: 1;
-  flex: 1 1 auto;
+  flex: 1 1 0;
 }
 
 .log-list .entry-cell.entry-time {
@@ -3074,6 +3076,14 @@ input[data-auto-calc-locked] {
 
   .macro-row-fields {
     width: 100%;
+  }
+
+  .macro-row:not(:has(.input-unit-wrap)) {
+    flex-wrap: nowrap;
+  }
+
+  .macro-row:not(:has(.input-unit-wrap)) .macro-row-fields {
+    width: auto;
   }
 
   /* Entry form mobile */
