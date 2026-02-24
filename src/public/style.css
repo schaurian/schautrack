@@ -1218,7 +1218,8 @@ a:focus-visible,
 }
 
 .footer {
-  padding: var(--space-lg) 0;
+  padding-top: var(--space-lg);
+  padding-bottom: var(--space-lg);
   margin-top: auto;
 }
 
@@ -1439,8 +1440,8 @@ a:focus-visible,
   .shell {
     width: auto;
     margin: 0;
-    padding-left: var(--space-sm);
-    padding-right: var(--space-sm);
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
   }
 
   .top-bar {
@@ -1628,7 +1629,8 @@ a:focus-visible,
   }
 
   .footer {
-    padding: var(--space-md) 0;
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-md);
     margin-top: var(--space-lg);
   }
 
@@ -2657,7 +2659,7 @@ a:focus-visible,
 /* Inline macro labels inside pill chips */
 .entry-macro-label {
   display: inline;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2681,7 +2683,7 @@ a:focus-visible,
 }
 
 .log-list .entry-row.weight-row {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 /* Row 1: name + time + delete */
@@ -2703,8 +2705,8 @@ a:focus-visible,
   margin-left: auto;
 }
 
-/* Force line break between row 1 and row 2 (not weight row) */
-.log-list .entry-row:not(.weight-row)::before {
+/* Force line break between row 1 and row 2 */
+.log-list .entry-row::before {
   content: '';
   order: 4;
   flex: 0 0 100%;
@@ -2723,9 +2725,9 @@ a:focus-visible,
 /* Pill chip style */
 .log-list .entry-cell.entry-amount,
 .log-list .entry-cell.entry-macro {
-  padding: 3px 10px;
+  padding: 4px 11px;
   min-height: auto;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2796,10 +2798,10 @@ a:focus-visible,
 }
 
 .log-list .entry-cell.entry-delete .ghost {
-  border-radius: 999px;
-  padding: 6px 10px;
-  min-height: 30px;
-  font-size: 0.72rem;
+  border-radius: 10px;
+  padding: 7px 12px;
+  min-height: 32px;
+  font-size: 0.8rem;
   letter-spacing: 0.01em;
 }
 
@@ -2981,15 +2983,15 @@ a:focus-visible,
   }
 
   .log-list .entry-cell.entry-delete .ghost {
-    min-height: 26px;
-    padding: 4px 8px;
-    font-size: 0.66rem;
+    min-height: 32px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
   }
 
   .log-list .entry-cell.entry-amount,
   .log-list .entry-cell.entry-macro {
-    font-size: 0.72rem;
-    padding: 2px 7px;
+    font-size: 0.85rem;
+    padding: 4px 10px;
   }
 
   .log-list .entry-row .inline-edit:not(.inline-edit--compact) {
@@ -2999,8 +3001,8 @@ a:focus-visible,
   }
 
   .log-list .inline-edit-input--compact {
-    padding: 2px 7px;
-    font-size: 0.72rem;
+    padding: 4px 10px;
+    font-size: 0.85rem;
   }
 
   .log-list .entry-row .inline-edit-input {
