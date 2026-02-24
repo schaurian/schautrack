@@ -139,8 +139,7 @@ async function getTotalsByDate(userId, oldestDate, newestDate) {
 
   const totalsByDate = new Map();
   rows.forEach((row) => {
-    const dateStr = row.entry_date.toISOString().slice(0, 10);
-    totalsByDate.set(dateStr, parseInt(row.total, 10));
+    totalsByDate.set(row.entry_date, parseInt(row.total, 10));
   });
   return totalsByDate;
 }
@@ -523,7 +522,7 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
         }
         return {
           id: row.id,
-          date: row.entry_date.toISOString().slice(0, 10),
+          date: row.entry_date,
           time: row.created_at ? formatTimeInTz(row.created_at, displayTz) : '',
           amount: row.amount,
           name: row.entry_name || null,
@@ -624,7 +623,8 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
     }
   }
 
-  res.redirect('/dashboard');
+  const dayParam = entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate) ? `?day=${entryDate}` : '';
+  res.redirect(`/dashboard${dayParam}`);
 });
 
 router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res) => {
@@ -700,7 +700,7 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
     }
     const payload = {
       id: updated.id,
-      date: updated.entry_date.toISOString().slice(0, 10),
+      date: updated.entry_date,
       time: updated.created_at ? formatTimeInTz(updated.created_at, tz) : '',
       amount: updated.amount,
       name: updated.entry_name || null,
@@ -783,7 +783,7 @@ router.get('/settings/export', requireLogin, async (req, res) => {
       if (i > 0) res.write(',');
       const row = weights[i];
       res.write(JSON.stringify({
-        date: row.entry_date.toISOString().slice(0, 10),
+        date: row.entry_date,
         weight: Number(row.weight),
       }));
     }
@@ -795,7 +795,7 @@ router.get('/settings/export', requireLogin, async (req, res) => {
       if (i > 0) res.write(',');
       const row = entries[i];
       const entry = {
-        date: row.entry_date.toISOString().slice(0, 10),
+        date: row.entry_date,
         amount: row.amount,
         name: row.entry_name || null,
         created_at: row.created_at ? row.created_at.toISOString() : null,

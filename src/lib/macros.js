@@ -109,8 +109,7 @@ async function getMacroTotalsByDate(userId, oldestDate, newestDate) {
 
   const macrosByDate = new Map();
   rows.forEach((row) => {
-    const dateStr = row.entry_date.toISOString().slice(0, 10);
-    macrosByDate.set(dateStr, {
+    macrosByDate.set(row.entry_date, {
       protein: parseInt(row.protein, 10) || 0,
       carbs: parseInt(row.carbs, 10) || 0,
       fat: parseInt(row.fat, 10) || 0,

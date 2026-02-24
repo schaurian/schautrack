@@ -333,8 +333,8 @@ describe('getMacroTotalsByDate', () => {
   test('aggregates rows by date', async () => {
     pool.query.mockResolvedValue({
       rows: [
-        { entry_date: new Date('2024-01-01'), protein: '120', carbs: '200', fat: '60', fiber: '25', sugar: '40' },
-        { entry_date: new Date('2024-01-02'), protein: '0', carbs: '0', fat: '0', fiber: '0', sugar: '0' },
+        { entry_date: '2024-01-01', protein: '120', carbs: '200', fat: '60', fiber: '25', sugar: '40' },
+        { entry_date: '2024-01-02', protein: '0', carbs: '0', fat: '0', fiber: '0', sugar: '0' },
       ],
     });
     const result = await getMacroTotalsByDate(1, '2024-01-01', '2024-01-02');
@@ -346,7 +346,7 @@ describe('getMacroTotalsByDate', () => {
   test('handles non-numeric values gracefully', async () => {
     pool.query.mockResolvedValue({
       rows: [
-        { entry_date: new Date('2024-01-01'), protein: null, carbs: '', fat: 'abc', fiber: '10', sugar: '0' },
+        { entry_date: '2024-01-01', protein: null, carbs: '', fat: 'abc', fiber: '10', sugar: '0' },
       ],
     });
     const result = await getMacroTotalsByDate(1, '2024-01-01', '2024-01-01');

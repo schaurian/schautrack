@@ -5,7 +5,7 @@ const toInt = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const toIsoDate = (date) => date.toISOString().slice(0, 10);
+const toIsoDate = (date) => typeof date === 'string' ? date : date.toISOString().slice(0, 10);
 
 const formatDateInTz = (date, timeZone) => {
   try {

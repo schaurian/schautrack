@@ -149,21 +149,19 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
 
   const contextHint = context ? `\n\nUser provided context: "${context}"` : '';
 
-  // Get user's enabled macros for estimation
+  // Get user's enabled macros (for returning to client)
   const enabledMacros = getEnabledMacros(user);
-  const macroRequest = enabledMacros.length > 0
-    ? `\n\nAlso estimate these macros (in grams, as whole numbers): ${enabledMacros.join(', ')}.`
-    : '';
-  const macroFields = enabledMacros.length > 0
-    ? `\n- macros: object with estimated values in grams for: ${enabledMacros.join(', ')} (e.g., {"protein": 25, "carbs": 40})`
-    : '';
 
-  const prompt = `Analyze this food image and estimate the calories.${contextHint}${macroRequest}
+  // Always request protein/carbs/fat so we can compute calories from macros consistently
+  const prompt = `Analyze this food image and estimate the calories.${contextHint}
+
+Also estimate these macros (in grams, as whole numbers): protein, carbs, fat.
 
 Respond in JSON format with these fields:
-- calories: estimated total calories (number, must be > 0 if food is detected). Round to nearest 50 for values >= 50.
+- calories: estimated total calories (number, must be > 0 if food is detected)
 - food: brief description of the food items (string, max 50 chars)
-- confidence: your confidence level ("high", "medium", or "low")${macroFields}
+- confidence: your confidence level ("high", "medium", or "low")
+- macros: object with estimated values in grams for: protein, carbs, fat (e.g., {"protein": 25, "carbs": 40, "fat": 12})
 
 IMPORTANT: These are estimates only. Actual nutritional values may vary significantly based on portion size, preparation method, and ingredients.
 
@@ -187,11 +185,14 @@ Only respond with the JSON object, no other text.`;
       await incrementAIUsage(user.id);
     }
 
-    // Round calories: keep exact if <50, otherwise round to nearest 50
-    const rawCalories = result.calories;
-    const calories = rawCalories < 50 ? rawCalories : Math.round(rawCalories / 50) * 50;
+    // Compute calories from macros (protein*4 + carbs*4 + fat*9) when available
+    const p = parseInt(result.macros?.protein, 10) || 0;
+    const c = parseInt(result.macros?.carbs, 10) || 0;
+    const f = parseInt(result.macros?.fat, 10) || 0;
+    const macroCalories = (p * 4) + (c * 4) + (f * 9);
+    const calories = macroCalories > 0 ? macroCalories : result.calories;
 
-    // Extract macro estimates if present
+    // Only return macros the user has enabled in their settings
     let macros = null;
     if (enabledMacros.length > 0 && result.macros) {
       macros = {};

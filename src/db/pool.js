@@ -1,4 +1,9 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// Return DATE columns as plain 'YYYY-MM-DD' strings instead of Date objects.
+// The default pg parser creates dates at midnight in the *local* timezone,
+// so .toISOString().slice(0,10) shifts the date by -1 day on UTC+ servers.
+types.setTypeParser(1082, (val) => val);
 
 // Validate required environment variables
 if (!process.env.DATABASE_URL) {

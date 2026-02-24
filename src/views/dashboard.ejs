@@ -304,7 +304,7 @@
         });
         return {
           id: entry.id,
-          date: entry.entry_date ? entry.entry_date.toISOString().slice(0, 10) : selectedDate,
+          date: entry.entry_date || selectedDate,
           time: entry.timeFormatted || '',
           amount: entry.amount,
           name: entry.entry_name || null,
@@ -624,9 +624,9 @@
         entryList.classList.toggle('no-macros', enabledMacrosJs.length === 0);
 
         // Build header if macros or calories are enabled
+        const macroFullJs = { protein: 'Protein', carbs: 'Carbs', fat: 'Fat', fiber: 'Fiber', sugar: 'Sugar' };
         let headerHtml = '';
         if (enabledMacrosJs.length > 0 || caloriesEnabledJs) {
-          const macroFullJs = { protein: 'Protein', carbs: 'Carbs', fat: 'Fat', fiber: 'Fiber', sugar: 'Sugar' };
           const kcalHeader = caloriesEnabledJs ? '<span class="entry-th entry-th-kcal" data-macro-key="kcal" data-short="Cal"><span class="entry-th-full">Calories</span><span class="entry-th-abbr">Cal</span></span>' : '';
           const macroHeaders = enabledMacrosJs.map(key => {
             const short = macroHeaderShortJs[key] || macroLabelsJs[key]?.short || key;
@@ -1656,6 +1656,19 @@
       if (!trigger) return;
 
       const csrfToken = <%- JSON.stringify(csrfToken) %>;
+      const autoCalcCaloriesJs = <%- JSON.stringify(autoCalcCalories || false) %>;
+      const MAX_ENTRY_CALORIES = 9999;
+      const MAX_ENTRY_MACRO = 999;
+      const clampMacroFieldValue = (value) => {
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed) || parsed < 0) return null;
+        return Math.min(parsed, MAX_ENTRY_MACRO);
+      };
+      const clampCaloriesValue = (value) => {
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed)) return null;
+        return Math.max(-MAX_ENTRY_CALORIES, Math.min(MAX_ENTRY_CALORIES, parsed));
+      };
       const calorieInput = document.querySelector('[data-calorie-input]');
       const nameInput = document.querySelector('input[name="entry_name"]');
       const usageBadge = document.querySelector('.ai-usage-badge');
