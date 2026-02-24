@@ -1030,16 +1030,20 @@
         if (!btnTarget) return;
         if (!currentCanEdit) return;
 
-        const btnW = btnTarget.offsetWidth + 'px';
-        btnTarget.classList.add('hidden');
+        // Use visibility:hidden (not display:none) to preserve layout and avoid jitter
+        btnTarget.style.visibility = 'hidden';
 
         const form = document.createElement('form');
-        form.className = 'inline-edit inline-edit--compact inline-edit--weight';
+        form.className = 'inline-edit inline-edit--compact inline-edit--weight inline-edit--overlay';
         form.dataset.inlineEditing = 'true';
-        form.style.width = btnW;
-        form.style.minWidth = btnW;
-        form.style.maxWidth = btnW;
-        form.style.flex = '0 0 ' + btnW;
+
+        // Position the overlay exactly on top of the button
+        const btnRect = btnTarget.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        form.style.left = (btnRect.left - rowRect.left) + 'px';
+        form.style.top = (btnRect.top - rowRect.top) + 'px';
+        form.style.width = btnRect.width + 'px';
+        form.style.height = btnRect.height + 'px';
 
         const input = document.createElement('input');
         input.type = 'tel';
@@ -1051,10 +1055,10 @@
         input.value = currentWeight ? (weightUnit === 'kg' ? currentWeight : kgToLb(currentWeight)) : '';
 
         form.append(input);
-        btnTarget.insertAdjacentElement('afterend', form);
+        row.appendChild(form);
 
         const finish = () => {
-          btnTarget.classList.remove('hidden');
+          btnTarget.style.visibility = '';
           form.remove();
           row.classList.remove('is-editing');
           activeInlineEdit = null;
