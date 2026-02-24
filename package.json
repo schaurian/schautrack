@@ -1,7 +1,7 @@
 {
   "name": "schautrack",
   "version": "0.1.0",
-  "description": "Calorie tracking web app with registration, 2FA, and Postgres",
+  "description": "Nutrition tracking web app with registration, 2FA, and Postgres",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

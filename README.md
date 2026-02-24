@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/schaurian/schautrack)](LICENSE)
 [![Docker Pulls](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/schaurian/schautrack/pkgs/container/schautrack)
 
-Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you and your friends.
+Schautrack is a self-hostable, open-source, AI-powered nutrition tracker for you and your friends.
 
 **Try it:** [schautrack.com](https://schautrack.com)
 
@@ -13,15 +13,15 @@ Schautrack is a self-hostable, open-source, AI-powered calorie tracker for you a
 
 ## Goals
 
-Counting calories is tedious. But it helps you reach your weight goals.
+Tracking nutrition is tedious. But it helps you reach your goals.
 
-Schautrack is built to stay out of your way. Just enter your calories and stay under your daily goal. Or snap a photo and let AI estimate it for you.
+Schautrack is built to stay out of your way. Log calories and macros, set goals, and let AI estimate from photos. Simple as that.
 
 ## Features
 
-- Log calories consumed or burned
-- Daily calorie goals with progress tracking
-- AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
+- Log calories and macros (protein, carbs, fat, fiber, sugar)
+- Daily goals with color-coded progress tracking
+- AI-powered nutrition estimation from food photos (OpenAI, Claude, or Ollama)
 - Weight tracking
 - Account linking to share data with friends
 - Real-time updates via SSE
@@ -96,7 +96,7 @@ Settings can be configured via environment variables (in .env or passed to the c
 
 ### AI Features
 
-Photo-based calorie estimation with support for OpenAI, Claude, and Ollama.
+Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 
 | Variable | Default | Description |
 |----------|---------|-------------|

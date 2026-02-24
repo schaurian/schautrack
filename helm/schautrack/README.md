@@ -1,6 +1,6 @@
 # Schautrack
 
-A simple, self-hosted calorie tracking application.
+A simple, self-hosted nutrition tracking application.
 
 ## Introduction
 
@@ -164,7 +164,7 @@ ingress:
 
 ### Enabling AI features
 
-Schautrack supports AI-powered calorie estimation from food photos:
+Schautrack supports AI-powered nutrition estimation from food photos:
 
 ```yaml
 ai:

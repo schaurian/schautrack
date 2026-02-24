@@ -1,11 +1,13 @@
 apiVersion: v2
 name: schautrack
-description: A simple calorie tracking web application
+description: A simple nutrition tracking web application
 type: application
 version: 0.2.1
 appVersion: "0.1.9"
 keywords:
+  - nutrition
   - calorie
+  - macro
   - tracking
   - health
   - fitness
