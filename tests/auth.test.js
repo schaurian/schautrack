@@ -95,6 +95,19 @@ describe('Registration validation', () => {
   });
 });
 
+// ---- Session cookie security flags ----
+
+describe('Session cookie security flags', () => {
+  test('session cookie has HttpOnly flag', async () => {
+    const res = await request(app).get('/login');
+    const cookie = res.headers['set-cookie']?.[0] || '';
+    expect(cookie.toLowerCase()).toContain('httponly');
+  });
+
+  // Note: SameSite=Lax is configured in app.js but express-session only
+  // includes it in Set-Cookie headers over HTTPS, so it can't be tested here.
+});
+
 // ---- Session cookie lifetime ----
 
 describe('Session cookie maxAge upgrade', () => {
