@@ -192,11 +192,11 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
 });
 
 router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
-  const { ai_key, clear_settings } = req.body;
+  const { ai_key, ai_provider, ai_model, ai_daily_limit, clear_settings } = req.body;
 
   if (clear_settings === 'true') {
     try {
-      await pool.query('UPDATE users SET ai_key = NULL, ai_endpoint = NULL WHERE id = $1', [req.currentUser.id]);
+      await pool.query('UPDATE users SET ai_key = NULL, ai_endpoint = NULL, ai_model = NULL, ai_daily_limit = NULL, preferred_ai_provider = NULL WHERE id = $1', [req.currentUser.id]);
       req.session.aiFeedback = { type: 'success', message: 'AI settings cleared.' };
     } catch (err) {
       console.error('Failed to clear AI settings', err);
@@ -209,6 +209,12 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
   const values = [];
   let idx = 1;
 
+  // AI provider (user-scoped)
+  const validProviders = ['openai', 'claude', 'ollama'];
+  updates.push(`preferred_ai_provider = $${idx}`);
+  values.push(ai_provider && validProviders.includes(ai_provider) ? ai_provider : null);
+  idx++;
+
   // API key (user-scoped)
   if (ai_key && ai_key.trim()) {
     const encrypted = encryptApiKey(ai_key.trim());
@@ -218,6 +224,18 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
       idx++;
     }
   }
+
+  // Model (user-scoped, sanitize)
+  const modelVal = (ai_model || '').trim().slice(0, 100);
+  updates.push(`ai_model = $${idx}`);
+  values.push(modelVal || null);
+  idx++;
+
+  // Daily limit (user-scoped)
+  const limitVal = parseInt(ai_daily_limit, 10);
+  updates.push(`ai_daily_limit = $${idx}`);
+  values.push(!Number.isNaN(limitVal) && limitVal > 0 ? limitVal : null);
+  idx++;
 
   // Endpoint is admin-only (global setting) — never accept user override
   updates.push(`ai_endpoint = NULL`);

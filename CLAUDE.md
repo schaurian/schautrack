@@ -66,9 +66,9 @@ schautrack/
 
 ### Timezone Handling
 - Each user has their own timezone stored in the database
-- Entry timestamps always display in the VIEWER's timezone (like Unix timestamps converted to local time)
+- Your own entry timestamps display in your timezone
 - Timezone is auto-detected from client and persisted to DB
-- When viewing linked user's entries, timestamps are converted to YOUR timezone, not theirs
+- When viewing linked user's entries, entry times show in the CREATOR's timezone (so you see when they actually ate, not what time it was for you)
 
 ### Docker Optimization
 - Multi-stage build with Alpine base (171MB final image)
@@ -159,6 +159,7 @@ Optional:
 AI Configuration (Global Fallbacks):
 - `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
 - `AI_KEY`: Global API key (fallback when users don't have their own)
+- `AI_KEY_ENCRYPTION_SECRET`: Random 32-byte hex string used to encrypt user API keys in the database
 - `AI_ENDPOINT`: Optional custom endpoint override (leave blank to use provider defaults)
 - `AI_MODEL`: Optional model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`)
 - `AI_DAILY_LIMIT`: Daily AI request limit per user when using global key (default: unlimited)
@@ -192,14 +193,15 @@ docker compose up -d --build
 
 ### Timezone Usage
 ```javascript
-// Get viewer's timezone (always use the current user's timezone)
+// Get viewer's timezone (for your own entries)
 const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
 
-// Format timestamps in viewer's timezone
+// Format timestamps in viewer's timezone (own entries)
 const time = formatTimeInTz(entry.created_at, tz);
 
-// Even for linked users, timestamps are shown in VIEWER's timezone
-// This is like Unix timestamps - stored in UTC, displayed in local time
+// For linked users, entry times show in the CREATOR's timezone
+// so you see when they actually ate, not what time it was for you
+const displayTz = targetUser?.timezone || 'UTC';
 ```
 
 ### SSE for Real-time Updates
@@ -254,7 +256,7 @@ const time = formatTimeInTz(entry.created_at, tz);
 
 ## Things to Remember
 
-1. **Always** use the viewer's timezone when displaying timestamps (not the creator's)
+1. **Own entries:** use the viewer's timezone for timestamps. **Linked user entries:** use the creator's timezone (shows when they actually ate)
 2. **Never** commit `.env` files or secrets
 3. **Always** test Docker builds after structural changes
 4. **Use** Kaniko for CI builds (not Docker-in-Docker)

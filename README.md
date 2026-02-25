@@ -100,9 +100,9 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string |
 | `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, or `ollama`. Required to enable AI features. |
 | `AI_KEY` | *(empty)* | Global API key (fallback when users don't have their own) |
+| `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string for encrypting user API keys |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
 | `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
 | `AI_DAILY_LIMIT` | `10` | Daily limit for AI requests per user when using global key (0 = unlimited) |

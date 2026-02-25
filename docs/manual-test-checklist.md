@@ -39,11 +39,11 @@ Use this checklist when testing a new release before merging to main.
 
 ## Account Linking
 
-- [ ] Send a link request to another user
-- [ ] Accept/decline a link request
-- [ ] View linked user's entries (read-only)
-- [ ] Verify timestamps show in YOUR timezone, not theirs
-- [ ] Remove a link
+- [x] Send a link request to another user
+- [x] Accept/decline a link request
+- [x] View linked user's entries (read-only)
+- [x] Verify entry times show in CREATOR's timezone (when they ate)
+- [x] Remove a link
 - [x] Verify max 3 links enforced
 
 ## Timezone Handling

@@ -46,10 +46,11 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
     getEffectiveSetting('ai_model', process.env.AI_MODEL),
   ]);
 
-  const provider = globalProvider.value;
+  // User's preferred provider takes priority over global
+  const provider = user.preferred_ai_provider || globalProvider.value;
 
   if (!provider) {
-    return res.status(400).json({ ok: false, error: 'AI_PROVIDER must be configured (openai, claude, or ollama)' });
+    return res.status(400).json({ ok: false, error: 'No AI provider configured. Set your provider in settings or ask the admin to configure AI_PROVIDER.' });
   }
 
   if (!['openai', 'claude', 'ollama'].includes(provider)) {
@@ -74,10 +75,9 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
     }
   }
 
-  if (!endpoint) {
-    if (globalEndpoint.value) {
-      endpoint = globalEndpoint.value;
-    }
+  // Endpoint is admin-only (global setting) — users cannot override
+  if (globalEndpoint.value) {
+    endpoint = globalEndpoint.value;
   }
 
   // Provider-specific validation
@@ -106,29 +106,42 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
     }
   }
 
-  // Rate limiting: only applies when using global key
+  // Rate limiting
+  // Global key: admin-configured limit applies
+  // Own key: user's personal daily limit applies (if set)
+  const usageToday = await getAIUsageToday(user.id);
   if (usingGlobalKey) {
     const dailyLimit = await getAIDailyLimit();
-    if (dailyLimit !== null) {
-      const usageToday = await getAIUsageToday(user.id);
-      if (usageToday >= dailyLimit) {
-        return res.status(429).json({
-          ok: false,
-          error: `Daily limit reached (${dailyLimit} requests). Add your own API key in settings for unlimited access.`,
-          limitReached: true,
-          limit: dailyLimit,
-          used: usageToday,
-        });
-      }
+    if (dailyLimit !== null && usageToday >= dailyLimit) {
+      return res.status(429).json({
+        ok: false,
+        error: `Daily limit reached (${dailyLimit} requests). Add your own API key in settings for unlimited access.`,
+        limitReached: true,
+        limit: dailyLimit,
+        used: usageToday,
+      });
+    }
+  } else if (user.ai_daily_limit) {
+    const userLimit = parseInt(user.ai_daily_limit, 10);
+    if (!Number.isNaN(userLimit) && userLimit > 0 && usageToday >= userLimit) {
+      return res.status(429).json({
+        ok: false,
+        error: `Daily limit reached (${userLimit} requests). Increase your limit in settings.`,
+        limitReached: true,
+        limit: userLimit,
+        used: usageToday,
+      });
     }
   }
 
   const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
   const mediaType = image.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
 
-  // Get custom model from settings/env
+  // Get custom model: user's personal model, then global
   let customModel = null;
-  if (globalModel.value) {
+  if (user.ai_model) {
+    customModel = user.ai_model;
+  } else if (globalModel.value) {
     customModel = globalModel.value;
   }
 
@@ -180,8 +193,9 @@ Only respond with the JSON object, no other text.`;
       customModel
     );
 
-    // Increment usage after successful request (only for global key)
-    if (usingGlobalKey) {
+    // Increment usage after successful request
+    // Track for global key users (admin limit) AND own-key users with personal limit
+    if (usingGlobalKey || user.ai_daily_limit) {
       await incrementAIUsage(user.id);
     }
 

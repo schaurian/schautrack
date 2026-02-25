@@ -365,6 +365,48 @@
     <div class="panel">
       <div class="panel-header">
         <div>
+          <h2>AI settings</h2>
+        </div>
+      </div>
+      <% if (aiFeedback) { %>
+        <div class="alert <%= aiFeedback.type === 'error' ? 'danger' : 'success' %>"><%= aiFeedback.message %></div>
+      <% } %>
+      <form action="/settings/ai" method="POST" class="stack" id="ai-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <p class="muted small">Enter your own API key to use AI photo estimation.</p>
+        <label class="field">
+          <span>Provider</span>
+          <select name="ai_provider" id="ai-provider-select">
+            <option value="" <%= !user.preferred_ai_provider ? 'selected' : '' %>>— Select —</option>
+            <option value="openai" <%= user.preferred_ai_provider === 'openai' ? 'selected' : '' %>>OpenAI</option>
+            <option value="claude" <%= user.preferred_ai_provider === 'claude' ? 'selected' : '' %>>Claude</option>
+            <option value="ollama" <%= user.preferred_ai_provider === 'ollama' ? 'selected' : '' %>>Ollama</option>
+          </select>
+        </label>
+        <label class="field" id="ai-key-field">
+          <span>API key</span>
+          <input type="password" name="ai_key" placeholder="<%= user.hasAiKey ? '••••' + user.aiKeyLast4 : 'sk-...' %>" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Model</span>
+          <input type="text" name="ai_model" value="<%= user.ai_model || '' %>" placeholder="e.g. gpt-4o, claude-sonnet-4-5-20250929" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Daily limit</span>
+          <input type="number" name="ai_daily_limit" min="0" value="<%= user.ai_daily_limit || '' %>" placeholder="Unlimited">
+        </label>
+        <p class="muted small" id="ollama-hint" style="display: none;">Ollama endpoint must be configured by the server admin. API key is optional.</p>
+        <button type="submit" class="primary">Save AI settings</button>
+        <% const hasAnyAiSetting = user.hasAiKey || user.ai_model || user.ai_daily_limit || user.preferred_ai_provider; %>
+        <% if (hasAnyAiSetting) { %>
+          <button type="submit" name="clear_settings" value="true" class="ghost danger">Clear AI settings</button>
+        <% } %>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
           <h2>Data &amp; account</h2>
         </div>
       </div>
@@ -393,6 +435,19 @@
   <script>
     (() => {
       const csrfToken = '<%= csrfToken %>';
+
+      // --- AI provider toggle ---
+      const aiProviderSelect = document.getElementById('ai-provider-select');
+      const ollamaHint = document.getElementById('ollama-hint');
+      const aiKeyField = document.getElementById('ai-key-field');
+      if (aiProviderSelect) {
+        function updateAiFields() {
+          const isOllama = aiProviderSelect.value === 'ollama';
+          ollamaHint.style.display = isOllama ? '' : 'none';
+        }
+        aiProviderSelect.addEventListener('change', updateAiFields);
+        updateAiFields();
+      }
 
       // --- Autosave helper ---
       function autosave(form, debounceMs) {

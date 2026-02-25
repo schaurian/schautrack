@@ -212,7 +212,9 @@ async function ensureAIKeysSchema() {
         ADD COLUMN IF NOT EXISTS claude_api_key TEXT,
         ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai',
         ADD COLUMN IF NOT EXISTS ai_key TEXT,
-        ADD COLUMN IF NOT EXISTS ai_endpoint TEXT;
+        ADD COLUMN IF NOT EXISTS ai_endpoint TEXT,
+        ADD COLUMN IF NOT EXISTS ai_model TEXT,
+        ADD COLUMN IF NOT EXISTS ai_daily_limit INTEGER;
     `);
 
     // Migrate existing keys to unified field

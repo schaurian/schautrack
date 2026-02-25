@@ -59,7 +59,7 @@
           type="button"
           class="ai-photo-btn <%= !hasAiEnabled || (aiUsage && aiUsage.remaining === 0) ? 'disabled' : '' %>"
           data-ai-photo-trigger
-          <% if (!hasAiEnabled) { %>title="AI not configured by server admin"<% } else { %>title="Estimate calories from photo"<% } %>
+          <% if (!hasAiEnabled) { %>title="AI not configured — set up a provider in Settings or ask your admin to enable it"<% } else { %>title="Estimate calories from photo"<% } %>
           <%= !hasAiEnabled || (aiUsage && aiUsage.remaining === 0) ? 'disabled' : '' %>>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -1746,7 +1746,13 @@
         if (trigger.disabled) {
           e.preventDefault();
           e.stopPropagation();
-          alert('AI calorie estimation is not configured by the server admin.');
+          const existing = document.querySelector('.ai-disclaimer-toast');
+          if (existing) existing.remove();
+          const toast = document.createElement('div');
+          toast.className = 'ai-disclaimer-toast';
+          toast.textContent = 'AI is not configured. Set up your own API key in Settings, or ask your admin to enable it.';
+          document.body.appendChild(toast);
+          toast.addEventListener('animationend', () => toast.remove());
         }
       });
       <% } %>

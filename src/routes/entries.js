@@ -358,7 +358,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   let aiUsingGlobalKey = false;
   let aiProviderName = null;
 
-  const userProvider = user.ai_provider;
+  const userProvider = user.preferred_ai_provider;
   const [globalKey, globalProvider] = await Promise.all([
     getEffectiveSetting('ai_key', process.env.AI_KEY),
     getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
@@ -384,17 +384,29 @@ router.get('/dashboard', requireLogin, async (req, res) => {
     }
   }
 
-  // Get AI usage info if using global key
+  // Get AI usage info
   let aiUsage = null;
-  if (hasAiEnabled && aiUsingGlobalKey) {
-    const dailyLimit = await getAIDailyLimit();
-    if (dailyLimit !== null) {
-      const usageToday = await getAIUsageToday(user.id);
-      aiUsage = {
-        used: usageToday,
-        limit: dailyLimit,
-        remaining: Math.max(0, dailyLimit - usageToday),
-      };
+  if (hasAiEnabled) {
+    if (aiUsingGlobalKey) {
+      const dailyLimit = await getAIDailyLimit();
+      if (dailyLimit !== null) {
+        const usageToday = await getAIUsageToday(user.id);
+        aiUsage = {
+          used: usageToday,
+          limit: dailyLimit,
+          remaining: Math.max(0, dailyLimit - usageToday),
+        };
+      }
+    } else if (user.ai_daily_limit) {
+      const userLimit = parseInt(user.ai_daily_limit, 10);
+      if (!Number.isNaN(userLimit) && userLimit > 0) {
+        const usageToday = await getAIUsageToday(user.id);
+        aiUsage = {
+          used: usageToday,
+          limit: userLimit,
+          remaining: Math.max(0, userLimit - usageToday),
+        };
+      }
     }
   }
 
