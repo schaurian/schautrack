@@ -14,11 +14,23 @@ function setLinkFeedback(req, type, message) {
   req.session.linkFeedback = { type, message };
 }
 
+function wantsJson(req) {
+  return (req.headers.accept || '').includes('application/json');
+}
+
+function jsonOrRedirect(req, res, status, message) {
+  if (wantsJson(req)) {
+    const code = status === 'error' ? 400 : 200;
+    return res.status(code).json({ ok: status !== 'error', message });
+  }
+  setLinkFeedback(req, status, message);
+  return res.redirect('/settings');
+}
+
 router.post('/settings/link/request', requireLogin, csrfProtection, async (req, res) => {
   const emailRaw = (req.body.email || '').trim();
   if (!emailRaw) {
-    setLinkFeedback(req, 'error', 'Email is required.');
-    return res.redirect('/settings');
+    return jsonOrRedirect(req, res, 'error', 'Email is required.');
   }
 
   try {
@@ -27,53 +39,53 @@ router.post('/settings/link/request', requireLogin, csrfProtection, async (req, 
     ]);
     const target = rows[0];
     if (!target) {
-      setLinkFeedback(req, 'error', 'No account found for that email.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'No account found for that email.');
     }
     const currentId = toInt(req.currentUser.id);
     const targetId = toInt(target.id);
     if (currentId === null || targetId === null) {
-      setLinkFeedback(req, 'error', 'Could not send link request.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'Could not send link request.');
     }
     if (targetId === currentId) {
-      setLinkFeedback(req, 'error', 'You cannot link to your own account.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'You cannot link to your own account.');
     }
 
     const existing = await getLinkBetween(currentId, targetId);
     if (existing) {
       if (existing.status === 'accepted') {
-        setLinkFeedback(req, 'error', 'You are already linked with this account.');
+        return jsonOrRedirect(req, res, 'error', 'You are already linked with this account.');
       } else if (existing.requester_id === req.currentUser.id) {
-        setLinkFeedback(req, 'error', 'Request already sent and pending approval.');
+        return jsonOrRedirect(req, res, 'error', 'Request already sent and pending approval.');
       } else {
-        setLinkFeedback(req, 'error', 'They already sent you a request. Check incoming requests below.');
+        return jsonOrRedirect(req, res, 'error', 'They already sent you a request. Check incoming requests below.');
       }
-      return res.redirect('/settings');
     }
 
     const myAccepted = await countAcceptedLinks(currentId);
     if (myAccepted >= MAX_LINKS) {
-      setLinkFeedback(req, 'error', `You already have ${MAX_LINKS} linked accounts.`);
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', `You already have ${MAX_LINKS} linked accounts.`);
     }
 
     const targetAccepted = await countAcceptedLinks(targetId);
     if (targetAccepted >= MAX_LINKS) {
-      setLinkFeedback(req, 'error', 'The other account already reached the linking limit.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'The other account already reached the linking limit.');
     }
 
-    await pool.query('INSERT INTO account_links (requester_id, target_id, status) VALUES ($1, $2, $3)', [
-      currentId,
-      targetId,
-      'pending',
-    ]);
+    const { rows: inserted } = await pool.query(
+      'INSERT INTO account_links (requester_id, target_id, status) VALUES ($1, $2, $3) RETURNING id, created_at',
+      [currentId, targetId, 'pending']
+    );
+    if (wantsJson(req)) {
+      return res.json({
+        ok: true,
+        message: `Request sent to ${target.email}.`,
+        request: { id: inserted[0].id, email: target.email, created_at: inserted[0].created_at }
+      });
+    }
     setLinkFeedback(req, 'success', `Request sent to ${target.email}.`);
   } catch (err) {
     console.error('Link request error', err);
-    setLinkFeedback(req, 'error', 'Could not send link request.');
+    return jsonOrRedirect(req, res, 'error', 'Could not send link request.');
   }
 
   return res.redirect('/settings');
@@ -83,14 +95,13 @@ router.post('/settings/link/respond', requireLogin, csrfProtection, async (req, 
   const requestId = parseInt(req.body.request_id, 10);
   const action = (req.body.action || '').trim();
   if (Number.isNaN(requestId) || !['accept', 'decline'].includes(action)) {
-    return res.redirect('/settings');
+    return jsonOrRedirect(req, res, 'error', 'Invalid request.');
   }
 
   try {
     const currentId = toInt(req.currentUser.id);
     if (currentId === null) {
-      setLinkFeedback(req, 'error', 'Could not update request.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'Could not update request.');
     }
     const { rows } = await pool.query(
       'SELECT * FROM account_links WHERE id = $1 AND status = $2 LIMIT 1',
@@ -98,71 +109,63 @@ router.post('/settings/link/respond', requireLogin, csrfProtection, async (req, 
     );
     const request = rows[0];
     if (!request || request.target_id !== currentId) {
-      setLinkFeedback(req, 'error', 'Request not found.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'Request not found.');
     }
 
     if (action === 'accept') {
       const myAccepted = await countAcceptedLinks(currentId);
       if (myAccepted >= MAX_LINKS) {
-        setLinkFeedback(req, 'error', `You already have ${MAX_LINKS} linked accounts.`);
-        return res.redirect('/settings');
+        return jsonOrRedirect(req, res, 'error', `You already have ${MAX_LINKS} linked accounts.`);
       }
       const requesterAccepted = await countAcceptedLinks(request.requester_id);
       if (requesterAccepted >= MAX_LINKS) {
-        setLinkFeedback(req, 'error', 'The requester is already at the link limit.');
-        return res.redirect('/settings');
+        return jsonOrRedirect(req, res, 'error', 'The requester is already at the link limit.');
       }
 
       await pool.query('UPDATE account_links SET status = $1, updated_at = NOW() WHERE id = $2', [
         'accepted',
         requestId,
       ]);
-      setLinkFeedback(req, 'success', 'Link request accepted.');
+      return jsonOrRedirect(req, res, 'success', 'Link request accepted.');
     } else {
       await pool.query('DELETE FROM account_links WHERE id = $1 AND target_id = $2', [
         requestId,
         req.currentUser.id,
       ]);
-      setLinkFeedback(req, 'success', 'Request declined.');
+      return jsonOrRedirect(req, res, 'success', 'Request declined.');
     }
   } catch (err) {
     console.error('Link respond error', err);
-    setLinkFeedback(req, 'error', 'Could not update request.');
+    return jsonOrRedirect(req, res, 'error', 'Could not update request.');
   }
-
-  return res.redirect('/settings');
 });
 
 router.post('/settings/link/remove', requireLogin, csrfProtection, async (req, res) => {
   const linkId = parseInt(req.body.link_id, 10);
   if (Number.isNaN(linkId)) {
-    return res.redirect('/settings');
+    return jsonOrRedirect(req, res, 'error', 'Invalid link.');
   }
 
   try {
     const currentId = toInt(req.currentUser.id);
     if (currentId === null) {
-      setLinkFeedback(req, 'error', 'Could not update link.');
-      return res.redirect('/settings');
+      return jsonOrRedirect(req, res, 'error', 'Could not update link.');
     }
     const { rows } = await pool.query(
       'DELETE FROM account_links WHERE id = $1 AND (requester_id = $2 OR target_id = $2) RETURNING status',
       [linkId, currentId]
     );
     if (rows.length === 0) {
-      setLinkFeedback(req, 'error', 'Link not found.');
+      return jsonOrRedirect(req, res, 'error', 'Link not found.');
     } else if (rows[0].status === 'accepted') {
-      setLinkFeedback(req, 'success', 'Link removed.');
+      return jsonOrRedirect(req, res, 'success', 'Link removed.');
     } else {
-      setLinkFeedback(req, 'success', 'Request cancelled.');
+      return jsonOrRedirect(req, res, 'success', 'Request cancelled.');
     }
   } catch (err) {
     console.error('Link remove error', err);
-    setLinkFeedback(req, 'error', 'Could not update link.');
+    return jsonOrRedirect(req, res, 'error', 'Could not update link.');
   }
-
-  return res.redirect('/settings');
 });
 
 router.post('/links/:id/label', requireLogin, csrfProtection, async (req, res) => {

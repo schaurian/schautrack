@@ -246,17 +246,19 @@
       <div class="chip muted">Up to <%= maxLinks %></div>
     </div>
 
+    <div data-link-feedback>
     <% if (linkFeedback) { %>
       <div class="alert <%= linkFeedback.type === 'error' ? 'danger' : 'success' %>"><%= linkFeedback.message %></div>
     <% } %>
+    </div>
 
-    <form action="/settings/link/request" method="POST" class="stack link-form">
+    <form action="/settings/link/request" method="POST" class="stack link-form" data-link-request-form>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label class="field">
         <span>Invite by email</span>
         <input type="email" name="email" placeholder="friend@example.com" required <%= availableSlots === 0 ? 'disabled' : '' %>>
       </label>
-      <div class="muted small">
+      <div class="muted small" data-link-slots>
         Linked accounts: <%= maxLinks - availableSlots %>/<%= maxLinks %>. <%= availableSlots === 0 ? 'Remove one to invite another.' : `You can invite ${availableSlots} more.` %>
       </div>
       <div>
@@ -265,31 +267,31 @@
     </form>
 
     <div class="grid two">
-      <div class="table">
+      <div class="table" data-incoming-table>
         <div class="table-row header linked-row">
           <div>Incoming requests</div>
           <div></div>
         </div>
         <% if (!incomingRequests || incomingRequests.length === 0) { %>
-          <div class="table-row linked-row">
+          <div class="table-row linked-row" data-link-empty="incoming">
             <div class="muted small">No incoming requests.</div>
             <div></div>
           </div>
         <% } else { %>
           <% incomingRequests.forEach((req) => { %>
-            <div class="table-row linked-row">
+            <div class="table-row linked-row" data-link-row="<%= req.id %>">
               <div>
                 <div class="table-email"><%= req.email %></div>
                 <div class="muted small">Requested <%= req.created_at ? req.created_at.toISOString().slice(0,10) : '' %></div>
               </div>
               <div class="table-actions">
-                <form action="/settings/link/respond" method="POST" class="inline-form">
+                <form action="/settings/link/respond" method="POST" class="inline-form" data-link-action>
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="request_id" value="<%= req.id %>">
                   <input type="hidden" name="action" value="accept">
                   <button type="submit" class="primary">Accept</button>
                 </form>
-                <form action="/settings/link/respond" method="POST" class="inline-form">
+                <form action="/settings/link/respond" method="POST" class="inline-form" data-link-action>
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="request_id" value="<%= req.id %>">
                   <input type="hidden" name="action" value="decline">
@@ -301,25 +303,25 @@
         <% } %>
       </div>
 
-      <div class="table">
+      <div class="table" data-outgoing-table>
         <div class="table-row header linked-row">
           <div>Sent requests</div>
           <div></div>
         </div>
         <% if (!outgoingRequests || outgoingRequests.length === 0) { %>
-          <div class="table-row linked-row">
+          <div class="table-row linked-row" data-link-empty="outgoing">
             <div class="muted small">No pending requests.</div>
             <div></div>
           </div>
         <% } else { %>
           <% outgoingRequests.forEach((req) => { %>
-            <div class="table-row linked-row">
+            <div class="table-row linked-row" data-link-row="<%= req.id %>">
               <div>
                 <div class="table-email"><%= req.email %></div>
                 <div class="muted small">Sent <%= req.created_at ? req.created_at.toISOString().slice(0,10) : '' %></div>
               </div>
               <div class="table-actions">
-                <form action="/settings/link/remove" method="POST" class="inline-form">
+                <form action="/settings/link/remove" method="POST" class="inline-form" data-link-action>
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="link_id" value="<%= req.id %>">
                   <button type="submit" class="ghost danger">Cancel</button>
@@ -331,23 +333,23 @@
       </div>
     </div>
 
-    <div class="table" style="margin-top: 14px;">
+    <div class="table" style="margin-top: 14px;" data-accepted-table>
       <div class="table-row header linked-row">
         <div>Linked accounts</div>
         <div></div>
       </div>
       <% if (!acceptedLinks || acceptedLinks.length === 0) { %>
-        <div class="table-row">
+        <div class="table-row" data-link-empty="accepted">
           <div class="muted">No linked accounts yet.</div>
           <div></div>
           <div></div>
         </div>
       <% } else { %>
         <% acceptedLinks.forEach((link) => { %>
-          <div class="table-row linked-row">
+          <div class="table-row linked-row" data-link-row="<%= link.linkId %>">
             <div class="table-email"><%= link.email %></div>
             <div style="text-align: right;">
-              <form action="/settings/link/remove" method="POST" class="inline-form">
+              <form action="/settings/link/remove" method="POST" class="inline-form" data-link-action>
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="link_id" value="<%= link.linkId %>">
                 <button type="submit" class="ghost danger">Remove</button>
@@ -564,6 +566,178 @@
           overlay.appendChild(img);
           overlay.addEventListener('click', () => overlay.remove());
           document.body.appendChild(overlay);
+        });
+      }
+
+      // --- Link actions (accept/decline/remove/request) via fetch ---
+      const linkFeedbackEl = document.querySelector('[data-link-feedback]');
+      const maxLinks = <%= maxLinks %>;
+
+      function showLinkFeedback(type, message) {
+        if (!linkFeedbackEl) return;
+        linkFeedbackEl.innerHTML = '<div class="alert ' + (type === 'error' ? 'danger' : 'success') + '">' +
+          message.replace(/</g, '&lt;') + '</div>';
+        setTimeout(() => { linkFeedbackEl.innerHTML = ''; }, 3000);
+      }
+
+      function updateLinkSlots() {
+        const slotsEl = document.querySelector('[data-link-slots]');
+        const submitBtn = document.querySelector('[data-link-request-form] button[type="submit"]');
+        const emailInput = document.querySelector('[data-link-request-form] input[name="email"]');
+        if (!slotsEl) return;
+        const accepted = document.querySelectorAll('[data-accepted-table] [data-link-row]').length;
+        const available = maxLinks - accepted;
+        if (available === 0) {
+          slotsEl.textContent = 'Linked accounts: ' + accepted + '/' + maxLinks + '. Remove one to invite another.';
+          if (submitBtn) submitBtn.disabled = true;
+          if (emailInput) emailInput.disabled = true;
+        } else {
+          slotsEl.textContent = 'Linked accounts: ' + accepted + '/' + maxLinks + '. You can invite ' + available + ' more.';
+          if (submitBtn) submitBtn.disabled = false;
+          if (emailInput) emailInput.disabled = false;
+        }
+      }
+
+      function showEmptyIfNeeded(table, type) {
+        const rows = table.querySelectorAll('[data-link-row]');
+        const existing = table.querySelector('[data-link-empty]');
+        if (rows.length === 0 && !existing) {
+          const empty = document.createElement('div');
+          empty.className = 'table-row linked-row';
+          empty.setAttribute('data-link-empty', type);
+          const labels = { incoming: 'No incoming requests.', outgoing: 'No pending requests.', accepted: 'No linked accounts yet.' };
+          empty.innerHTML = '<div class="muted small">' + labels[type] + '</div><div></div>';
+          table.appendChild(empty);
+        }
+      }
+
+      function removeRow(row, table, type) {
+        row.remove();
+        showEmptyIfNeeded(table, type);
+      }
+
+      async function handleLinkAction(e) {
+        e.preventDefault();
+        const form = e.target.closest('form');
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+
+        try {
+          const data = new URLSearchParams(new FormData(form));
+          const r = await fetch(form.action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: data
+          });
+          const json = await r.json();
+          if (!r.ok || !json.ok) {
+            showLinkFeedback('error', json.message || 'Something went wrong.');
+            if (btn) btn.disabled = false;
+            return;
+          }
+
+          showLinkFeedback('success', json.message);
+          const row = form.closest('[data-link-row]');
+          if (!row) return;
+
+          const action = form.querySelector('input[name="action"]');
+          if (action && action.value === 'accept') {
+            const acceptedTable = document.querySelector('[data-accepted-table]');
+            const incomingTable = document.querySelector('[data-incoming-table]');
+            const emptyAccepted = acceptedTable.querySelector('[data-link-empty]');
+            if (emptyAccepted) emptyAccepted.remove();
+
+            const email = row.querySelector('.table-email').textContent;
+            const linkId = form.querySelector('input[name="request_id"]').value;
+            const newRow = document.createElement('div');
+            newRow.className = 'table-row linked-row';
+            newRow.setAttribute('data-link-row', linkId);
+            newRow.innerHTML = '<div class="table-email">' + email.replace(/</g, '&lt;') + '</div>' +
+              '<div style="text-align: right;">' +
+                '<form action="/settings/link/remove" method="POST" class="inline-form" data-link-action>' +
+                  '<input type="hidden" name="_csrf" value="' + csrfToken + '">' +
+                  '<input type="hidden" name="link_id" value="' + linkId + '">' +
+                  '<button type="submit" class="ghost danger">Remove</button>' +
+                '</form>' +
+              '</div>';
+            newRow.querySelector('[data-link-action]').addEventListener('submit', handleLinkAction);
+            acceptedTable.appendChild(newRow);
+
+            row.remove();
+            showEmptyIfNeeded(incomingTable, 'incoming');
+          } else {
+            const table = row.closest('[data-incoming-table], [data-outgoing-table], [data-accepted-table]');
+            const type = table.hasAttribute('data-incoming-table') ? 'incoming'
+              : table.hasAttribute('data-outgoing-table') ? 'outgoing' : 'accepted';
+            removeRow(row, table, type);
+          }
+          updateLinkSlots();
+        } catch (err) {
+          console.error('Link action failed', err);
+          showLinkFeedback('error', 'Something went wrong.');
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      document.querySelectorAll('[data-link-action]').forEach((form) => {
+        form.addEventListener('submit', handleLinkAction);
+      });
+
+      // --- Send link request via fetch ---
+      const linkRequestForm = document.querySelector('[data-link-request-form]');
+      if (linkRequestForm) {
+        linkRequestForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = linkRequestForm.querySelector('button[type="submit"]');
+          const emailInput = linkRequestForm.querySelector('input[name="email"]');
+          if (btn) btn.disabled = true;
+
+          try {
+            const data = new URLSearchParams(new FormData(linkRequestForm));
+            const r = await fetch(linkRequestForm.action, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'X-CSRF-Token': csrfToken },
+              body: data
+            });
+            const json = await r.json();
+            if (!r.ok || !json.ok) {
+              showLinkFeedback('error', json.message || 'Something went wrong.');
+              if (btn) btn.disabled = false;
+              return;
+            }
+
+            showLinkFeedback('success', json.message);
+            emailInput.value = '';
+            if (btn) btn.disabled = false;
+
+            if (json.request) {
+              const outgoing = document.querySelector('[data-outgoing-table]');
+              const emptyOutgoing = outgoing.querySelector('[data-link-empty]');
+              if (emptyOutgoing) emptyOutgoing.remove();
+
+              const date = json.request.created_at ? json.request.created_at.slice(0, 10) : '';
+              const newRow = document.createElement('div');
+              newRow.className = 'table-row linked-row';
+              newRow.setAttribute('data-link-row', json.request.id);
+              newRow.innerHTML = '<div>' +
+                  '<div class="table-email">' + json.request.email.replace(/</g, '&lt;') + '</div>' +
+                  '<div class="muted small">Sent ' + date + '</div>' +
+                '</div>' +
+                '<div class="table-actions">' +
+                  '<form action="/settings/link/remove" method="POST" class="inline-form" data-link-action>' +
+                    '<input type="hidden" name="_csrf" value="' + csrfToken + '">' +
+                    '<input type="hidden" name="link_id" value="' + json.request.id + '">' +
+                    '<button type="submit" class="ghost danger">Cancel</button>' +
+                  '</form>' +
+                '</div>';
+              newRow.querySelector('[data-link-action]').addEventListener('submit', handleLinkAction);
+              outgoing.appendChild(newRow);
+            }
+          } catch (err) {
+            console.error('Link request failed', err);
+            showLinkFeedback('error', 'Something went wrong.');
+            if (btn) btn.disabled = false;
+          }
         });
       }
     })();
