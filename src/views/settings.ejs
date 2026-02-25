@@ -441,11 +441,30 @@
       const ollamaHint = document.getElementById('ollama-hint');
       const aiKeyField = document.getElementById('ai-key-field');
       if (aiProviderSelect) {
+        let lastProvider = aiProviderSelect.value;
         function updateAiFields() {
           const isOllama = aiProviderSelect.value === 'ollama';
           ollamaHint.style.display = isOllama ? '' : 'none';
         }
-        aiProviderSelect.addEventListener('change', updateAiFields);
+        aiProviderSelect.addEventListener('change', () => {
+          const aiForm = document.getElementById('ai-form');
+          const keyInput = aiForm.querySelector('input[name="ai_key"]');
+          const modelInput = aiForm.querySelector('input[name="ai_model"]');
+          const limitInput = aiForm.querySelector('input[name="ai_daily_limit"]');
+          const hasValues = (keyInput && keyInput.value) || (modelInput && modelInput.value) || (limitInput && limitInput.value);
+          if (hasValues && lastProvider && aiProviderSelect.value !== lastProvider) {
+            if (!confirm('Switching provider will clear your API key, model, and daily limit. Continue?')) {
+              aiProviderSelect.value = lastProvider;
+              updateAiFields();
+              return;
+            }
+            if (keyInput) { keyInput.value = ''; keyInput.placeholder = 'sk-...'; }
+            if (modelInput) modelInput.value = '';
+            if (limitInput) limitInput.value = '';
+          }
+          lastProvider = aiProviderSelect.value;
+          updateAiFields();
+        });
         updateAiFields();
       }
 

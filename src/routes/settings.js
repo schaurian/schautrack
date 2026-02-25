@@ -202,7 +202,7 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
       console.error('Failed to clear AI settings', err);
       req.session.aiFeedback = { type: 'error', message: 'Could not clear settings.' };
     }
-    return res.redirect('/settings');
+    return res.redirect('/settings#ai-form');
   }
 
   const updates = [];
@@ -211,11 +211,13 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
 
   // AI provider (user-scoped)
   const validProviders = ['openai', 'claude', 'ollama'];
+  const newProvider = ai_provider && validProviders.includes(ai_provider) ? ai_provider : null;
+  const providerChanged = newProvider !== (req.currentUser.preferred_ai_provider || null);
   updates.push(`preferred_ai_provider = $${idx}`);
-  values.push(ai_provider && validProviders.includes(ai_provider) ? ai_provider : null);
+  values.push(newProvider);
   idx++;
 
-  // API key (user-scoped)
+  // API key (user-scoped) — clear when provider changes and no new key given
   if (ai_key && ai_key.trim()) {
     const encrypted = encryptApiKey(ai_key.trim());
     if (encrypted) {
@@ -223,6 +225,8 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
       values.push(encrypted);
       idx++;
     }
+  } else if (providerChanged) {
+    updates.push(`ai_key = NULL`);
   }
 
   // Model (user-scoped, sanitize)
@@ -251,7 +255,7 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
     req.session.aiFeedback = { type: 'error', message: 'Could not save settings.' };
   }
 
-  res.redirect('/settings');
+  res.redirect('/settings#ai-form');
 });
 
 router.post('/settings/password', requireLogin, csrfProtection, async (req, res) => {
