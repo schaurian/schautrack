@@ -51,6 +51,12 @@ async function broadcastLinkLabelChange(linkId, userId, label) {
   sendUserEvent(uid, 'link-label-change', payload);
 }
 
+function broadcastLinkChange(targetUserId, type, detail) {
+  const uid = toInt(targetUserId);
+  if (uid === null) return;
+  sendUserEvent(uid, 'link-change', { type, ...detail });
+}
+
 async function broadcastEntryChange(sourceUserId) {
   const uid = toInt(sourceUserId);
   if (uid === null) return;
@@ -119,5 +125,6 @@ module.exports = {
   router,
   sendUserEvent,
   broadcastEntryChange,
-  broadcastLinkLabelChange
+  broadcastLinkLabelChange,
+  broadcastLinkChange,
 };

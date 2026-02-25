@@ -4,7 +4,7 @@ const { requireLogin } = require('../middleware/auth');
 const { csrfProtection } = require('../middleware/csrf');
 const { toInt } = require('../lib/utils');
 const { countAcceptedLinks, getLinkBetween, countAcceptedLinksWithClient } = require('../lib/links');
-const { broadcastLinkLabelChange } = require('./sse');
+const { broadcastLinkLabelChange, broadcastLinkChange } = require('./sse');
 
 const router = express.Router();
 
@@ -75,6 +75,11 @@ router.post('/settings/link/request', requireLogin, csrfProtection, async (req, 
       'INSERT INTO account_links (requester_id, target_id, status) VALUES ($1, $2, $3) RETURNING id, created_at',
       [currentId, targetId, 'pending']
     );
+    broadcastLinkChange(targetId, 'request', {
+      requestId: inserted[0].id,
+      email: req.currentUser.email,
+      created_at: inserted[0].created_at,
+    });
     if (wantsJson(req)) {
       return res.json({
         ok: true,
@@ -138,12 +143,21 @@ router.post('/settings/link/respond', requireLogin, csrfProtection, async (req, 
       } finally {
         client.release();
       }
+      broadcastLinkChange(request.requester_id, 'accepted', {
+        linkId: requestId,
+        userId: currentId,
+        email: req.currentUser.email,
+      });
       return jsonOrRedirect(req, res, 'success', 'Link request accepted.');
     } else {
       await pool.query('DELETE FROM account_links WHERE id = $1 AND target_id = $2', [
         requestId,
         req.currentUser.id,
       ]);
+      broadcastLinkChange(request.requester_id, 'declined', {
+        requestId,
+        email: req.currentUser.email,
+      });
       return jsonOrRedirect(req, res, 'success', 'Request declined.');
     }
   } catch (err) {
@@ -164,14 +178,19 @@ router.post('/settings/link/remove', requireLogin, csrfProtection, async (req, r
       return jsonOrRedirect(req, res, 'error', 'Could not update link.', 500);
     }
     const { rows } = await pool.query(
-      'DELETE FROM account_links WHERE id = $1 AND (requester_id = $2 OR target_id = $2) RETURNING status',
+      'DELETE FROM account_links WHERE id = $1 AND (requester_id = $2 OR target_id = $2) RETURNING status, requester_id, target_id',
       [linkId, currentId]
     );
     if (rows.length === 0) {
       return jsonOrRedirect(req, res, 'error', 'Link not found.', 404);
-    } else if (rows[0].status === 'accepted') {
+    }
+    const deleted = rows[0];
+    const otherId = deleted.requester_id === currentId ? deleted.target_id : deleted.requester_id;
+    if (deleted.status === 'accepted') {
+      broadcastLinkChange(otherId, 'removed', { linkId });
       return jsonOrRedirect(req, res, 'success', 'Link removed.');
     } else {
+      broadcastLinkChange(otherId, 'cancelled', { requestId: linkId });
       return jsonOrRedirect(req, res, 'success', 'Request cancelled.');
     }
   } catch (err) {

@@ -796,6 +796,122 @@
           }
         });
       }
+
+      // --- Real-time link updates via SSE ---
+      if (window.EventSource) {
+        const linkSource = new EventSource('/events/entries');
+        linkSource.addEventListener('link-change', (evt) => {
+          try {
+            const data = JSON.parse(evt.data || '{}');
+            handleLinkSSE(data);
+          } catch (err) {
+            console.error('Failed to parse link-change event', err);
+          }
+        });
+        linkSource.onerror = () => {
+          linkSource.close();
+        };
+      }
+
+      function handleLinkSSE(payload) {
+        if (!payload || !payload.type) return;
+
+        if (payload.type === 'request' && payload.requestId) {
+          // New incoming request
+          const table = document.querySelector('[data-incoming-table]');
+          if (!table) return;
+          const emptyRow = table.querySelector('[data-link-empty]');
+          if (emptyRow) emptyRow.remove();
+          const date = payload.created_at ? String(payload.created_at).slice(0, 10) : '';
+          const email = (payload.email || '').replace(/</g, '&lt;');
+          const row = document.createElement('div');
+          row.className = 'table-row linked-row';
+          row.setAttribute('data-link-row', payload.requestId);
+          row.innerHTML =
+            '<div>' +
+              '<div class="table-email">' + email + '</div>' +
+              '<div class="muted small">Requested ' + date + '</div>' +
+            '</div>' +
+            '<div class="table-actions">' +
+              '<form action="/settings/link/respond" method="POST" class="inline-form" data-link-action>' +
+                '<input type="hidden" name="_csrf" value="' + csrfToken + '">' +
+                '<input type="hidden" name="request_id" value="' + payload.requestId + '">' +
+                '<input type="hidden" name="action" value="accept">' +
+                '<button type="submit" class="primary">Accept</button>' +
+              '</form>' +
+              '<form action="/settings/link/respond" method="POST" class="inline-form" data-link-action>' +
+                '<input type="hidden" name="_csrf" value="' + csrfToken + '">' +
+                '<input type="hidden" name="request_id" value="' + payload.requestId + '">' +
+                '<input type="hidden" name="action" value="decline">' +
+                '<button type="submit" class="ghost danger">Decline</button>' +
+              '</form>' +
+            '</div>';
+          row.querySelectorAll('[data-link-action]').forEach(function(f) {
+            f.addEventListener('submit', handleLinkAction);
+          });
+          table.appendChild(row);
+        }
+
+        if (payload.type === 'accepted' && payload.linkId) {
+          // Our outgoing request was accepted
+          const outgoing = document.querySelector('[data-outgoing-table]');
+          const accepted = document.querySelector('[data-accepted-table]');
+          if (outgoing) {
+            const row = outgoing.querySelector('[data-link-row="' + payload.linkId + '"]');
+            if (row) { row.remove(); showEmptyIfNeeded(outgoing, 'outgoing'); }
+          }
+          if (accepted) {
+            const emptyRow = accepted.querySelector('[data-link-empty]');
+            if (emptyRow) emptyRow.remove();
+            const email = (payload.email || '').replace(/</g, '&lt;');
+            const newRow = document.createElement('div');
+            newRow.className = 'table-row linked-row';
+            newRow.setAttribute('data-link-row', payload.linkId);
+            newRow.innerHTML =
+              '<div class="table-email">' + email + '</div>' +
+              '<div style="text-align: right;">' +
+                '<form action="/settings/link/remove" method="POST" class="inline-form" data-link-action>' +
+                  '<input type="hidden" name="_csrf" value="' + csrfToken + '">' +
+                  '<input type="hidden" name="link_id" value="' + payload.linkId + '">' +
+                  '<button type="submit" class="ghost danger">Remove</button>' +
+                '</form>' +
+              '</div>';
+            newRow.querySelector('[data-link-action]').addEventListener('submit', handleLinkAction);
+            accepted.appendChild(newRow);
+          }
+          updateLinkSlots();
+          showLinkFeedback('success', (payload.email || 'Someone') + ' accepted your link request.');
+        }
+
+        if (payload.type === 'declined' && payload.requestId) {
+          // Our outgoing request was declined
+          const outgoing = document.querySelector('[data-outgoing-table]');
+          if (outgoing) {
+            const row = outgoing.querySelector('[data-link-row="' + payload.requestId + '"]');
+            if (row) { row.remove(); showEmptyIfNeeded(outgoing, 'outgoing'); }
+          }
+          showLinkFeedback('error', (payload.email || 'Someone') + ' declined your link request.');
+        }
+
+        if (payload.type === 'removed' && payload.linkId) {
+          // An accepted link was removed by the other user
+          const accepted = document.querySelector('[data-accepted-table]');
+          if (accepted) {
+            const row = accepted.querySelector('[data-link-row="' + payload.linkId + '"]');
+            if (row) { row.remove(); showEmptyIfNeeded(accepted, 'accepted'); }
+          }
+          updateLinkSlots();
+        }
+
+        if (payload.type === 'cancelled' && payload.requestId) {
+          // An incoming request was cancelled by the requester
+          const incoming = document.querySelector('[data-incoming-table]');
+          if (incoming) {
+            const row = incoming.querySelector('[data-link-row="' + payload.requestId + '"]');
+            if (row) { row.remove(); showEmptyIfNeeded(incoming, 'incoming'); }
+          }
+        }
+      }
     })();
   </script>
 <%- include('partials/footer') %>
