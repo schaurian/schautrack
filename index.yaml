@@ -2,6 +2,29 @@ apiVersion: v1
 entries:
   schautrack:
   - apiVersion: v2
+    appVersion: 1.10.0
+    created: "2026-02-25T14:34:54.429393677Z"
+    description: A simple nutrition tracking web application
+    digest: 251e3a4f612e7dc219fde441e7b926e9cdda0edef495548a84c2d76255773c63
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - nutrition
+    - calorie
+    - macro
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/schautrack-1.10.0.tgz
+    version: 1.10.0
+  - apiVersion: v2
     appVersion: 1.9.1
     created: "2026-02-18T19:08:58.482987046Z"
     description: A simple calorie tracking web application
@@ -359,6 +382,29 @@ entries:
     - https://helm.schautrack.com/schautrack-0.1.0.tgz
     version: 0.1.0
   - apiVersion: v2
+    appVersion: staging-218
+    created: "2026-02-25T14:34:54.430013481Z"
+    description: A simple nutrition tracking web application
+    digest: 4691274b545af59bedf023ac39fc05972b13293288bc10ccd69a29a852a84f1a
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - nutrition
+    - calorie
+    - macro
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/staging/schautrack-0.0.218.tgz
+    version: 0.0.218
+  - apiVersion: v2
     appVersion: staging-142
     created: "2026-02-18T19:08:58.483538283Z"
     description: A simple calorie tracking web application
@@ -442,4 +488,4 @@ entries:
     urls:
     - https://helm.schautrack.com/staging/schautrack-0.0.128.tgz
     version: 0.0.128
-generated: "2026-02-18T19:08:58.482178995Z"
+generated: "2026-02-25T14:34:54.428630095Z"
