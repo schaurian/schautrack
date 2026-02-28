@@ -19,7 +19,7 @@
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.19.0",
     "helmet": "^8.1.0",
-    "multer": "^2.0.2",
+    "multer": "^2.1.0",
     "nodemailer": "^8.0.1",
     "pg": "^8.18.0",
     "qrcode": "^1.5.3",
