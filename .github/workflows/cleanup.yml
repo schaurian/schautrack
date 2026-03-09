@@ -6,34 +6,98 @@ on:
   workflow_dispatch:
 
 jobs:
-  cleanup-untagged:
-    name: Delete untagged images
+  cleanup:
+    name: Delete old container images
     runs-on: ubuntu-latest
     permissions:
       packages: write
+    env:
+      PACKAGE: schautrack
+      OWNER: ${{ github.repository_owner }}
+      KEEP_STAGING: 5
     steps:
-      - name: Delete untagged container images
-        uses: snok/container-retention-policy@v3.0.1
-        with:
-          account: ${{ github.repository_owner }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image-names: ${{ github.event.repository.name }}
-          cut-off: 1d
-          tag-selection: untagged
+      - name: Delete untagged images older than 1 day
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Cleaning up untagged images ==="
+          CUTOFF=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)
 
-  cleanup-staging:
-    name: Delete old staging images
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - name: Delete old staging container images
-        uses: snok/container-retention-policy@v3.0.1
-        with:
-          account: ${{ github.repository_owner }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image-names: ${{ github.event.repository.name }}
-          cut-off: 14d
-          keep-n-most-recent: 5
-          tag-selection: tagged
-          image-tags: staging-*
+          # Fetch all versions (paginated)
+          PAGE=1
+          DELETED=0
+          while true; do
+            VERSIONS=$(gh api \
+              "/users/${OWNER}/packages/container/${PACKAGE}/versions?per_page=100&page=${PAGE}" \
+              2>/dev/null) || break
+
+            COUNT=$(echo "$VERSIONS" | jq length)
+            [ "$COUNT" -eq 0 ] && break
+
+            # Filter untagged versions older than cutoff
+            IDS=$(echo "$VERSIONS" | jq -r \
+              --arg cutoff "$CUTOFF" \
+              '.[] | select(.metadata.container.tags | length == 0) | select(.updated_at < $cutoff) | .id')
+
+            for ID in $IDS; do
+              echo "Deleting untagged version $ID"
+              gh api --method DELETE \
+                "/users/${OWNER}/packages/container/${PACKAGE}/versions/${ID}" \
+                2>/dev/null && DELETED=$((DELETED + 1)) || echo "  Failed to delete $ID"
+            done
+
+            [ "$COUNT" -lt 100 ] && break
+            PAGE=$((PAGE + 1))
+          done
+          echo "Deleted $DELETED untagged images"
+
+      - name: Delete old staging images (keep ${{ env.KEEP_STAGING }} most recent)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Cleaning up old staging images ==="
+
+          # Collect all staging versions across pages
+          PAGE=1
+          ALL_STAGING="[]"
+          while true; do
+            VERSIONS=$(gh api \
+              "/users/${OWNER}/packages/container/${PACKAGE}/versions?per_page=100&page=${PAGE}" \
+              2>/dev/null) || break
+
+            COUNT=$(echo "$VERSIONS" | jq length)
+            [ "$COUNT" -eq 0 ] && break
+
+            # Filter to staging-tagged versions
+            STAGING=$(echo "$VERSIONS" | jq \
+              '[.[] | select(.metadata.container.tags | any(startswith("staging-")))]')
+            ALL_STAGING=$(echo "$ALL_STAGING $STAGING" | jq -s 'add')
+
+            [ "$COUNT" -lt 100 ] && break
+            PAGE=$((PAGE + 1))
+          done
+
+          TOTAL=$(echo "$ALL_STAGING" | jq length)
+          echo "Found $TOTAL staging images"
+
+          if [ "$TOTAL" -le "$KEEP_STAGING" ]; then
+            echo "Nothing to delete (keeping ${KEEP_STAGING})"
+            exit 0
+          fi
+
+          # Sort by updated_at descending, skip the newest N, delete the rest
+          IDS=$(echo "$ALL_STAGING" | jq -r \
+            --argjson keep "$KEEP_STAGING" \
+            'sort_by(.updated_at) | reverse | .[$keep:] | .[].id')
+
+          DELETED=0
+          for ID in $IDS; do
+            TAGS=$(echo "$ALL_STAGING" | jq -r \
+              --argjson id "$ID" \
+              '.[] | select(.id == $id) | .metadata.container.tags | join(", ")')
+            echo "Deleting staging version $ID ($TAGS)"
+            gh api --method DELETE \
+              "/users/${OWNER}/packages/container/${PACKAGE}/versions/${ID}" \
+              2>/dev/null && DELETED=$((DELETED + 1)) || echo "  Failed to delete $ID"
+          done
+          echo "Deleted $DELETED staging images (kept newest ${KEEP_STAGING})"
