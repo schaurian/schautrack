@@ -1,0 +1,39 @@
+name: Cleanup Container Images
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Every Sunday at 3:00 UTC
+  workflow_dispatch:
+
+jobs:
+  cleanup-untagged:
+    name: Delete untagged images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Delete untagged container images
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          account: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-names: ${{ github.event.repository.name }}
+          cut-off: 1d
+          tag-selection: untagged
+
+  cleanup-staging:
+    name: Delete old staging images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Delete old staging container images
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          account: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-names: ${{ github.event.repository.name }}
+          cut-off: 14d
+          keep-n-most-recent: 5
+          tag-selection: tagged
+          image-tags: staging-*
