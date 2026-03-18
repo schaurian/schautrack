@@ -9,6 +9,7 @@ const { encryptApiKey } = require('../lib/ai');
 const { toInt } = require('../lib/utils');
 const { MACRO_KEYS, parseMacroInput } = require('../lib/macros');
 const { getLinkRequests, getAcceptedLinkUsers } = require('../lib/links');
+const { broadcastSettingsChange } = require('./sse');
 
 const router = express.Router();
 
@@ -177,6 +178,23 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
       'UPDATE users SET macros_enabled = $1, macro_goals = $2, goal_threshold = $3 WHERE id = $4',
       [JSON.stringify(enabledMacros), JSON.stringify(macroGoals), goalThreshold, req.currentUser.id]
     );
+
+    // Derive the enabled macro keys list (excluding meta flags)
+    const enabledKeys = MACRO_KEYS.filter((k) => enabledMacros[k]);
+    const macroModes = {};
+    for (const key of ['calories', ...MACRO_KEYS]) {
+      if (macroGoals[`${key}_mode`]) macroModes[key] = macroGoals[`${key}_mode`];
+    }
+
+    broadcastSettingsChange(req.currentUser.id, {
+      enabledMacros: enabledKeys,
+      caloriesEnabled: enabledMacros.calories !== false,
+      autoCalcCalories: enabledMacros.auto_calc_calories || false,
+      macroGoals,
+      macroModes,
+      goalThreshold,
+      dailyGoal: macroGoals.calories || null,
+    });
 
     if (wantsJson) {
       return res.json({ ok: true });

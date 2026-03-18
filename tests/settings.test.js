@@ -188,3 +188,85 @@ describe('Password change with TOTP', () => {
     expect(mockPool.query).toHaveBeenCalledTimes(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// SSE broadcast on macros save
+// ---------------------------------------------------------------------------
+
+describe('Macros save broadcasts settings-change SSE', () => {
+  const express = require('express');
+
+  let mockBroadcast;
+
+  function buildMacroApp() {
+    jest.resetModules();
+
+    const mockPool = {
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+      on: jest.fn(),
+    };
+
+    mockBroadcast = jest.fn();
+
+    jest.doMock('../src/db/pool', () => ({ pool: mockPool }));
+    jest.doMock('../src/middleware/auth', () => ({
+      requireLogin: (req, _res, next) => {
+        req.currentUser = {
+          id: 42,
+          email: 'test@test.com',
+          totp_enabled: false,
+          timezone: 'UTC',
+          macros_enabled: {},
+          macro_goals: {},
+        };
+        next();
+      },
+    }));
+    jest.doMock('../src/middleware/csrf', () => ({
+      csrfProtection: (_req, _res, next) => next(),
+    }));
+    jest.doMock('../src/routes/sse', () => ({
+      broadcastSettingsChange: mockBroadcast,
+    }));
+
+    const routes = require('../src/routes/settings');
+    const testApp = express();
+    testApp.use(express.urlencoded({ extended: false }));
+    testApp.use((req, _res, next) => {
+      req.session = req.session || {};
+      next();
+    });
+    testApp.use('/', routes);
+
+    return { app: testApp, mockPool };
+  }
+
+  test('calls broadcastSettingsChange with correct payload after macros save', async () => {
+    const { app: testApp } = buildMacroApp();
+
+    await request(testApp)
+      .post('/settings/macros')
+      .type('form')
+      .send({
+        calorie_goal: '2000',
+        calories_enabled: 'on',
+        protein_enabled: 'on',
+        protein_goal: '150',
+        protein_mode: 'target',
+        goal_threshold: '15',
+      })
+      .set('Accept', 'application/json')
+      .expect(200);
+
+    expect(mockBroadcast).toHaveBeenCalledTimes(1);
+    const [userId, payload] = mockBroadcast.mock.calls[0];
+    expect(userId).toBe(42);
+    expect(payload.caloriesEnabled).toBe(true);
+    expect(payload.dailyGoal).toBe(2000);
+    expect(payload.goalThreshold).toBe(15);
+    expect(payload.enabledMacros).toContain('protein');
+    expect(payload.macroGoals).toHaveProperty('calories', 2000);
+    expect(payload.macroGoals).toHaveProperty('protein', 150);
+    expect(payload.macroModes).toHaveProperty('protein', 'target');
+  });
+});

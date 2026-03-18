@@ -57,6 +57,12 @@ function broadcastLinkChange(targetUserId, type, detail) {
   sendUserEvent(uid, 'link-change', { type, ...detail });
 }
 
+function broadcastSettingsChange(userId, settings) {
+  const uid = toInt(userId);
+  if (uid === null) return;
+  sendUserEvent(uid, 'settings-change', settings);
+}
+
 async function broadcastEntryChange(sourceUserId) {
   const uid = toInt(sourceUserId);
   if (uid === null) return;
@@ -127,4 +133,5 @@ module.exports = {
   broadcastEntryChange,
   broadcastLinkLabelChange,
   broadcastLinkChange,
+  broadcastSettingsChange,
 };

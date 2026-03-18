@@ -315,16 +315,16 @@
           macros: Object.keys(macros).length > 0 ? macros : null,
         };
       })) %>;
-      const enabledMacrosJs = <%- JSON.stringify(enabledMacros || []) %>;
-      const caloriesEnabledJs = <%- JSON.stringify(caloriesEnabled !== false) %>;
-      const autoCalcCaloriesJs = <%- JSON.stringify(autoCalcCalories || false) %>;
+      let enabledMacrosJs = <%- JSON.stringify(enabledMacros || []) %>;
+      let caloriesEnabledJs = <%- JSON.stringify(caloriesEnabled !== false) %>;
+      let autoCalcCaloriesJs = <%- JSON.stringify(autoCalcCalories || false) %>;
       const macroLabelsJs = <%- JSON.stringify(macroLabels || {}) %>;
       const macroHeaderShortJs = { protein: 'Pro', carbs: 'Carb', fat: 'Fat', fiber: 'Fib', sugar: 'Sug' };
-      const timelineMetricCountJs = (caloriesEnabledJs ? 1 : 0) + enabledMacrosJs.length + 1;
-      const macroGoalsJs = <%- JSON.stringify(macroGoals || {}) %>;
-      const macroModesJs = <%- JSON.stringify(macroModes || {}) %>;
-      const goalThresholdJs = <%- JSON.stringify(user.goal_threshold != null ? user.goal_threshold : 10) %>;
-      const selfDailyGoalJs = <%- JSON.stringify(dailyGoal || null) %>;
+      let timelineMetricCountJs = (caloriesEnabledJs ? 1 : 0) + enabledMacrosJs.length + 1;
+      let macroGoalsJs = <%- JSON.stringify(macroGoals || {}) %>;
+      let macroModesJs = <%- JSON.stringify(macroModes || {}) %>;
+      let goalThresholdJs = <%- JSON.stringify(user.goal_threshold != null ? user.goal_threshold : 10) %>;
+      let selfDailyGoalJs = <%- JSON.stringify(dailyGoal || null) %>;
       const panelHeading = document.querySelector('[data-panel-heading]');
       const MAX_ENTRY_CALORIES = 9999;
       const MAX_ENTRY_MACRO = 999;
@@ -1271,6 +1271,26 @@
         }
       };
 
+      const handleSettingsEvent = (payload) => {
+        if (!payload) return;
+        if (Array.isArray(payload.enabledMacros)) enabledMacrosJs = payload.enabledMacros;
+        if (payload.caloriesEnabled !== undefined) caloriesEnabledJs = payload.caloriesEnabled;
+        if (payload.autoCalcCalories !== undefined) autoCalcCaloriesJs = payload.autoCalcCalories;
+        if (payload.macroGoals !== undefined) macroGoalsJs = payload.macroGoals;
+        if (payload.macroModes !== undefined) macroModesJs = payload.macroModes;
+        if (payload.goalThreshold !== undefined) goalThresholdJs = payload.goalThreshold;
+        if (payload.dailyGoal !== undefined) selfDailyGoalJs = payload.dailyGoal;
+        timelineMetricCountJs = (caloriesEnabledJs ? 1 : 0) + enabledMacrosJs.length + 1;
+        // Update the self share card's daily goal data attribute
+        const selfCard = document.querySelector('[data-share-block][data-is-self="true"]');
+        if (selfCard) {
+          selfCard.dataset.dailyGoal = selfDailyGoalJs || '';
+          if (goalThresholdJs != null) selfCard.dataset.goalThreshold = goalThresholdJs;
+        }
+        refreshCurrentEntries();
+        refreshCardForUser(String(selfUserId));
+      };
+
       const startEntryEvents = () => {
         if (!window.EventSource) {
           startPolling();
@@ -1301,6 +1321,14 @@
             handleLinkChangeEvent(data);
           } catch (err) {
             console.error('Failed to parse link-change event', err);
+          }
+        });
+        source.addEventListener('settings-change', (evt) => {
+          try {
+            const data = JSON.parse(evt.data || '{}');
+            handleSettingsEvent(data);
+          } catch (err) {
+            console.error('Failed to parse settings-change event', err);
           }
         });
         source.onerror = () => {
