@@ -21,36 +21,22 @@ export default function AISettings({ user, onSave }: Props) {
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
 
-  // Auto-save provider and model (not API key — that needs explicit submit)
-  const autoData = useMemo(() => ({ provider, model }), [provider, model]);
+  // Auto-save everything including API key (on blur via useAutosave)
+  const autoData = useMemo(() => ({ provider, model, apiKey }), [provider, model, apiKey]);
 
   const autoSaveFn = useCallback(async (d: typeof autoData) => {
-    await saveAiSettings({ ai_provider: d.provider, ai_key: '', ai_model: d.model });
+    await saveAiSettings({ ai_provider: d.provider, ai_key: d.apiKey, ai_model: d.model });
+    if (d.apiKey) setApiKey('');
     onSave();
   }, [onSave]);
 
-  useAutosave(autoData, autoSaveFn);
-
-  // Manual save for API key
-  const handleSaveKey = async () => {
-    if (!apiKey.trim()) return;
-    setLoading(true);
-    try {
-      await saveAiSettings({ ai_provider: provider, ai_key: apiKey, ai_model: model });
-      setApiKey('');
-      onSave();
-      addToast('success', 'API key saved');
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to save API key');
-    }
-    setLoading(false);
-  };
+  useAutosave(autoData, autoSaveFn, { delay: 1200 });
 
   const handleClear = async () => {
     setLoading(true);
     try {
       await saveAiSettings({ clear_settings: 'true' });
-      setProvider(''); setModel('');
+      setProvider(''); setModel(''); setApiKey('');
       onSave();
       addToast('success', 'AI settings cleared');
     } catch (err) {
@@ -73,15 +59,10 @@ export default function AISettings({ user, onSave }: Props) {
           </select>
         </div>
         <Input label="Model (optional)" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. gpt-4o" />
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-              placeholder={user.hasAiKey ? `\u2022\u2022\u2022\u2022${user.aiKeyLast4}` : 'Enter API key'} />
-          </div>
-          <Button size="sm" loading={loading} onClick={handleSaveKey} disabled={!apiKey.trim()}>Save Key</Button>
-        </div>
+        <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+          placeholder={user.hasAiKey ? `\u2022\u2022\u2022\u2022${user.aiKeyLast4}` : 'Enter API key'} />
         <div>
-          <Button type="button" variant="ghost" size="sm" onClick={handleClear}>Clear All</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={handleClear} loading={loading}>Clear All</Button>
         </div>
       </div>
     </Card>

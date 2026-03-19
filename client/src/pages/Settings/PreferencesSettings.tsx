@@ -27,7 +27,7 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-3">Preferences</h3>
+      <h3 className="text-sm font-semibold mb-3">Internationalization</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight Unit</label>
