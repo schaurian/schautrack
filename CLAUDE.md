@@ -183,6 +183,9 @@ Optional:
 - `IMPRINT_EMAIL`: Email text (rendered as SVG)
 - `BUILD_VERSION`: Injected during build, displayed in footer
 
+Features:
+- `ENABLE_BARCODE`: Enable barcode scanning via OpenFoodFacts (default: `true`, set `false` to disable)
+
 Registration:
 - `REGISTRATION_MODE`: `open` (default, anyone can register) or `invite` (requires invite code). Can also be set via admin panel.
 

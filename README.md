@@ -120,6 +120,13 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 | `SMTP_FROM` | `SUPPORT_EMAIL` | From address for emails |
 | `SMTP_SECURE` | `false` | Set to `true` for SSL/TLS |
 
+### Features
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
+| `REGISTRATION_MODE` | `open` | `open` (anyone can register) or `invite` (requires invite code). Also configurable via `/admin`. |
+
 ### Legal Pages
 
 | Variable | Default | Description |
