@@ -45,7 +45,7 @@ const FEATURES = [
 
 export default function Landing() {
   return (
-    <div className="py-20 max-md:py-10">
+    <div className="pt-20 pb-4 max-md:pt-10">
       <section className="mx-auto mb-20 max-w-[700px] text-center max-md:mb-12">
         <h1 className="mb-6 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-tight bg-gradient-to-br from-foreground to-primary bg-clip-text text-transparent">
           Track nutrition, not complexity
@@ -80,7 +80,7 @@ export default function Landing() {
 
       <section className="text-center">
         <a href="https://github.com/schaurian/schautrack#android-app" target="_blank" rel="noopener">
-          <img src="/google-play-badge.png" alt="Get it on Google Play" className="h-[60px] mx-auto" />
+          <img src="/google-play-badge.png" alt="Get it on Google Play" className="h-14 mx-auto" />
         </a>
       </section>
     </div>
