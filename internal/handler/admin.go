@@ -33,7 +33,8 @@ var allowedAdminKeys = map[string]string{
 	"ai_endpoint":       "AI_ENDPOINT",
 	"ai_model":          "AI_MODEL",
 	"ai_daily_limit":    "AI_DAILY_LIMIT",
-	"registration_mode": "REGISTRATION_MODE",
+	"enable_registration": "ENABLE_REGISTRATION",
+	"enable_barcode":    "ENABLE_BARCODE",
 }
 
 // UpdateSettings handles POST /admin/settings

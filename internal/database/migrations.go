@@ -207,6 +207,21 @@ func ensureAdminSettingsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 				value TEXT,
 				updated_at TIMESTAMPTZ DEFAULT NOW()
 			)`)
+		if err != nil {
+			return err
+		}
+		// Migrate registration_mode → enable_registration
+		_, err = tx.Exec(ctx, `
+			INSERT INTO admin_settings (key, value, updated_at)
+			SELECT 'enable_registration',
+				CASE WHEN value = 'invite' THEN 'false' ELSE 'true' END,
+				updated_at
+			FROM admin_settings WHERE key = 'registration_mode'
+			ON CONFLICT (key) DO NOTHING`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `DELETE FROM admin_settings WHERE key = 'registration_mode'`)
 		return err
 	})
 }

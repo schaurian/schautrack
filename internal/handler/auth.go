@@ -176,12 +176,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AuthHandler) getRegistrationMode(r *http.Request) string {
-	result := h.Settings.GetEffectiveSetting(r.Context(), "registration_mode", h.Cfg.RegistrationMode)
-	if result.Value != nil && *result.Value == "invite" {
-		return "invite"
+func (h *AuthHandler) isRegistrationEnabled(r *http.Request) bool {
+	result := h.Settings.GetEffectiveSetting(r.Context(), "enable_registration", h.Cfg.EnableRegistration)
+	if result.Value != nil && *result.Value == "false" {
+		return false
 	}
-	return "open"
+	return true
 }
 
 func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request, sess *session.Session, email, password, timezone, inviteCode string) {
@@ -196,7 +196,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 	}
 
 	// Check registration mode
-	if h.getRegistrationMode(r) == "invite" {
+	if !h.isRegistrationEnabled(r) {
 		inviteCode = strings.TrimSpace(inviteCode)
 		if inviteCode == "" {
 			JSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "Registration requires an invite code.", "requireInviteCode": true})
@@ -307,7 +307,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 
 	// Check if invite mode is active — reject if no invite code was provided
 	invCode := sess.GetString("pendingInviteCode")
-	if invCode == "" && h.getRegistrationMode(r) == "invite" {
+	if invCode == "" && !h.isRegistrationEnabled(r) {
 		sess.Delete("pendingRegistration")
 		ErrorJSON(w, http.StatusForbidden, "Registration requires an invite code.")
 		return

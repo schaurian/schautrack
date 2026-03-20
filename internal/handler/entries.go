@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"math"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,6 +39,14 @@ type EntriesHandler struct {
 	Broker   *sse.Broker
 	Cfg      *config.Config
 	Settings *database.SettingsCache
+}
+
+func (h *EntriesHandler) isBarcodeEnabled(ctx context.Context) bool {
+	result := h.Settings.GetEffectiveSetting(ctx, "enable_barcode", os.Getenv("ENABLE_BARCODE"))
+	if result.Value == nil {
+		return true // default enabled
+	}
+	return *result.Value != "false"
 }
 
 type dailyStat struct {
@@ -252,7 +262,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		"range": map[string]any{"start": oldest, "end": newest, "days": len(dayOptions), "preset": nilInt(rangePreset)},
 		"weightEntry": viewWeight, "lastWeightEntry": lastWeightEntry,
 		"hasAiEnabled": hasAiEnabled, "aiUsage": nil, "aiProviderName": nil,
-		"barcodeEnabled": h.Cfg.EnableBarcode,
+		"barcodeEnabled": h.isBarcodeEnabled(r.Context()),
 		"caloriesEnabled": caloriesEnabled, "autoCalcCalories": autoCalcCalories,
 		"enabledMacros": enabledMacros, "macroGoals": macroGoals,
 		"todayMacroTotals": todayMacroTotals, "macroLabels": service.MacroLabels,

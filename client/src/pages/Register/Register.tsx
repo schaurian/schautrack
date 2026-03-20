@@ -24,7 +24,7 @@ export default function Register() {
 
   useEffect(() => {
     getRegistrationInfo().then((info) => {
-      if (info.registrationMode === 'invite') setRequireInvite(true);
+      if (!info.registrationEnabled) setRequireInvite(true);
     }).catch(() => {});
   }, []);
 

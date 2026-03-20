@@ -33,7 +33,7 @@ type Config struct {
 
 	// Features
 	EnableBarcode    bool
-	RegistrationMode string
+	EnableRegistration string
 
 	// SMTP
 	SMTPHost   string
@@ -90,7 +90,7 @@ func Load() (*Config, error) {
 		AIDailyLimit:       aiDailyLimit,
 
 		EnableBarcode:    os.Getenv("ENABLE_BARCODE") != "false",
-		RegistrationMode: os.Getenv("REGISTRATION_MODE"),
+		EnableRegistration: os.Getenv("ENABLE_REGISTRATION"),
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),
 		SMTPPort:   smtpPort,

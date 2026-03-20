@@ -22,7 +22,7 @@ export default function Admin() {
     queryClient.invalidateQueries({ queryKey: ['admin'] });
   };
 
-  const isInviteMode = data.settings.registration_mode?.value === 'invite';
+  const isInviteMode = data.settings.enable_registration?.value === 'false';
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,29 +70,64 @@ function AdminSettingsForm({ settings, onSave }: { settings: Record<string, { va
     support_email: 'Support Email',
     imprint_address: 'Imprint Address',
     imprint_email: 'Imprint Email',
-    enable_legal: 'Enable Legal Pages',
+    enable_legal: 'Enable Legal',
     ai_provider: 'AI Provider',
     ai_key: 'AI Key',
     ai_endpoint: 'AI Endpoint',
     ai_model: 'AI Model',
     ai_daily_limit: 'AI Daily Limit',
-    registration_mode: 'Registration Mode (open/invite)',
+    enable_registration: 'Enable Registration',
+    enable_barcode: 'Enable Barcode',
   };
+
+  const toggleSettings: Record<string, { trueValue: string; falseValue: string; defaultValue: string }> = {
+    enable_registration: { trueValue: 'true', falseValue: 'false', defaultValue: 'true' },
+    enable_barcode: { trueValue: 'true', falseValue: 'false', defaultValue: 'true' },
+  };
+
+  const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <Card>
       <h3 className="text-base font-semibold mb-4">Application Settings</h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {Object.entries(settings).map(([key, setting]) => (
-          <div key={key}>
-            <Input
-              label={`${settingLabels[key] || key} ${setting.source === 'env' ? '(ENV)' : ''}`}
-              value={values[key] || ''}
-              onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-              disabled={setting.source === 'env'}
-            />
-          </div>
-        ))}
+        {Object.entries(settings).map(([key, setting]) => {
+          const isEnv = setting.source === 'env';
+          const label = settingLabels[key] || key;
+          const toggle = toggleSettings[key];
+
+          const envTitle = isEnv ? 'Locked — set via environment variable' : undefined;
+
+          if (toggle) {
+            const effectiveValue = values[key] || toggle.defaultValue;
+            const isOn = effectiveValue === toggle.trueValue;
+            return (
+              <div key={key} className="flex flex-col gap-1.5" title={envTitle}>
+                <label className="text-xs font-medium text-muted-foreground">{label}</label>
+                <select
+                  className={selectClass}
+                  value={isOn ? 'true' : 'false'}
+                  onChange={(e) => setValues({ ...values, [key]: e.target.value === 'true' ? toggle.trueValue : toggle.falseValue })}
+                  disabled={isEnv}
+                >
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            );
+          }
+
+          return (
+            <div key={key} title={envTitle}>
+              <Input
+                label={label}
+                value={values[key] || ''}
+                onChange={(e) => setValues({ ...values, [key]: e.target.value })}
+                disabled={isEnv}
+              />
+            </div>
+          );
+        })}
         <Button type="submit" size="sm" loading={loading}>Save</Button>
       </form>
     </Card>

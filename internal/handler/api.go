@@ -206,7 +206,8 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 		{"imprint_email", "IMPRINT_EMAIL"}, {"enable_legal", "ENABLE_LEGAL"},
 		{"ai_provider", "AI_PROVIDER"}, {"ai_key", "AI_KEY"},
 		{"ai_endpoint", "AI_ENDPOINT"}, {"ai_model", "AI_MODEL"},
-		{"ai_daily_limit", "AI_DAILY_LIMIT"}, {"registration_mode", "REGISTRATION_MODE"},
+		{"ai_daily_limit", "AI_DAILY_LIMIT"}, {"enable_registration", "ENABLE_REGISTRATION"},
+		{"enable_barcode", "ENABLE_BARCODE"},
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -258,12 +259,12 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 // RegistrationInfo handles GET /api/auth/registration-info (public endpoint)
 func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result := settingsCache.GetEffectiveSetting(r.Context(), "registration_mode", cfg.RegistrationMode)
-		mode := "open"
-		if result.Value != nil && *result.Value == "invite" {
-			mode = "invite"
+		result := settingsCache.GetEffectiveSetting(r.Context(), "enable_registration", cfg.EnableRegistration)
+		enabled := true
+		if result.Value != nil && *result.Value == "false" {
+			enabled = false
 		}
-		JSON(w, http.StatusOK, map[string]any{"registrationMode": mode})
+		JSON(w, http.StatusOK, map[string]any{"registrationEnabled": enabled})
 	}
 }
 
