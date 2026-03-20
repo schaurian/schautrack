@@ -379,18 +379,96 @@ func (h *SettingsHandler) TwoFactorEnable(w http.ResponseWriter, r *http.Request
 	}
 
 	user := middleware.GetCurrentUser(r)
-	if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET totp_secret = $1, totp_enabled = TRUE WHERE id = $2", secret, user.ID); err != nil {
+
+	// Enable 2FA and generate backup codes in a transaction
+	plainCodes := service.GenerateBackupCodes()
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not enable 2FA.")
 		return
 	}
+	defer tx.Rollback(r.Context())
+
+	if _, err := tx.Exec(r.Context(), "UPDATE users SET totp_secret = $1, totp_enabled = TRUE WHERE id = $2", secret, user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not enable 2FA.")
+		return
+	}
+	// Delete old backup codes
+	if _, err := tx.Exec(r.Context(), "DELETE FROM totp_backup_codes WHERE user_id = $1", user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not enable 2FA.")
+		return
+	}
+	for _, code := range plainCodes {
+		hash := service.HashBackupCode(code)
+		if _, err := tx.Exec(r.Context(), "INSERT INTO totp_backup_codes (user_id, code_hash) VALUES ($1, $2)", user.ID, hash); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not enable 2FA.")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not enable 2FA.")
+		return
+	}
+
 	sess.Delete("tempSecret")
 	sess.Delete("tempUrl")
 	sess.Delete("tempSecretCreatedAt")
-	OkJSON(w)
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "backupCodes": plainCodes})
 }
 
 // TwoFactorDisable handles POST /2fa/disable
 func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token      string `json:"token"`
+		BackupCode string `json:"backup_code"`
+	}
+	if err := ReadJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
+		return
+	}
+
+	user := middleware.GetCurrentUser(r)
+	if !user.TOTPEnabled || user.TOTPSecret == nil {
+		ErrorJSON(w, http.StatusBadRequest, "2FA is not enabled.")
+		return
+	}
+
+	verified := false
+	if body.Token != "" {
+		verified = totp.Validate(body.Token, *user.TOTPSecret)
+	}
+	if !verified && body.BackupCode != "" {
+		verified = h.verifyAndUseBackupCode(r, user.ID, body.BackupCode)
+	}
+	if !verified {
+		ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code or backup code.")
+		return
+	}
+
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	if _, err := tx.Exec(r.Context(), "UPDATE users SET totp_secret = NULL, totp_enabled = FALSE WHERE id = $1", user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+		return
+	}
+	if _, err := tx.Exec(r.Context(), "DELETE FROM totp_backup_codes WHERE user_id = $1", user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+		return
+	}
+	OkJSON(w)
+}
+
+// RegenerateBackupCodes handles POST /2fa/backup-codes
+func (h *SettingsHandler) RegenerateBackupCodes(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Token string `json:"token"`
 	}
@@ -410,11 +488,36 @@ func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET totp_secret = NULL, totp_enabled = FALSE WHERE id = $1", user.ID); err != nil {
-		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+	plainCodes := service.GenerateBackupCodes()
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not regenerate codes.")
 		return
 	}
-	OkJSON(w)
+	defer tx.Rollback(r.Context())
+
+	if _, err := tx.Exec(r.Context(), "DELETE FROM totp_backup_codes WHERE user_id = $1", user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not regenerate codes.")
+		return
+	}
+	for _, code := range plainCodes {
+		hash := service.HashBackupCode(code)
+		if _, err := tx.Exec(r.Context(), "INSERT INTO totp_backup_codes (user_id, code_hash) VALUES ($1, $2)", user.ID, hash); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not regenerate codes.")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not regenerate codes.")
+		return
+	}
+
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "backupCodes": plainCodes})
+}
+
+// verifyAndUseBackupCode checks a backup code against stored hashes and marks it used atomically.
+func (h *SettingsHandler) verifyAndUseBackupCode(r *http.Request, userID int, code string) bool {
+	return verifyAndMarkBackupCode(r, h.Pool, userID, code)
 }
 
 // --- Links handler ---

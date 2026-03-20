@@ -12,6 +12,8 @@ import (
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
 
+	"schautrack/internal/config"
+	"schautrack/internal/database"
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
@@ -22,6 +24,8 @@ type AuthHandler struct {
 	Pool         *pgxpool.Pool
 	SessionStore *session.Store
 	Email        *service.EmailService
+	Cfg          *config.Config
+	Settings     *database.SettingsCache
 }
 
 // Login handles POST /api/auth/login
@@ -52,7 +56,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			ErrorJSON(w, http.StatusBadRequest, "Invalid 2FA session.")
 			return
 		}
-		if !totp.Validate(body.Token, *user.TOTPSecret) {
+		verified := totp.Validate(body.Token, *user.TOTPSecret)
+		if !verified {
+			// Try as backup code
+			verified = verifyAndUseBackupCodeForLogin(r, h.Pool, user.ID, body.Token)
+		}
+		if !verified {
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
 			return
 		}
@@ -143,11 +152,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // Register handles POST /api/auth/register
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Step     string `json:"step"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Timezone string `json:"timezone"`
-		Captcha  string `json:"captcha"`
+		Step       string `json:"step"`
+		Email      string `json:"email"`
+		Password   string `json:"password"`
+		Timezone   string `json:"timezone"`
+		Captcha    string `json:"captcha"`
+		InviteCode string `json:"invite_code"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
@@ -158,7 +168,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	switch body.Step {
 	case "credentials":
-		h.registerCredentials(w, r, sess, body.Email, body.Password, body.Timezone)
+		h.registerCredentials(w, r, sess, body.Email, body.Password, body.Timezone, body.InviteCode)
 	case "captcha":
 		h.registerCaptcha(w, r, sess, body.Captcha)
 	default:
@@ -166,7 +176,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request, sess *session.Session, email, password, timezone string) {
+func (h *AuthHandler) getRegistrationMode(r *http.Request) string {
+	result := h.Settings.GetEffectiveSetting(r.Context(), "registration_mode", h.Cfg.RegistrationMode)
+	if result.Value != nil && *result.Value == "invite" {
+		return "invite"
+	}
+	return "open"
+}
+
+func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request, sess *session.Session, email, password, timezone, inviteCode string) {
 	emailClean := strings.ToLower(strings.TrimSpace(email))
 	if emailClean == "" || password == "" {
 		ErrorJSON(w, http.StatusBadRequest, "Email and password are required.")
@@ -175,6 +193,40 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 	if len(password) < 10 {
 		ErrorJSON(w, http.StatusBadRequest, "Password must be at least 10 characters.")
 		return
+	}
+
+	// Check registration mode
+	if h.getRegistrationMode(r) == "invite" {
+		inviteCode = strings.TrimSpace(inviteCode)
+		if inviteCode == "" {
+			JSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "Registration requires an invite code.", "requireInviteCode": true})
+			return
+		}
+		// Validate invite code
+		var inviteID int
+		var inviteEmail *string
+		var usedBy *int
+		var expiresAt *time.Time
+		err := h.Pool.QueryRow(r.Context(),
+			"SELECT id, email, used_by, expires_at FROM invite_codes WHERE code = $1",
+			inviteCode).Scan(&inviteID, &inviteEmail, &usedBy, &expiresAt)
+		if err != nil {
+			ErrorJSON(w, http.StatusBadRequest, "Invalid invite code.")
+			return
+		}
+		if usedBy != nil {
+			ErrorJSON(w, http.StatusBadRequest, "This invite code has already been used.")
+			return
+		}
+		if expiresAt != nil && time.Now().After(*expiresAt) {
+			ErrorJSON(w, http.StatusBadRequest, "This invite code has expired.")
+			return
+		}
+		if inviteEmail != nil && *inviteEmail != "" && strings.ToLower(*inviteEmail) != emailClean {
+			ErrorJSON(w, http.StatusBadRequest, "This invite code is for a different email address.")
+			return
+		}
+		sess.Set("pendingInviteCode", inviteCode)
 	}
 
 	var exists bool
@@ -253,6 +305,36 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
+	// Check if invite mode is active — reject if no invite code was provided
+	invCode := sess.GetString("pendingInviteCode")
+	if invCode == "" && h.getRegistrationMode(r) == "invite" {
+		sess.Delete("pendingRegistration")
+		ErrorJSON(w, http.StatusForbidden, "Registration requires an invite code.")
+		return
+	}
+
+	// Re-validate and atomically claim invite code before creating user
+	if invCode != "" {
+		tag, err := h.Pool.Exec(r.Context(),
+			`UPDATE invite_codes SET used_by = -1, used_at = NOW()
+			 WHERE code = $1 AND used_by IS NULL
+			   AND (expires_at IS NULL OR expires_at > NOW())`, invCode)
+		if err != nil || tag.RowsAffected() == 0 {
+			sess.Delete("pendingRegistration")
+			sess.Delete("pendingInviteCode")
+			ErrorJSON(w, http.StatusBadRequest, "Invite code is no longer valid.")
+			return
+		}
+	}
+
+	finalizeInvite := func(userID int) {
+		if invCode != "" {
+			h.Pool.Exec(r.Context(),
+				"UPDATE invite_codes SET used_by = $1 WHERE code = $2", userID, invCode)
+			sess.Delete("pendingInviteCode")
+		}
+	}
+
 	if h.Email.IsConfigured() {
 		var userID int
 		err := h.Pool.QueryRow(r.Context(),
@@ -264,6 +346,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
 			return
 		}
+		finalizeInvite(userID)
 		code := service.GenerateResetCode()
 		if _, err := h.Pool.Exec(r.Context(),
 			"INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
@@ -285,6 +368,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
 			return
 		}
+		finalizeInvite(userID)
 		sess.Delete("pendingRegistration")
 		sess.SetUserID(userID)
 		OkJSON(w)
@@ -641,7 +725,11 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 			ErrorJSON(w, http.StatusBadRequest, "Enter your 2FA code to confirm deletion.")
 			return
 		}
-		if totpSecret == nil || !totp.Validate(body.Token, *totpSecret) {
+		verified := totpSecret != nil && totp.Validate(body.Token, *totpSecret)
+		if !verified {
+			verified = verifyAndUseBackupCodeForLogin(r, h.Pool, user.ID, body.Token)
+		}
+		if !verified {
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
 			return
 		}
@@ -656,6 +744,8 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(r.Context())
 
 	tables := []string{
+		"DELETE FROM totp_backup_codes WHERE user_id = $1",
+		"DELETE FROM daily_notes WHERE user_id = $1",
 		"DELETE FROM calorie_entries WHERE user_id = $1",
 		"DELETE FROM weight_entries WHERE user_id = $1",
 		"DELETE FROM ai_usage WHERE user_id = $1",
@@ -883,6 +973,50 @@ func migratePasswordHash(pool *pgxpool.Pool, userID int, password string) {
 func recordLoginFailure(sess *session.Session) {
 	attempts, _ := sess.GetInt("loginFailedAttempts")
 	sess.Set("loginFailedAttempts", attempts+1)
+}
+
+func verifyAndUseBackupCodeForLogin(r *http.Request, pool *pgxpool.Pool, userID int, code string) bool {
+	return verifyAndMarkBackupCode(r, pool, userID, code)
+}
+
+// verifyAndMarkBackupCode atomically verifies a backup code and marks it used.
+// It reads all unused codes, finds a match in-memory, then uses an atomic UPDATE
+// with a WHERE used = FALSE condition to prevent race conditions.
+func verifyAndMarkBackupCode(r *http.Request, pool *pgxpool.Pool, userID int, code string) bool {
+	rows, err := pool.Query(r.Context(),
+		"SELECT id, code_hash FROM totp_backup_codes WHERE user_id = $1 AND used = FALSE", userID)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+
+	// Collect all codes first, then close the result set before updating
+	type codeEntry struct {
+		id   int
+		hash string
+	}
+	var codes []codeEntry
+	for rows.Next() {
+		var c codeEntry
+		if err := rows.Scan(&c.id, &c.hash); err != nil {
+			continue
+		}
+		codes = append(codes, c)
+	}
+	rows.Close()
+
+	for _, c := range codes {
+		if service.VerifyBackupCode(code, c.hash) {
+			// Atomic: only marks used if still unused (prevents race condition)
+			tag, err := pool.Exec(r.Context(),
+				"UPDATE totp_backup_codes SET used = TRUE WHERE id = $1 AND used = FALSE", c.id)
+			if err != nil || tag.RowsAffected() == 0 {
+				return false // Already used by a concurrent request
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func replyWithCaptchaIfNeeded(w http.ResponseWriter, sess *session.Session) {

@@ -97,6 +97,7 @@ export default function TodoSettings({ user, onSave }: Props) {
   const [editSchedule, setEditSchedule] = useState<Todo['schedule']>({ type: 'daily' });
   const [editTime, setEditTime] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['todos'] });
 
@@ -122,6 +123,7 @@ export default function TodoSettings({ user, onSave }: Props) {
       setNewName('');
       setNewSchedule({ type: 'daily' });
       setNewTime('');
+      setShowAddForm(false);
       refresh();
       addToast('success', 'Todo created');
     } catch {
@@ -187,18 +189,19 @@ export default function TodoSettings({ user, onSave }: Props) {
       </div>
 
       {enabled && (
-        <>
+        <div className="flex flex-col gap-3">
           {todos.length > 0 && (
-            <ul className="flex flex-col gap-2 mb-4">
+            <ul className="divide-y divide-border rounded-md border border-border overflow-hidden">
               {todos.map((todo) => (
-                <li key={todo.id} className="rounded-md border border-border p-3">
+                <li key={todo.id}>
                   {editingId === todo.id ? (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 p-3 bg-muted/20">
                       <input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         className={inputClass}
                         maxLength={100}
+                        autoFocus
                       />
                       <div className="flex items-center gap-2">
                         <label className="text-xs text-muted-foreground shrink-0">Time</label>
@@ -219,25 +222,26 @@ export default function TodoSettings({ user, onSave }: Props) {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <span className="text-sm text-foreground">{todo.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {todo.time_of_day && `${todo.time_of_day} · `}{formatSchedule(todo.schedule)}
-                        </span>
+                    <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/10 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-foreground truncate">{todo.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {todo.time_of_day && <span>{todo.time_of_day} &middot; </span>}
+                          {formatSchedule(todo.schedule)}
+                        </div>
                       </div>
-                      <div className="flex gap-1 shrink-0">
+                      <div className="flex gap-2 shrink-0">
                         <button
                           type="button"
                           onClick={() => startEdit(todo)}
-                          className="text-xs text-primary hover:underline"
+                          className="text-xs text-muted-foreground hover:text-primary transition-colors"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(todo.id)}
-                          className="text-xs text-destructive hover:underline"
+                          className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                         >
                           Remove
                         </button>
@@ -249,32 +253,47 @@ export default function TodoSettings({ user, onSave }: Props) {
             </ul>
           )}
 
-          <form onSubmit={handleCreate} className="flex flex-col gap-2">
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="New todo name"
-              className={inputClass}
-              maxLength={100}
-            />
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-foreground shrink-0">Time</label>
+          {showAddForm ? (
+            <form onSubmit={handleCreate} className="flex flex-col gap-2 rounded-md border border-border p-3">
               <input
-                type="time"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                className={timeInputClass}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Todo name"
+                className={inputClass}
+                maxLength={100}
+                autoFocus
               />
-              {newTime && (
-                <button type="button" onClick={() => setNewTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
-              )}
-            </div>
-            <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
-            <div>
-              <Button type="submit" size="sm" loading={creating} disabled={!newName.trim()}>Add Todo</Button>
-            </div>
-          </form>
-        </>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground shrink-0">Time</label>
+                <input
+                  type="time"
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  className={timeInputClass}
+                />
+                {newTime && (
+                  <button type="button" onClick={() => setNewTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+                )}
+              </div>
+              <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" loading={creating} disabled={!newName.trim()}>Add</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14" /><path d="M5 12h14" />
+              </svg>
+              Add todo
+            </button>
+          )}
+        </div>
       )}
     </Card>
   );

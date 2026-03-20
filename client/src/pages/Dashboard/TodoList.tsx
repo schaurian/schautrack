@@ -58,23 +58,6 @@ export default function TodoList({ date, userId, canEdit }: Props) {
       <ul className="divide-y divide-border">
         {data.todos.map((todo) => (
           <li key={todo.id} className="flex items-center gap-3 px-4 py-2.5">
-            <button
-              type="button"
-              onClick={() => handleToggle(todo)}
-              disabled={!canEdit}
-              className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                todo.completed
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-input bg-muted/50 hover:border-ring'
-              } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
-              aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
-            >
-              {todo.completed && (
-                <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 6l3 3 5-5" />
-                </svg>
-              )}
-            </button>
             <div className="flex-1 min-w-0">
               <span className={`text-sm ${todo.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                 {todo.name}
@@ -87,6 +70,23 @@ export default function TodoList({ date, userId, canEdit }: Props) {
               {todo.streak > 1 && (
                 <span className="text-xs text-primary font-medium">{todo.streak}d</span>
               )}
+              <button
+                type="button"
+                onClick={() => handleToggle(todo)}
+                disabled={!canEdit}
+                className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                  todo.completed
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-input bg-muted/50 hover:border-ring'
+                } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
+                aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
+              >
+                {todo.completed && (
+                  <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 6l3 3 5-5" />
+                  </svg>
+                )}
+              </button>
             </div>
           </li>
         ))}

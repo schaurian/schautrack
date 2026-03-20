@@ -14,6 +14,8 @@ export interface User {
   aiModel: string | null;
   aiDailyLimit: number | null;
   todosEnabled: boolean;
+  notesEnabled: boolean;
+  hasGlobalAiKey?: boolean;
 }
 
 export interface Entry {
@@ -101,6 +103,7 @@ export interface DashboardData {
   hasAiEnabled: boolean;
   aiUsage: AIUsage | null;
   aiProviderName: string | null;
+  barcodeEnabled: boolean;
   caloriesEnabled: boolean;
   autoCalcCalories: boolean;
   enabledMacros: string[];
@@ -153,4 +156,14 @@ export interface AdminData {
     created_at: string;
   }>;
   settings: Record<string, { value: string; source: string }>;
+}
+
+export interface InviteCode {
+  id: number;
+  code: string;
+  email: string | null;
+  used_by: number | null;
+  used_by_email: string | null;
+  expires_at: string | null;
+  created_at: string;
 }

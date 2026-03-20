@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"schautrack/internal/config"
 	"schautrack/internal/database"
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
@@ -64,6 +65,7 @@ func Me(adminEmail string) http.HandlerFunc {
 				"aiModel":            user.AIModel,
 				"aiDailyLimit":       user.AIDailyLimit,
 				"todosEnabled":       user.TodosEnabled,
+			"notesEnabled":       user.NotesEnabled,
 			},
 			"isAdmin": middleware.IsAdmin(user, adminEmail),
 		})
@@ -71,7 +73,7 @@ func Me(adminEmail string) http.HandlerFunc {
 }
 
 // Settings handles GET /api/settings
-func Settings(pool *pgxpool.Pool, adminEmail string) http.HandlerFunc {
+func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := middleware.GetCurrentUser(r)
 		sess := session.GetSession(r)
@@ -97,6 +99,9 @@ func Settings(pool *pgxpool.Pool, adminEmail string) http.HandlerFunc {
 			aiKeyLast4 = *user.AIKeyLast4
 		}
 
+		globalKey := settingsCache.GetEffectiveSetting(r.Context(), "ai_key", cfg.AIKey)
+		hasGlobalAiKey := globalKey.Value != nil && *globalKey.Value != ""
+
 		hasTempSecret := sess.GetString("tempSecret") != ""
 
 		const maxLinks = 3
@@ -117,6 +122,8 @@ func Settings(pool *pgxpool.Pool, adminEmail string) http.HandlerFunc {
 			"aiModel":            user.AIModel,
 			"aiDailyLimit":       user.AIDailyLimit,
 			"todosEnabled":       user.TodosEnabled,
+			"notesEnabled":       user.NotesEnabled,
+			"hasGlobalAiKey":     hasGlobalAiKey,
 		}
 
 		// Load link state
@@ -199,7 +206,7 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 		{"imprint_email", "IMPRINT_EMAIL"}, {"enable_legal", "ENABLE_LEGAL"},
 		{"ai_provider", "AI_PROVIDER"}, {"ai_key", "AI_KEY"},
 		{"ai_endpoint", "AI_ENDPOINT"}, {"ai_model", "AI_MODEL"},
-		{"ai_daily_limit", "AI_DAILY_LIMIT"},
+		{"ai_daily_limit", "AI_DAILY_LIMIT"}, {"registration_mode", "REGISTRATION_MODE"},
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +255,18 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 	}
 }
 
+// RegistrationInfo handles GET /api/auth/registration-info (public endpoint)
+func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		result := settingsCache.GetEffectiveSetting(r.Context(), "registration_mode", cfg.RegistrationMode)
+		mode := "open"
+		if result.Value != nil && *result.Value == "invite" {
+			mode = "invite"
+		}
+		JSON(w, http.StatusOK, map[string]any{"registrationMode": mode})
+	}
+}
+
 // CleanExpiredTokens runs periodic cleanup of expired tokens.
 func CleanExpiredTokens(pool *pgxpool.Pool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -257,6 +276,9 @@ func CleanExpiredTokens(pool *pgxpool.Pool) {
 	}
 	if _, err := pool.Exec(ctx, "DELETE FROM email_verification_tokens WHERE expires_at < NOW() OR used = TRUE"); err != nil {
 		slog.Error("failed to clean expired email verification tokens", "error", err)
+	}
+	if _, err := pool.Exec(ctx, "DELETE FROM invite_codes WHERE expires_at IS NOT NULL AND expires_at < NOW() AND used_by IS NULL"); err != nil {
+		slog.Error("failed to clean expired invite codes", "error", err)
 	}
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM users

@@ -40,14 +40,21 @@ export function setup2fa() {
 }
 
 export function enable2fa(data: { token: string }) {
-  return api<{ ok: boolean; error?: string }>('/2fa/enable', {
+  return api<{ ok: boolean; error?: string; backupCodes?: string[] }>('/2fa/enable', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function disable2fa(data: { token: string }) {
+export function disable2fa(data: { token?: string; backup_code?: string }) {
   return api<{ ok: boolean; error?: string }>('/2fa/disable', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function regenerateBackupCodes(data: { token: string }) {
+  return api<{ ok: boolean; error?: string; backupCodes?: string[] }>('/2fa/backup-codes', {
     method: 'POST',
     body: JSON.stringify(data),
   });

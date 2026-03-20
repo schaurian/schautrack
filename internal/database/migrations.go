@@ -412,6 +412,59 @@ func ensureTodosSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureInviteSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS invite_codes (
+				id SERIAL PRIMARY KEY,
+				code TEXT UNIQUE NOT NULL,
+				email TEXT,
+				created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+				used_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+				used_at TIMESTAMPTZ,
+				expires_at TIMESTAMPTZ,
+				created_at TIMESTAMPTZ DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS invite_codes_code_idx ON invite_codes (code)`)
+		return err
+	})
+}
+
+func ensureBackupCodesSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS totp_backup_codes (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				code_hash TEXT NOT NULL,
+				used BOOLEAN DEFAULT FALSE,
+				created_at TIMESTAMPTZ DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS totp_backup_codes_user_idx ON totp_backup_codes (user_id)`)
+		return err
+	})
+}
+
+func ensureDailyNotesSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS notes_enabled BOOLEAN DEFAULT FALSE`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS daily_notes (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				note_date DATE NOT NULL,
+				content TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ DEFAULT NOW(),
+				updated_at TIMESTAMPTZ DEFAULT NOW()
+			);
+			CREATE UNIQUE INDEX IF NOT EXISTS daily_notes_user_date_idx ON daily_notes (user_id, note_date)`)
+		return err
+	})
+}
+
 // InitSchemaWithRetry runs all migrations with exponential backoff.
 func InitSchemaWithRetry(ctx context.Context, pool *pgxpool.Pool, maxRetries int) error {
 	if maxRetries == 0 {
@@ -482,6 +535,15 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Dependent migrations
 	if err := ensureTodosSchema(ctx, pool); err != nil {
 		return fmt.Errorf("todos schema: %w", err)
+	}
+	if err := ensureDailyNotesSchema(ctx, pool); err != nil {
+		return fmt.Errorf("daily_notes schema: %w", err)
+	}
+	if err := ensureBackupCodesSchema(ctx, pool); err != nil {
+		return fmt.Errorf("backup_codes schema: %w", err)
+	}
+	if err := ensureInviteSchema(ctx, pool); err != nil {
+		return fmt.Errorf("invite schema: %w", err)
 	}
 
 	// Data migrations

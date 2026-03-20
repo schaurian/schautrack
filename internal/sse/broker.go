@@ -91,6 +91,14 @@ func (b *Broker) BroadcastTodoChange(sourceUserID int) {
 	}
 }
 
+func (b *Broker) BroadcastNoteChange(sourceUserID int) {
+	targets := b.getTargets(sourceUserID)
+	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
+	for _, id := range targets {
+		b.SendEvent(id, "note-change", payload)
+	}
+}
+
 func (b *Broker) BroadcastSettingsChange(userID int, settings any) {
 	b.SendEvent(userID, "settings-change", settings)
 }

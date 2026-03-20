@@ -14,12 +14,13 @@ interface Props {
   enabledMacros: string[];
   hasAiEnabled: boolean;
   aiUsage: AIUsage | null;
+  barcodeEnabled: boolean;
   onSubmit: () => void;
 }
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50';
 
-export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, onSubmit }: Props) {
+export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, barcodeEnabled, onSubmit }: Props) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [macros, setMacros] = useState<Record<string, string>>({});
@@ -182,17 +183,19 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             </button>
           )}
 
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
-            onClick={() => setBarcodeModalOpen(true)}
-            title="Scan barcode"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 5v-2h4" /><path d="M17 3h4v2" /><path d="M21 19v2h-4" /><path d="M7 21h-4v-2" />
-              <path d="M7 8v8" /><path d="M12 8v8" /><path d="M17 8v8" /><path d="M5 8v8" /><path d="M15 8v8" /><path d="M19 8v8" />
-            </svg>
-          </button>
+          {barcodeEnabled && (
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
+              onClick={() => setBarcodeModalOpen(true)}
+              title="Scan barcode"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 5v-2h4" /><path d="M17 3h4v2" /><path d="M21 19v2h-4" /><path d="M7 21h-4v-2" />
+                <path d="M7 8v8" /><path d="M12 8v8" /><path d="M17 8v8" /><path d="M5 8v8" /><path d="M15 8v8" /><path d="M19 8v8" />
+              </svg>
+            </button>
+          )}
 
           <div className="ml-auto">
             <Button type="submit" size="sm" loading={loading}>Track</Button>

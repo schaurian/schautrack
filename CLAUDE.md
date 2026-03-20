@@ -5,13 +5,15 @@ This document contains important context and decisions for Claude Code when work
 ## Project Overview
 
 **Schautrack** is a calorie tracking web application built with Go (chi router) and PostgreSQL. It supports:
-- User authentication with optional 2FA (TOTP)
+- User authentication with optional 2FA (TOTP) and backup codes
 - Calorie entry tracking with daily goals
 - AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
 - Weight tracking
+- Daily notes per date (enableable per user)
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
 - Real-time updates via Server-Sent Events (SSE)
+- Invite-only registration mode (configurable via env var or admin panel)
 
 ## Project Structure
 
@@ -180,6 +182,9 @@ Optional:
 - `IMPRINT_ADDRESS`: Full name and address text (rendered as SVG, use \n for line breaks)
 - `IMPRINT_EMAIL`: Email text (rendered as SVG)
 - `BUILD_VERSION`: Injected during build, displayed in footer
+
+Registration:
+- `REGISTRATION_MODE`: `open` (default, anyone can register) or `invite` (requires invite code). Can also be set via admin panel.
 
 AI Configuration (Global Fallbacks):
 - `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)

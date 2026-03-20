@@ -24,12 +24,12 @@ func GetUserByID(ctx context.Context, pool *pgxpool.Pool, id int) (*model.User, 
 	err := pool.QueryRow(ctx, `
 		SELECT id, email, daily_goal, totp_enabled, totp_secret, timezone, weight_unit, timezone_manual,
 			preferred_ai_provider, ai_key, ai_endpoint, ai_model, ai_daily_limit, ai_key_last4,
-			macros_enabled, macro_goals, goal_threshold, todos_enabled
+			macros_enabled, macro_goals, goal_threshold, todos_enabled, notes_enabled
 		FROM users WHERE id = $1`, id,
 	).Scan(
 		&u.ID, &u.Email, &u.DailyGoal, &u.TOTPEnabled, &u.TOTPSecret, &u.Timezone, &u.WeightUnit, &u.TimezoneManual,
 		&u.PreferredAIProvider, &u.AIKey, &u.AIEndpoint, &u.AIModel, &u.AIDailyLimit, &u.AIKeyLast4,
-		&macrosEnabled, &macroGoals, &u.GoalThreshold, &u.TodosEnabled,
+		&macrosEnabled, &macroGoals, &u.GoalThreshold, &u.TodosEnabled, &u.NotesEnabled,
 	)
 	if err != nil {
 		return nil, err

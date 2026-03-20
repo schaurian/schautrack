@@ -31,6 +31,10 @@ type Config struct {
 	AIModel            string
 	AIDailyLimit       int
 
+	// Features
+	EnableBarcode    bool
+	RegistrationMode string
+
 	// SMTP
 	SMTPHost   string
 	SMTPPort   int
@@ -84,6 +88,9 @@ func Load() (*Config, error) {
 		AIEndpoint:         os.Getenv("AI_ENDPOINT"),
 		AIModel:            os.Getenv("AI_MODEL"),
 		AIDailyLimit:       aiDailyLimit,
+
+		EnableBarcode:    os.Getenv("ENABLE_BARCODE") != "false",
+		RegistrationMode: os.Getenv("REGISTRATION_MODE"),
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),
 		SMTPPort:   smtpPort,

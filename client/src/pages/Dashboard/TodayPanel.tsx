@@ -53,7 +53,7 @@ export default function TodayPanel({
 
   return (
     <section className="rounded-xl border-2 border-border bg-card p-4">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(125px,1fr))] gap-2">
         {caloriesEnabled && (
           <MacroChip
             macroKey="kcal"
@@ -105,9 +105,9 @@ function MacroChip({ macroKey, label, total, goal, unit, status }: {
       <div className={cn('text-xs font-bold uppercase tracking-wider mb-1', LABEL_COLORS[macroKey] || 'text-primary')}>
         {label}
       </div>
-      <div className={cn('text-xl font-bold tabular-nums leading-tight', hasStatus && sc.value)}>
+      <div className={cn('text-xl font-bold tabular-nums leading-tight whitespace-nowrap', hasStatus && sc.value)}>
         {total}
-        {goal != null && <span className="text-muted-foreground font-normal text-[0.65em]"> / {goal} {unit}</span>}
+        {goal != null && <span className="text-muted-foreground font-normal text-[0.6em]"> / {goal} {unit}</span>}
       </div>
       {pct != null && (
         <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">

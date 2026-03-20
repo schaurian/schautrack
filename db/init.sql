@@ -112,7 +112,42 @@ CREATE TABLE IF NOT EXISTS todo_completions (
 CREATE UNIQUE INDEX IF NOT EXISTS todo_completions_unique_idx ON todo_completions (todo_id, completion_date);
 CREATE INDEX IF NOT EXISTS todo_completions_user_date_idx ON todo_completions (user_id, completion_date);
 
+CREATE TABLE IF NOT EXISTS invite_codes (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  email TEXT,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  used_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS invite_codes_code_idx ON invite_codes (code);
+
+CREATE TABLE IF NOT EXISTS totp_backup_codes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS totp_backup_codes_user_idx ON totp_backup_codes (user_id);
+
+CREATE TABLE IF NOT EXISTS daily_notes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  note_date DATE NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS daily_notes_user_date_idx ON daily_notes (user_id, note_date);
+
 -- Additional user columns (added via Go migrations in internal/database/migrations.go)
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS notes_enabled BOOLEAN DEFAULT FALSE;
 -- These are documented here for reference but applied by ensureUserPrefsSchema(), ensureAIKeysSchema(), and ensureMacroSchema()
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS todos_enabled BOOLEAN DEFAULT FALSE;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT;

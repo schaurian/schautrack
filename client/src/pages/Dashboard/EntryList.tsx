@@ -32,15 +32,15 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[320px]">
-      <div className="flex gap-2 px-3 py-2 bg-muted/30 border-b-2 border-border text-xs uppercase tracking-wider text-muted-foreground font-medium">
-        <span className="w-12 sm:w-16 shrink-0">Time</span>
-        {caloriesEnabled && <span className="w-12 sm:w-16 shrink-0 text-macro-kcal">Cal</span>}
+      <div className="flex gap-1.5 sm:gap-2 px-3 py-2 bg-muted/30 border-b-2 border-border text-xs uppercase tracking-wider text-muted-foreground font-medium">
+        <span className="w-10 sm:w-16 shrink-0">Time</span>
+        {caloriesEnabled && <span className="w-10 sm:w-16 shrink-0 text-macro-kcal">Cal</span>}
         {enabledMacros.map((key) => (
-          <span key={key} className={cn('w-10 sm:w-14 shrink-0', HEADER_COLORS[key] || '')}>
+          <span key={key} className={cn('w-8 sm:w-14 shrink-0', HEADER_COLORS[key] || '')}>
             {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.short || key}
           </span>
         ))}
-        <span className="flex-1 min-w-0">Name</span>
+        <span className="flex-1 min-w-[48px]">Name</span>
         {canEdit && <span className="w-6 shrink-0" />}
       </div>
 
@@ -117,11 +117,11 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   };
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b-2 border-border text-sm last:border-b-0">
-      <span className="w-12 sm:w-16 shrink-0 text-muted-foreground">{entry.time}</span>
+    <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 border-b-2 border-border text-sm last:border-b-0">
+      <span className="w-10 sm:w-16 shrink-0 text-muted-foreground">{entry.time}</span>
 
       {caloriesEnabled && (
-        <span className="w-12 sm:w-16 shrink-0">
+        <span className="w-10 sm:w-16 shrink-0">
           {canEdit && !autoCalcCalories && editing === 'amount' ? (
             <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="tel" />
           ) : (
@@ -135,7 +135,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
       {enabledMacros.map((key) => {
         const val = entry.macros?.[key];
         return (
-          <span key={key} className="w-10 sm:w-14 shrink-0">
+          <span key={key} className="w-8 sm:w-14 shrink-0">
             {canEdit && editing === key ? (
               <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="numeric" />
             ) : (
@@ -147,7 +147,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
         );
       })}
 
-      <span className="flex-1 min-w-0 truncate">
+      <span className="flex-1 min-w-[48px] truncate">
         {canEdit && editing === 'name' ? (
           <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
         ) : (

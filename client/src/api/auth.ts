@@ -13,6 +13,7 @@ interface RegisterResponse {
   ok: boolean;
   requireCaptcha?: boolean;
   requireVerification?: boolean;
+  requireInviteCode?: boolean;
   captchaSvg?: string;
   error?: string;
 }
@@ -24,11 +25,15 @@ export function login(data: { email: string; password: string; token?: string; c
   });
 }
 
-export function register(data: { step: string; email?: string; password?: string; timezone?: string; captcha?: string }) {
+export function register(data: { step: string; email?: string; password?: string; timezone?: string; captcha?: string; invite_code?: string }) {
   return api<RegisterResponse>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+export function getRegistrationInfo() {
+  return api<{ registrationMode: string }>('/api/auth/registration-info');
 }
 
 export function logout() {

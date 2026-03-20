@@ -40,6 +40,10 @@ export function useSSE() {
         queryClient.invalidateQueries({ queryKey: ['todos-day'] });
       });
 
+      source.addEventListener('note-change', () => {
+        queryClient.invalidateQueries({ queryKey: ['note'] });
+      });
+
       source.onopen = () => {
         retryDelayRef.current = 2000;
       };

@@ -10,6 +10,7 @@ import Timeline from './Timeline';
 import EntryList from './EntryList';
 import WeightRow from './WeightRow';
 import TodoList from './TodoList';
+import NoteEditor from './NoteEditor';
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -77,6 +78,7 @@ export default function Dashboard() {
           enabledMacros={dashboard.enabledMacros}
           hasAiEnabled={dashboard.hasAiEnabled}
           aiUsage={dashboard.aiUsage}
+          barcodeEnabled={dashboard.barcodeEnabled}
           onSubmit={() => {
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
             queryClient.invalidateQueries({ queryKey: ['day-entries'] });
@@ -93,6 +95,14 @@ export default function Dashboard() {
 
       {effectiveUserId && selectedDate && (
         <TodoList
+          date={selectedDate}
+          userId={effectiveUserId}
+          canEdit={canEdit}
+        />
+      )}
+
+      {effectiveUserId && selectedDate && (
+        <NoteEditor
           date={selectedDate}
           userId={effectiveUserId}
           canEdit={canEdit}

@@ -73,6 +73,8 @@ func main() {
 		Pool:         pool,
 		SessionStore: sessionStore,
 		Email:        emailService,
+		Cfg:          cfg,
+		Settings:     settingsCache,
 	}
 
 	// Router
@@ -93,6 +95,9 @@ func main() {
 		r.Get("/csrf", handler.CsrfToken)
 		r.Get("/me", handler.Me(cfg.AdminEmail))
 
+		// Registration info (public)
+		r.Get("/auth/registration-info", handler.RegistrationInfo(settingsCache, cfg))
+
 		// Auth routes
 		r.With(authLimiter.Middleware, session.CsrfProtection).Post("/auth/login", authHandler.Login)
 		r.With(authLimiter.Middleware, session.CsrfProtection).Post("/auth/register", authHandler.Register)
@@ -104,7 +109,7 @@ func main() {
 		r.Get("/auth/captcha", authHandler.Captcha)
 
 		// Settings (requires login)
-		r.With(middleware.RequireLogin).Get("/settings", handler.Settings(pool, cfg.AdminEmail))
+		r.With(middleware.RequireLogin).Get("/settings", handler.Settings(pool, cfg.AdminEmail, settingsCache, cfg))
 
 		// Admin (requires admin)
 		r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail)).Get("/admin", handler.AdminData(pool, settingsCache, cfg.AdminEmail))
@@ -119,7 +124,7 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/email/cancel", authHandler.EmailChangeCancel)
 
 	// Entry routes
-	entriesHandler := &handler.EntriesHandler{Pool: pool, Broker: sseBroker}
+	entriesHandler := &handler.EntriesHandler{Pool: pool, Broker: sseBroker, Cfg: cfg, Settings: settingsCache}
 	r.With(middleware.RequireLogin).Get("/api/dashboard", entriesHandler.Dashboard)
 	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/overview", entriesHandler.Overview)
 	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/entries/day", entriesHandler.DayEntries)
@@ -145,6 +150,7 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/2fa/cancel", settingsHandler.TwoFactorCancel)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/2fa/enable", settingsHandler.TwoFactorEnable)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/2fa/disable", settingsHandler.TwoFactorDisable)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/2fa/backup-codes", settingsHandler.RegenerateBackupCodes)
 
 	// Link routes
 	linksHandler := &handler.LinksHandler{Pool: pool, Broker: sseBroker}
@@ -175,17 +181,28 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/{id}/toggle", todosHandler.Toggle)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/reorder", todosHandler.Reorder)
 
+	// Notes routes
+	notesHandler := &handler.NotesHandler{Pool: pool, Broker: sseBroker}
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes/toggle-enabled", notesHandler.ToggleEnabled)
+	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/api/notes/day", notesHandler.Get)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes", notesHandler.Save)
+
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
 	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)
 
 	// Barcode
-	r.With(middleware.RequireLogin, barcodeLimiter.Middleware).Get("/api/barcode/{code}", handler.Barcode(cfg))
+	if cfg.EnableBarcode {
+		r.With(middleware.RequireLogin, barcodeLimiter.Middleware).Get("/api/barcode/{code}", handler.Barcode(cfg))
+	}
 
 	// Admin routes
-	adminHandler := &handler.AdminHandler{Pool: pool, Settings: settingsCache}
+	adminHandler := &handler.AdminHandler{Pool: pool, Settings: settingsCache, Cfg: cfg, Email: emailService}
 	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/settings", adminHandler.UpdateSettings)
 	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/users/{id}/delete", adminHandler.DeleteUser)
+	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/invites", adminHandler.CreateInvite)
+	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail)).Get("/admin/invites", adminHandler.ListInvites)
+	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/invites/{id}/delete", adminHandler.DeleteInvite)
 
 	// Legal imprint SVGs
 	r.Get("/imprint/address.svg", handler.ImprintAddressSVG(settingsCache))

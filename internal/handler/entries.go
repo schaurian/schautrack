@@ -15,6 +15,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"schautrack/internal/config"
+	"schautrack/internal/database"
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/sse"
@@ -31,8 +33,10 @@ var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 // EntriesHandler holds deps for entry routes.
 type EntriesHandler struct {
-	Pool   *pgxpool.Pool
-	Broker *sse.Broker
+	Pool     *pgxpool.Pool
+	Broker   *sse.Broker
+	Cfg      *config.Config
+	Settings *database.SettingsCache
 }
 
 type dailyStat struct {
@@ -202,8 +206,12 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// AI status (simplified — will be fully implemented in Phase 5)
+	// AI status: show button if user has personal key OR global key is available
 	hasAiEnabled := user.AIKey != nil && *user.AIKey != ""
+	if !hasAiEnabled {
+		globalKey := h.Settings.GetEffectiveSetting(r.Context(), "ai_key", h.Cfg.AIKey)
+		hasAiEnabled = globalKey.Value != nil && *globalKey.Value != ""
+	}
 
 	tz := "UTC"
 	if user.Timezone != nil {
@@ -244,6 +252,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		"range": map[string]any{"start": oldest, "end": newest, "days": len(dayOptions), "preset": nilInt(rangePreset)},
 		"weightEntry": viewWeight, "lastWeightEntry": lastWeightEntry,
 		"hasAiEnabled": hasAiEnabled, "aiUsage": nil, "aiProviderName": nil,
+		"barcodeEnabled": h.Cfg.EnableBarcode,
 		"caloriesEnabled": caloriesEnabled, "autoCalcCalories": autoCalcCalories,
 		"enabledMacros": enabledMacros, "macroGoals": macroGoals,
 		"todayMacroTotals": todayMacroTotals, "macroLabels": service.MacroLabels,

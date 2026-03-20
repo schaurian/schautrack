@@ -61,6 +61,9 @@ export default function AISettings({ user, onSave }: Props) {
         <Input label="Model (optional)" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. gpt-4o" />
         <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
           placeholder={user.hasAiKey ? `\u2022\u2022\u2022\u2022${user.aiKeyLast4}` : 'Enter API key'} />
+        {!user.hasAiKey && user.hasGlobalAiKey && (
+          <p className="text-xs text-muted-foreground">A global API key is configured. AI features work without setting your own key.</p>
+        )}
         <div>
           <Button type="button" variant="ghost" size="sm" onClick={handleClear} loading={loading}>Clear All</Button>
         </div>

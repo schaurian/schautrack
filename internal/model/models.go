@@ -26,6 +26,7 @@ type User struct {
 	WeightUnit         string           `json:"weight_unit"`
 	TimezoneManual     bool             `json:"timezone_manual"`
 	TodosEnabled       bool             `json:"todos_enabled"`
+	NotesEnabled       bool             `json:"notes_enabled"`
 	PreferredAIProvider string          `json:"preferred_ai_provider"`
 	AIKey              *string          `json:"-"`
 	AIEndpoint         *string          `json:"ai_endpoint,omitempty"`
