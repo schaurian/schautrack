@@ -51,7 +51,7 @@ export default function Landing() {
           Track nutrition, not complexity
         </h1>
         <p className="mb-10 text-xl leading-relaxed text-muted-foreground max-w-2xl mx-auto max-md:text-lg">
-          Schautrack is a free, open-source nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance.
+          A free, open-source, self-hostable nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance. Your data, your server.
         </p>
         <div className="flex justify-center gap-4 flex-wrap">
           <Link to="/register"><Button size="lg" className="px-8 py-3 text-base">Get Started</Button></Link>
