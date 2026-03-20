@@ -80,7 +80,7 @@ export default function Landing() {
 
       <section className="mt-16 text-center max-md:mt-10">
         <p className="text-xs text-muted-foreground">
-          Built with React, Go, and PostgreSQL 🔥{' '}
+          Built with React and Go 🔥{' '}
           <a href="https://github.com/schaurian/schautrack" className="hover:underline" target="_blank" rel="noopener">View on GitHub</a>
         </p>
       </section>
