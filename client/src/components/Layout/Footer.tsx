@@ -18,7 +18,7 @@ export default function Footer() {
     fetch('/api/health')
       .then((r) => r.json())
       .then((d) => {
-        if (d.version && d.version !== 'dev') {
+        if (d.version) {
           setVersion(d.version);
           if (!d.version.startsWith('staging')) {
             const cacheKey = 'schautrack_latest_version';
@@ -49,7 +49,7 @@ export default function Footer() {
   }, []);
 
   const displayVersion = version
-    ? (version.startsWith('staging') ? version : `v${version}`)
+    ? (version.startsWith('staging') || version === 'dev' ? version : `v${version}`)
     : null;
 
   return (
