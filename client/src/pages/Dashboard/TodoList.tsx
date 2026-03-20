@@ -263,9 +263,9 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                     </span>
                     {editTime && <button type="button" onClick={() => setEditTime('')} className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Clear</button>}
                   </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleUpdate(todo.id)} disabled={saving} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Save</button>
+                  <div className="flex gap-2 justify-end">
                     <button type="button" onClick={() => setEditingId(null)} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Cancel</button>
+                    <button type="button" onClick={() => handleUpdate(todo.id)} disabled={saving} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Save</button>
                   </div>
                 </div>
               ) : (
@@ -300,9 +300,9 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
               </span>
               {newTime && <button type="button" onClick={() => setNewTime('')} className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Clear</button>}
             </div>
-            <div className="flex gap-2">
-              <button type="submit" disabled={!newName.trim() || creating} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Add</button>
+            <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Cancel</button>
+              <button type="submit" disabled={!newName.trim() || creating} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Add</button>
             </div>
           </form>
         ) : (
