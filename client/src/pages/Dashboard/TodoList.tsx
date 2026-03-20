@@ -259,12 +259,14 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
               {editingId === todo.id ? (
                 <div className="flex flex-col gap-2 p-3 bg-muted/20">
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} className={inputClass} maxLength={100} autoFocus />
+                  <ScheduleEditor schedule={editSchedule} onChange={setEditSchedule} />
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground shrink-0">Time</label>
-                    <input value={editTime} onChange={(e) => setEditTime(e.target.value)} type="time" className={timeInputClass} />
+                    <span className="relative flex items-center">
+                      <input value={editTime} onChange={(e) => setEditTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
+                      <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
+                    </span>
                     {editTime && <button type="button" onClick={() => setEditTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
                   </div>
-                  <ScheduleEditor schedule={editSchedule} onChange={setEditSchedule} />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleUpdate(todo.id)} loading={saving}>Save</Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
@@ -294,12 +296,14 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
         {showAddForm ? (
           <form onSubmit={handleCreate} className="flex flex-col gap-2">
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Todo name" className={inputClass} maxLength={100} autoFocus />
+            <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
             <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-foreground shrink-0">Time</label>
-              <input value={newTime} onChange={(e) => setNewTime(e.target.value)} type="time" className={timeInputClass} />
+              <span className="relative flex items-center">
+                <input value={newTime} onChange={(e) => setNewTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
+                <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
+              </span>
               {newTime && <button type="button" onClick={() => setNewTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
             </div>
-            <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
             <div className="flex gap-2">
               <Button type="submit" size="sm" loading={creating} disabled={!newName.trim()}>Add</Button>
               <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>

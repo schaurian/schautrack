@@ -82,6 +82,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -124,6 +125,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
       setContext('');
       setResult(null);
       setErrorMsg('');
+      setCameraReady(false);
     }
   }, [isOpen, stopCamera]);
 
@@ -246,7 +248,16 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
                 <div className="relative rounded-md overflow-hidden bg-black/30 min-h-[200px] flex items-center justify-center [&_video]:w-full [&_video]:block [&_img]:w-full [&_img]:block [&_img]:rounded-md">
                   {mode === 'camera' && !imageData && (
                     <>
-                      <video ref={videoRef} autoPlay playsInline muted />
+                      {!cameraReady && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
+                          <div className="relative size-10">
+                            <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                            <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          </div>
+                          <span className="text-xs text-muted-foreground">Starting camera...</span>
+                        </div>
+                      )}
+                      <video ref={videoRef} autoPlay playsInline muted onPlaying={() => setCameraReady(true)} className={cameraReady ? '' : 'opacity-0'} />
                       <button
                         type="button"
                         className="absolute bottom-3 left-1/2 -translate-x-1/2 size-12 rounded-full border-4 border-white bg-white/20 hover:bg-white/40 cursor-pointer transition-colors"

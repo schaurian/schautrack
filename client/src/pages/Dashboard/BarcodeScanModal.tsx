@@ -33,6 +33,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
   const [grams, setGrams] = useState('100');
   const [errorMsg, setErrorMsg] = useState('');
   const [cameraAvailable, setCameraAvailable] = useState(true);
+  const [scannerReady, setScannerReady] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const quaggaRunning = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +106,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
         }
         Quagga.start();
         quaggaRunning.current = true;
+        setScannerReady(true);
       }
     );
 
@@ -135,6 +137,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
       setGrams('100');
       setErrorMsg('');
       setCameraAvailable(true);
+      setScannerReady(false);
     }
   }, [isOpen, stopScanner]);
 
@@ -263,7 +266,16 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                       ref={scannerRef}
                       className="relative rounded-md overflow-hidden bg-black/30 min-h-[240px] [&_video]:w-full [&_video]:block [&_canvas]:hidden"
                     >
-                      <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-primary/60 z-10 pointer-events-none" />
+                      {!scannerReady && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
+                          <div className="relative size-10">
+                            <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                            <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          </div>
+                          <span className="text-xs text-muted-foreground">Starting camera...</span>
+                        </div>
+                      )}
+                      {scannerReady && <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-primary/60 z-10 pointer-events-none" />}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">

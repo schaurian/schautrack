@@ -42,8 +42,8 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
 
   return (
     <div className={cn(
-      'rounded-xl border-2 bg-card p-4 transition-colors',
-      isActive ? 'border-primary' : 'border-border'
+      'rounded-xl border p-4 transition-colors',
+      isActive ? 'border-primary/40 bg-primary/[0.04]' : 'border-border bg-card'
     )}>
       <div className="mb-2">
         {editing && canEditLabel ? (
