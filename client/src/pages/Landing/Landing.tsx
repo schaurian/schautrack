@@ -50,7 +50,7 @@ export default function Landing() {
         <h1 className="mb-6 text-[clamp(2rem,6vw,3.5rem)] font-bold leading-[1.1] tracking-tight bg-gradient-to-br from-foreground to-primary bg-clip-text text-transparent">
           Track nutrition, not complexity
         </h1>
-        <p className="mb-10 text-xl leading-relaxed text-muted-foreground max-w-xl mx-auto max-md:text-lg">
+        <p className="mb-10 text-xl leading-relaxed text-muted-foreground max-w-2xl mx-auto max-md:text-lg">
           Schautrack is a free, open-source nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance.
         </p>
         <div className="flex justify-center gap-4 flex-wrap">
