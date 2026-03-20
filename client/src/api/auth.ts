@@ -5,6 +5,7 @@ interface LoginResponse {
   requireToken?: boolean;
   requireVerification?: boolean;
   requireCaptcha?: boolean;
+  canReset2fa?: boolean;
   captchaSvg?: string;
   error?: string;
 }
@@ -63,6 +64,13 @@ export function verifyEmail(data: { code: string }) {
 
 export function resendVerification(data: { captcha?: string }) {
   return api<{ ok: boolean; nextRequiresCaptcha?: boolean; captchaSvg?: string; cooldown?: number; error?: string }>('/api/auth/verify-email/resend', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function reset2fa(data: { step: string; email?: string; password?: string; code?: string }) {
+  return api<{ ok: boolean; message?: string; error?: string }>('/api/auth/reset-2fa', {
     method: 'POST',
     body: JSON.stringify(data),
   });

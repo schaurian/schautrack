@@ -107,6 +107,7 @@ func main() {
 		r.With(session.CsrfProtection).Post("/auth/verify-email", authHandler.VerifyEmail)
 		r.With(session.CsrfProtection).Post("/auth/verify-email/resend", authHandler.VerifyEmailResend)
 		r.Get("/auth/captcha", authHandler.Captcha)
+		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/reset-2fa", authHandler.Reset2FA)
 
 		// Settings (requires login)
 		r.With(middleware.RequireLogin).Get("/settings", handler.Settings(pool, cfg.AdminEmail, settingsCache, cfg))

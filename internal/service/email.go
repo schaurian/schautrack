@@ -63,6 +63,13 @@ func (es *EmailService) SendPasswordResetEmail(email, code string) error {
 	return es.SendEmail(email, subject, text, html)
 }
 
+func (es *EmailService) Send2FAResetEmail(email, code string) error {
+	subject := "2FA Reset Code - Schautrack"
+	text := fmt.Sprintf("Your 2FA reset code is: %s\n\nThis code expires in 15 minutes.\n\nIf you did not request this, someone may have your password. Please change it immediately.", code)
+	html := fmt.Sprintf(`<p>Your 2FA reset code is:</p><h2 style="font-family: monospace; letter-spacing: 4px;">%s</h2><p>This code expires in 15 minutes.</p><p>If you did not request this, someone may have your password. Please change it immediately.</p>`, code)
+	return es.SendEmail(email, subject, text, html)
+}
+
 // GenerateResetCode returns a random 6-digit code.
 func GenerateResetCode() string {
 	n, _ := rand.Int(rand.Reader, big.NewInt(900000))
