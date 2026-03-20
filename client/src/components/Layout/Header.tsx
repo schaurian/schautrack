@@ -41,25 +41,25 @@ export default function Header() {
 
             <nav className={cn(
               'flex items-center gap-1',
-              'max-md:fixed max-md:right-0 max-md:top-0 max-md:z-[101] max-md:h-screen max-md:w-[280px] max-md:translate-x-full max-md:flex-col max-md:items-stretch max-md:border-l max-md:border-border max-md:bg-background max-md:pt-16 max-md:transition-transform max-md:duration-250',
-              menuOpen && 'max-md:translate-x-0'
+              'max-md:fixed max-md:right-0 max-md:top-0 max-md:z-[101] max-md:h-screen max-md:w-[280px] max-md:translate-x-full max-md:invisible max-md:flex-col max-md:items-stretch max-md:border-l max-md:border-border max-md:bg-background max-md:pt-16 max-md:transition-[transform,visibility] max-md:duration-250',
+              menuOpen && 'max-md:translate-x-0 max-md:visible'
             )}>
               {isAdmin && (
                 <Link to="/admin" onClick={() => setMenuOpen(false)}
-                  className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
+                  className="rounded-md px-3 py-2 text-base text-foreground/70 transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
                   Admin
                 </Link>
               )}
               <Link to="/dashboard" onClick={() => setMenuOpen(false)}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
+                className="rounded-md px-3 py-2 text-base text-foreground/70 transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
                 Dashboard
               </Link>
               <Link to="/settings" onClick={() => setMenuOpen(false)}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
+                className="rounded-md px-3 py-2 text-base text-foreground/70 transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
                 Settings
               </Link>
               <button type="button" onClick={handleLogout}
-                className="cursor-pointer rounded-md border-none bg-transparent px-3 py-2 text-left text-sm font-inherit text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
+                className="cursor-pointer rounded-md border-none bg-transparent px-3 py-2 text-left text-base font-inherit text-foreground/70 transition-colors hover:bg-surface-hover hover:text-foreground max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
                 Logout
               </button>
             </nav>
@@ -71,11 +71,11 @@ export default function Header() {
         ) : (
           <nav className="flex items-center gap-1">
             <Link to="/login"
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              className="rounded-md px-3 py-2 text-base text-foreground/70 transition-colors hover:bg-surface-hover hover:text-foreground">
               Login
             </Link>
             <Link to="/register"
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              className="rounded-md px-3 py-2 text-base text-foreground/70 transition-colors hover:bg-surface-hover hover:text-foreground">
               Register
             </Link>
           </nav>

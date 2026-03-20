@@ -73,10 +73,10 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
       <div className="flex items-center gap-3">
         <span className="text-sm text-muted-foreground">Weight</span>
         {canEdit ? (
-          <div className="relative">
+          <span className="relative flex items-center">
             <input
               ref={inputRef}
-              className={`w-24 bg-transparent border-0 p-0 text-lg font-semibold tabular-nums outline-none ${colorClass}`}
+              className="w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 pr-9 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
               type="text"
               inputMode="decimal"
               defaultValue={displayValue}
@@ -87,13 +87,13 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
               disabled={loading}
               aria-label={`Weight in ${weightUnit}`}
             />
-          </div>
+            <span className="absolute right-2.5 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">{weightUnit}</span>
+          </span>
         ) : (
-          <span className={`text-lg font-semibold tabular-nums ${colorClass}`}>
-            {entry ? Number(entry.weight).toFixed(1) : '—'}
+          <span className={`text-sm font-semibold tabular-nums ${colorClass}`}>
+            {entry ? Number(entry.weight).toFixed(1) : '—'} {weightUnit}
           </span>
         )}
-        <span className="text-sm text-muted-foreground">{weightUnit}</span>
         {!isToday && entry?.entry_date && (
           <span className="text-xs text-muted-foreground/60">{entry.entry_date}</span>
         )}

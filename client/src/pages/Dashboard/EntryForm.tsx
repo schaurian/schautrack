@@ -94,6 +94,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   };
 
   const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
+  const nutrientCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
+  const nutrientCols = nutrientCount <= 3 ? nutrientCount : Math.ceil(nutrientCount / 2);
   const aiDisabled = hasAiEnabled && aiUsage && aiUsage.remaining === 0;
 
   return (
@@ -113,7 +115,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         </div>
 
         {/* Nutrient inputs */}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(70px,1fr))] max-sm:grid-cols-3 gap-2 mb-3">
+        <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `repeat(${nutrientCols}, 1fr)` }}>
           {caloriesEnabled && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Cal</label>
