@@ -44,6 +44,7 @@ export default function Dashboard() {
     queryKey: ['day-entries', effectiveUserId, selectedDate],
     queryFn: () => getDayEntries(effectiveUserId!, selectedDate),
     enabled: !!effectiveUserId && !!selectedDate,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch weight for selected day
@@ -51,6 +52,7 @@ export default function Dashboard() {
     queryKey: ['weight', effectiveUserId, selectedDate],
     queryFn: () => getWeightDay(selectedDate, effectiveUserId),
     enabled: !!effectiveUserId && !!selectedDate,
+    placeholderData: keepPreviousData,
   });
 
   if (authLoading || isLoading || !dashboard) {
@@ -124,15 +126,15 @@ export default function Dashboard() {
           caloriesEnabled={dashboard.caloriesEnabled}
           autoCalcCalories={dashboard.autoCalcCalories}
         />
-
-        <WeightRow
-          weightEntry={weightData?.entry || null}
-          lastWeightEntry={weightData?.lastWeight || null}
-          weightUnit={dashboard.weightUnit}
-          canEdit={canEdit}
-          selectedDate={selectedDate}
-        />
       </div>
+
+      <WeightRow
+        weightEntry={weightData?.entry || null}
+        lastWeightEntry={weightData?.lastWeight || null}
+        weightUnit={dashboard.weightUnit}
+        canEdit={canEdit}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 }

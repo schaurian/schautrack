@@ -52,7 +52,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSave();
+      inputRef.current?.blur();
     }
   };
 
@@ -68,15 +68,26 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
 
   const colorClass = isToday ? 'text-green-400' : 'text-muted-foreground';
 
+  const daysAgo = !isToday && entry?.entry_date
+    ? Math.round((new Date(selectedDate).getTime() - new Date(entry.entry_date).getTime()) / 86400000)
+    : 0;
+
   return (
-    <div className="border-t-2 border-border px-4 py-3">
+    <div className="rounded-xl border-2 border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Weight</h2>
+        {!isToday && entry?.entry_date && (
+          <span className="text-sm text-muted-foreground">
+            {entry.entry_date} &middot; {daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`}
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Weight</span>
         {canEdit ? (
-          <span className="relative flex items-center">
+          <span className="relative flex items-center flex-1">
             <input
               ref={inputRef}
-              className="w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 pr-9 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 pr-10 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
               type="text"
               inputMode="decimal"
               defaultValue={displayValue}
@@ -87,24 +98,27 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
               disabled={loading}
               aria-label={`Weight in ${weightUnit}`}
             />
-            <span className="absolute right-2.5 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">{weightUnit}</span>
+            <span className="absolute right-3 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">{weightUnit}</span>
           </span>
         ) : (
-          <span className={`text-sm font-semibold tabular-nums ${colorClass}`}>
-            {entry ? Number(entry.weight).toFixed(1) : '—'} {weightUnit}
+          <span className={`text-lg font-semibold tabular-nums ${colorClass}`}>
+            {entry ? Number(entry.weight).toFixed(1) : '—'}
+            <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
           </span>
         )}
-        {!isToday && entry?.entry_date && (
-          <span className="text-xs text-muted-foreground/60">{entry.entry_date}</span>
-        )}
-        {canEdit && weightEntry && (
+        {canEdit && (
           <button
             type="button"
-            className="bg-transparent border-0 p-0 ml-auto text-muted-foreground/60 hover:text-destructive cursor-pointer transition-colors text-lg leading-none"
+            className={`ml-auto rounded-md px-2.5 py-1 text-xs font-medium border transition-colors ${
+              weightEntry
+                ? 'text-destructive border-destructive/30 bg-destructive/10 hover:bg-destructive/20 cursor-pointer'
+                : 'text-muted-foreground/40 border-border bg-muted/30 cursor-default'
+            }`}
             onClick={handleDelete}
-            title="Delete"
+            disabled={!weightEntry}
+            title="Delete weight entry"
           >
-            &times;
+            Delete
           </button>
         )}
       </div>

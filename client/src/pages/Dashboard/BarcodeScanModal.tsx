@@ -227,15 +227,15 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-0 z-50 bg-card flex flex-col overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card sm:bg-transparent shrink-0">
             <Dialog.Title className="text-sm font-semibold text-foreground">Scan Barcode</Dialog.Title>
             <Dialog.Close className="bg-transparent border-0 p-0 text-xl text-muted-foreground hover:text-foreground cursor-pointer leading-none">
               &times;
             </Dialog.Close>
           </div>
 
-          <div className="p-4 flex flex-col gap-3">
+          <div className="p-4 flex flex-col gap-3 flex-1 sm:flex-initial bg-card sm:bg-transparent">
             {/* Mode tabs */}
             {phase === 'scanning' && (
               <div className="flex gap-1 rounded-md bg-muted p-1">
@@ -264,7 +264,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                   cameraAvailable ? (
                     <div
                       ref={scannerRef}
-                      className="relative rounded-md overflow-hidden bg-black/30 min-h-[240px] [&_video]:w-full [&_video]:block [&_canvas]:hidden"
+                      className="relative rounded-md overflow-hidden bg-black/30 flex-1 sm:flex-initial min-h-[240px] [&_video]:w-full [&_video]:h-full [&_video]:object-cover [&_video]:block [&_canvas]:hidden"
                     >
                       {!scannerReady && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
