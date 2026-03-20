@@ -14,11 +14,15 @@ export default function App() {
   navigateRef.current = navigate;
 
   // Wire up global 401 handler — clears auth, cache, and redirects to login
+  // Only redirect if the user was previously authenticated (session expired)
   useEffect(() => {
     setOn401(() => {
+      const wasAuthenticated = useAuthStore.getState().isInitialized && useAuthStore.getState().user !== null;
       clearUser();
       queryClient.clear();
-      navigateRef.current('/login', { replace: true });
+      if (wasAuthenticated) {
+        navigateRef.current('/login', { replace: true });
+      }
     });
   }, [clearUser]);
 
