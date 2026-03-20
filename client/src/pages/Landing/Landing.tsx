@@ -8,8 +8,8 @@ const FEATURES = [
         <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
       </svg>
     ),
-    title: 'Simple Tracking',
-    desc: 'Log calories and macros in seconds. Supports math expressions like 200+150.',
+    title: 'Simple Logging',
+    desc: 'Log calories and macros in seconds. No barcode scanning, no food databases to search through.',
     color: 'border-l-macro-kcal',
   },
   {
@@ -20,7 +20,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'AI Estimation',
-    desc: 'Snap a photo of your food and let AI estimate the calories and macros.',
+    desc: 'Snap a photo and let AI estimate calories and macros for you.',
     color: 'border-l-macro-carbs',
   },
   {
@@ -30,8 +30,8 @@ const FEATURES = [
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    title: 'Share Progress',
-    desc: 'Link accounts with friends and see each other\'s daily progress in real-time.',
+    title: 'Share with Friends',
+    desc: 'Link accounts with friends or partners to keep each other accountable.',
     color: 'border-l-macro-fiber',
   },
   {
@@ -42,7 +42,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'Self-Hostable',
-    desc: 'Run your own instance with Docker. Your data stays on your infrastructure.',
+    desc: 'Run your own instance. Your data stays yours.',
     color: 'border-l-macro-fat',
   },
 ];
@@ -53,14 +53,14 @@ export default function Landing() {
       <section className="mx-auto mb-16 max-w-lg text-center max-md:mb-10">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs text-muted-foreground">
           <span className="size-1.5 rounded-full bg-success animate-pulse" />
-          Open source &middot; Self-hostable
+          Every day counts
         </div>
         <h1 className="mb-5 text-4xl font-bold leading-[1.1] tracking-tight text-foreground max-md:text-3xl">
-          Track your nutrition,<br />
-          <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">your way.</span>
+          Track nutrition,<br />
+          <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">not complexity</span>
         </h1>
         <p className="mb-8 text-base leading-relaxed text-muted-foreground max-w-md mx-auto">
-          Simple calorie and macro tracking with AI-powered food estimation. Privacy-first, no ads, no subscriptions.
+          Schautrack is a free, open-source nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance.
         </p>
         <div className="flex justify-center gap-3">
           <Link to="/register"><Button size="lg">Get Started</Button></Link>
@@ -81,7 +81,7 @@ export default function Landing() {
       <section className="mt-16 text-center max-md:mt-10">
         <p className="text-xs text-muted-foreground">
           Built with React, Go, and ❤️{' '}
-          <a href="https://github.com/schaurian/schautrack" className="hover:underline" target="_blank" rel="noopener">View on GitHub</a>
+          <a href="https://github.com/schaurian/schautrack" className="hover:underline" target="_blank" rel="noopener">View Source</a>
         </p>
       </section>
     </div>
