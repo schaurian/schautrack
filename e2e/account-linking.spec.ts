@@ -2,7 +2,7 @@ import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
 import { execSync } from 'child_process';
 
-const DB_CONTAINER = 'schautrack-db-1';
+const DB_CONTAINER = process.env.DB_CONTAINER || 'schautrack-test-db-1';
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
 

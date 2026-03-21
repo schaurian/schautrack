@@ -4,7 +4,7 @@ const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/global-setup.ts', '**/fixtures/**', '**/setup-test-user.ts'],
+  testIgnore: ['**/fixtures/**', '**/setup-test-user.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

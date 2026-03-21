@@ -34,4 +34,4 @@ services:
       retries: 10
       start_period: 2s
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
