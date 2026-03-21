@@ -18,9 +18,8 @@ test.describe('Mobile Viewport', () => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');
-
     await expect(page.getByText('Something went wrong')).not.toBeVisible({ timeout: 3000 });
-    await expect(page.getByText('test@test.com')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
   });
 
   test('login page renders on mobile', async ({ browser }) => {

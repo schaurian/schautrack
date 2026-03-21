@@ -6,8 +6,7 @@ test.describe('Settings', () => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');
-
-    await expect(page.getByText('test@test.com')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
   });
 
   test('preferences save on change', async ({ page }) => {

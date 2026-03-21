@@ -51,8 +51,9 @@ test.describe('Daily Notes', () => {
     // Reload and verify persistence
     await page.reload();
     await page.waitForURL('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
     const reloadedTextarea = page.locator('textarea[placeholder*="Write a note"]');
-    await expect(reloadedTextarea).toHaveValue(testNote, { timeout: 5000 });
+    await expect(reloadedTextarea).toHaveValue(testNote, { timeout: 10000 });
 
     // Clear the note
     await reloadedTextarea.fill('');

@@ -40,6 +40,8 @@ function cleanupLinks() {
 }
 
 test.describe('Account Linking', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeAll(() => {
     ensureLinkUser();
     cleanupLinks();

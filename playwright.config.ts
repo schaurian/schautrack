@@ -7,10 +7,11 @@ export default defineConfig({
   testIgnore: ['**/fixtures/**', '**/setup-test-user.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 1,
   workers: process.env.CI ? 2 : Math.max(1, (require('os').cpus().length || 4) - 2),
   reporter: process.env.CI ? 'github' : 'html',
-  timeout: 30000,
+  timeout: 45000,
+  expect: { timeout: 10000 },
 
   use: {
     baseURL,

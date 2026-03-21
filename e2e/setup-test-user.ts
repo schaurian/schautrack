@@ -60,7 +60,22 @@ async function main() {
   psql(`DELETE FROM todos WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}')`);
   psql(`DELETE FROM daily_notes WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}')`);
 
-  console.log('Test user ready, all test data cleaned up');
+  // Create link-test user for account-linking tests
+  const linkEmail = 'link-test@test.com';
+  const linkHash = execSync(
+    `python3 -c "import bcrypt; print(bcrypt.hashpw(b'linktest1234', bcrypt.gensalt(10)).decode())"`,
+    { encoding: 'utf-8' }
+  ).trim();
+  const linkExists = psql(`SELECT id FROM users WHERE email = '${linkEmail}'`);
+  if (linkExists) {
+    psql(`UPDATE users SET password_hash = '${linkHash}', email_verified = true WHERE email = '${linkEmail}'`);
+  } else {
+    psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${linkEmail}', '${linkHash}', true)`);
+  }
+  // Clean up links between test users
+  psql(`DELETE FROM account_links WHERE requester_id IN (SELECT id FROM users WHERE email IN ('${EMAIL}', '${linkEmail}')) OR target_id IN (SELECT id FROM users WHERE email IN ('${EMAIL}', '${linkEmail}'))`);
+
+  console.log('Test users ready, all test data cleaned up');
 }
 
 main().catch((err) => {
