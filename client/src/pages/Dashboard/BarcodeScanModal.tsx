@@ -40,6 +40,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
   const stopScanner = useCallback(() => {
     if (quaggaRunning.current) {
+      Quagga.offDetected();
       Quagga.stop();
       quaggaRunning.current = false;
     }

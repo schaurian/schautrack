@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
+import { useToastStore } from '@/stores/toastStore';
 import type { Todo, TodoDay } from '@/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -90,7 +91,6 @@ export default function TodoList({ date, userId, canEdit }: Props) {
     );
     try {
       await toggleTodo(todo.id, date);
-      queryClient.refetchQueries({ queryKey: ['dashboard'] });
       queryClient.refetchQueries({ queryKey: ['todos-day', userId, date] });
     } catch {
       queryClient.refetchQueries({ queryKey: ['todos-day', userId, date] });
@@ -182,6 +182,7 @@ export default function TodoList({ date, userId, canEdit }: Props) {
 
 function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void; initialAdd?: boolean; onAddShown?: () => void }) {
   const queryClient = useQueryClient();
+  const addToast = useToastStore((s) => s.addToast);
   const { data } = useQuery({ queryKey: ['todos'], queryFn: getTodos });
 
   const [newName, setNewName] = useState('');
@@ -215,7 +216,9 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
       setNewTime('');
       setShowAddForm(false);
       refresh();
-    } catch { /* ignore */ }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to create todo');
+    }
     setCreating(false);
   };
 
@@ -233,7 +236,9 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
       await updateTodo(id, { name: editName.trim(), schedule: editSchedule, time_of_day: editTime || null });
       setEditingId(null);
       refresh();
-    } catch { /* ignore */ }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to update todo');
+    }
     setSaving(false);
   };
 
@@ -241,7 +246,9 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
     try {
       await deleteTodo(id);
       refresh();
-    } catch { /* ignore */ }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to delete todo');
+    }
   };
 
   const todos = data?.todos || [];

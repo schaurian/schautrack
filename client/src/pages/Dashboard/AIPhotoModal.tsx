@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { estimateCalories } from '@/api/ai';
-import { MACRO_LABELS } from '@/lib/macros';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +13,7 @@ interface Props {
 }
 
 type Mode = 'camera' | 'upload';
-type Phase = 'capture' | 'loading' | 'result' | 'error';
+type Phase = 'capture' | 'loading' | 'error';
 
 function resizeImage(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -67,17 +66,11 @@ function captureFrame(video: HTMLVideoElement): string {
   return canvas.toDataURL('image/jpeg', 0.85);
 }
 
-export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros, providerName }: Props) {
+export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros: _enabledMacros, providerName }: Props) {
   const [mode, setMode] = useState<Mode>('camera');
   const [phase, setPhase] = useState<Phase>('capture');
   const [imageData, setImageData] = useState<string | null>(null);
   const [context, setContext] = useState('');
-  const [result, setResult] = useState<{
-    description?: string;
-    calories?: number;
-    confidence?: string;
-    macros?: Record<string, number>;
-  } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -123,7 +116,6 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
       setPhase('capture');
       setImageData(null);
       setContext('');
-      setResult(null);
       setErrorMsg('');
       setCameraReady(false);
     }
@@ -176,18 +168,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
   const handleRetry = () => {
     setPhase('capture');
     setImageData(null);
-    setResult(null);
     setErrorMsg('');
     if (mode === 'camera') startCamera();
-  };
-
-  const handleAddEntry = () => {
-    if (!result || result.calories == null) return;
-    onResult({
-      calories: result.calories,
-      name: result.description || '',
-      macros: result.macros,
-    });
   };
 
   const handleModeSwitch = (newMode: Mode) => {
@@ -312,45 +294,6 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
                 </div>
                 <span className="text-sm font-medium text-muted-foreground animate-pulse">Analyzing food...</span>
               </div>
-            )}
-
-            {/* Result */}
-            {phase === 'result' && result && (
-              <>
-                {imageData && (
-                  <div className="rounded-md overflow-hidden [&_img]:w-full [&_img]:block">
-                    <img src={imageData} alt="Food" />
-                  </div>
-                )}
-                <div className="flex flex-col items-center gap-1 py-2">
-                  {result.description && (
-                    <div className="text-base font-semibold text-foreground">{result.description}</div>
-                  )}
-                  <div className="text-2xl font-bold text-primary tabular-nums">{result.calories} cal</div>
-                  {result.confidence && (
-                    <div className="text-xs text-muted-foreground">Confidence: {result.confidence}</div>
-                  )}
-                  {result.macros && Object.keys(result.macros).length > 0 && (
-                    <div className="flex gap-4 mt-2">
-                      {enabledMacros.map((key) => {
-                        const val = result.macros?.[key];
-                        if (val == null) return null;
-                        const label = MACRO_LABELS[key as keyof typeof MACRO_LABELS];
-                        return (
-                          <div key={key} className="flex flex-col items-center">
-                            <span className="text-sm font-semibold tabular-nums">{val}g</span>
-                            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label?.short || key}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 justify-center">
-                  <Button size="sm" onClick={handleAddEntry}>Add Entry</Button>
-                  <Button size="sm" variant="ghost" onClick={handleRetry}>Retry</Button>
-                </div>
-              </>
             )}
 
             {/* Error */}
