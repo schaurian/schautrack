@@ -65,12 +65,10 @@ export default function AISettings({ user, onSave }: Props) {
           <p className="text-xs text-muted-foreground">A global API key is configured. AI features work without setting your own key.</p>
         )}
       </div>
-      <div className="border-t border-border pt-3 mt-3 flex items-center justify-between gap-2">
-        <Button type="button" variant="destructive" className="flex-1" onClick={handleClear} loading={loading}>Clear All</Button>
-        <div className="min-w-[60px] text-right">
-          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
-          {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
-        </div>
+      <div className="border-t border-border pt-3 mt-3 flex flex-col gap-2">
+        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse text-right">Saving...</span>}
+        {status === 'saved' && <span className="text-xs text-green-400 text-right">Saved</span>}
+        <Button type="button" variant="destructive" className="w-full" onClick={handleClear} loading={loading}>Clear All</Button>
       </div>
     </Card>
   );
