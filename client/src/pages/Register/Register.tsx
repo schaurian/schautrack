@@ -13,6 +13,7 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [inviteCode, setInviteCode] = useState(searchParams.get('invite') || '');
   const [captcha, setCaptcha] = useState('');
   const [captchaSvg, setCaptchaSvg] = useState('');
@@ -79,8 +80,9 @@ export default function Register() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-                error={confirmPassword && password !== confirmPassword ? 'Passwords do not match.' : undefined}
-                className={confirmPassword && password === confirmPassword ? 'border-green-500 focus-visible:ring-green-500' : undefined}
+                onBlur={() => setConfirmTouched(true)}
+                error={confirmTouched && password !== confirmPassword ? 'Passwords do not match.' : undefined}
+                className={confirmTouched && password === confirmPassword ? 'border-green-500 focus-visible:ring-green-500' : undefined}
               />
               {requireInvite && (
                 <Input label="Invite Code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required placeholder="Enter your invite code" />
@@ -94,7 +96,7 @@ export default function Register() {
               <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}
-          <Button type="submit" loading={loading}>{step === 'credentials' ? 'Continue' : 'Create Account'}</Button>
+          <Button type="submit" loading={loading} disabled={step === 'credentials' && (!email || !password || !confirmPassword || password !== confirmPassword)}>{step === 'credentials' ? 'Continue' : 'Create Account'}</Button>
         </form>
         <div className="mt-6 text-sm">
           <Link to="/login">Already have an account?</Link>
