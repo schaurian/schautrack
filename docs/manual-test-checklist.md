@@ -5,6 +5,8 @@ Use this checklist when testing a new release before merging to main.
 ## Authentication
 
 - [ ] Register a new account (open registration mode)
+- [ ] Register: confirm password field validates on blur (red mismatch, green match)
+- [ ] Register: submit button disabled until email + both passwords filled and matching
 - [ ] Register with invite code (invite-only mode)
 - [ ] Log in with email/password
 - [ ] Enable 2FA (TOTP), verify backup codes are shown
@@ -26,7 +28,8 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Add a calorie entry with name and amount
 - [ ] Add entry with only macros (no name), verify it saves
 - [ ] Math expressions in calorie/macro inputs (e.g. `200+150`, `3*120`)
-- [ ] Edit an existing entry (tap field inline: name, calories, each macro)
+- [ ] Edit an existing entry inline (tap name to edit name, tap macro pill to edit value)
+- [ ] Verify entry rows display as cards with colored macro pills
 - [ ] Delete an entry
 - [ ] Verify daily total updates correctly
 - [ ] Verify dot/status colors reflect goal progress (green/yellow/red/grey)
@@ -81,7 +84,7 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Edit todo name, schedule, and time from manage view
 - [ ] Create todo with "daily" schedule, verify it shows every day
 - [ ] Create todo with "specific weekdays" schedule, verify it only shows on those days
-- [ ] Set time of day on a todo, verify it displays
+- [ ] Set time of day on a todo (smart input: typing "930" shows "09:30"), verify it displays
 - [ ] Verify streak counter increments on consecutive completions
 - [ ] Verify streak resets after a missed day
 - [ ] Verify todos persist across days
@@ -108,7 +111,7 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Verify entry times show in CREATOR's timezone (when they ate)
 - [ ] Verify linked user's share card shows their dot history
 - [ ] Remove a link
-- [ ] Verify max 3 links enforced
+- [ ] Verify max 10 links enforced
 
 ## Timezone Handling
 
@@ -133,6 +136,9 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Preferences: change weight unit (autosaves)
 - [ ] Preferences: change timezone (autosaves)
 - [ ] Verify autosave indicators across all settings sections
+- [ ] Verify no spurious "Saved" indicator on initial settings load
+- [ ] Verify all action buttons are full-width at card bottom
+- [ ] Data card: Export button works, Import disabled until file selected
 
 ## Real-time (SSE)
 
@@ -170,7 +176,8 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Calorie input shows numeric keypad (`inputmode="tel"`)
 - [ ] Navigation and modals work on small screens
 - [ ] AI photo modal works fullscreen on mobile
-- [ ] Entry list readable with all macros enabled on mobile
+- [ ] Entry list card rows and macro pills readable on mobile
+- [ ] Active nav item highlighted (cyan tint + border)
 - [ ] Note editor usable on mobile
 
 ## Security
@@ -224,4 +231,6 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Staging accessible at staging.schautrack.com
 - [ ] Production deploy via ArgoCD after staging verified
 - [ ] Go unit tests pass (`go test ./...`)
+- [ ] TypeScript compiles cleanly (`npx tsc --noEmit` in `client/`)
+- [ ] Vite production build succeeds (`npx vite build` in `client/`)
 - [ ] Playwright e2e tests pass
