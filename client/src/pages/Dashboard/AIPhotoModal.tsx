@@ -274,9 +274,9 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                           placeholder="Describe the food (optional)"
                           maxLength={200}
                         />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleEstimate}>Estimate</Button>
+                        <div className="flex gap-2 justify-between">
                           <Button size="sm" variant="ghost" onClick={handleRetry}>Retake</Button>
+                          <Button size="sm" onClick={handleEstimate}>Estimate</Button>
                         </div>
                       </div>
                     </>
