@@ -7,7 +7,7 @@
     "test:e2e:down": "docker compose -p schautrack-test -f compose.test.yml down"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.59.1",
     "tsx": "^4.19.0"
   }
 }
