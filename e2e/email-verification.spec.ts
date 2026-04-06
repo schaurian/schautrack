@@ -16,8 +16,8 @@ async function registerAndReachVerify(browser: Browser, email: string) {
 
   // Step 1 — credentials
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByLabel('Confirm Password').fill(PASSWORD);
+  await page.locator('#password').fill(PASSWORD);
+  await page.locator('#confirm-password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Continue' }).click();
 
   // Step 2 — captcha (CAPTCHA_BYPASS=true, any non-empty value passes)
@@ -37,7 +37,7 @@ test.describe('Email Verification', () => {
     await clearMailpit();
   });
 
-  test.skip('registration redirects to /verify-email', async ({ browser }) => {
+  test('registration redirects to /verify-email', async ({ browser }) => {
     const email = `verify-redirect-${Date.now()}@test.com`;
     const { page, context } = await registerAndReachVerify(browser, email);
 

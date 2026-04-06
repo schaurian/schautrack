@@ -36,7 +36,7 @@ test.describe('Legal Pages', () => {
     await expect(page.getByText('Data We Collect')).toBeVisible({ timeout: 5000 });
   });
 
-  test.skip('legal pages hidden when disabled', async ({ page }) => {
+  test('legal pages hidden when disabled', async ({ page }) => {
     // Disable legal pages
     psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'false') ON CONFLICT (key) DO UPDATE SET value = 'false'`);
 

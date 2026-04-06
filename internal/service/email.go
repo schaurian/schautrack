@@ -32,7 +32,12 @@ func (es *EmailService) SendEmail(to, subject, text, html string) error {
 	msg := buildMimeMessage(from, to, subject, text, html)
 
 	addr := fmt.Sprintf("%s:%d", es.cfg.SMTPHost, es.cfg.SMTPPort)
-	auth := smtp.PlainAuth("", es.cfg.SMTPUser, es.cfg.SMTPPass, es.cfg.SMTPHost)
+
+	// Only use auth when SMTP credentials are provided (e.g., MailPit doesn't support AUTH)
+	var auth smtp.Auth
+	if es.cfg.SMTPUser != "" {
+		auth = smtp.PlainAuth("", es.cfg.SMTPUser, es.cfg.SMTPPass, es.cfg.SMTPHost)
+	}
 
 	err := smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
 	if err != nil {

@@ -14,16 +14,17 @@ test.describe('Email Change', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // Find the email change section
-    const emailSection = page.getByText('Change Email').first();
-    await emailSection.scrollIntoViewIfNeeded();
-    await expect(emailSection).toBeVisible({ timeout: 10000 });
-
     const newEmail = `change-test-${Date.now()}@test.com`;
 
-    // Fill in the new email and current password
+    // Scroll to Change Email section
+    const emailHeading = page.getByText('Change Email', { exact: true });
+    await emailHeading.scrollIntoViewIfNeeded();
+
+    // Fill new email and password — password field is right after the New Email input
     await page.getByLabel('New Email').fill(newEmail);
-    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    // The email change form's password input follows "New Email" — use the form context
+    const emailForm = page.locator('form').filter({ has: page.getByLabel('New Email') });
+    await emailForm.locator('input[type="password"]').fill(TEST_USER_PASSWORD);
 
     // Submit the form
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
@@ -58,7 +59,7 @@ test.describe('Email Change', () => {
     await emailSection.scrollIntoViewIfNeeded();
 
     await page.getByLabel('New Email').fill(newEmail);
-    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.locator('#new-email').locator('..').locator('..').locator('input[type="password"]').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
     await page.waitForURL('/settings/email/verify', { timeout: 10000 });
 
@@ -93,7 +94,7 @@ test.describe('Email Change', () => {
     await emailSection.scrollIntoViewIfNeeded();
 
     await page.getByLabel('New Email').fill(newEmail);
-    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.locator('#new-email').locator('..').locator('..').locator('input[type="password"]').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
     await page.waitForURL('/settings/email/verify', { timeout: 10000 });
     await expect(page.getByText('Verify New Email')).toBeVisible({ timeout: 5000 });

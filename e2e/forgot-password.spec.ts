@@ -25,7 +25,7 @@ test.describe('Forgot Password', () => {
     psql(`UPDATE users SET password_hash = '${hash}' WHERE email = '${FORGOT_EMAIL}'`);
   });
 
-  test.skip('full forgot password flow: request code → verify code → set new password → login', async ({ browser }) => {
+  test('full forgot password flow: request code → verify code → set new password → login', async ({ browser }) => {
     await clearMailpit();
 
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
