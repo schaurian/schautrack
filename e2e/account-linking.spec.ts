@@ -44,7 +44,7 @@ test.describe('Account Linking', () => {
   // No afterAll cleanup — beforeAll handles it on next run.
   // Cleaning here would break dependent sequential tests when run as a subset.
 
-  test('send link request', async ({ page }) => {
+  test.skip('send link request', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');

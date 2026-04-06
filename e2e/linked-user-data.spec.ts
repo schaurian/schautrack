@@ -52,9 +52,9 @@ test.beforeAll(() => {
 
   // Insert test data for the link-test user
   psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES (${linkUserId}, '${TODAY}', ${TEST_ENTRY_AMOUNT}, 'E2E test meal')`);
-  psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${linkUserId}, '${TODAY}', ${TEST_WEIGHT})`);
-  psql(`INSERT INTO daily_notes (user_id, note_date, content) VALUES (${linkUserId}, '${TODAY}', '${TEST_NOTE_CONTENT}')`);
-  psql(`INSERT INTO todos (user_id, name, schedule) VALUES (${linkUserId}, '${TEST_TODO_NAME}', '{"type":"daily"}')`);
+  psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${linkUserId}, '${TODAY}', ${TEST_WEIGHT}) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = ${TEST_WEIGHT}`);
+  psql(`INSERT INTO daily_notes (user_id, note_date, content) VALUES (${linkUserId}, '${TODAY}', '${TEST_NOTE_CONTENT}') ON CONFLICT (user_id, note_date) DO UPDATE SET content = '${TEST_NOTE_CONTENT}'`);
+  psql(`INSERT INTO todos (user_id, name, schedule) VALUES (${linkUserId}, '${TEST_TODO_NAME}', '{"type":"daily"}') ON CONFLICT DO NOTHING`);
 });
 
 test.afterAll(() => {

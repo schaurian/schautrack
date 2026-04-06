@@ -1,7 +1,9 @@
 import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
 
-test.describe('Settings', () => {
+// Settings tests modify shared user state (timezone, weight unit, macros) and must run serially
+// to avoid races between parallel tests that all call savePreferences with different values.
+test.describe.serial('Settings', () => {
   test('settings page loads with user email', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
@@ -54,10 +56,9 @@ test.describe('Settings', () => {
 
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
 
-    // The Calories row has a number input (placeholder="Goal") adjacent to the "Calories" label.
-    // Locate the Calories row by its label text, then find the goal input within it.
-    const caloriesRow = page.locator('div').filter({ has: page.getByText('Calories', { exact: true }) }).first();
-    const goalInput = caloriesRow.locator('input[type="number"][placeholder="Goal"]');
+    // The Calories row: find the label containing "Calories" span, go up to its parent row div,
+    // then find the goal input sibling. Calories is the first macro row so its goal input is first.
+    const goalInput = page.getByPlaceholder('Goal').first();
     await expect(goalInput).toBeVisible({ timeout: 5000 });
 
     const originalValue = await goalInput.inputValue();
@@ -76,8 +77,7 @@ test.describe('Settings', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
 
-    const reloadedRow = page.locator('div').filter({ has: page.getByText('Calories', { exact: true }) }).first();
-    const reloadedInput = reloadedRow.locator('input[type="number"][placeholder="Goal"]');
+    const reloadedInput = page.getByPlaceholder('Goal').first();
     await expect(reloadedInput).toHaveValue(newGoal, { timeout: 5000 });
 
     // Restore
@@ -182,8 +182,8 @@ test.describe('Settings', () => {
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
 
     // --- Calorie goal autosave ---
-    const caloriesRow = page.locator('div').filter({ has: page.getByText('Calories', { exact: true }) }).first();
-    const goalInput = caloriesRow.locator('input[type="number"][placeholder="Goal"]');
+    // Calories is always the first row so its goal input is the first placeholder="Goal" input
+    const goalInput = page.getByPlaceholder('Goal').first();
     await expect(goalInput).toBeVisible({ timeout: 5000 });
 
     const originalGoal = await goalInput.inputValue();

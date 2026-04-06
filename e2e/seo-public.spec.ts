@@ -18,7 +18,7 @@ test.describe('Public Pages & SEO', () => {
     // Feature cards from Landing.tsx
     const featureHeadings = ['Simple Logging', 'AI Estimation', 'Share with Friends', 'Self-Hostable'];
     for (const heading of featureHeadings) {
-      await expect(page.getByText(heading)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible({ timeout: 5000 });
     }
 
     await context.close();

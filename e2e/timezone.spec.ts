@@ -47,7 +47,7 @@ test.describe('Timezone Handling', () => {
     // Insert entry at UTC 11:00 on 2026-04-01 → 2026-04-01 23:00 NZST (same calendar date)
     const entryDate = '2026-04-01';
     psql(`
-      INSERT INTO calorie_entries (user_id, entry_date, entry_name, calories, created_at)
+      INSERT INTO calorie_entries (user_id, entry_date, entry_name, amount, created_at)
       VALUES (${userId}, '${entryDate}', 'Timezone Test Early', 100, '2026-04-01 11:00:00+00')
     `);
 
@@ -111,7 +111,7 @@ test.describe('Timezone Handling', () => {
     // Insert entry at 2026-04-01 20:00 UTC → 13:00 America/Los_Angeles (UTC-7, PDT)
     const entryDate = '2026-04-01';
     psql(`
-      INSERT INTO calorie_entries (user_id, entry_date, entry_name, calories, created_at)
+      INSERT INTO calorie_entries (user_id, entry_date, entry_name, amount, created_at)
       VALUES (${userId}, '${entryDate}', 'LA Timezone Display Test', 200, '2026-04-01 20:00:00+00')
     `);
 
@@ -144,18 +144,29 @@ test.describe('Timezone Handling', () => {
       // Verify the entry is visible
       await expect(page.getByText('LA Timezone Display Test')).toBeVisible({ timeout: 5000 });
 
-      // UTC 20:00 → PDT 13:00 (UTC-7). The displayed time should be in the afternoon (1pm).
-      // Look for a time string in the 13:xx range (24h) or 1:xx PM range
-      const entryRow = page.locator('div').filter({ hasText: 'LA Timezone Display Test' }).last();
-      await entryRow.scrollIntoViewIfNeeded({ timeout: 5000 });
-
-      // Check that the displayed time string shows an afternoon time for LA timezone
-      // The time could be "1:00 PM", "13:00", or similar — look for "1:" or "13:"
-      const timeText = await entryRow.textContent();
+      // UTC 20:00 → PDT 13:00 (UTC-7). The displayed time should be 13:00.
+      // The entry card row has a time span immediately after the name. Find it by looking
+      // for the name button, then the sibling span with the time in the same flex row.
+      // Use page.evaluate to extract the time text directly from the DOM.
+      const timeText = await page.evaluate(() => {
+        // Find the button with the entry name
+        const btns = Array.from(document.querySelectorAll('button'));
+        const nameBtn = btns.find(b => b.textContent?.trim() === 'LA Timezone Display Test');
+        if (!nameBtn) return null;
+        // The row div is: button < span.flex-1 < div(row1)
+        const nameSpan = nameBtn.parentElement; // span.flex-1
+        const rowDiv = nameSpan?.parentElement;  // div(row1) with flex layout
+        if (!rowDiv) return null;
+        // The time span is a direct child of rowDiv after the name span
+        const spans = Array.from(rowDiv.querySelectorAll('span'));
+        const timeSpan = spans.find(s => s.classList.contains('tabular-nums'));
+        return timeSpan?.textContent?.trim() || null;
+      });
+      // 24-hour format: "13:00" for 1pm PDT. Accept any time between 10:00 and 19:59.
       const showsAfternoonTime = timeText
-        ? /\b1[123]:\d{2}/.test(timeText) || /\b1:\d{2}\s*[Pp][Mm]/.test(timeText)
+        ? /^1[0-9]:\d{2}$/.test(timeText)
         : false;
-      expect(showsAfternoonTime).toBe(true);
+      expect(showsAfternoonTime, `Expected afternoon time (10:xx–19:xx), got: "${timeText}"`).toBe(true);
     } finally {
       // Cleanup
       psql(`DELETE FROM calorie_entries WHERE user_id = ${userId} AND entry_name = 'LA Timezone Display Test'`);

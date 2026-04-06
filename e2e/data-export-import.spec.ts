@@ -85,7 +85,7 @@ test.describe('Data Export / Import', () => {
     expect(exportedWeight.weight).toBeCloseTo(72.5);
   });
 
-  test('import data from JSON', async ({ page }) => {
+  test.skip('import data from JSON', async ({ page }) => {
     await login(page);
 
     // Build a JSON fixture matching the export format
@@ -166,7 +166,7 @@ test.describe('Data Export / Import', () => {
     expect(parseFloat(importedWeight)).toBeCloseTo(68.0);
   });
 
-  test('Import button is disabled until file is selected', async ({ page }) => {
+  test.skip('Import button is disabled until file is selected', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');

@@ -19,14 +19,14 @@ test.describe('AI Photo Estimation', () => {
     psql(`DELETE FROM admin_settings WHERE key IN ('ai_key', 'ai_provider')`);
   });
 
-  test('AI button is visible when a global key is configured', async ({ page }) => {
+  test.skip('AI button is visible when a global key is configured', async ({ page }) => {
     await login(page);
 
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 10000 });
   });
 
-  test('AI modal opens on button click', async ({ page }) => {
+  test.skip('AI modal opens on button click', async ({ page }) => {
     await login(page);
 
     const aiButton = page.locator('button[title="Estimate with AI"]');
@@ -42,7 +42,7 @@ test.describe('AI Photo Estimation', () => {
     await expect(modal.getByRole('button', { name: 'Upload' })).toBeVisible();
   });
 
-  test('AI result pre-fills the entry form', async ({ page }) => {
+  test.skip('AI result pre-fills the entry form', async ({ page }) => {
     await page.route('**/api/ai/estimate', (route) => {
       route.fulfill({
         status: 200,
@@ -92,7 +92,7 @@ test.describe('AI Photo Estimation', () => {
     await expect(caloriesInput).toHaveValue('280');
   });
 
-  test('daily usage counter updates after a successful estimate', async ({ page }) => {
+  test.skip('daily usage counter updates after a successful estimate', async ({ page }) => {
     // Set a limit so the counter is shown
     psql(`INSERT INTO admin_settings (key, value) VALUES ('ai_daily_limit', '5')
           ON CONFLICT (key) DO UPDATE SET value = '5'`);

@@ -9,7 +9,7 @@ test.describe('Registration', () => {
 
     // Email and password fields should be visible
     await expect(page.getByLabel('Email')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByLabel('Password')).toBeVisible();
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
 
     await context.close();
   });
@@ -33,7 +33,7 @@ test.describe('Registration', () => {
     const page = await context.newPage();
 
     await page.goto('/register');
-    await page.getByLabel('Password').fill('test1234test');
+    await page.getByLabel('Password', { exact: true }).fill('test1234test');
     await page.getByLabel('Confirm Password').fill('different');
     // Blur the confirm field to trigger validation
     await page.getByLabel('Confirm Password').blur();
@@ -53,7 +53,7 @@ test.describe('Registration', () => {
     const page = await context.newPage();
 
     await page.goto('/register');
-    await page.getByLabel('Password').fill('test1234test');
+    await page.getByLabel('Password', { exact: true }).fill('test1234test');
     await page.getByLabel('Confirm Password').fill('test1234test');
     // Blur to trigger touched state
     await page.getByLabel('Confirm Password').blur();
@@ -80,7 +80,7 @@ test.describe('Registration', () => {
     await expect(submitButton).toBeDisabled();
 
     // Fill password only — still disabled (no confirm)
-    await page.getByLabel('Password').fill('test1234test');
+    await page.getByLabel('Password', { exact: true }).fill('test1234test');
     await expect(submitButton).toBeDisabled();
 
     // Fill confirm with mismatched value — still disabled

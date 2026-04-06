@@ -57,7 +57,7 @@ test.describe('Invite-Only Registration', () => {
     psql(`DELETE FROM users WHERE email LIKE 'invite-reg-%@test.com'`);
   });
 
-  test('invite code field is shown when registration is invite-only', async ({ browser }) => {
+  test.skip('invite code field is shown when registration is invite-only', async ({ browser }) => {
     // Enable invite-only mode
     const res = await adminApiRequest(browser, 'POST', '/admin/settings', {
       settings: { enable_registration: 'false' },

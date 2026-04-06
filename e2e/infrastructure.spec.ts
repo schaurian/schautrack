@@ -63,8 +63,8 @@ test.describe('Infrastructure', () => {
     const forgotRes = await page.request.post('/api/auth/forgot-password', {
       data: { email: 'admin@test.com', captcha: 'bypass' },
     });
-    // API returns 200 regardless of email existence (doesn't reveal if account exists)
-    expect([200, 400]).toContain(forgotRes.status());
+    // API returns 200 on success, 400 for captcha/validation error, 403 if rate limited
+    expect([200, 400, 403]).toContain(forgotRes.status());
 
     // If the forgot-password succeeded, a session is set. Try the expired token.
     if (forgotRes.status() === 200) {

@@ -9,7 +9,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'Simple Logging',
-    desc: 'Log calories and macros in seconds. No barcode scanning, no food databases to search through.',
+    desc: 'Log calories and macros in seconds. Or scan a barcode to pull nutrition data instantly.',
   },
   {
     icon: (

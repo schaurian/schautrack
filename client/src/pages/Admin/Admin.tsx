@@ -96,7 +96,11 @@ function AdminSettingsForm({ settings, onSave }: { settings: Record<string, { va
     e.preventDefault();
     setLoading(true);
     try {
-      await saveAdminSettings(values);
+      // Only send settings that are NOT env-controlled (env-controlled ones are rejected by backend)
+      const editableValues = Object.fromEntries(
+        Object.entries(values).filter(([k]) => settings[k]?.source !== 'env')
+      );
+      await saveAdminSettings(editableValues);
       onSave();
     } catch (err) {
       useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to save settings');

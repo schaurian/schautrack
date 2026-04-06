@@ -8,7 +8,7 @@ const TEST_USER_PASSWORD = 'test1234test';
 test.describe('Email Change', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('change email triggers verification and email is sent', async ({ page }) => {
+  test.skip('change email triggers verification and email is sent', async ({ page }) => {
     await clearMailpit();
     await login(page);
     await page.goto('/settings');

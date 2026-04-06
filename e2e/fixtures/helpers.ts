@@ -15,12 +15,15 @@ function detectDbContainer(): string {
   }
 }
 
-/** Run a SQL query against the test database and return the trimmed output. */
+/** Run a SQL query against the test database and return the first line of trimmed output. */
 export function psql(sql: string): string {
-  return execSync(
+  const raw = execSync(
     `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
     { input: sql + '\n', encoding: 'utf-8' }
   ).trim();
+  // Filter out command tags like "INSERT 0 1", "DELETE 3", "UPDATE 1" etc.
+  const lines = raw.split('\n').filter(l => !/^(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s/.test(l));
+  return lines.join('\n').trim();
 }
 
 /** Generate a bcrypt hash for the given password. */

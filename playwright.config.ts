@@ -4,11 +4,11 @@ const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/fixtures/**', '**/setup-test-user.ts', '**/admin-setup.ts'],
+  testIgnore: ['**/fixtures/**', '**/setup-test-user.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 1,
-  workers: process.env.CI ? 2 : Math.max(1, (require('os').cpus().length || 4) - 2),
+  workers: process.env.CI ? 2 : Math.max(2, require('os').cpus().length || 4),
   reporter: process.env.CI ? 'github' : 'html',
   timeout: 45000,
   expect: { timeout: 10000 },

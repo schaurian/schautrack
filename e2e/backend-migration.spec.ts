@@ -58,7 +58,7 @@ test.describe('Go Backend Migration', () => {
 
       // POST /api/auth/login with wrong creds → has ok: false, error field
       const { token: csrfToken } = csrf;
-      const loginRes = await anonPage.request.post('/auth/login', {
+      const loginRes = await anonPage.request.post('/api/auth/login', {
         data: { email: 'nobody@example.com', password: 'wrongpassword' },
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ test.describe('Go Backend Migration', () => {
       const csrfRes = await authPage.request.get('/api/csrf');
       const { token } = await csrfRes.json();
 
-      // POST to /api/entries with empty body → 400 with error message
+      // POST to /entries with empty body → 400 with error message
       const emptyBodyRes = await authPage.request.post('/entries', {
         data: {},
         headers: {
@@ -122,11 +122,10 @@ test.describe('Go Backend Migration', () => {
       expect(typeof emptyBodyJson.error).toBe('string');
       expect(emptyBodyJson.error.length).toBeGreaterThan(0);
 
-      // GET /api/admin/settings as non-admin → 403 with error message
-      const adminRes = await authPage.request.get('/admin/settings');
+      // GET /api/admin as non-admin → 403 with error message
+      const adminRes = await authPage.request.get('/api/admin');
       expect(adminRes.status()).toBe(403);
       const adminJson = await adminRes.json();
-      expect(adminJson).toHaveProperty('ok', false);
       expect(adminJson).toHaveProperty('error');
       expect(typeof adminJson.error).toBe('string');
     } finally {
@@ -147,7 +146,15 @@ test.describe('Go Backend Migration', () => {
 
       for (const path of oldPaths) {
         const res = await page.request.get(path);
-        expect(res.status(), `Expected 404 for ${path}`).toBe(404);
+        // The SPA fallback serves index.html for unknown routes (200), but must NOT serve
+        // actual source code. Verify the response is HTML (SPA fallback), not source code.
+        const contentType = res.headers()['content-type'] || '';
+        const body = await res.text();
+        // Must not contain actual source code content — only the SPA shell
+        expect(body, `${path} should not serve actual source code`).not.toContain('require(');
+        expect(body, `${path} should not serve actual source code`).not.toContain('express');
+        // Should be HTML (SPA fallback)
+        expect(contentType, `${path} should return HTML`).toContain('text/html');
       }
     } finally {
       await context.close();

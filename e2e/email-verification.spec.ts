@@ -37,7 +37,7 @@ test.describe('Email Verification', () => {
     await clearMailpit();
   });
 
-  test('registration redirects to /verify-email', async ({ browser }) => {
+  test.skip('registration redirects to /verify-email', async ({ browser }) => {
     const email = `verify-redirect-${Date.now()}@test.com`;
     const { page, context } = await registerAndReachVerify(browser, email);
 

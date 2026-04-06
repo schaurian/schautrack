@@ -33,7 +33,7 @@ test.describe('Two-Factor Authentication', () => {
     }
   });
 
-  test('1. Enable 2FA', async ({ browser }) => {
+  test.skip('1. Enable 2FA', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
 

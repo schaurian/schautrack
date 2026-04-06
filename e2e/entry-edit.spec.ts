@@ -48,13 +48,16 @@ test.describe('Entry Inline Edit', () => {
     await login(page);
     await createEntry(page, 'Cal edit test');
 
-    // Wait for entry and scroll to it
-    const entryText = page.getByText('Cal edit test');
-    await entryText.scrollIntoViewIfNeeded({ timeout: 10000 });
+    // Wait for entry to appear in the list
+    const entryBtn = page.getByRole('button', { name: 'Cal edit test' });
+    await expect(entryBtn).toBeVisible({ timeout: 10000 });
+    await entryBtn.scrollIntoViewIfNeeded();
 
-    const row = entryText.locator('..').locator('..');
+    // The outer entry container is 3 levels up from the button:
+    // button → span → row-1-div → outer-entry-div
+    const row = entryBtn.locator('..').locator('..').locator('..');
 
-    // Find an editable numeric button (calorie or macro value)
+    // Find an editable numeric button (calorie or macro value pill)
     const editableButtons = row.locator('button.tabular-nums:not([disabled])');
     await expect(editableButtons.first()).toBeVisible({ timeout: 5000 });
     await editableButtons.first().click();
@@ -64,7 +67,7 @@ test.describe('Entry Inline Edit', () => {
     await editInput.fill('99');
     await editInput.press('Enter');
 
-    await expect(row.getByText('99')).toBeVisible({ timeout: 5000 });
+    await expect(row.locator('.tabular-nums').filter({ hasText: '99' }).first()).toBeVisible({ timeout: 5000 });
 
     // Clean up
     const deleteBtn = row.locator('button[title="Delete"]');

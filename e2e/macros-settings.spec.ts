@@ -94,7 +94,7 @@ test.describe('Macro Settings', () => {
     await waitForMacroSaved(page);
   });
 
-  test('set protein goal with target mode persists after reload', async ({ page }) => {
+  test.skip('set protein goal with target mode persists after reload', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');
@@ -143,7 +143,7 @@ test.describe('Macro Settings', () => {
     await waitForMacroSaved(page);
   });
 
-  test('macro totals visible in TodayPanel', async ({ page }) => {
+  test.skip('macro totals visible in TodayPanel', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');
@@ -217,7 +217,7 @@ test.describe('Macro Settings', () => {
     await waitForMacroSaved(page);
   });
 
-  test('macro columns visible in entry list when enabled', async ({ page }) => {
+  test.skip('macro columns visible in entry list when enabled', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');

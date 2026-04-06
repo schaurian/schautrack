@@ -75,8 +75,11 @@ async function main() {
   // Link test user
   ensureUser('link-test@test.com', 'linktest1234');
 
-  // Admin user (ADMIN_EMAIL=admin@test.com in compose.test.yml)
+  // Admin user — email must match the ADMIN_EMAIL env var on the running server.
+  // compose.dev.yml uses ADMIN_EMAIL=florian@schauer.to; compose.test.yml uses admin@test.com.
+  // We create both so the same setup works in either environment.
   ensureUser('admin@test.com', 'admin1234test', { features: true });
+  ensureUser('florian@schauer.to', 'admin1234test', { features: true });
 
   // 2FA test user (isolated for 2FA flow tests)
   ensureUser('2fa@test.com', '2fa1234test');
