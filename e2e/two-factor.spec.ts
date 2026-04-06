@@ -196,7 +196,7 @@ test.describe('Two-Factor Authentication', () => {
     await context.close();
   });
 
-  test.skip('5. Disable 2FA', async ({ browser }) => {
+  test('5. Disable 2FA', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
 
@@ -216,15 +216,12 @@ test.describe('Two-Factor Authentication', () => {
     await disableBtn.scrollIntoViewIfNeeded();
     await expect(disableBtn).toBeVisible({ timeout: 10000 });
 
-    // Fill the code input
-    const codeInput = page.getByPlaceholder('Enter 6-digit code');
-    await codeInput.fill(generateTOTP(capturedSecret));
+    // The disable form's input has placeholder="Enter 6-digit code" and required
+    await page.locator('input[placeholder="Enter 6-digit code"][required]').fill(generateTOTP(capturedSecret));
     await disableBtn.click();
 
-    // Wait for success or the Setup 2FA button to reappear (means 2FA was disabled)
-    await expect(
-      page.getByText(/2fa disabled/i).or(page.getByRole('button', { name: /setup 2fa/i }))
-    ).toBeVisible({ timeout: 10000 });
+    // Wait for the Setup 2FA button to reappear (means 2FA was disabled)
+    await expect(page.getByRole('button', { name: /setup 2fa/i })).toBeVisible({ timeout: 10000 });
 
     await context.close();
   });
