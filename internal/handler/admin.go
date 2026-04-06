@@ -110,25 +110,13 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	tables := []string{
-		"DELETE FROM totp_backup_codes WHERE user_id = $1",
-		"DELETE FROM daily_notes WHERE user_id = $1",
-		"DELETE FROM calorie_entries WHERE user_id = $1",
-		"DELETE FROM weight_entries WHERE user_id = $1",
-		"DELETE FROM ai_usage WHERE user_id = $1",
-		"DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1",
-		"DELETE FROM password_reset_tokens WHERE user_id = $1",
-		"DELETE FROM email_verification_tokens WHERE user_id = $1",
-		"DELETE FROM users WHERE id = $1",
-	}
-	for _, q := range tables {
-		if _, err := tx.Exec(r.Context(), q, userID); err != nil {
-			ErrorJSON(w, http.StatusInternalServerError, "Failed to delete user.")
-			return
-		}
-	}
-	// Clean up sessions
+	// Clean up sessions (not FK-linked to users)
 	if _, err := tx.Exec(r.Context(), `DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = $1`, userID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete user.")
+		return
+	}
+	// Delete user — all child tables use ON DELETE CASCADE
+	if _, err := tx.Exec(r.Context(), "DELETE FROM users WHERE id = $1", userID); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete user.")
 		return
 	}
