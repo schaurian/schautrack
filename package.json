@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "otplib": "^13.4.0",
     "tsx": "^4.19.0"
   }
 }

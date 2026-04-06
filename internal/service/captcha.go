@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 )
 
@@ -22,9 +23,13 @@ func GenerateCaptcha() CaptchaResult {
 }
 
 // VerifyCaptcha compares the session answer with the user answer (case-insensitive).
+// When CAPTCHA_BYPASS=true (E2E test mode), any non-empty answer passes.
 func VerifyCaptcha(sessionAnswer, userAnswer string) bool {
 	if sessionAnswer == "" || userAnswer == "" {
 		return false
+	}
+	if os.Getenv("CAPTCHA_BYPASS") == "true" {
+		return true
 	}
 	return strings.EqualFold(
 		strings.TrimSpace(sessionAnswer),

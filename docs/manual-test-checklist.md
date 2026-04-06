@@ -4,16 +4,16 @@ Use this checklist when testing a new release before merging to main.
 
 ## Authentication
 
-- [ ] Register a new account (open registration mode)
-- [ ] Register: confirm password field validates on blur (red mismatch, green match)
-- [ ] Register: submit button disabled until email + both passwords filled and matching
+- [x] Register a new account (open registration mode)
+- [x] Register: confirm password field validates on blur (red mismatch, green match)
+- [x] Register: submit button disabled until email + both passwords filled and matching
 - [ ] Register with invite code (invite-only mode)
-- [ ] Log in with email/password
-- [ ] Enable 2FA (TOTP), verify backup codes are shown
+- [x] Log in with email/password
+- [x] Enable 2FA (TOTP), verify backup codes are shown
 - [ ] Log out, log back in with 2FA code
 - [ ] Log in using a 2FA backup code
 - [ ] Disable 2FA (requires TOTP code or backup code)
-- [ ] Reset 2FA with backup code (from login screen)
+- [ ] Reset 2FA via email verification (from login screen)
 - [ ] Regenerate backup codes from settings
 - [ ] Captcha appears after repeated failed logins
 - [ ] Forgot password flow (request reset, receive email, set new password)
@@ -111,7 +111,7 @@ Use this checklist when testing a new release before merging to main.
 - [ ] Verify entry times show in CREATOR's timezone (when they ate)
 - [ ] Verify linked user's share card shows their dot history
 - [ ] Remove a link
-- [ ] Verify max 10 links enforced
+- [ ] Verify max 3 links enforced
 
 ## Timezone Handling
 
@@ -122,7 +122,7 @@ Use this checklist when testing a new release before merging to main.
 ## Settings
 
 - [ ] Change daily calorie goal
-- [ ] Change display name
+- [ ] Change display name (via account linking label)
 - [ ] Change email (triggers verification of new address)
 - [ ] Cancel pending email change
 - [ ] Change password

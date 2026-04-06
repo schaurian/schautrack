@@ -124,6 +124,60 @@ test.describe('Daily Notes', () => {
     await page.waitForTimeout(500);
   });
 
+  test('autosave indicator shows Saving then Saved', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.waitForURL('/dashboard');
+
+    const textarea = page.locator('textarea[placeholder*="Write a note"]');
+    await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+    const hasNotes = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasNotes) {
+      test.skip(true, 'Notes not enabled for test user');
+      return;
+    }
+
+    // Type something unique so the save is triggered
+    const noteContent = `Autosave test ${Date.now()}`;
+    await textarea.fill(noteContent);
+
+    // "Saving..." is shown during the network request — it's transient.
+    // Wait for the "Saved" indicator which persists for ~2s after save.
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 8000 });
+
+    // Clean up
+    await textarea.fill('');
+    await page.waitForTimeout(1500);
+  });
+
+  test('clearing note removes it after reload', async ({ page }) => {
+    await page.goto('/dashboard');
+    await page.waitForURL('/dashboard');
+
+    const textarea = page.locator('textarea[placeholder*="Write a note"]');
+    await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+    const hasNotes = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasNotes) {
+      test.skip(true, 'Notes not enabled for test user');
+      return;
+    }
+
+    // Write a note
+    const noteContent = `Clear test ${Date.now()}`;
+    await textarea.fill(noteContent);
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 8000 });
+
+    // Clear the note text
+    await textarea.fill('');
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 8000 });
+
+    // Reload and verify the note is empty
+    await page.reload();
+    await page.waitForURL('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+    const reloadedTextarea = page.locator('textarea[placeholder*="Write a note"]');
+    await expect(reloadedTextarea).toHaveValue('', { timeout: 10000 });
+  });
+
   test('character limit is enforced', async ({ page }) => {
     await page.goto('/dashboard');
     await page.waitForURL('/dashboard');

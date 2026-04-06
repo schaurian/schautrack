@@ -178,6 +178,60 @@ test.describe('Account Linking', () => {
     await expect(page.getByText('My Test Partner')).not.toBeVisible({ timeout: 5000 });
   });
 
+  test('decline link request', async ({ page }) => {
+    // Clean up any existing links between the two test users first
+    cleanupLinks();
+
+    // Send a fresh link request from test user to link-test user
+    await login(page);
+    await page.goto('/settings');
+    await page.waitForURL('/settings');
+
+    const emailInput = page.getByLabel('Link by email');
+    await emailInput.scrollIntoViewIfNeeded();
+    await emailInput.fill(LINK_USER_EMAIL);
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByText('Pending')).toBeVisible({ timeout: 5000 });
+
+    // Log in as link-test user in a fresh context and decline the request
+    const context = await page.context().browser()!.newContext({ storageState: { cookies: [], origins: [] } });
+    const linkPage = await context.newPage();
+
+    await linkPage.goto('/login');
+    await linkPage.waitForLoadState('domcontentloaded');
+    await linkPage.getByLabel('Email').fill(LINK_USER_EMAIL);
+    await linkPage.getByLabel('Password').fill(LINK_USER_PASSWORD);
+    await linkPage.getByRole('button', { name: 'Log In' }).click();
+    await linkPage.waitForURL('/dashboard', { timeout: 15000 });
+
+    await linkPage.goto('/settings');
+    await linkPage.waitForURL('/settings');
+
+    // Verify the incoming request is visible
+    const incomingHeading = linkPage.getByText('Incoming');
+    await incomingHeading.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await expect(incomingHeading).toBeVisible({ timeout: 5000 });
+    await expect(linkPage.getByText(TEST_USER_EMAIL, { exact: true })).toBeVisible();
+
+    // Decline it
+    await linkPage.getByRole('button', { name: 'Decline' }).click();
+
+    // The incoming request should disappear
+    await expect(linkPage.getByText(TEST_USER_EMAIL, { exact: true })).not.toBeVisible({ timeout: 5000 });
+
+    await context.close();
+
+    // Log back in as test user and verify the link is no longer pending
+    await login(page);
+    await page.goto('/settings');
+    await page.waitForURL('/settings');
+
+    // The pending entry for LINK_USER_EMAIL should be gone
+    await page.waitForTimeout(500);
+    const pendingEntry = page.locator('div').filter({ hasText: LINK_USER_EMAIL }).filter({ has: page.getByText('Pending') });
+    await expect(pendingEntry).not.toBeVisible({ timeout: 5000 });
+  });
+
   test('max 3 links enforced', async ({ page }) => {
     // Create 3 dummy accepted links directly in DB
     const testUserId = psql(`SELECT id FROM users WHERE email = '${TEST_USER_EMAIL}'`);

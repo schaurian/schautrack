@@ -6,12 +6,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       - DATABASE_URL=postgresql://schautrack:testpass@db:5432/schautrack
       - SESSION_SECRET=e2e-test-session-secret-not-for-production
       - RATE_LIMIT_AUTH=1000
       - ENABLE_BARCODE=true
       - ENABLE_REGISTRATION=open
+      - ADMIN_EMAIL=admin@test.com
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_FROM=noreply@schautrack.local
+      - CAPTCHA_BYPASS=true
+      - IMPRINT_ADDRESS=Test Company\n123 Test Street\nTest City
+      - IMPRINT_EMAIL=legal@test.com
+      - SUPPORT_EMAIL=support@test.com
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 3s
@@ -35,3 +45,8 @@ services:
       start_period: 2s
     tmpfs:
       - /var/lib/postgresql
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
