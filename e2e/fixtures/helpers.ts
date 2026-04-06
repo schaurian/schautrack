@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { authenticator } from 'otplib';
+import * as crypto from 'crypto';
 
 const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
@@ -34,9 +34,32 @@ export function bcryptHash(password: string): string {
   ).trim();
 }
 
-/** Generate a valid TOTP code from a secret. */
+/** Generate a valid TOTP code from a base32 secret. */
 export function generateTOTP(secret: string): string {
-  return authenticator.generate(secret);
+  // Decode base32 secret
+  const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of secret.toUpperCase().replace(/=+$/, '')) {
+    const val = base32chars.indexOf(c);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const key = Buffer.alloc(Math.floor(bits.length / 8));
+  for (let i = 0; i < key.length; i++) {
+    key[i] = parseInt(bits.substring(i * 8, i * 8 + 8), 2);
+  }
+
+  // TOTP: HMAC-SHA1 of time counter
+  const epoch = Math.floor(Date.now() / 1000);
+  const counter = Math.floor(epoch / 30);
+  const counterBuf = Buffer.alloc(8);
+  counterBuf.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+  counterBuf.writeUInt32BE(counter & 0xffffffff, 4);
+
+  const hmac = crypto.createHmac('sha1', key).update(counterBuf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = ((hmac[offset] & 0x7f) << 24 | hmac[offset + 1] << 16 | hmac[offset + 2] << 8 | hmac[offset + 3]) % 1000000;
+  return code.toString().padStart(6, '0');
 }
 
 /** Fetch all messages from MailPit, optionally filtered by recipient. */
