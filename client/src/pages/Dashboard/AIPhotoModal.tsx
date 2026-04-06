@@ -275,8 +275,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                           maxLength={200}
                         />
                         <div className="flex gap-2 justify-between">
-                          <Button size="sm" variant="ghost" onClick={handleRetry}>Retake</Button>
-                          <Button size="sm" onClick={handleEstimate}>Estimate</Button>
+                          <Button variant="ghost" onClick={handleRetry}>Retake</Button>
+                          <Button onClick={handleEstimate}>Estimate</Button>
                         </div>
                       </div>
                     </>
