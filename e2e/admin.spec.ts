@@ -1,21 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { execSync } from 'child_process';
-import { fetchMailpitMessages, clearMailpit } from './fixtures/helpers';
+import { psql, fetchMailpitMessages, clearMailpit } from './fixtures/helpers';
 
 // storageState: 'e2e/.auth/admin.json' is set by the 'admin' project in playwright.config.ts
 
 const ADMIN_EMAIL = 'admin@test.com';
-
-const DB_CONTAINER = process.env.DB_CONTAINER || 'schautrack-test-db-1';
-const DB_USER = process.env.POSTGRES_USER || 'schautrack';
-const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
-
-function psql(sql: string): string {
-  return execSync(
-    `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
-    { input: sql + '\n', encoding: 'utf-8' }
-  ).trim();
-}
 
 test.describe('Admin Panel', () => {
   test('admin panel loads', async ({ page }) => {

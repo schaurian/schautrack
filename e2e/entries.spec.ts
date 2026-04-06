@@ -109,6 +109,9 @@ test.describe('Entry Tracking', () => {
   test('entry rows display as cards with macro pills', async ({ page }) => {
     await login(page);
 
+    // Clean up any leftover entries from previous test runs
+    psql(`DELETE FROM calorie_entries WHERE user_id = (SELECT id FROM users WHERE email = 'test@test.com') AND entry_name = 'Macro Pill Test'`);
+
     // Enable protein macro in settings so the pill is rendered
     await page.goto('/settings');
     await page.waitForURL('/settings');
@@ -147,17 +150,22 @@ test.describe('Entry Tracking', () => {
     await page.locator('form button[type="submit"]').click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // Wait for entry row to appear
-    const entryRow = page.locator('div').filter({ hasText: 'Macro Pill Test' }).last();
-    await entryRow.scrollIntoViewIfNeeded({ timeout: 10000 });
-    await expect(entryRow).toBeVisible({ timeout: 5000 });
+    // Wait for entry row to appear — find the last "Macro Pill Test" entry name button,
+    // then traverse up to the full entry card
+    const lastEntryNameBtn = page.getByRole('button', { name: 'Macro Pill Test' }).last();
+    await lastEntryNameBtn.scrollIntoViewIfNeeded({ timeout: 10000 });
+    await expect(lastEntryNameBtn).toBeVisible({ timeout: 5000 });
+    // button → span → name-row div → entry card div (3 levels up)
+    const entryCard = lastEntryNameBtn.locator('../../..');
 
     // The entry should contain a macro pill showing "20" (protein value)
-    // Pills are rendered as buttons with the value inside a <span>
-    await expect(entryRow.locator('button, span').filter({ hasText: /^20$/ }).first()).toBeVisible({ timeout: 5000 });
+    // Protein pill is a button with accessible name "Protein 20 g"
+    await expect(page.getByRole('button', { name: /Protein.*20/ }).last()).toBeVisible({ timeout: 5000 });
 
-    // Cleanup
-    await entryRow.locator('button[title="Delete"]').click();
+    // Cleanup — delete the entry via the card's delete button
+    await entryCard.locator('button[title="Delete"]').click();
+    // Also clean any leftover entries from previous runs
+    psql(`DELETE FROM calorie_entries WHERE user_id = (SELECT id FROM users WHERE email = 'test@test.com') AND entry_name = 'Macro Pill Test'`);
     await expect(page.getByText('Macro Pill Test')).not.toBeVisible({ timeout: 5000 });
 
     // Restore protein checkbox state if it was off

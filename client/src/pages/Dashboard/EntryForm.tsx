@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
 import { MACRO_LABELS, computeCaloriesFromMacros } from '@/lib/macros';
+import { parseAmount } from '@/lib/mathParser';
 import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/stores/toastStore';
 import AIPhotoModal from './AIPhotoModal';
@@ -65,13 +66,13 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     const data: Parameters<typeof createEntry>[0] = { entry_date: date };
     if (name.trim()) data.entry_name = name.trim();
     if (amount && !autoCalcCalories) {
-      const parsed = Number(amount);
-      if (!Number.isFinite(parsed)) {
+      const parsed = parseAmount(amount, { maxAbs: 100000 });
+      if (!parsed.ok) {
         addToast('error', 'Invalid calorie amount');
         setLoading(false);
         return;
       }
-      data.amount = parsed;
+      data.amount = parsed.value;
     }
     for (const key of enabledMacros) {
       if (macros[key]) {

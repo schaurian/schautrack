@@ -1,27 +1,13 @@
 import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
-import { execSync } from 'child_process';
-
-const DB_CONTAINER = process.env.DB_CONTAINER || 'schautrack-test-db-1';
-const DB_USER = process.env.POSTGRES_USER || 'schautrack';
-const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
+import { psql, bcryptHash } from './fixtures/helpers';
 
 const TEST_USER_EMAIL = 'test@test.com';
 const LINK_USER_EMAIL = 'link-test@test.com';
 const LINK_USER_PASSWORD = 'linktest1234';
 
-function psql(sql: string): string {
-  return execSync(
-    `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
-    { input: sql + '\n', encoding: 'utf-8' }
-  ).trim();
-}
-
 function ensureLinkUser() {
-  const hash = execSync(
-    `python3 -c "import bcrypt; print(bcrypt.hashpw(b'${LINK_USER_PASSWORD}', bcrypt.gensalt(10)).decode())"`,
-    { encoding: 'utf-8' }
-  ).trim();
+  const hash = bcryptHash(LINK_USER_PASSWORD);
 
   const exists = psql(`SELECT id FROM users WHERE email = '${LINK_USER_EMAIL}'`);
   if (exists) {
@@ -236,10 +222,7 @@ test.describe('Account Linking', () => {
     // Create 3 dummy accepted links directly in DB
     const testUserId = psql(`SELECT id FROM users WHERE email = '${TEST_USER_EMAIL}'`);
     const dummyEmails = ['dummy1@test.com', 'dummy2@test.com', 'dummy3@test.com'];
-    const hash = execSync(
-      `python3 -c "import bcrypt; print(bcrypt.hashpw(b'dummy1234', bcrypt.gensalt(10)).decode())"`,
-      { encoding: 'utf-8' }
-    ).trim();
+    const hash = bcryptHash('dummy1234');
 
     for (const email of dummyEmails) {
       const exists = psql(`SELECT id FROM users WHERE email = '${email}'`);
