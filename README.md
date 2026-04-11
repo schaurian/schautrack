@@ -80,7 +80,7 @@ docker compose -f compose.dev.yml up --build
 
 ## Environment Variables
 
-Settings can be configured via environment variables (in .env or passed to the container). Some settings can also be changed by an admin in /admin. Environment variables always take precedence.
+Settings follow a strict priority hierarchy: **environment variables** > **admin panel** (`/admin`) > **user preferences**. When a higher-priority source sets a value, lower-priority sources are ignored and their UI controls are disabled.
 
 ### Required
 
@@ -102,10 +102,12 @@ Settings can be configured via environment variables (in .env or passed to the c
 
 Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 
+> **Configuration priority:** Environment variables > admin panel settings > user settings. When any global AI config is set (provider or key), user personal AI settings are ignored. Users can only bring their own API key when no global config exists.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, or `ollama`. Required to enable AI features. |
-| `AI_KEY` | *(empty)* | Global API key (fallback when users don't have their own) |
+| `AI_KEY` | *(empty)* | Global API key (used by all users; overrides personal keys) |
 | `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string for encrypting user API keys |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
 | `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
