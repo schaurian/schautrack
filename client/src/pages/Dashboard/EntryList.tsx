@@ -210,13 +210,12 @@ function MacroPill({ macroKey, label, value, unit, editing, editValue, onEdit, o
         <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', labelColor)}>{label}</span>
         <input
           className="bg-transparent border-0 outline-none text-sm font-bold text-foreground tabular-nums p-0"
-          style={{ width: `${Math.max(1, editValue.length)}ch` }}
+          style={{ width: `${Math.max(0.5, editValue.length)}ch` }}
           value={editValue}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onSave}
           onKeyDown={onKeyDown}
           autoFocus
-          onFocus={(e) => e.target.select()}
           inputMode={inputMode}
         />
         <span className="text-[0.8em] font-normal text-muted-foreground/55">{unit}</span>
