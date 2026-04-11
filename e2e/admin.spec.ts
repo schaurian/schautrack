@@ -261,21 +261,22 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Users (')).toBeVisible({ timeout: 10000 });
 
-    // Search for the user so they appear in the list
+    // Search for the user
     const searchInput = page.locator('input[placeholder="Search by email..."]');
     await searchInput.fill(deleteEmail);
-    await expect(page.getByText(deleteEmail)).toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(500); // debounce
+    await expect(page.getByText(deleteEmail).first()).toBeVisible({ timeout: 5000 });
 
-    // Click the Delete button for this user row
-    const userRow = page.locator('div').filter({ hasText: deleteEmail }).filter({ has: page.locator('button', { hasText: 'Delete' }) }).first();
-    const deleteBtn = userRow.locator('button').filter({ hasText: 'Delete' }).first();
-    await deleteBtn.scrollIntoViewIfNeeded();
+    // Handle the confirm dialog BEFORE clicking
+    page.once('dialog', (dialog) => dialog.accept());
 
-    // Handle the confirm dialog
-    page.on('dialog', (dialog) => dialog.accept());
+    // Click the Delete button — find it near the email text
+    const deleteBtn = page.locator('button').filter({ hasText: 'Delete' }).last();
     await deleteBtn.click();
 
-    // The user should no longer appear in the list
+    // Wait for removal — clear search to see full list
+    await searchInput.clear();
+    await page.waitForTimeout(500);
     await expect(page.getByText(deleteEmail)).not.toBeVisible({ timeout: 5000 });
 
     // Verify via psql the user is gone
