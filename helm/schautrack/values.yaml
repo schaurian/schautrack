@@ -84,6 +84,14 @@ config:
   imprintAddress: ""
   # Imprint email (rendered as SVG)
   imprintEmail: ""
+  # Enable barcode scanning via OpenFoodFacts (default: true)
+  enableBarcode: ""
+  # Registration mode: "open" (default) or "false"/"invite" (requires invite code)
+  # Also configurable via /admin settings page
+  enableRegistration: ""
+  # Trust X-Forwarded-For headers for rate limiting (default: true)
+  # Set to "false" for direct-access deployments without a reverse proxy
+  trustProxy: ""
   # Allow search engine indexing (sets ROBOTS_INDEX env var)
   robotsIndex: false
   # Base URL for SEO meta tags (leave empty to auto-detect from request)

@@ -5,7 +5,6 @@ metadata:
   labels:
     {{- include "schautrack.labels" . | nindent 4 }}
 data:
-  NODE_ENV: "production"
   PORT: {{ .Values.config.port | quote }}
   {{- if .Values.config.adminEmail }}
   ADMIN_EMAIL: {{ .Values.config.adminEmail | quote }}
@@ -48,6 +47,15 @@ data:
   {{- end }}
   {{- if .Values.ai.dailyLimit }}
   AI_DAILY_LIMIT: {{ .Values.ai.dailyLimit | quote }}
+  {{- end }}
+  {{- if .Values.config.enableBarcode }}
+  ENABLE_BARCODE: {{ .Values.config.enableBarcode | quote }}
+  {{- end }}
+  {{- if .Values.config.enableRegistration }}
+  ENABLE_REGISTRATION: {{ .Values.config.enableRegistration | quote }}
+  {{- end }}
+  {{- if .Values.config.trustProxy }}
+  TRUST_PROXY: {{ .Values.config.trustProxy | quote }}
   {{- end }}
   {{- if .Values.config.robotsIndex }}
   ROBOTS_INDEX: {{ .Values.config.robotsIndex | quote }}

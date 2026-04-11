@@ -22,10 +22,14 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Log calories and macros (protein, carbs, fat, fiber, sugar)
 - Daily goals with color-coded progress tracking
 - AI-powered nutrition estimation from food photos (OpenAI, Claude, or Ollama)
-- Weight tracking
+- Barcode scanning via OpenFoodFacts
+- Weight tracking with unit preference (kg/lbs)
+- Daily notes and recurring todos with streak tracking
 - Account linking to share data with friends
-- Real-time updates via SSE
-- Docker and Kubernetes ready
+- Two-factor authentication (TOTP) with backup codes
+- Invite-only registration mode
+- Real-time updates via Server-Sent Events (SSE)
+- Docker and Kubernetes ready (~21MB image)
 - Android app on Google Play
 
 ## Android App
@@ -47,7 +51,7 @@ sed -i "s/please-change-me/$(openssl rand -hex 32)/" .env
 docker compose up -d
 ```
 
-App is available at http://localhost:3000.
+App is available at http://localhost:8080.
 
 ## Kubernetes (Helm)
 
@@ -125,7 +129,14 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
-| `REGISTRATION_MODE` | `open` | `open` (anyone can register) or `invite` (requires invite code). Also configurable via `/admin`. |
+| `ENABLE_REGISTRATION` | `open` | `open` (anyone can register) or `false` / `invite` (requires invite code). Also configurable via `/admin`. |
+
+### Security
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
+| `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per minute per IP |
 
 ### Legal Pages
 

@@ -216,6 +216,9 @@ smtp:
 | `config.imprintUrl` | Imprint page URL | `/imprint` |
 | `config.imprintAddress` | Imprint address (use `\n` for line breaks) | `""` |
 | `config.imprintEmail` | Imprint email | `""` |
+| `config.enableBarcode` | Enable barcode scanning via OpenFoodFacts | `""` (true) |
+| `config.enableRegistration` | `open` or `false`/`invite` (requires invite code) | `""` (open) |
+| `config.trustProxy` | Trust X-Forwarded-For headers for rate limiting | `""` (true) |
 | `config.robotsIndex` | Allow search engine indexing | `false` |
 | `config.baseUrl` | Base URL for SEO meta tags (auto-detects if empty) | `""` |
 

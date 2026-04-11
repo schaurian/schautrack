@@ -190,7 +190,7 @@ Security:
 - `TRUST_PROXY`: Trust `X-Forwarded-For`/`X-Real-Ip` headers for rate limiting (default: `true`, set `false` for direct-access deployments without a reverse proxy)
 
 Registration:
-- `REGISTRATION_MODE`: `open` (default, anyone can register) or `invite` (requires invite code). Can also be set via admin panel.
+- `ENABLE_REGISTRATION`: `open` (default, anyone can register) or `false`/`invite` (requires invite code). Can also be set via admin panel.
 
 AI Configuration (Global Fallbacks):
 - `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
