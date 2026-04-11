@@ -59,6 +59,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       should_tag: ${{ steps.version.outputs.should_tag }}
+      platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -118,6 +119,15 @@ jobs:
             echo "should_tag=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Determine build platforms
+        id: platforms
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo 'platforms=["linux/amd64"]' >> $GITHUB_OUTPUT
+          else
+            echo 'platforms=["linux/amd64","linux/arm64"]' >> $GITHUB_OUTPUT
+          fi
+
   create-tag:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: compute-version
@@ -139,7 +149,6 @@ jobs:
           git push origin "v${{ needs.compute-version.outputs.version }}"
 
   build-and-push:
-    if: ${{ !(github.ref == 'refs/heads/staging' && matrix.platform == 'linux/arm64') }}
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: compute-version
     permissions:
@@ -147,9 +156,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        platform: ${{ fromJson(needs.compute-version.outputs.platforms) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
