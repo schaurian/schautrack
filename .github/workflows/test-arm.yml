@@ -1,0 +1,20 @@
+name: Test ARM Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-arm:
+    runs-on: arc-runner
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Test arm64 build
+        run: |
+          docker buildx build --platform linux/arm64 -t test-arm:latest - <<'DOCKERFILE'
+          FROM alpine:3.20
+          RUN uname -m
+          DOCKERFILE
+          echo "ARM64 cross-build successful!"
