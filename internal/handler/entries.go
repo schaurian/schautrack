@@ -34,8 +34,8 @@ func (h *EntriesHandler) getAIProviderName(r *http.Request, user *model.User) *s
 	var provider string
 	if globalProvider.Value != nil && *globalProvider.Value != "" {
 		provider = *globalProvider.Value
-	} else if user.PreferredAIProvider != "" {
-		provider = user.PreferredAIProvider
+	} else if user.PreferredAIProvider != nil && *user.PreferredAIProvider != "" {
+		provider = *user.PreferredAIProvider
 	}
 	if provider == "" {
 		return nil
@@ -290,7 +290,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			"weightUnit": user.WeightUnit, "dailyGoal": user.DailyGoal,
 			"totpEnabled": user.TOTPEnabled, "macrosEnabled": macrosEnabledAny,
 			"macroGoals": macroGoalsAny, "goalThreshold": mu.GoalThreshold,
-			"preferredAiProvider": nilStr(user.PreferredAIProvider),
+			"preferredAiProvider": user.PreferredAIProvider,
 			"hasAiKey": user.AIKey != nil && *user.AIKey != "",
 			"aiModel": user.AIModel, "aiDailyLimit": user.AIDailyLimit,
 			"todosEnabled": user.TodosEnabled,

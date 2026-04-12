@@ -56,8 +56,8 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	var provider string
 	if globalProvider.Value != nil && *globalProvider.Value != "" {
 		provider = *globalProvider.Value
-	} else if user.PreferredAIProvider != "" {
-		provider = user.PreferredAIProvider
+	} else if user.PreferredAIProvider != nil && *user.PreferredAIProvider != "" {
+		provider = *user.PreferredAIProvider
 	}
 	if provider == "" {
 		ErrorJSON(w, http.StatusBadRequest, "No AI provider configured.")
