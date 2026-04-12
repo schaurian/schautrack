@@ -1,0 +1,57 @@
+name: schautrack-test
+
+services:
+  web:
+    build: .
+    ports:
+      - "3001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgresql://schautrack:testpass@db:5432/schautrack
+      - SESSION_SECRET=e2e-test-session-secret-not-for-production
+      - RATE_LIMIT_AUTH=1000
+      # ENABLE_BARCODE and ENABLE_REGISTRATION intentionally NOT set as env vars
+      # so E2E tests can toggle them via admin_settings. Defaults: barcode=true, registration=open.
+      - ADMIN_EMAIL=admin@test.com
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_FROM=noreply@schautrack.local
+      - CAPTCHA_BYPASS=true
+      # ENABLE_LEGAL not set as env var — managed via admin_settings for testability
+      - AI_PROVIDER=openai
+      - AI_KEY=test-fake-key-for-e2e
+      - IMPRINT_ADDRESS=Test Company\n123 Test Street\nTest City
+      - IMPRINT_EMAIL=legal@test.com
+      - SUPPORT_EMAIL=support@test.com
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+      start_period: 3s
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=schautrack
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=schautrack
+      - TZ=UTC
+      - PGTZ=UTC
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schautrack -d schautrack"]
+      interval: 2s
+      timeout: 1s
+      retries: 10
+      start_period: 2s
+    tmpfs:
+      - /var/lib/postgresql
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"

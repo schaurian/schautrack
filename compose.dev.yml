@@ -1,3 +1,5 @@
+name: schautrack-dev
+
 services:
   web:
     build: .
@@ -60,8 +62,6 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "5432:5432"
 
 volumes:
   db-data:

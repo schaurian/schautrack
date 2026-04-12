@@ -1,18 +1,20 @@
 # ============================================================================
 # SECURITY WARNING: Change default database credentials before deploying!
-# 
+#
 # 1. Copy .env.example to .env
-# 2. Generate a strong POSTGRES_PASSWORD (not the default "schautrack")  
+# 2. Generate a strong POSTGRES_PASSWORD (not the default "schautrack")
 # 3. Set a secure SESSION_SECRET (use: openssl rand -hex 32)
 # 4. Configure SMTP settings for email functionality
 # ============================================================================
+
+name: schautrack
 
 services:
   web:
     image: ghcr.io/schaurian/schautrack:latest
     env_file: .env
     ports:
-      - "3000:3000"
+      - "8080:3000"
     depends_on:
       db:
         condition: service_healthy

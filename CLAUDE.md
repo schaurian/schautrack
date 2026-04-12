@@ -4,50 +4,77 @@ This document contains important context and decisions for Claude Code when work
 
 ## Project Overview
 
-**Schautrack** is a calorie tracking web application built with Node.js, Express, and PostgreSQL. It supports:
-- User authentication with optional 2FA (TOTP)
+**Schautrack** is a calorie tracking web application built with Go (chi router) and PostgreSQL. It supports:
+- User authentication with optional 2FA (TOTP) and backup codes
 - Calorie entry tracking with daily goals
 - AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
 - Weight tracking
+- Daily notes per date (enableable per user)
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
 - Real-time updates via Server-Sent Events (SSE)
+- Invite-only registration mode (configurable via env var or admin panel)
 
 ## Project Structure
 
 ```
 schautrack/
-├── src/
-│   ├── server.js          # Main application server
-│   ├── views/             # EJS templates
-│   │   ├── dashboard.ejs
-│   │   ├── settings.ejs
-│   │   ├── partials/
-│   │   └── ...
-│   └── public/            # Static assets
-│       ├── style.css
-│       ├── logo.png
-│       └── ...
+├── client/                # React 19 SPA (Vite + TypeScript)
+│   ├── src/
+│   │   ├── api/           # API client layer (fetch wrappers)
+│   │   ├── components/    # Shared components (Layout, ui)
+│   │   ├── pages/         # Page components (Dashboard, Settings, etc.)
+│   │   ├── hooks/         # Custom hooks (useAuth, useSSE)
+│   │   ├── stores/        # Zustand stores (auth, dashboard)
+│   │   ├── types/         # TypeScript types
+│   │   ├── lib/           # Shared utilities (macros, mathParser)
+│   │   ├── styles/        # CSS variables and global styles
+│   │   ├── App.tsx
+│   │   ├── router.tsx
+│   │   └── main.tsx
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.json
+├── cmd/server/            # Go entry point
+│   └── main.go            # Server startup, routing, graceful shutdown
+├── internal/              # Go backend (JSON API only)
+│   ├── config/            # Environment variable parsing
+│   ├── database/          # Pool, migrations, settings cache
+│   ├── model/             # Data models (User, Entry, etc.)
+│   ├── session/           # PostgreSQL session store, CSRF
+│   ├── middleware/         # Auth, rate limiting, security headers, timezone
+│   ├── handler/           # HTTP handlers (auth, entries, settings, etc.)
+│   ├── service/           # Business logic (macros, math parser, AI, email, etc.)
+│   └── sse/               # Server-Sent Events broker
+├── public/                # Static assets (logo, favicons)
 ├── db/
 │   └── init.sql           # Database schema
-├── scripts/               # Build and deployment scripts
-├── Dockerfile             # Optimized multi-stage build
+├── Dockerfile             # 3-stage build (client, Go binary, Alpine)
 ├── compose.yml            # Production Docker Compose
 ├── compose.dev.yml        # Local development setup
-└── package.json
+├── go.mod
+└── go.sum
 ```
-
-**Important:** All application code lives in `src/`. Views and public assets were moved here to simplify the Docker build.
 
 ## Technology Stack
 
-- **Runtime:** Node.js 22 (Alpine Linux)
-- **Framework:** Express.js
-- **Database:** PostgreSQL 18
-- **Template Engine:** EJS
-- **Session Store:** PostgreSQL (connect-pg-simple)
-- **Authentication:** bcrypt + optional TOTP (speakeasy)
-- **Real-time:** Server-Sent Events (SSE)
+### Frontend
+- **Framework:** React 19 + TypeScript
+- **Build:** Vite 6
+- **Routing:** React Router v7
+- **Data Fetching:** TanStack Query v5
+- **State:** Zustand v5
+- **Styling:** CSS Modules with CSS custom properties
+
+### Backend
+- **Language:** Go 1.25
+- **Router:** go-chi/chi v5 (stdlib-compatible)
+- **Database:** PostgreSQL 18 via jackc/pgx v5
+- **Session Store:** Custom PostgreSQL store (internal/session)
+- **Authentication:** alexedwards/argon2id + golang.org/x/crypto/bcrypt + pquerna/otp (TOTP)
+- **Real-time:** Server-Sent Events (SSE) via internal/sse broker
+- **API:** JSON-only (no server-side rendering)
+- **Docker image:** ~21MB (Alpine + static Go binary)
 
 ## Design Decisions
 
@@ -71,11 +98,10 @@ schautrack/
 - When viewing linked user's entries, entry times show in the CREATOR's timezone (so you see when they actually ate, not what time it was for you)
 
 ### Docker Optimization
-- Multi-stage build with Alpine base (171MB final image)
-- Uses `dumb-init` for proper signal handling
-- Comprehensive `.dockerignore` to exclude unnecessary files
-- All app code in `src/` for simpler COPY command
-- Runs as non-root `node` user
+- 3-stage build: Node (client), Go (binary), Alpine (final ~21MB)
+- Go handles signals natively (no dumb-init needed)
+- CGO_ENABLED=0 for fully static binary
+- Runs as non-root `appuser`
 
 ### Kubernetes / Health Checks
 - **Health endpoint:** `GET /api/health` - checks database connectivity, returns 200 with app info or 503 on failure
@@ -106,16 +132,17 @@ The CI automatically computes semantic versions based on commit message prefixes
 - Other branches/PRs: Builds with commit SHA only
 
 ### Jobs
-1. `compute-version`: Analyzes commits and calculates next version
-2. `create-tag`: Creates git tag on main (automatic)
-3. `build-and-push`: Builds multi-arch container images
-4. `create-manifest`: Creates multi-arch manifest
-5. `create-release`: Creates GitHub Release with changelog
-6. `publish-helm`: Publishes Helm chart to gh-pages
+1. `test`: Runs `go test ./...` (gates the pipeline)
+2. `compute-version`: Analyzes commits and calculates next version
+3. `create-tag`: Creates git tag on main (automatic)
+4. `build-and-push`: Builds multi-arch container images
+5. `create-manifest`: Creates multi-arch manifest
+6. `create-release`: Creates GitHub Release with changelog
+7. `publish-helm`: Publishes Helm chart to gh-pages
 
 ## Database Schema Notes
 
-**Schema migrations are handled in code** via `ensureXxxSchema()` functions in `server.js` - no separate migration scripts or Kubernetes Jobs needed.
+**Schema migrations are handled in code** via `ensureXxxSchema()` functions in `internal/database/migrations.go` - no separate migration scripts or Kubernetes Jobs needed.
 
 ### Key Tables
 - `users`: User accounts with timezone, daily_goal, weight_unit, TOTP settings
@@ -156,6 +183,15 @@ Optional:
 - `IMPRINT_EMAIL`: Email text (rendered as SVG)
 - `BUILD_VERSION`: Injected during build, displayed in footer
 
+Features:
+- `ENABLE_BARCODE`: Enable barcode scanning via OpenFoodFacts (default: `true`, set `false` to disable)
+
+Security:
+- `TRUST_PROXY`: Trust `X-Forwarded-For`/`X-Real-Ip` headers for rate limiting (default: `true`, set `false` for direct-access deployments without a reverse proxy)
+
+Registration:
+- `ENABLE_REGISTRATION`: `open` (default, anyone can register) or `false`/`invite` (requires invite code). Can also be set via admin panel.
+
 AI Configuration (Global Fallbacks):
 - `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
 - `AI_KEY`: Global API key (fallback when users don't have their own)
@@ -175,11 +211,13 @@ AI Configuration (Global Fallbacks):
 
 ### Local Development
 ```bash
-docker compose up -d --build
+docker compose -f compose.dev.yml up -d --build
 ```
 - Web app: http://localhost:3000
 - PostgreSQL: localhost:5432
 - Database initializes from `db/init.sql`
+- Go build: `go build ./cmd/server/`
+- Tests: `go test ./...`
 
 ### Deployment
 1. Push to `staging` branch to test on staging environment
@@ -192,20 +230,20 @@ docker compose up -d --build
 ## Code Patterns
 
 ### Timezone Usage
-```javascript
+```go
 // Get viewer's timezone (for your own entries)
-const tz = getClientTimezone(req) || req.currentUser?.timezone || 'UTC';
+tz := getUserTimezone(r, user) // checks user.Timezone, then X-Timezone header/cookie
 
 // Format timestamps in viewer's timezone (own entries)
-const time = formatTimeInTz(entry.created_at, tz);
+timeStr := service.FormatTimeInTz(entry.CreatedAt, tz)
 
 // For linked users, entry times show in the CREATOR's timezone
-// so you see when they actually ate, not what time it was for you
-const displayTz = targetUser?.timezone || 'UTC';
+displayTz := targetUser.Timezone // or "UTC" if nil
 ```
 
 ### SSE for Real-time Updates
-- Endpoint: `/api/entries/stream`
+- Endpoint: `/events/entries`
+- In-memory broker in `internal/sse/broker.go` manages per-user channels
 - Sends updates when entries are added/modified/deleted
 - Client reconnects automatically on disconnect
 - Used for keeping linked user views in sync
@@ -214,21 +252,23 @@ const displayTz = targetUser?.timezone || 'UTC';
 
 ### Adding a New Feature
 1. Update database schema in `db/init.sql` if needed
-2. Add route handler in `src/server.js`
-3. Create/update EJS view in `src/views/`
-4. Add styles to `src/public/style.css`
-5. **Write tests** for any new or changed logic (see Testing below)
-6. Test locally with `docker compose up -d --build`
-7. Push to staging for integration testing
-8. Merge to main when ready
+2. Add migration in `internal/database/migrations.go`
+3. Add service logic in `internal/service/`
+4. Add HTTP handler in `internal/handler/`
+5. Wire route in `cmd/server/main.go`
+6. Create/update React components in `client/src/`
+7. **Write tests** for any new or changed logic (see Testing below)
+8. Test locally with `docker compose up -d --build`
+9. Push to staging for integration testing
+10. Merge to main when ready
 
 ### Testing
-**Always write tests** when adding or changing functionality. Tests live in `tests/` and run with `npm test` (Jest).
+**Always write tests** when adding or changing functionality. Tests use Go's standard `testing` package and run with `go test ./...`.
 
-- **Pure functions** (utils, parsers, validators): Write unit tests directly — no mocking needed
-- **Middleware** (CSRF, auth): Test with mock `req`/`res` objects
-- **Routes**: Use `supertest` with `createTestApp()` from `tests/setup.js`
-- **Run tests before committing** — husky pre-commit hook enforces this automatically
+- **Pure functions** (utils, parsers, validators): Table-driven unit tests in `*_test.go` files alongside the code
+- **Session/CSRF**: Test with `httptest.NewRequest` and mock sessions
+- **Handlers**: Use `httptest.NewRecorder` + chi router
+- **Run tests before committing** — `go test ./...`
 - **CI runs tests too** — the `test` job in GitHub Actions gates the build pipeline
 
 ### Styling Guidelines
@@ -239,20 +279,22 @@ const displayTz = targetUser?.timezone || 'UTC';
 
 ## Performance Considerations
 
-- Database queries use parameterized statements (SQL injection prevention)
-- Session store in PostgreSQL (not in-memory)
-- Static assets served with Express.static
+- Database queries use parameterized statements via pgx (SQL injection prevention)
+- Session store in PostgreSQL with in-memory prune loop
+- Settings cache with 1-minute TTL (`internal/database/settings.go`)
+- Static assets served with Go's `http.FileServer`
 - Efficient SQL indexes on foreign keys and lookup columns
-- Multi-stage Docker build keeps image size down
+- 3-stage Docker build: ~21MB final image (vs 171MB with Node)
 
 ## Security Notes
 
-- TOTP 2FA implementation using `speakeasy`
-- Passwords hashed with bcrypt (10 rounds)
-- Session cookies: httpOnly, secure (in production), sameSite: 'lax'
-- CSRF protection via session validation
+- TOTP 2FA implementation using `pquerna/otp`
+- Passwords hashed with argon2id (legacy bcrypt supported for migration)
+- Session cookies: httpOnly, secure (auto from X-Forwarded-Proto), sameSite: lax
+- CSRF protection via session-stored token + constant-time comparison
 - Input validation on all user-submitted data
 - Runs as non-root user in container
+- Security headers via custom middleware (CSP, HSTS, etc.)
 
 ## Things to Remember
 
@@ -260,11 +302,13 @@ const displayTz = targetUser?.timezone || 'UTC';
 2. **Never** commit `.env` files or secrets
 3. **Always** test Docker builds after structural changes
 4. **Use** Kaniko for CI builds (not Docker-in-Docker)
-5. **Keep** all app code in `src/` directory
+5. **Keep** backend code in `cmd/` and `internal/` directories
 6. **Maintain** the blue-purple color scheme
 7. **Never** auto-push to staging or main - user handles deployments
 8. **Never** commit directly to main - always commit to staging first, then merge to main
-9. **Footer quote:** "You got this. Trust me."
+9. **Footer quote:** "One day at a time"
 10. **Always** write tests for new or changed logic
 11. **Never** change the calorie input `inputmode` — it must stay `inputmode="tel"` to show the numeric keypad on mobile
 12. **Never** use `eval()` or `Function()` in client-side code — CSP blocks `unsafe-eval`. Use safe parsers instead
+13. **Run** `go test ./...` before committing Go changes
+14. **Session cookie** is `schautrack.sid`

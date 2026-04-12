@@ -22,10 +22,14 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Log calories and macros (protein, carbs, fat, fiber, sugar)
 - Daily goals with color-coded progress tracking
 - AI-powered nutrition estimation from food photos (OpenAI, Claude, or Ollama)
-- Weight tracking
+- Barcode scanning via OpenFoodFacts
+- Weight tracking with unit preference (kg/lbs)
+- Daily notes and recurring todos with streak tracking
 - Account linking to share data with friends
-- Real-time updates via SSE
-- Docker and Kubernetes ready
+- Two-factor authentication (TOTP) with backup codes
+- Invite-only registration mode
+- Real-time updates via Server-Sent Events (SSE)
+- Docker and Kubernetes ready (~21MB image)
 - Android app on Google Play
 
 ## Android App
@@ -47,7 +51,7 @@ sed -i "s/please-change-me/$(openssl rand -hex 32)/" .env
 docker compose up -d
 ```
 
-App is available at http://localhost:3000.
+App is available at http://localhost:8080.
 
 ## Kubernetes (Helm)
 
@@ -76,7 +80,7 @@ docker compose -f compose.dev.yml up --build
 
 ## Environment Variables
 
-Settings can be configured via environment variables (in .env or passed to the container). Some settings can also be changed by an admin in /admin. Environment variables always take precedence.
+Settings follow a strict priority hierarchy: **environment variables** > **admin panel** (`/admin`) > **user preferences**. When a higher-priority source sets a value, lower-priority sources are ignored and their UI controls are disabled.
 
 ### Required
 
@@ -98,10 +102,12 @@ Settings can be configured via environment variables (in .env or passed to the c
 
 Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 
+> **Configuration priority:** Environment variables > admin panel settings > user settings. When any global AI config is set (provider or key), user personal AI settings are ignored. Users can only bring their own API key when no global config exists.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, or `ollama`. Required to enable AI features. |
-| `AI_KEY` | *(empty)* | Global API key (fallback when users don't have their own) |
+| `AI_KEY` | *(empty)* | Global API key (used by all users; overrides personal keys) |
 | `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string for encrypting user API keys |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
 | `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
@@ -119,6 +125,20 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 | `SMTP_PASS` | *(empty)* | SMTP password |
 | `SMTP_FROM` | `SUPPORT_EMAIL` | From address for emails |
 | `SMTP_SECURE` | `false` | Set to `true` for SSL/TLS |
+
+### Features
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
+| `ENABLE_REGISTRATION` | `open` | `open` (anyone can register) or `false` / `invite` (requires invite code). Also configurable via `/admin`. |
+
+### Security
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
+| `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per minute per IP |
 
 ### Legal Pages
 

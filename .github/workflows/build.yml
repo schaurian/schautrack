@@ -7,10 +7,11 @@ on:
       - staging
     paths:
       - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'src/**'
-      - 'tests/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'client/**'
       - 'db/init.sql'
       - 'helm/**'
       - '.github/workflows/build.yml'
@@ -22,10 +23,11 @@ on:
       - staging
     paths:
       - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'src/**'
-      - 'tests/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'client/**'
       - 'db/init.sql'
       - 'helm/**'
       - '.github/workflows/build.yml'
@@ -41,17 +43,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
         with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+          go-version-file: go.mod
 
       - name: Run tests
-        run: npm test
+        run: go test ./...
 
   compute-version:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}

@@ -1,9 +1,16 @@
-node_modules
 .env
-npm-debug.log
 .DS_Store
+node_modules
 *.kubeconfig
 .vscode
 .claude
 IMPROVEMENTS.md
+client/dist
+e2e/.auth/
+test-results/
+playwright-report/
+blob-report/
+
+# Go binary
+/server
 

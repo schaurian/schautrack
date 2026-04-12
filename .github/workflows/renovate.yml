@@ -1,0 +1,24 @@
+name: Renovate
+
+on:
+  schedule:
+    - cron: "0 6 * * 5" # Fridays at 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: renovate
+  cancel-in-progress: true
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    container:
+      image: renovate/renovate:39
+    steps:
+      - name: Run Renovate
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_PLATFORM: github
+          LOG_LEVEL: info
+        run: renovate

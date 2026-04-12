@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: 'Noto Sans', system-ui, -apple-system, sans-serif;
+
+  --color-background: #070d1a;
+  --color-foreground: #e5e7eb;
+
+  --color-card: #0c1320;
+  --color-card-foreground: #e5e7eb;
+
+  --color-primary: #6d8cff;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #a855f7;
+  --color-secondary-foreground: #ffffff;
+
+  --color-muted: #1e293b;
+  --color-muted-foreground: #c4cad4;
+
+  --color-accent: #6d8cff;
+  --color-accent-foreground: #ffffff;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+
+  --color-warning: #eab308;
+  --color-warning-foreground: #ffffff;
+
+  --color-border: #182030;
+  --color-input: rgba(255, 255, 255, 0.08);
+  --color-ring: #6d8cff;
+
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+
+  /* Macro colors */
+  --color-macro-kcal: #6d8cff;
+  --color-macro-protein: #22d3ee;
+  --color-macro-carbs: #a78bfa;
+  --color-macro-fat: #fb923c;
+  --color-macro-fiber: #4ade80;
+  --color-macro-sugar: #f472b6;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+@layer base {
+  html {
+    height: 100%;
+    scroll-behavior: smooth;
+    color-scheme: dark;
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.15), transparent 50%),
+      radial-gradient(circle at 80% 10%, rgba(168, 85, 247, 0.25), transparent 50%),
+      radial-gradient(circle at 60% 80%, rgba(14, 165, 233, 0.12), transparent 45%),
+      radial-gradient(circle at 10% 70%, rgba(168, 85, 247, 0.22), transparent 45%),
+      radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08), transparent 60%),
+      linear-gradient(135deg, #070d1a, #0a1220);
+    background-attachment: fixed;
+    min-height: 100%;
+  }
+
+  ::selection {
+    background: rgba(14, 165, 233, 0.3);
+    color: var(--color-foreground);
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    @apply text-primary no-underline transition-colors;
+  }
+
+  a:hover {
+    color: #8da8ff;
+  }
+
+  input, select, textarea, button {
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  /* Autofill fix for dark theme */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--color-background) inset !important;
+    -webkit-text-fill-color: var(--color-foreground) !important;
+    box-shadow: 0 0 0 1000px var(--color-background) inset !important;
+    caret-color: var(--color-foreground);
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* Style date and time inputs for dark theme */
+  input[type="date"],
+  input[type="time"] {
+    color-scheme: dark;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+  }
+
+  /* Hide number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Better checkboxes */
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  input[type="checkbox"]:checked {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4.5px;
+    top: 1.5px;
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--color-background); }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #1e2a3e; }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-border) var(--color-background); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

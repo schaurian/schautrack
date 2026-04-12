@@ -1,36 +1,50 @@
-FROM node:24-alpine AS builder
+FROM node:24-alpine AS client
+
+WORKDIR /app/client
+
+COPY client/package*.json ./
+
+RUN npm ci && \
+    npm cache clean --force
+
+COPY client/ ./
+
+RUN npm run build
+
+FROM golang:1.26-alpine AS server
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN npm install --omit=dev --ignore-scripts && \
-    npm cache clean --force && \
-    rm -rf /root/.npm
+COPY cmd/ cmd/
+COPY internal/ internal/
 
-FROM node:24-alpine
+ARG BUILD_VERSION=dev
+RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${BUILD_VERSION}" -o /server ./cmd/server
 
-RUN apk add --no-cache dumb-init
+FROM alpine:3.23
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    adduser -D -u 1000 appuser
 
 WORKDIR /app
 
-# Copy only production dependencies from builder
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy all application files (everything is in src now)
-COPY --chown=node:node src ./src
-COPY --chown=node:node package.json ./
+COPY --from=server /server ./server
+COPY --from=client /app/client/dist ./client/dist
+COPY public ./public
 
 ARG BUILD_VERSION=dev
 ENV BUILD_VERSION=$BUILD_VERSION \
-    NODE_ENV=production \
     PORT=3000 \
     TZ=UTC
 
-# Run as non-root user
-USER node
+USER appuser
 
 EXPOSE 3000
 
-# Use dumb-init to handle signals properly
-CMD ["dumb-init", "node", "src/server.js"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
+    CMD wget -q --spider http://localhost:3000/api/health || exit 1
+
+CMD ["./server"]

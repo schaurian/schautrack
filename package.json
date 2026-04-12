@@ -1,37 +1,13 @@
 {
-  "name": "schautrack",
-  "version": "0.1.0",
-  "description": "Nutrition tracking web app with registration, 2FA, and Postgres",
-  "main": "src/server.js",
+  "private": true,
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "test": "jest --forceExit --detectOpenHandles",
-    "prepare": "husky"
-  },
-  "dependencies": {
-    "argon2": "^0.44.0",
-    "bcrypt": "^6.0.0",
-    "connect-pg-simple": "^10.0.0",
-    "dotenv": "^17.3.1",
-    "ejs": "^5.0.1",
-    "express": "^5.1.0",
-    "express-rate-limit": "^8.3.1",
-    "express-session": "^1.19.0",
-    "helmet": "^8.1.0",
-    "multer": "^2.1.1",
-    "nodemailer": "^8.0.1",
-    "pg": "^8.20.0",
-    "qrcode": "^1.5.3",
-    "speakeasy": "^2.0.0",
-    "svg-captcha": "^1.4.0"
+    "test:e2e": "docker compose -f compose.test.yml down -v; docker compose -f compose.test.yml up -d --build --wait && npx tsx e2e/setup-test-user.ts && npx playwright test; docker compose -f compose.test.yml down",
+    "test:e2e:ui": "docker compose -f compose.test.yml down -v; docker compose -f compose.test.yml up -d --build --wait && npx tsx e2e/setup-test-user.ts && npx playwright test --ui; docker compose -f compose.test.yml down",
+    "test:e2e:setup": "docker compose -f compose.test.yml down -v; docker compose -f compose.test.yml up -d --build --wait && npx tsx e2e/setup-test-user.ts",
+    "test:e2e:down": "docker compose -f compose.test.yml down -v"
   },
   "devDependencies": {
-    "@jest/globals": "^30.2.0",
-    "ejs-lint": "^2.0.1",
-    "husky": "^9.1.7",
-    "jest": "^30.3.0",
-    "nodemon": "^3.1.14",
-    "supertest": "^7.2.2"
+    "@playwright/test": "^1.59.1",
+    "tsx": "^4.19.0"
   }
 }
