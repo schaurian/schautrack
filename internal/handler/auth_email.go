@@ -43,22 +43,6 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tokenID, userID int
-	var expiresAt time.Time
-	err := h.Pool.QueryRow(r.Context(), `
-		SELECT evt.id, evt.user_id, evt.expires_at
-		FROM email_verification_tokens evt
-		JOIN users u ON u.id = evt.user_id
-		WHERE u.email = $1 AND evt.token = $2 AND evt.used = FALSE
-		ORDER BY evt.created_at DESC LIMIT 1`,
-		email, code).Scan(&tokenID, &userID, &expiresAt)
-
-	if err != nil || time.Now().After(expiresAt) {
-		sess.Set("verifyAttempts", attempts+1)
-		ErrorJSON(w, http.StatusBadRequest, "Invalid or expired code.")
-		return
-	}
-
 	tx, txErr := h.Pool.Begin(r.Context())
 	if txErr != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not verify email.")
@@ -66,10 +50,26 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	if _, txErr = tx.Exec(r.Context(), "UPDATE email_verification_tokens SET used = TRUE WHERE id = $1", tokenID); txErr != nil {
-		ErrorJSON(w, http.StatusInternalServerError, "Could not verify email.")
+	// Atomically find and mark the token as used to prevent TOCTOU races.
+	var userID int
+	err := tx.QueryRow(r.Context(), `
+		UPDATE email_verification_tokens evt
+		SET used = TRUE
+		FROM users u
+		WHERE u.id = evt.user_id
+			AND u.email = $1
+			AND evt.token = $2
+			AND evt.used = FALSE
+			AND evt.expires_at > NOW()
+		RETURNING evt.user_id`,
+		email, code).Scan(&userID)
+
+	if err != nil {
+		sess.Set("verifyAttempts", attempts+1)
+		ErrorJSON(w, http.StatusBadRequest, "Invalid or expired code.")
 		return
 	}
+
 	if _, txErr = tx.Exec(r.Context(), "UPDATE users SET email_verified = TRUE WHERE id = $1", userID); txErr != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not verify email.")
 		return
@@ -279,21 +279,6 @@ func (h *AuthHandler) EmailChangeVerify(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var tokenID int
-	var newEmail string
-	var expiresAt time.Time
-	err := h.Pool.QueryRow(r.Context(), `
-		SELECT id, new_email, expires_at
-		FROM email_verification_tokens
-		WHERE user_id = $1 AND token = $2 AND used = FALSE AND new_email IS NOT NULL
-		ORDER BY created_at DESC LIMIT 1`,
-		user.ID, code).Scan(&tokenID, &newEmail, &expiresAt)
-
-	if err != nil || time.Now().After(expiresAt) {
-		ErrorJSON(w, http.StatusBadRequest, "Invalid or expired verification code.")
-		return
-	}
-
 	tx, txErr := h.Pool.Begin(r.Context())
 	if txErr != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change email.")
@@ -301,11 +286,22 @@ func (h *AuthHandler) EmailChangeVerify(w http.ResponseWriter, r *http.Request) 
 	}
 	defer tx.Rollback(r.Context())
 
-	if _, txErr = tx.Exec(r.Context(), "UPDATE users SET email = $1 WHERE id = $2", newEmail, user.ID); txErr != nil {
-		ErrorJSON(w, http.StatusInternalServerError, "Could not change email.")
+	// Atomically find and mark the token as used to prevent TOCTOU races.
+	var newEmail string
+	err := tx.QueryRow(r.Context(), `
+		UPDATE email_verification_tokens
+		SET used = TRUE
+		WHERE user_id = $1 AND token = $2 AND used = FALSE
+			AND new_email IS NOT NULL AND expires_at > NOW()
+		RETURNING new_email`,
+		user.ID, code).Scan(&newEmail)
+
+	if err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid or expired verification code.")
 		return
 	}
-	if _, txErr = tx.Exec(r.Context(), "UPDATE email_verification_tokens SET used = TRUE WHERE id = $1", tokenID); txErr != nil {
+
+	if _, txErr = tx.Exec(r.Context(), "UPDATE users SET email = $1 WHERE id = $2", newEmail, user.ID); txErr != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change email.")
 		return
 	}

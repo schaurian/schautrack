@@ -77,7 +77,9 @@ func getTotalsByDate(r *http.Request, pool *pgxpool.Pool, userID int, oldest, ne
 	for rows.Next() {
 		var date string
 		var total int
-		rows.Scan(&date, &total)
+		if err := rows.Scan(&date, &total); err != nil {
+			continue
+		}
 		result[date] = total
 	}
 	return result

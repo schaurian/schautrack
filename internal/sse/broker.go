@@ -50,9 +50,7 @@ func (b *Broker) Unsubscribe(userID int, ch chan []byte) {
 		}
 	}
 	b.mu.Unlock()
-	// Drain channel
-	for range ch {
-	}
+	close(ch)
 }
 
 func (b *Broker) SendEvent(userID int, eventName string, payload any) {
@@ -63,10 +61,8 @@ func (b *Broker) SendEvent(userID int, eventName string, payload any) {
 	msg := fmt.Appendf(nil, "event: %s\ndata: %s\n\n", eventName, data)
 
 	b.mu.RLock()
-	set := b.clients[userID]
-	b.mu.RUnlock()
-
-	for ch := range set {
+	defer b.mu.RUnlock()
+	for ch := range b.clients[userID] {
 		select {
 		case ch <- msg:
 		default:
@@ -119,6 +115,13 @@ func (b *Broker) BroadcastLinkLabelChange(linkID, userID int, label string) {
 
 // ServeHTTP is the SSE endpoint handler.
 func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value("sseUserID").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
@@ -129,9 +132,6 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	flusher.Flush()
-
-	// Get user ID from context (set by auth middleware)
-	userID := r.Context().Value("sseUserID").(int)
 
 	ch := b.Subscribe(userID)
 	defer func() {
@@ -150,7 +150,10 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case msg := <-ch:
+		case msg, open := <-ch:
+			if !open {
+				return
+			}
 			w.Write(msg)
 			flusher.Flush()
 		case <-ticker.C:
@@ -179,11 +182,16 @@ func (b *Broker) cleanupLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		// Ping all clients
+		// Copy user IDs while holding lock, then send outside lock
+		// to avoid deadlock (SendEvent also acquires RLock).
 		b.mu.RLock()
+		userIDs := make([]int, 0, len(b.clients))
 		for userID := range b.clients {
-			b.SendEvent(userID, "cleanup-ping", map[string]any{})
+			userIDs = append(userIDs, userID)
 		}
 		b.mu.RUnlock()
+		for _, userID := range userIDs {
+			b.SendEvent(userID, "cleanup-ping", map[string]any{})
+		}
 	}
 }
