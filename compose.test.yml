@@ -14,6 +14,7 @@ services:
       - DATABASE_URL=postgresql://schautrack:testpass@db:5432/schautrack
       - SESSION_SECRET=e2e-test-session-secret-not-for-production
       - RATE_LIMIT_AUTH=1000
+      - RATE_LIMIT_STRICT=1000
       # ENABLE_BARCODE and ENABLE_REGISTRATION intentionally NOT set as env vars
       # so E2E tests can toggle them via admin_settings. Defaults: barcode=true, registration=open.
       - ADMIN_EMAIL=admin@test.com

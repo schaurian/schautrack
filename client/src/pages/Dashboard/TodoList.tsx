@@ -178,9 +178,9 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
     );
     try {
       await toggleTodo(todo.id, date);
-      queryClient.refetchQueries({ queryKey: ['todos-day', userId, date] });
+      queryClient.invalidateQueries({ queryKey: ['todos-day', userId, date] });
     } catch {
-      queryClient.refetchQueries({ queryKey: ['todos-day', userId, date] });
+      queryClient.invalidateQueries({ queryKey: ['todos-day', userId, date] });
     }
   };
 
@@ -304,8 +304,8 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
   const [saving, setSaving] = useState(false);
 
   const refresh = () => {
-    queryClient.refetchQueries({ queryKey: ['todos'] });
-    queryClient.refetchQueries({ queryKey: ['todos-day'] });
+    queryClient.invalidateQueries({ queryKey: ['todos'] });
+    queryClient.invalidateQueries({ queryKey: ['todos-day'] });
   };
 
   const handleCreate = async (e: React.FormEvent) => {

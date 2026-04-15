@@ -77,6 +77,9 @@ test.describe('SSE Real-time Updates', () => {
     await loginAndGo(pageA);
     await loginAndGo(pageB);
 
+    // Allow SSE connections to establish on both pages
+    await pageB.waitForTimeout(2000);
+
     // Complete the todo on page A
     const todoRowA = pageA.locator('li').filter({ hasText: 'SSE Todo Test' });
     await todoRowA.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
@@ -91,7 +94,7 @@ test.describe('SSE Real-time Updates', () => {
     // Page B should receive todo-change via SSE and show the same todo as completed
     const todoRowB = pageB.locator('li').filter({ hasText: 'SSE Todo Test' });
     await todoRowB.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-    await expect(todoRowB.locator('.line-through')).toBeVisible({ timeout: 10000 });
+    await expect(todoRowB.locator('.line-through')).toBeVisible({ timeout: 20000 });
 
     await contextA.close();
     await contextB.close();

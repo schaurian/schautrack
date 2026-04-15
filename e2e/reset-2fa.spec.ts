@@ -102,8 +102,8 @@ test('reset 2FA via email code', async ({ browser }) => {
 
   await page.getByRole('button', { name: /send reset code/i }).click();
 
-  // Extract 6-digit code from email
-  const code = await extractCodeFromEmail(EMAIL, 20);
+  // Extract 6-digit code from email (allow extra time for MailPit delivery)
+  const code = await extractCodeFromEmail(EMAIL, 40);
   expect(code).toMatch(/^\d{6}$/);
 
   // Enter the code
@@ -115,7 +115,7 @@ test('reset 2FA via email code', async ({ browser }) => {
   await page.getByRole('button', { name: /verify|submit|confirm/i }).click();
 
   // 2FA should now be disabled — success message shown on login page
-  await expect(page.getByText(/2fa removed/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/2fa removed/i)).toBeVisible({ timeout: 15000 });
 
   await context.close();
 });

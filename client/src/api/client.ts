@@ -33,7 +33,7 @@ export async function api<T = unknown>(
     }
   }
 
-  const res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+  const res = await fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
 
   // On 403 (CSRF failure), retry once with fresh token
   if (res.status === 403) {

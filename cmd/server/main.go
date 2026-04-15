@@ -62,7 +62,7 @@ func main() {
 	sessionStore := session.NewStore(pool, cfg.SessionSecret)
 	emailService := service.NewEmailService(cfg)
 	authLimiter := middleware.NewRateLimiter(cfg.RateLimitAuth, 15*time.Minute, cfg.TrustProxy)
-	strictLimiter := middleware.NewRateLimiter(5, 5*time.Minute, cfg.TrustProxy)
+	strictLimiter := middleware.NewRateLimiter(cfg.RateLimitStrict, 5*time.Minute, cfg.TrustProxy)
 	barcodeLimiter := middleware.NewRateLimiter(30, time.Minute, cfg.TrustProxy)
 
 	// SSE broker

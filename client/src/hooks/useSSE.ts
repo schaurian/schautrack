@@ -15,33 +15,33 @@ export function useSSE() {
       sourceRef.current = source;
 
       source.addEventListener('entry-change', () => {
-        queryClient.refetchQueries({ queryKey: ['dashboard'] });
-        queryClient.refetchQueries({ queryKey: ['day-entries'] });
-        queryClient.refetchQueries({ queryKey: ['overview'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['day-entries'] });
+        queryClient.invalidateQueries({ queryKey: ['overview'] });
       });
 
       source.addEventListener('settings-change', () => {
-        queryClient.refetchQueries({ queryKey: ['dashboard'] });
-        queryClient.refetchQueries({ queryKey: ['me'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['me'] });
       });
 
       source.addEventListener('link-change', () => {
-        queryClient.refetchQueries({ queryKey: ['dashboard'] });
-        queryClient.refetchQueries({ queryKey: ['settings'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['settings'] });
       });
 
       source.addEventListener('link-label-change', () => {
-        queryClient.refetchQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       });
 
       source.addEventListener('todo-change', () => {
-        queryClient.refetchQueries({ queryKey: ['dashboard'] });
-        queryClient.refetchQueries({ queryKey: ['todos'] });
-        queryClient.refetchQueries({ queryKey: ['todos-day'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['todos'] });
+        queryClient.invalidateQueries({ queryKey: ['todos-day'] });
       });
 
       source.addEventListener('note-change', () => {
-        queryClient.refetchQueries({ queryKey: ['note'] });
+        queryClient.invalidateQueries({ queryKey: ['note'] });
       });
 
       source.onopen = () => {
