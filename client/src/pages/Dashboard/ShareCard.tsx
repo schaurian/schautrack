@@ -28,7 +28,7 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
     if (trimmed && trimmed !== view.label) {
       try {
         await updateLinkLabel(view.linkId, trimmed);
-        queryClient.refetchQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       } catch (err) {
         useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to update label');
       }

@@ -29,7 +29,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     setLoading(true);
     try {
       await upsertWeight({ date: selectedDate, weight: num });
-      queryClient.refetchQueries({ queryKey: ['weight'] });
+      queryClient.invalidateQueries({ queryKey: ['weight'] });
       addToast('success', 'Weight tracked');
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to save weight');
@@ -42,7 +42,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     setLoading(true);
     try {
       await deleteWeight(weightEntry.id);
-      queryClient.refetchQueries({ queryKey: ['weight'] });
+      queryClient.invalidateQueries({ queryKey: ['weight'] });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to delete weight');
     }
