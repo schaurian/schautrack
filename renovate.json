@@ -3,5 +3,7 @@
   "extends": ["config:recommended"],
   "baseBranches": ["staging"],
   "timezone": "Europe/Berlin",
-  "labels": ["dependencies"]
+  "labels": ["dependencies"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0
 }
