@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -47,6 +48,24 @@ type Config struct {
 	SMTPPass   string
 	SMTPFrom   string
 	SMTPSecure bool
+
+	// OIDC
+	OIDCProviders    []OIDCProvider
+	OIDCRequireInvite bool
+	OIDCRedirectURL   string
+
+	// Passkeys
+	PasskeysRPID      string
+	PasskeysRPName    string
+	PasskeysRPOrigins []string
+}
+
+type OIDCProvider struct {
+	Name         string
+	ClientID     string
+	ClientSecret string
+	IssuerURL    string
+	Label        string
 }
 
 func Load() (*Config, error) {
@@ -117,6 +136,14 @@ func Load() (*Config, error) {
 		SMTPPass:   os.Getenv("SMTP_PASS"),
 		SMTPFrom:   os.Getenv("SMTP_FROM"),
 		SMTPSecure: os.Getenv("SMTP_SECURE") == "true",
+
+		OIDCProviders:     parseOIDCProviders(),
+		OIDCRequireInvite: os.Getenv("OIDC_REQUIRE_INVITE") == "true",
+		OIDCRedirectURL:   os.Getenv("OIDC_REDIRECT_URL"),
+
+		PasskeysRPID:      os.Getenv("PASSKEYS_RP_ID"),
+		PasskeysRPName:    envOr("PASSKEYS_RP_NAME", "Schautrack"),
+		PasskeysRPOrigins: parseCSV(os.Getenv("PASSKEYS_RP_ORIGINS")),
 	}, nil
 }
 
@@ -129,4 +156,75 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func parseCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// Well-known OIDC issuers
+var wellKnownIssuers = map[string]string{
+	"google": "https://accounts.google.com",
+}
+
+func parseOIDCProviders() []OIDCProvider {
+	names := parseCSV(os.Getenv("OIDC_PROVIDERS"))
+	if len(names) == 0 {
+		return nil
+	}
+	providers := make([]OIDCProvider, 0, len(names))
+	for _, name := range names {
+		upper := strings.ToUpper(name)
+		clientID := os.Getenv("OIDC_" + upper + "_CLIENT_ID")
+		clientSecret := os.Getenv("OIDC_" + upper + "_CLIENT_SECRET")
+		if clientID == "" || clientSecret == "" {
+			continue
+		}
+		issuer := os.Getenv("OIDC_" + upper + "_ISSUER")
+		if issuer == "" {
+			issuer = wellKnownIssuers[strings.ToLower(name)]
+		}
+		if issuer == "" {
+			continue // no issuer, skip
+		}
+		label := os.Getenv("OIDC_" + upper + "_LABEL")
+		if label == "" {
+			label = strings.ToUpper(name[:1]) + name[1:]
+		}
+		providers = append(providers, OIDCProvider{
+			Name:         strings.ToLower(name),
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			IssuerURL:    issuer,
+			Label:        label,
+		})
+	}
+	return providers
+}
+
+func (c *Config) PasskeysEnabled() bool {
+	return c.PasskeysRPID != ""
+}
+
+func (c *Config) OIDCEnabled() bool {
+	return len(c.OIDCProviders) > 0
+}
+
+func (c *Config) FindOIDCProvider(name string) *OIDCProvider {
+	for i := range c.OIDCProviders {
+		if c.OIDCProviders[i].Name == name {
+			return &c.OIDCProviders[i]
+		}
+	}
+	return nil
 }

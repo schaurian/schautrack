@@ -506,6 +506,48 @@ func InitSchemaWithRetry(ctx context.Context, pool *pgxpool.Pool, maxRetries int
 	return nil
 }
 
+func ensureOIDCAccountsSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS user_oidc_accounts (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				provider TEXT NOT NULL,
+				subject TEXT NOT NULL,
+				email TEXT,
+				created_at TIMESTAMPTZ DEFAULT NOW(),
+				UNIQUE(provider, subject)
+			)`)
+		if err != nil {
+			return err
+		}
+		// Allow OIDC-only users without a password
+		_, err = tx.Exec(ctx, `
+			ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`)
+		return err
+	})
+}
+
+func ensurePasskeysSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS user_passkeys (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				credential_id BYTEA NOT NULL UNIQUE,
+				public_key BYTEA NOT NULL,
+				attestation_type TEXT,
+				transports TEXT,
+				name TEXT NOT NULL,
+				sign_count INTEGER DEFAULT 0,
+				aaguid BYTEA,
+				created_at TIMESTAMPTZ DEFAULT NOW(),
+				last_used_at TIMESTAMPTZ
+			)`)
+		return err
+	})
+}
+
 func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Base tables first (others depend on them)
 	if err := ensureBaseSchema(ctx, pool); err != nil {
@@ -531,6 +573,8 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"ai_keys", ensureAIKeysSchema},
 		{"ai_usage", ensureAIUsageSchema},
 		{"macros", ensureMacroSchema},
+		{"oidc_accounts", ensureOIDCAccountsSchema},
+		{"passkeys", ensurePasskeysSchema},
 	}
 
 	results := make(chan migrationResult, len(migrations))

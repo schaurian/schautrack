@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-webauthn/webauthn/webauthn"
 
 	"schautrack/internal/config"
 	"schautrack/internal/database"
@@ -77,6 +78,35 @@ func main() {
 		Settings:     settingsCache,
 	}
 
+	// OIDC handler
+	var oidcHandler *handler.OIDCHandler
+	if cfg.OIDCEnabled() {
+		var err error
+		oidcHandler, err = handler.NewOIDCHandler(ctx, pool, cfg, settingsCache, sessionStore)
+		if err != nil {
+			slog.Warn("OIDC init failed", "error", err)
+		}
+	}
+
+	// Passkey handler
+	var passkeyHandler *handler.PasskeyHandler
+	if cfg.PasskeysEnabled() {
+		origins := cfg.PasskeysRPOrigins
+		if len(origins) == 0 {
+			origins = []string{"https://" + cfg.PasskeysRPID}
+		}
+		wauthn, err := webauthn.New(&webauthn.Config{
+			RPID:          cfg.PasskeysRPID,
+			RPDisplayName: cfg.PasskeysRPName,
+			RPOrigins:     origins,
+		})
+		if err != nil {
+			slog.Error("WebAuthn init failed", "error", err)
+		} else {
+			passkeyHandler = &handler.PasskeyHandler{Pool: pool, WebAuthn: wauthn, SessionStore: sessionStore}
+		}
+	}
+
 	// Router
 	r := chi.NewRouter()
 	r.Use(middleware.Recovery)
@@ -109,6 +139,7 @@ func main() {
 		r.With(session.CsrfProtection).Post("/auth/verify-email/resend", authHandler.VerifyEmailResend)
 		r.Get("/auth/captcha", authHandler.Captcha)
 		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/reset-2fa", authHandler.Reset2FA)
+		r.Get("/auth/info", handler.AuthInfo(cfg))
 
 		// Settings (requires login)
 		r.With(middleware.RequireLogin).Get("/settings", handler.Settings(pool, cfg.AdminEmail, settingsCache, cfg))
@@ -116,6 +147,24 @@ func main() {
 		// Admin (requires admin)
 		r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail)).Get("/admin", handler.AdminData(pool, settingsCache, cfg.AdminEmail))
 	})
+
+	// OIDC routes
+	if oidcHandler != nil {
+		r.Get("/auth/oidc/{provider}/login", oidcHandler.Login)
+		r.Get("/auth/oidc/{provider}/callback", oidcHandler.Callback)
+		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/oidc/unlink", oidcHandler.Unlink)
+	}
+
+	// Passkey routes
+	if passkeyHandler != nil {
+		r.Post("/passkeys/login/begin", passkeyHandler.LoginBegin)
+		r.Post("/passkeys/login/finish", passkeyHandler.LoginFinish)
+		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/passkeys/register/begin", passkeyHandler.RegisterBegin)
+		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/passkeys/register/finish", passkeyHandler.RegisterFinish)
+		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/passkeys/delete", passkeyHandler.Delete)
+		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/passkeys/rename", passkeyHandler.Rename)
+		r.With(middleware.RequireLogin).Get("/passkeys/list", passkeyHandler.List)
+	}
 
 	// Non-API authenticated routes
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/delete", authHandler.DeleteAccount)

@@ -24,6 +24,20 @@ func CsrfToken(w http.ResponseWriter, r *http.Request) {
 	JSON(w, http.StatusOK, map[string]any{"token": token})
 }
 
+// AuthInfo handles GET /auth/info — returns available auth methods (public, no auth required).
+func AuthInfo(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		providers := make([]map[string]string, 0)
+		for _, p := range cfg.OIDCProviders {
+			providers = append(providers, map[string]string{"name": p.Name, "label": p.Label})
+		}
+		JSON(w, http.StatusOK, map[string]any{
+			"passkeysEnabled": cfg.PasskeysEnabled(),
+			"oidcProviders":   providers,
+		})
+	}
+}
+
 // Me handles GET /api/me
 func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +73,13 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 			"SELECT count(*) FROM account_links WHERE target_id = $1 AND status = 'pending'",
 			user.ID).Scan(&pendingLinkRequests)
 
+		passkeyCount, _ := service.CountPasskeys(r.Context(), pool, user.ID)
+		oidcAccounts, _ := service.ListOIDCAccounts(r.Context(), pool, user.ID)
+		oidcProviderNames := make([]string, len(oidcAccounts))
+		for i, a := range oidcAccounts {
+			oidcProviderNames[i] = a.Provider
+		}
+
 		JSON(w, http.StatusOK, map[string]any{
 			"user": map[string]any{
 				"id":                  user.ID,
@@ -78,6 +99,8 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 				"aiDailyLimit":       user.AIDailyLimit,
 				"todosEnabled":       user.TodosEnabled,
 				"notesEnabled":       user.NotesEnabled,
+				"passkeyCount":       passkeyCount,
+				"oidcProviders":      oidcProviderNames,
 			},
 			"isAdmin":             middleware.IsAdmin(user, adminEmail),
 			"pendingLinkRequests": pendingLinkRequests,
