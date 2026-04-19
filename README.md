@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/schaurian/schautrack)](LICENSE)
 [![Docker Pulls](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/schaurian/schautrack/pkgs/container/schautrack)
 
-Schautrack is a self-hostable, open-source, AI-powered nutrition tracker for you and your friends.
+Schautrack is a self-hostable, open-source nutrition tracker — log calories, macros, and weight, set goals, and share progress with friends.
 
 **Try it:** [schautrack.com](https://schautrack.com)
 
