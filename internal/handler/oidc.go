@@ -197,9 +197,14 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 
 	var userID int
 	defaultMacros, _ := json.Marshal(map[string]bool{"calories": true})
+	clientTz := middleware.GetClientTimezone(r)
+	var tzArg any
+	if clientTz != "" {
+		tzArg = clientTz
+	}
 	err = tx.QueryRow(ctx,
-		`INSERT INTO users (email, email_verified, macros_enabled) VALUES ($1, true, $2) RETURNING id`,
-		email, defaultMacros).Scan(&userID)
+		`INSERT INTO users (email, email_verified, macros_enabled, timezone) VALUES ($1, true, $2, $3) RETURNING id`,
+		email, defaultMacros, tzArg).Scan(&userID)
 	if err != nil {
 		slog.Error("OIDC auto-create user failed", "email", email, "error", err)
 		http.Redirect(w, r, "/login?error=create_failed", http.StatusFound)
