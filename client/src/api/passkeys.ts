@@ -51,9 +51,15 @@ export interface Passkey {
   lastUsedAt: string | null;
 }
 
+export interface OIDCInfo {
+  label: string;
+  slug: string;
+  logo: string;
+}
+
 export interface AuthInfo {
   passkeysEnabled: boolean;
-  oidcProviders: { name: string; label: string }[];
+  oidc: OIDCInfo | null;
 }
 
 // WebAuthn type helpers (simplified for browser API)

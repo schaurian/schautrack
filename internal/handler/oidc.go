@@ -21,57 +21,46 @@ import (
 )
 
 type OIDCHandler struct {
-	Pool          *pgxpool.Pool
-	Cfg           *config.Config
-	Settings      *database.SettingsCache
-	SessionStore  *session.Store
-	verifiers     map[string]*oidc.IDTokenVerifier
-	oauth2Configs map[string]*oauth2.Config
+	Pool         *pgxpool.Pool
+	Cfg          *config.Config
+	Settings     *database.SettingsCache
+	SessionStore *session.Store
+	verifier     *oidc.IDTokenVerifier
+	oauth2Config *oauth2.Config
+	providerSlug string
 }
 
 func NewOIDCHandler(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, settings *database.SettingsCache, store *session.Store) (*OIDCHandler, error) {
-	h := &OIDCHandler{
-		Pool:          pool,
-		Cfg:           cfg,
-		Settings:      settings,
-		SessionStore:  store,
-		verifiers:     make(map[string]*oidc.IDTokenVerifier),
-		oauth2Configs: make(map[string]*oauth2.Config),
+	if cfg.OIDC == nil {
+		return nil, nil
 	}
-
-	for _, p := range cfg.OIDCProviders {
-		provider, err := oidc.NewProvider(ctx, p.IssuerURL)
-		if err != nil {
-			slog.Error("failed to initialize OIDC provider", "name", p.Name, "error", err)
-			continue
-		}
-
-		redirectURL := cfg.OIDCRedirectURL
-		if redirectURL == "" && cfg.BaseURL != "" {
-			redirectURL = strings.TrimRight(cfg.BaseURL, "/") + "/auth/oidc/" + p.Name + "/callback"
-		}
-
-		h.verifiers[p.Name] = provider.Verifier(&oidc.Config{ClientID: p.ClientID})
-		h.oauth2Configs[p.Name] = &oauth2.Config{
-			ClientID:     p.ClientID,
-			ClientSecret: p.ClientSecret,
+	c := cfg.OIDC
+	provider, err := oidc.NewProvider(ctx, c.Issuer)
+	if err != nil {
+		return nil, err
+	}
+	redirectURL := cfg.OIDCRedirectURL
+	if redirectURL == "" && cfg.BaseURL != "" {
+		redirectURL = strings.TrimRight(cfg.BaseURL, "/") + "/auth/oidc/callback"
+	}
+	return &OIDCHandler{
+		Pool:         pool,
+		Cfg:          cfg,
+		Settings:     settings,
+		SessionStore: store,
+		verifier:     provider.Verifier(&oidc.Config{ClientID: c.ClientID}),
+		oauth2Config: &oauth2.Config{
+			ClientID:     c.ClientID,
+			ClientSecret: c.ClientSecret,
 			Endpoint:     provider.Endpoint(),
 			RedirectURL:  redirectURL,
 			Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
-		}
-	}
-
-	return h, nil
+		},
+		providerSlug: c.Slug,
+	}, nil
 }
 
 func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
-	providerName := r.PathValue("provider")
-	oauthCfg, ok := h.oauth2Configs[providerName]
-	if !ok {
-		http.Error(w, "Unknown provider", http.StatusNotFound)
-		return
-	}
-
 	state, err := generateRandomString(32)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
@@ -86,7 +75,6 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 	sess := session.GetSession(r)
 	sess.Set("oidc_state", state)
 	sess.Set("oidc_nonce", nonce)
-	sess.Set("oidc_provider", providerName)
 
 	// Check if this is a link operation (user already logged in)
 	user := middleware.GetCurrentUser(r)
@@ -96,23 +84,11 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 		sess.Set("oidc_intent", "login")
 	}
 
-	url := oauthCfg.AuthCodeURL(state, oidc.Nonce(nonce))
+	url := h.oauth2Config.AuthCodeURL(state, oidc.Nonce(nonce))
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
-	providerName := r.PathValue("provider")
-	oauthCfg, ok := h.oauth2Configs[providerName]
-	if !ok {
-		http.Redirect(w, r, "/login?error=unknown_provider", http.StatusFound)
-		return
-	}
-	verifier, ok := h.verifiers[providerName]
-	if !ok {
-		http.Redirect(w, r, "/login?error=provider_not_configured", http.StatusFound)
-		return
-	}
-
 	sess := session.GetSession(r)
 	savedState := sess.GetString("oidc_state")
 	savedNonce := sess.GetString("oidc_nonce")
@@ -121,7 +97,6 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Clean up session
 	sess.Delete("oidc_state")
 	sess.Delete("oidc_nonce")
-	sess.Delete("oidc_provider")
 	sess.Delete("oidc_intent")
 
 	if r.URL.Query().Get("state") != savedState || savedState == "" {
@@ -129,9 +104,9 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := oauthCfg.Exchange(r.Context(), r.URL.Query().Get("code"))
+	token, err := h.oauth2Config.Exchange(r.Context(), r.URL.Query().Get("code"))
 	if err != nil {
-		slog.Error("OIDC code exchange failed", "provider", providerName, "error", err)
+		slog.Error("OIDC code exchange failed", "error", err)
 		http.Redirect(w, r, "/login?error=exchange_failed", http.StatusFound)
 		return
 	}
@@ -142,9 +117,9 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := verifier.Verify(r.Context(), rawIDToken)
+	idToken, err := h.verifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
-		slog.Error("OIDC token verification failed", "provider", providerName, "error", err)
+		slog.Error("OIDC token verification failed", "error", err)
 		http.Redirect(w, r, "/login?error=verification_failed", http.StatusFound)
 		return
 	}
@@ -166,11 +141,11 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	claims.Email = strings.ToLower(strings.TrimSpace(claims.Email))
 
 	if intent == "link" {
-		h.handleLink(w, r, sess, providerName, claims.Sub, claims.Email)
+		h.handleLink(w, r, sess, h.providerSlug, claims.Sub, claims.Email)
 		return
 	}
 
-	h.handleLogin(w, r, sess, providerName, claims.Sub, claims.Email)
+	h.handleLogin(w, r, sess, h.providerSlug, claims.Sub, claims.Email)
 }
 
 func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject, email string) {

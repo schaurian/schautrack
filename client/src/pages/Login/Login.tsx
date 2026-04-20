@@ -158,19 +158,23 @@ export default function Login() {
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
 
-        {!requireToken && !resetMode && authInfo && (authInfo.passkeysEnabled || authInfo.oidcProviders.length > 0) && (
+        {!requireToken && !resetMode && authInfo && (authInfo.passkeysEnabled || authInfo.oidc) && (
           <div className="flex flex-col gap-2 mb-2">
             {authInfo.passkeysEnabled && (
               <Button type="button" variant="outline" className="w-full" loading={passkeyLoading} onClick={handlePasskeyLogin}>
                 Sign in with passkey
               </Button>
             )}
-            {authInfo.oidcProviders.map((p) => (
-              <Button key={p.name} type="button" variant="outline" className="w-full"
-                onClick={() => { window.location.href = `/auth/oidc/${p.name}/login`; }}>
-                Sign in with {p.label}
+            {authInfo.oidc && (
+              <Button type="button" variant="outline" className="w-full"
+                onClick={() => { window.location.href = '/auth/oidc/login'; }}>
+                {authInfo.oidc.logo && (
+                  <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                )}
+                Sign in with {authInfo.oidc.label}
               </Button>
-            ))}
+            )}
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
               <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>

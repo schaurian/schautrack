@@ -135,24 +135,27 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 
 ### OIDC (Single Sign-On)
 
-Generic OpenID Connect support — works with Google, Keycloak, Authentik, and any OIDC-compliant provider. Users are auto-created on first login and auto-linked by email to existing accounts.
+Generic OpenID Connect — works with Google, Microsoft, GitHub, GitLab, Apple, Keycloak, Authentik, Authelia, Zitadel, or any OIDC-compliant provider. Users are auto-created on first login and auto-linked by email to existing accounts.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OIDC_PROVIDERS` | *(empty)* | Comma-separated list of provider names (e.g., `google,corporate`) |
-| `OIDC_<NAME>_CLIENT_ID` | *(empty)* | OAuth2 client ID for the provider |
-| `OIDC_<NAME>_CLIENT_SECRET` | *(empty)* | OAuth2 client secret for the provider |
-| `OIDC_<NAME>_ISSUER` | *(auto)* | OIDC issuer URL. Auto-detected for `google`. |
-| `OIDC_<NAME>_LABEL` | *(name)* | Button label (default: capitalized provider name) |
+| `OIDC_ISSUER` | *(empty)* | OIDC issuer URL (e.g., `https://accounts.google.com`). **Enables OIDC when set.** |
+| `OIDC_CLIENT_ID` | *(empty)* | OAuth2 client ID |
+| `OIDC_CLIENT_SECRET` | *(empty)* | OAuth2 client secret |
+| `OIDC_LABEL` | *(derived)* | Button label. Defaults to a capitalized brand name inferred from the issuer host. |
 | `OIDC_REQUIRE_INVITE` | `false` | Require invite code for OIDC registration (default: OIDC bypasses invite-only) |
-| `OIDC_REDIRECT_URL` | *(auto)* | Callback URL (auto-detected from `BASE_URL`) |
+| `OIDC_REDIRECT_URL` | *(auto)* | Callback URL. Auto-built as `<BASE_URL>/auth/oidc/callback` when unset. |
+
+A logo is auto-selected from a small bundled set (Google, Microsoft, GitHub, GitLab, Apple, Keycloak, Authentik, Authelia, Zitadel) when the issuer URL contains the brand name. Otherwise the button shows text only.
 
 **Example (Google):**
 ```env
-OIDC_PROVIDERS=google
-OIDC_GOOGLE_CLIENT_ID=123456.apps.googleusercontent.com
-OIDC_GOOGLE_CLIENT_SECRET=GOCSPX-...
+OIDC_ISSUER=https://accounts.google.com
+OIDC_CLIENT_ID=123456.apps.googleusercontent.com
+OIDC_CLIENT_SECRET=GOCSPX-...
 ```
+
+Add `https://<your-domain>/auth/oidc/callback` as an authorized redirect URI in your provider's OAuth client.
 
 ### Passkeys
 

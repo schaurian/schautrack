@@ -107,7 +107,7 @@ export default function Settings() {
           <PasskeySettings onUpdate={refresh} />
         </div>
         <div className="break-inside-avoid">
-          <OIDCSettings linkedProviders={data.user.oidcProviders || []} onUpdate={refresh} />
+          <OIDCSettings linked={data.user.oidcLinked || false} onUpdate={refresh} />
         </div>
         <div className="break-inside-avoid">
           <LinkSettings

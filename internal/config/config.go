@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -49,8 +50,8 @@ type Config struct {
 	SMTPFrom   string
 	SMTPSecure bool
 
-	// OIDC
-	OIDCProviders    []OIDCProvider
+	// OIDC (single provider)
+	OIDC              *OIDCConfig
 	OIDCRequireInvite bool
 	OIDCRedirectURL   string
 
@@ -60,12 +61,13 @@ type Config struct {
 	PasskeysRPOrigins []string
 }
 
-type OIDCProvider struct {
-	Name         string
+type OIDCConfig struct {
+	Issuer       string
 	ClientID     string
 	ClientSecret string
-	IssuerURL    string
-	Label        string
+	Label        string // button text
+	Slug         string // stable key for DB + logo lookup (derived from issuer hostname)
+	LogoURL      string // "/oidc-logos/<slug>.svg" if slug matches a known brand, else ""
 }
 
 func Load() (*Config, error) {
@@ -137,7 +139,7 @@ func Load() (*Config, error) {
 		SMTPFrom:   os.Getenv("SMTP_FROM"),
 		SMTPSecure: os.Getenv("SMTP_SECURE") == "true",
 
-		OIDCProviders:     parseOIDCProviders(),
+		OIDC:              parseOIDCConfig(),
 		OIDCRequireInvite: os.Getenv("OIDC_REQUIRE_INVITE") == "true",
 		OIDCRedirectURL:   os.Getenv("OIDC_REDIRECT_URL"),
 
@@ -172,44 +174,57 @@ func parseCSV(s string) []string {
 	return out
 }
 
-// Well-known OIDC issuers
-var wellKnownIssuers = map[string]string{
-	"google": "https://accounts.google.com",
+// bundledLogoSlugs names the SVG files shipped under public/oidc-logos/.
+// Order matters: matched left-to-right via substring against the issuer URL.
+var bundledLogoSlugs = []string{
+	"google", "microsoft", "github", "gitlab", "apple",
+	"authentik", "keycloak", "authelia", "zitadel",
 }
 
-func parseOIDCProviders() []OIDCProvider {
-	names := parseCSV(os.Getenv("OIDC_PROVIDERS"))
-	if len(names) == 0 {
+// deriveSlugAndLogo picks a stable slug from the issuer URL.
+// If the hostname (or path) contains a known brand, the slug is that brand
+// and a bundled SVG URL is returned. Otherwise the slug falls back to the
+// hostname and no logo is shown.
+func deriveSlugAndLogo(issuer string) (slug, logoURL string) {
+	u, err := url.Parse(issuer)
+	if err != nil || u.Host == "" {
+		return "oidc", ""
+	}
+	host := strings.ToLower(u.Host)
+	// Microsoft's well-known issuer is "login.microsoftonline.com" — map it to the "microsoft" bundle.
+	haystack := host + u.Path
+	for _, s := range bundledLogoSlugs {
+		if strings.Contains(haystack, s) {
+			return s, "/oidc-logos/" + s + ".svg"
+		}
+	}
+	return host, ""
+}
+
+func parseOIDCConfig() *OIDCConfig {
+	issuer := strings.TrimSpace(os.Getenv("OIDC_ISSUER"))
+	clientID := os.Getenv("OIDC_CLIENT_ID")
+	clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
+	if issuer == "" || clientID == "" || clientSecret == "" {
 		return nil
 	}
-	providers := make([]OIDCProvider, 0, len(names))
-	for _, name := range names {
-		upper := strings.ToUpper(name)
-		clientID := os.Getenv("OIDC_" + upper + "_CLIENT_ID")
-		clientSecret := os.Getenv("OIDC_" + upper + "_CLIENT_SECRET")
-		if clientID == "" || clientSecret == "" {
-			continue
+	slug, logoURL := deriveSlugAndLogo(issuer)
+	label := os.Getenv("OIDC_LABEL")
+	if label == "" {
+		if slug != "" && slug != "oidc" {
+			label = strings.ToUpper(slug[:1]) + slug[1:]
+		} else {
+			label = "SSO"
 		}
-		issuer := os.Getenv("OIDC_" + upper + "_ISSUER")
-		if issuer == "" {
-			issuer = wellKnownIssuers[strings.ToLower(name)]
-		}
-		if issuer == "" {
-			continue // no issuer, skip
-		}
-		label := os.Getenv("OIDC_" + upper + "_LABEL")
-		if label == "" {
-			label = strings.ToUpper(name[:1]) + name[1:]
-		}
-		providers = append(providers, OIDCProvider{
-			Name:         strings.ToLower(name),
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			IssuerURL:    issuer,
-			Label:        label,
-		})
 	}
-	return providers
+	return &OIDCConfig{
+		Issuer:       issuer,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Label:        label,
+		Slug:         slug,
+		LogoURL:      logoURL,
+	}
 }
 
 func (c *Config) PasskeysEnabled() bool {
@@ -217,14 +232,5 @@ func (c *Config) PasskeysEnabled() bool {
 }
 
 func (c *Config) OIDCEnabled() bool {
-	return len(c.OIDCProviders) > 0
-}
-
-func (c *Config) FindOIDCProvider(name string) *OIDCProvider {
-	for i := range c.OIDCProviders {
-		if c.OIDCProviders[i].Name == name {
-			return &c.OIDCProviders[i]
-		}
-	}
-	return nil
+	return c.OIDC != nil
 }

@@ -150,8 +150,8 @@ func main() {
 
 	// OIDC routes
 	if oidcHandler != nil {
-		r.Get("/auth/oidc/{provider}/login", oidcHandler.Login)
-		r.Get("/auth/oidc/{provider}/callback", oidcHandler.Callback)
+		r.Get("/auth/oidc/login", oidcHandler.Login)
+		r.Get("/auth/oidc/callback", oidcHandler.Callback)
 		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/oidc/unlink", oidcHandler.Unlink)
 	}
 
