@@ -141,6 +141,8 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 
 		hasTempSecret := sess.GetString("tempSecret") != ""
 
+		oidcAccounts, _ := service.ListOIDCAccounts(r.Context(), pool, user.ID)
+
 		const maxLinks = MaxLinks
 
 		// Build user response
@@ -161,6 +163,7 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 			"todosEnabled":       user.TodosEnabled,
 			"notesEnabled":       user.NotesEnabled,
 			"hasGlobalAiKey":     hasGlobalAiKey,
+			"oidcLinked":         len(oidcAccounts) > 0,
 		}
 
 		// Load link state
@@ -180,6 +183,7 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 			"maxLinks":         maxLinks,
 			"availableSlots":   availableSlots,
 			"timezones":        getTimezones(),
+			"oidcAccounts":     oidcAccounts,
 			"linkFeedback":     sess.Get("linkFeedback"),
 			"passwordFeedback": sess.Get("passwordFeedback"),
 			"aiFeedback":       sess.Get("aiFeedback"),
