@@ -89,6 +89,22 @@ func RequireLogin(next http.Handler) http.Handler {
 	})
 }
 
+// RequireLocalAuth returns 403 if the current session was started via OIDC.
+// Blocks management of local auth surface (password, 2FA, passkeys, email,
+// OIDC unlink) so federated users can only manage auth at their IdP.
+func RequireLocalAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sess := session.GetSession(r)
+		if sess != nil && sess.GetString("auth_method") == "oidc" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]any{"error": "Log in with a password to change authentication settings."})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // RequireAdmin returns 403 if user is not admin.
 func RequireAdmin(adminEmail string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

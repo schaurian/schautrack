@@ -94,21 +94,25 @@ export default function Settings() {
         <div className="break-inside-avoid">
           <AISettings user={data.user} onSave={refresh} />
         </div>
-        <div className="break-inside-avoid">
-          <EmailSettings currentEmail={data.user.email} totpEnabled={data.user.totpEnabled} />
-        </div>
-        <div className="break-inside-avoid">
-          <PasswordSettings totpEnabled={data.user.totpEnabled} />
-        </div>
-        <div className="break-inside-avoid">
-          <TwoFactorSettings totpEnabled={data.user.totpEnabled} onUpdate={refresh} />
-        </div>
-        <div className="break-inside-avoid">
-          <PasskeySettings onUpdate={refresh} />
-        </div>
-        <div className="break-inside-avoid">
-          <OIDCSettings linked={data.user.oidcLinked || false} onUpdate={refresh} />
-        </div>
+        {data.user.authMethod !== 'oidc' && (
+          <>
+            <div className="break-inside-avoid">
+              <EmailSettings currentEmail={data.user.email} totpEnabled={data.user.totpEnabled} />
+            </div>
+            <div className="break-inside-avoid">
+              <PasswordSettings totpEnabled={data.user.totpEnabled} />
+            </div>
+            <div className="break-inside-avoid">
+              <TwoFactorSettings totpEnabled={data.user.totpEnabled} onUpdate={refresh} />
+            </div>
+            <div className="break-inside-avoid">
+              <PasskeySettings onUpdate={refresh} />
+            </div>
+            <div className="break-inside-avoid">
+              <OIDCSettings linked={data.user.oidcLinked || false} onUpdate={refresh} />
+            </div>
+          </>
+        )}
         <div className="break-inside-avoid">
           <LinkSettings
             incomingRequests={data.incomingRequests}

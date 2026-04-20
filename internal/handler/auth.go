@@ -68,6 +68,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		newSess.SetUserID(user.ID)
+		newSess.Set("auth_method", "password")
 		session.SetSession(r, newSess)
 		OkJSON(w)
 		return
@@ -143,6 +144,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newSess.SetUserID(userID)
+	newSess.Set("auth_method", "password")
 	session.SetSession(r, newSess)
 	OkJSON(w)
 }
@@ -364,6 +366,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "requireVerification": true})
 	} else {
 		sess.SetUserID(userID)
+		sess.Set("auth_method", "password")
 		OkJSON(w)
 	}
 }

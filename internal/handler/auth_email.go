@@ -82,6 +82,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	sess.Delete("verifyEmail")
 	sess.Delete("verifyAttempts")
 	sess.SetUserID(userID)
+	sess.Set("auth_method", "password")
 	OkJSON(w)
 }
 

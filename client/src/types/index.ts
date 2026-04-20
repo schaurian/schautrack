@@ -18,6 +18,7 @@ export interface User {
   hasGlobalAiKey?: boolean;
   passkeyCount: number;
   oidcLinked: boolean;
+  authMethod: 'password' | 'passkey' | 'oidc' | '';
 }
 
 export interface Entry {

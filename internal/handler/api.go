@@ -80,6 +80,7 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 		passkeyCount, _ := service.CountPasskeys(r.Context(), pool, user.ID)
 		oidcCount, _ := service.CountOIDCAccounts(r.Context(), pool, user.ID)
 		oidcLinked := oidcCount > 0
+		authMethod := session.GetSession(r).GetString("auth_method")
 
 		JSON(w, http.StatusOK, map[string]any{
 			"user": map[string]any{
@@ -102,6 +103,7 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 				"notesEnabled":       user.NotesEnabled,
 				"passkeyCount":       passkeyCount,
 				"oidcLinked":         oidcLinked,
+				"authMethod":         authMethod,
 			},
 			"isAdmin":             middleware.IsAdmin(user, adminEmail),
 			"pendingLinkRequests": pendingLinkRequests,
@@ -142,6 +144,7 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 		hasTempSecret := sess.GetString("tempSecret") != ""
 
 		oidcAccounts, _ := service.ListOIDCAccounts(r.Context(), pool, user.ID)
+		authMethod := sess.GetString("auth_method")
 
 		const maxLinks = MaxLinks
 
@@ -164,6 +167,7 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 			"notesEnabled":       user.NotesEnabled,
 			"hasGlobalAiKey":     hasGlobalAiKey,
 			"oidcLinked":         len(oidcAccounts) > 0,
+			"authMethod":         authMethod,
 		}
 
 		// Load link state

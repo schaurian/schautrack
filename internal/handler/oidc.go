@@ -157,6 +157,7 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 		newSess, _ := h.SessionStore.Regenerate(r, sess)
 		session.SetSession(r, newSess)
 		newSess.SetUserID(account.UserID)
+		newSess.Set("auth_method", "oidc")
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
@@ -170,6 +171,7 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 			newSess2, _ := h.SessionStore.Regenerate(r, sess)
 			session.SetSession(r, newSess2)
 			newSess2.SetUserID(userID)
+			newSess2.Set("auth_method", "oidc")
 			http.Redirect(w, r, "/dashboard", http.StatusFound)
 			return
 		}
@@ -220,6 +222,7 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 	newSess3, _ := h.SessionStore.Regenerate(r, sess)
 	session.SetSession(r, newSess3)
 	newSess3.SetUserID(userID)
+	newSess3.Set("auth_method", "oidc")
 	http.Redirect(w, r, "/dashboard", http.StatusFound)
 }
 
