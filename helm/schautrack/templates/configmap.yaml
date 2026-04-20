@@ -63,3 +63,18 @@ data:
   {{- if .Values.config.baseUrl }}
   BASE_URL: {{ .Values.config.baseUrl | quote }}
   {{- end }}
+  {{- if .Values.oidc.issuer }}
+  OIDC_ISSUER: {{ .Values.oidc.issuer | quote }}
+  {{- end }}
+  {{- if .Values.oidc.clientId }}
+  OIDC_CLIENT_ID: {{ .Values.oidc.clientId | quote }}
+  {{- end }}
+  {{- if .Values.oidc.label }}
+  OIDC_LABEL: {{ .Values.oidc.label | quote }}
+  {{- end }}
+  {{- if .Values.oidc.requireInvite }}
+  OIDC_REQUIRE_INVITE: {{ .Values.oidc.requireInvite | quote }}
+  {{- end }}
+  {{- if .Values.oidc.redirectUrl }}
+  OIDC_REDIRECT_URL: {{ .Values.oidc.redirectUrl | quote }}
+  {{- end }}

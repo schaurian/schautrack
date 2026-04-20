@@ -19,6 +19,7 @@ imagePullSecrets: []
 #   - SMTP_PASS (optional)
 #   - AI_KEY (optional)
 #   - AI_KEY_ENCRYPTION_SECRET (optional)
+#   - OIDC_CLIENT_SECRET (optional)
 existingSecret: ""
 nameOverride: ""
 fullnameOverride: ""
@@ -171,3 +172,24 @@ postgresql:
 externalDatabase:
   # Full connection string: postgres://user:pass@host:port/db
   url: ""
+
+# OIDC / Single Sign-On (optional)
+# ⚠️  SECURITY WARNING: clientSecret is sensitive! Use existingSecret in production.
+# The redirect URI registered with your OIDC provider must be:
+#   <config.baseUrl>/auth/oidc/callback
+oidc:
+  # OIDC issuer URL. Enables OIDC when set. Examples:
+  #   https://accounts.google.com
+  #   https://login.microsoftonline.com/<tenant>/v2.0
+  #   https://auth.example.com/application/o/schautrack/
+  issuer: ""
+  # OAuth2 Client ID from your provider
+  clientId: ""
+  # OAuth2 Client Secret — DO NOT commit real secrets to Git; prefer existingSecret
+  clientSecret: ""
+  # Button label override (default: derived from issuer host, e.g. "Google")
+  label: ""
+  # Require invite code for OIDC sign-up (default: false — OIDC bypasses invite-only)
+  requireInvite: false
+  # Callback URL override (leave empty to auto-build from config.baseUrl)
+  redirectUrl: ""
