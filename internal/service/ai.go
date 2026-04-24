@@ -122,7 +122,7 @@ func CallAIProvider(provider, apiKey, endpoint, base64Data, mediaType, prompt, m
 					{"type": "image_url", "image_url": map[string]any{"url": "data:" + mediaType + ";base64," + base64Data, "detail": "low"}},
 				},
 			}},
-			"max_tokens": 1000,
+			"max_completion_tokens": 1000,
 		}
 		reqBody, _ = json.Marshal(body)
 
