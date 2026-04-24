@@ -5,6 +5,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/toastStore';
+import TemplateEditor from '../Templates/TemplateEditor';
+
+function entryToEditorItem(entry: Entry) {
+  return {
+    entry_name: entry.name || '',
+    amount: entry.amount === 0 ? '' : String(entry.amount),
+    protein_g: entry.macros?.protein != null ? String(entry.macros.protein) : '',
+    carbs_g: entry.macros?.carbs != null ? String(entry.macros.carbs) : '',
+    fat_g: entry.macros?.fat != null ? String(entry.macros.fat) : '',
+    fiber_g: entry.macros?.fiber != null ? String(entry.macros.fiber) : '',
+    sugar_g: entry.macros?.sugar != null ? String(entry.macros.sugar) : '',
+  };
+}
 
 const MACRO_STYLES: Record<string, { bg: string; border: string; label: string }> = {
   kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20',    label: 'text-macro-kcal/70' },
@@ -60,7 +73,9 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
+  const queryClient = useQueryClient();
 
   const handleEdit = (field: string, currentValue: string | number | null) => {
     if (!canEdit) return;
@@ -129,11 +144,23 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
         </span>
         <span className="text-xs text-muted-foreground tabular-nums shrink-0 opacity-85">{entry.time}</span>
         {canEdit && (
-          <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6L6 18" /><path d="M6 6l12 12" />
-            </svg>
-          </button>
+          <>
+            <button
+              type="button"
+              className="size-7 flex items-center justify-center rounded-[10px] border border-[#f59e0b]/30 bg-[#f59e0b]/10 text-[#f59e0b] hover:bg-[#f59e0b]/20 transition-colors cursor-pointer shrink-0"
+              onClick={() => setSaveAsTemplate(true)}
+              title="Save as template"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+            </button>
+            <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18" /><path d="M6 6l12 12" />
+              </svg>
+            </button>
+          </>
         )}
       </div>
 
@@ -177,6 +204,20 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             );
           })}
         </div>
+      )}
+
+      {saveAsTemplate && (
+        <TemplateEditor
+          isOpen
+          template={null}
+          presetItems={[entryToEditorItem(entry)]}
+          presetName={entry.name || ''}
+          onClose={() => setSaveAsTemplate(false)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['templates'] });
+            setSaveAsTemplate(false);
+          }}
+        />
       )}
     </div>
   );

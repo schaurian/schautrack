@@ -20,6 +20,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 ## Features
 
 - Log calories and macros (protein, carbs, fat, fiber, sugar)
+- Meal templates with a favorites Quick-Add bar — log recurring meals with one tap
 - Daily goals with color-coded progress tracking
 - AI-powered nutrition estimation from food photos (OpenAI, Claude, or Ollama)
 - Barcode scanning via OpenFoodFacts

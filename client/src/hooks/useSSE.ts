@@ -55,6 +55,10 @@ export function useSSE() {
         queryClient.invalidateQueries({ queryKey: ['note'] });
       });
 
+      source.addEventListener('template-change', () => {
+        queryClient.invalidateQueries({ queryKey: ['templates'] });
+      });
+
       source.onopen = () => {
         retryDelayRef.current = 2000;
       };

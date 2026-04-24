@@ -189,6 +189,15 @@ func main() {
 	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/api/notes/day", notesHandler.Get)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes", notesHandler.Save)
 
+	// Meal template routes
+	mealTemplatesHandler := &handler.MealTemplatesHandler{Pool: pool, Broker: sseBroker}
+	r.With(middleware.RequireLogin).Get("/api/templates", mealTemplatesHandler.List)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/templates", mealTemplatesHandler.Create)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/templates/{id}/update", mealTemplatesHandler.Update)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/templates/{id}/delete", mealTemplatesHandler.Delete)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/templates/{id}/favorite", mealTemplatesHandler.ToggleFavorite)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/templates/{id}/apply", mealTemplatesHandler.Apply)
+
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
 	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)

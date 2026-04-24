@@ -95,3 +95,27 @@ type AdminSetting struct {
 	Value     *string   `json:"value"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+type MealTemplate struct {
+	ID         int                `json:"id"`
+	UserID     int                `json:"user_id"`
+	Name       string             `json:"name"`
+	IsFavorite bool               `json:"is_favorite"`
+	SortOrder  int                `json:"sort_order"`
+	CreatedAt  time.Time          `json:"created_at"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+	Items      []MealTemplateItem `json:"items"`
+}
+
+type MealTemplateItem struct {
+	ID         int     `json:"id"`
+	TemplateID int     `json:"template_id"`
+	EntryName  *string `json:"entry_name"`
+	Amount     int     `json:"amount"`
+	ProteinG   *int    `json:"protein_g,omitempty"`
+	CarbsG     *int    `json:"carbs_g,omitempty"`
+	FatG       *int    `json:"fat_g,omitempty"`
+	FiberG     *int    `json:"fiber_g,omitempty"`
+	SugarG     *int    `json:"sugar_g,omitempty"`
+	SortOrder  int     `json:"sort_order"`
+}

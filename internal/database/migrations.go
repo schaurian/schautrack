@@ -480,6 +480,62 @@ func ensureDailyNotesSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureMealTemplateSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS meal_templates (
+				id          SERIAL PRIMARY KEY,
+				user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				name        TEXT    NOT NULL,
+				is_favorite BOOLEAN NOT NULL DEFAULT FALSE,
+				sort_order  INTEGER NOT NULL DEFAULT 0,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS meal_templates_user_idx ON meal_templates (user_id, sort_order, created_at DESC);
+			CREATE INDEX IF NOT EXISTS meal_templates_fav_idx ON meal_templates (user_id, sort_order) WHERE is_favorite;
+			DO $$ BEGIN
+				ALTER TABLE meal_templates ADD CONSTRAINT meal_templates_name_length CHECK (char_length(name) BETWEEN 1 AND 100);
+			EXCEPTION WHEN duplicate_object THEN NULL;
+			END $$;
+
+			CREATE TABLE IF NOT EXISTS meal_template_items (
+				id          SERIAL PRIMARY KEY,
+				template_id INTEGER NOT NULL REFERENCES meal_templates(id) ON DELETE CASCADE,
+				entry_name  TEXT,
+				amount      INTEGER NOT NULL,
+				protein_g   INTEGER,
+				carbs_g     INTEGER,
+				fat_g       INTEGER,
+				fiber_g     INTEGER,
+				sugar_g     INTEGER,
+				sort_order  INTEGER NOT NULL DEFAULT 0
+			);
+			CREATE INDEX IF NOT EXISTS meal_template_items_template_idx ON meal_template_items (template_id, sort_order);
+			DO $$ BEGIN
+				ALTER TABLE meal_template_items ADD CONSTRAINT meal_template_items_amount_range CHECK (amount BETWEEN -9999 AND 9999);
+			EXCEPTION WHEN duplicate_object THEN NULL;
+			END $$`)
+		if err != nil {
+			return err
+		}
+
+		// Macro range CHECK constraints, idempotent.
+		macros := []string{"protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g"}
+		for _, col := range macros {
+			_, err = tx.Exec(ctx, fmt.Sprintf(`
+				DO $$ BEGIN
+					ALTER TABLE meal_template_items ADD CONSTRAINT meal_template_items_%s_range CHECK (%s IS NULL OR (%s >= 0 AND %s <= 999));
+				EXCEPTION WHEN duplicate_object THEN NULL;
+				END $$`, col, col, col, col))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // InitSchemaWithRetry runs all migrations with exponential backoff.
 func InitSchemaWithRetry(ctx context.Context, pool *pgxpool.Pool, maxRetries int) error {
 	if maxRetries == 0 {
@@ -531,6 +587,7 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"ai_keys", ensureAIKeysSchema},
 		{"ai_usage", ensureAIUsageSchema},
 		{"macros", ensureMacroSchema},
+		{"meal_templates", ensureMealTemplateSchema},
 	}
 
 	results := make(chan migrationResult, len(migrations))
