@@ -213,8 +213,10 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 		updates = append(updates, fmt.Sprintf("ai_key_last4 = $%d", idx))
 		values = append(values, last4)
 		idx++
-	} else if newProvider != nil {
-		// Clear key on provider change with no new key
+	} else if newProvider != nil && (user.PreferredAIProvider == nil || *user.PreferredAIProvider != *newProvider) {
+		// Clear stored key only when the provider actually changes, since keys are
+		// provider-specific. Saves with the same provider and empty key (common with
+		// autosave after the input is cleared client-side) must NOT wipe the existing key.
 		updates = append(updates, "ai_key = NULL", "ai_key_last4 = NULL")
 	}
 
