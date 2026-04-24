@@ -168,3 +168,43 @@ export interface InviteCode {
   expires_at: string | null;
   created_at: string;
 }
+
+export interface MealTemplateItem {
+  id: number;
+  template_id: number;
+  entry_name: string | null;
+  amount: number;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sort_order: number;
+}
+
+export interface MealTemplate {
+  id: number;
+  user_id: number;
+  name: string;
+  is_favorite: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  items: MealTemplateItem[];
+}
+
+export interface MealTemplateItemInput {
+  entry_name?: string | null;
+  amount: number;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+}
+
+export interface MealTemplateInput {
+  name: string;
+  is_favorite: boolean;
+  items: MealTemplateItemInput[];
+}

@@ -68,6 +68,9 @@ export default function Header() {
               <Link to="/dashboard" onClick={() => setMenuOpen(false)} className={navClass('/dashboard')}>
                 Dashboard
               </Link>
+              <Link to="/templates" onClick={() => setMenuOpen(false)} className={navClass('/templates')}>
+                Templates
+              </Link>
               <Link to="/settings" onClick={() => setMenuOpen(false)} className={cn(navClass('/settings'), 'relative')}>
                 Settings
                 {pendingLinkRequests > 0 && (
