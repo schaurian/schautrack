@@ -37,6 +37,10 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
   const scannerRef = useRef<HTMLDivElement>(null);
   const quaggaRunning = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Quagga2 fires onDetected several times per second and is prone to
+  // single-read errors (especially the EAN-13 check digit). Require two
+  // consecutive identical reads before triggering a lookup.
+  const lastCodeRef = useRef<{ code: string; count: number }>({ code: '', count: 0 });
 
   const stopScanner = useCallback(() => {
     if (quaggaRunning.current) {
@@ -113,8 +117,14 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
     Quagga.onDetected((data) => {
       const code = data.codeResult?.code;
-      if (code && /^\d{8,13}$/.test(code)) {
-        doLookup(code);
+      if (!code || !/^\d{8,13}$/.test(code)) return;
+      if (lastCodeRef.current.code === code) {
+        lastCodeRef.current.count += 1;
+        if (lastCodeRef.current.count >= 2) {
+          doLookup(code);
+        }
+      } else {
+        lastCodeRef.current = { code, count: 1 };
       }
     });
   }, [doLookup]);
@@ -139,6 +149,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
       setErrorMsg('');
       setCameraAvailable(true);
       setScannerReady(false);
+      lastCodeRef.current = { code: '', count: 0 };
     }
   }, [isOpen, stopScanner]);
 
@@ -218,6 +229,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     setProduct(null);
     setGrams('100');
     setErrorMsg('');
+    lastCodeRef.current = { code: '', count: 0 };
   };
 
   const handleServingPreset = (g: number) => {

@@ -16,6 +16,28 @@ import (
 
 var barcodeRe = regexp.MustCompile(`^\d{8,13}$`)
 
+// hasValidCheckDigit verifies the GS1 check digit for EAN-8 (8), UPC-A (12),
+// and EAN-13 (13). Other lengths skip validation (no standard checksum to
+// verify). The standard GS1 algorithm: from the right, multiply each non-check
+// digit alternately by 3 and 1, sum, and the check digit is (10 - sum%10) % 10.
+func hasValidCheckDigit(code string) bool {
+	n := len(code)
+	if n != 8 && n != 12 && n != 13 {
+		return true
+	}
+	var sum int
+	for i := 0; i < n-1; i++ {
+		d := int(code[i] - '0')
+		if (n-1-i)%2 == 1 {
+			sum += d * 3
+		} else {
+			sum += d
+		}
+	}
+	expected := (10 - sum%10) % 10
+	return int(code[n-1]-'0') == expected
+}
+
 func Barcode(cfg *config.Config) http.HandlerFunc {
 	userAgent := fmt.Sprintf("Schautrack/%s (%s)", cfg.BuildVersion, orDefault(cfg.SupportEmail, "noreply@schautrack.app"))
 
@@ -23,6 +45,14 @@ func Barcode(cfg *config.Config) http.HandlerFunc {
 		code := chi.URLParam(r, "code")
 		if !barcodeRe.MatchString(code) {
 			ErrorJSON(w, http.StatusBadRequest, "Invalid barcode format.")
+			return
+		}
+		if !hasValidCheckDigit(code) {
+			JSON(w, http.StatusOK, map[string]any{
+				"ok":    false,
+				"error": "Barcode check digit invalid — likely misread. Please rescan or enter manually.",
+				"code":  "CHECK_DIGIT",
+			})
 			return
 		}
 
