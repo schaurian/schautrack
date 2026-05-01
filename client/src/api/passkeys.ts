@@ -1,7 +1,15 @@
 import { api } from './client';
 
-export function passkeyLoginBegin() {
-  return api<PublicKeyCredentialRequestOptionsJSON>('/passkeys/login/begin', { method: 'POST' });
+// Server uses go-webauthn, which wraps options as {"publicKey": {...}}.
+// SimpleWebAuthn's startRegistration/startAuthentication expects the inner object,
+// so we unwrap here.
+function unwrapPublicKey<T>(res: { publicKey?: T } & T): T {
+  return (res.publicKey ?? res) as T;
+}
+
+export async function passkeyLoginBegin() {
+  const res = await api<{ publicKey?: PublicKeyCredentialRequestOptionsJSON } & PublicKeyCredentialRequestOptionsJSON>('/passkeys/login/begin', { method: 'POST' });
+  return unwrapPublicKey(res);
 }
 
 export function passkeyLoginFinish(credential: AuthenticatorAssertionResponseJSON) {
@@ -11,8 +19,9 @@ export function passkeyLoginFinish(credential: AuthenticatorAssertionResponseJSO
   });
 }
 
-export function passkeyRegisterBegin() {
-  return api<PublicKeyCredentialCreationOptionsJSON>('/passkeys/register/begin', { method: 'POST' });
+export async function passkeyRegisterBegin() {
+  const res = await api<{ publicKey?: PublicKeyCredentialCreationOptionsJSON } & PublicKeyCredentialCreationOptionsJSON>('/passkeys/register/begin', { method: 'POST' });
+  return unwrapPublicKey(res);
 }
 
 export function passkeyRegisterFinish(credential: AuthenticatorAttestationResponseJSON, name: string) {
