@@ -80,3 +80,27 @@ func TestEncodeBase64(t *testing.T) {
 }
 
 func intP(n int) *int { return &n }
+
+func TestShouldClearStoredAIKey(t *testing.T) {
+	openai := "openai"
+	claude := "claude"
+	tests := []struct {
+		name     string
+		next     *string
+		current  *string
+		want     bool
+	}{
+		{"no provider in payload — never clear", nil, &openai, false},
+		{"same provider, current set — autosave must not wipe", &openai, &openai, false},
+		{"different provider — clear (key is provider-specific)", &claude, &openai, true},
+		{"current nil, new provider — clear (no-op in DB but consistent)", &openai, nil, true},
+		{"both nil", nil, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldClearStoredAIKey(tt.next, tt.current); got != tt.want {
+				t.Errorf("shouldClearStoredAIKey(%v, %v) = %v, want %v", tt.next, tt.current, got, tt.want)
+			}
+		})
+	}
+}

@@ -151,6 +151,17 @@ func (h *SettingsHandler) Macros(w http.ResponseWriter, r *http.Request) {
 	OkJSON(w)
 }
 
+// shouldClearStoredAIKey reports whether an empty-key save should wipe the
+// stored AI key. Provider-specific keys must not survive a provider switch,
+// but autosaves on the same provider (e.g. after the input is cleared
+// client-side) must not clobber the existing key.
+func shouldClearStoredAIKey(newProvider, currentProvider *string) bool {
+	if newProvider == nil {
+		return false
+	}
+	return currentProvider == nil || *currentProvider != *newProvider
+}
+
 // AISettings handles POST /settings/ai
 func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -213,10 +224,7 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 		updates = append(updates, fmt.Sprintf("ai_key_last4 = $%d", idx))
 		values = append(values, last4)
 		idx++
-	} else if newProvider != nil && (user.PreferredAIProvider == nil || *user.PreferredAIProvider != *newProvider) {
-		// Clear stored key only when the provider actually changes, since keys are
-		// provider-specific. Saves with the same provider and empty key (common with
-		// autosave after the input is cleared client-side) must NOT wipe the existing key.
+	} else if shouldClearStoredAIKey(newProvider, user.PreferredAIProvider) {
 		updates = append(updates, "ai_key = NULL", "ai_key_last4 = NULL")
 	}
 
