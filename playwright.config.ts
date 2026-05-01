@@ -45,6 +45,21 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
+    // Step-up tests: need fresh contexts (each test logs in fresh to control
+    // grace-window state).
+    {
+      name: 'stepup',
+      testMatch: /stepup\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
+    // Passkey tests: need fresh contexts + virtual WebAuthn authenticator.
+    {
+      name: 'passkey',
+      testMatch: /passkey\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
     // Admin tests: use admin session
     {
       name: 'admin',
@@ -72,7 +87,7 @@ export default defineConfig({
     // Everything else: parallel with shared session
     {
       name: 'chromium',
-      testIgnore: [/auth\.spec\.ts/, /two-factor\.spec\.ts/, /admin\.spec\.ts/, /barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/, /graceful-shutdown\.spec\.ts/],
+      testIgnore: [/auth\.spec\.ts/, /two-factor\.spec\.ts/, /stepup\.spec\.ts/, /passkey\.spec\.ts/, /admin\.spec\.ts/, /barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/, /graceful-shutdown\.spec\.ts/],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',

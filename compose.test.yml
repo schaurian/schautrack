@@ -15,6 +15,9 @@ services:
       - SESSION_SECRET=e2e-test-session-secret-not-for-production
       - RATE_LIMIT_AUTH=1000
       - RATE_LIMIT_STRICT=1000
+      # Short step-up grace so tests can exercise both the in-grace and
+      # expired paths without waiting out the production 10-min window.
+      - STEP_UP_TTL=10s
       # ENABLE_BARCODE and ENABLE_REGISTRATION intentionally NOT set as env vars
       # so E2E tests can toggle them via admin_settings. Defaults: barcode=true, registration=open.
       - ADMIN_EMAIL=admin@test.com
@@ -28,6 +31,10 @@ services:
       - IMPRINT_ADDRESS=Test Company\n123 Test Street\nTest City
       - IMPRINT_EMAIL=legal@test.com
       - SUPPORT_EMAIL=support@test.com
+      # Passkeys: localhost is a valid WebAuthn RP ID; the virtual authenticator
+      # in passkey.spec.ts attaches to this origin.
+      - PASSKEYS_RP_ID=localhost
+      - PASSKEYS_RP_ORIGINS=http://localhost:3001
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 3s

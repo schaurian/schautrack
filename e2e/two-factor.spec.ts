@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, generateTOTP, bcryptHash } from './fixtures/helpers';
+import { completeStepUp } from './fixtures/stepup';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -160,26 +161,25 @@ test.describe('Two-Factor Authentication', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // Click regenerate backup codes link-button
+    // Wait past step-up grace (TTL=10s in test env) so the action is gated.
+    await page.waitForTimeout(12000);
+
+    // Intercept regenerate response — set up before triggering the action so
+    // the retry after step-up is captured too.
+    let regenData: any = null;
+    await page.route('**/2fa/backup-codes', async (route) => {
+      const response = await route.fetch();
+      const body = await response.text();
+      try { regenData = JSON.parse(body); } catch { /* not JSON */ }
+      await route.fulfill({ response, body });
+    });
+
+    // Click regenerate — step-up modal gates this; password+TOTP needed.
     const regenBtn = page.getByText(/regenerate backup codes/i);
     await regenBtn.scrollIntoViewIfNeeded();
     await expect(regenBtn).toBeVisible({ timeout: 10000 });
     await regenBtn.click();
-
-    // A TOTP input should appear to confirm the action
-    const confirmInput = page.getByLabel('2FA Code to confirm');
-    await expect(confirmInput).toBeVisible({ timeout: 5000 });
-    await confirmInput.fill(generateTOTP(capturedSecret));
-
-    // Intercept regenerate response
-    let regenData: any = null;
-    await page.route('**/2fa/backup-codes', async (route) => {
-      const response = await route.fetch();
-      regenData = await response.json();
-      await route.fulfill({ response });
-    });
-
-    await page.getByRole('button', { name: /regenerate/i }).click();
+    await completeStepUp(page, PASSWORD, generateTOTP(capturedSecret));
 
     // Wait for new codes to appear
     await expect(page.getByText('Backup Codes', { exact: true })).toBeVisible({ timeout: 10000 });
@@ -212,14 +212,16 @@ test.describe('Two-Factor Authentication', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // The 2FA card shows a code input and "Disable 2FA" button
+    // Wait past step-up grace so the disable is gated.
+    await page.waitForTimeout(12000);
+
+    // The 2FA card now just shows the "Disable 2FA" button — re-auth happens
+    // in the step-up modal.
     const disableBtn = page.getByRole('button', { name: /disable 2fa/i });
     await disableBtn.scrollIntoViewIfNeeded();
     await expect(disableBtn).toBeVisible({ timeout: 10000 });
-
-    // The disable form's input has placeholder="Enter 6-digit code" and required
-    await page.locator('input[placeholder="Enter 6-digit code"][required]').fill(generateTOTP(capturedSecret));
     await disableBtn.click();
+    await completeStepUp(page, PASSWORD, generateTOTP(capturedSecret));
 
     // Wait for the Setup 2FA button to reappear (means 2FA was disabled)
     await expect(page.getByRole('button', { name: /setup 2fa/i })).toBeVisible({ timeout: 10000 });

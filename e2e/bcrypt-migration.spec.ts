@@ -68,10 +68,21 @@ test.describe.serial('Bcrypt Migration', () => {
       await passwordHeading.scrollIntoViewIfNeeded();
       await expect(passwordHeading).toBeVisible({ timeout: 10000 });
 
-      await page.getByLabel('Current Password').fill(BCRYPT_PASSWORD);
+      // Wait past step-up grace (TTL=10s in test env) so the modal triggers,
+      // forcing a password re-verification — that's what exercises the bcrypt
+      // hash code path.
+      await page.waitForTimeout(12000);
+
       await page.getByLabel('New Password').fill(newPassword);
       await page.getByLabel('Confirm Password').fill(newPassword);
       await page.getByRole('button', { name: 'Update Password' }).click();
+
+      // Step-up modal triggers the password verification, which is what
+      // exercises the bcrypt → argon2id migration path on the legacy hash.
+      const dialog = page.getByRole('dialog', { name: /confirm it's you/i });
+      await expect(dialog).toBeVisible({ timeout: 5000 });
+      await dialog.getByLabel('Password', { exact: true }).fill(BCRYPT_PASSWORD);
+      await dialog.getByRole('button', { name: 'Continue' }).click();
 
       await expect(page.getByText(/password updated/i).first()).toBeVisible({ timeout: 10000 });
     } finally {

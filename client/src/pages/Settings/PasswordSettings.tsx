@@ -19,6 +19,12 @@ export default function PasswordSettings() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    // Validate locally before triggering step-up — no point making the user
+    // re-authenticate just to find out the new passwords don't match.
+    if (newPw !== confirm) {
+      setError('New passwords do not match.');
+      return;
+    }
     setLoading(true);
     try {
       await savePassword({ new_password: newPw, confirm_password: confirm });

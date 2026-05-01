@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser, fetchMailpitMessages, extractCodeFromEmail, clearMailpit } from './fixtures/helpers';
+import { completeStepUp } from './fixtures/stepup';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -44,14 +45,13 @@ test.describe('Email Change', () => {
     const emailHeading = page.getByText('Change Email', { exact: true });
     await emailHeading.scrollIntoViewIfNeeded();
 
-    // Fill new email and password — password field is right after the New Email input
-    await page.getByLabel('New Email').fill(newEmail);
-    // The email change form's password input follows "New Email" — use the form context
-    const emailForm = page.locator('form').filter({ has: page.getByLabel('New Email') });
-    await emailForm.locator('input[type="password"]').fill(user.password);
+    // Wait past step-up grace (TTL=10s in test env) so the modal triggers.
+    await page.waitForTimeout(12000);
 
-    // Submit the form
+    // Fill new email and submit — step-up modal will gate the request.
+    await page.getByLabel('New Email').fill(newEmail);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
+    await completeStepUp(page, user.password);
 
     // Should navigate to the verify page
     await page.waitForURL(/\/settings\/email\/verify/, { timeout: 10000 });
@@ -86,9 +86,12 @@ test.describe('Email Change', () => {
     const emailSection = page.getByText('Change Email').first();
     await emailSection.scrollIntoViewIfNeeded();
 
+    // Wait past step-up grace.
+    await page.waitForTimeout(12000);
+
     await page.getByLabel('New Email').fill(newEmail);
-    await page.locator('#new-email').locator('..').locator('..').locator('input[type="password"]').fill(user.password);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
+    await completeStepUp(page, user.password);
     await page.waitForURL(/\/settings\/email\/verify/, { timeout: 10000 });
 
     // Extract the verification code from MailPit
@@ -124,9 +127,12 @@ test.describe('Email Change', () => {
     const emailSection = page.getByText('Change Email').first();
     await emailSection.scrollIntoViewIfNeeded();
 
+    // Wait past step-up grace.
+    await page.waitForTimeout(12000);
+
     await page.getByLabel('New Email').fill(newEmail);
-    await page.locator('#new-email').locator('..').locator('..').locator('input[type="password"]').fill(user.password);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
+    await completeStepUp(page, user.password);
     await page.waitForURL(/\/settings\/email\/verify/, { timeout: 10000 });
     await expect(page.getByText('Verify New Email')).toBeVisible({ timeout: 5000 });
 

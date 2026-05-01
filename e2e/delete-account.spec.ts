@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, bcryptHash } from './fixtures/helpers';
+import { completeStepUp } from './fixtures/stepup';
 
 const DELETE_EMAIL = 'delete-e2e@test.com';
 const DELETE_PASSWORD = 'deletetest1234';
@@ -36,13 +37,16 @@ test.describe('Delete Account', () => {
     await page.goto('/delete');
     await page.waitForLoadState('domcontentloaded');
 
-    // The delete page should show the confirmation form
+    // The delete page now shows just a confirm checkbox + button — credential
+    // re-prompt is handled by the step-up modal.
     await expect(page.getByRole('heading', { name: 'Delete Account' })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByLabel('Password')).toBeVisible({ timeout: 5000 });
 
-    // Fill in the password and submit
-    await page.getByLabel('Password').fill(DELETE_PASSWORD);
+    // Wait past the step-up grace window so the modal triggers (TTL=10s in test env).
+    await page.waitForTimeout(12000);
+
+    await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Delete My Account' }).click();
+    await completeStepUp(page, DELETE_PASSWORD);
 
     // Should redirect to landing page
     await page.waitForURL('/', { timeout: 10000 });
