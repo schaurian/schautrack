@@ -193,3 +193,17 @@ oidc:
   requireInvite: false
   # Callback URL override (leave empty to auto-build from config.baseUrl)
   redirectUrl: ""
+
+# Passkeys / WebAuthn (optional)
+# Setting passkeys.rpId enables the feature. The RP ID gets baked into every
+# registered passkey — once users have registered, changing it invalidates all
+# existing passkeys. Use the public domain only (no scheme, no port, no path).
+passkeys:
+  # Relying Party ID. Examples: schautrack.com, staging.schautrack.com
+  rpId: ""
+  # Display name shown in browser/OS passkey prompts (default: Schautrack)
+  rpName: ""
+  # Allowed origins, comma-separated full URLs with scheme.
+  # Defaults to https://<rpId>. Set this when the same rpId is served from
+  # multiple URLs (e.g., www + apex, or an Android WebView origin).
+  rpOrigins: ""

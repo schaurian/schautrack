@@ -78,3 +78,12 @@ data:
   {{- if .Values.oidc.redirectUrl }}
   OIDC_REDIRECT_URL: {{ .Values.oidc.redirectUrl | quote }}
   {{- end }}
+  {{- if .Values.passkeys.rpId }}
+  PASSKEYS_RP_ID: {{ .Values.passkeys.rpId | quote }}
+  {{- end }}
+  {{- if .Values.passkeys.rpName }}
+  PASSKEYS_RP_NAME: {{ .Values.passkeys.rpName | quote }}
+  {{- end }}
+  {{- if .Values.passkeys.rpOrigins }}
+  PASSKEYS_RP_ORIGINS: {{ .Values.passkeys.rpOrigins | quote }}
+  {{- end }}
