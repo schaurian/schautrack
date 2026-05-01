@@ -19,15 +19,17 @@ type PasskeyRecord struct {
 	Name            string
 	SignCount       int
 	AAGUID          []byte
+	BackupEligible  bool
+	BackupState     bool
 	CreatedAt       time.Time
 	LastUsedAt      *time.Time
 }
 
-func CreatePasskey(ctx context.Context, pool *pgxpool.Pool, userID int, credID, pubKey []byte, attestationType, transports, name string, signCount int, aaguid []byte) error {
+func CreatePasskey(ctx context.Context, pool *pgxpool.Pool, userID int, credID, pubKey []byte, attestationType, transports, name string, signCount int, aaguid []byte, backupEligible, backupState bool) error {
 	_, err := pool.Exec(ctx,
-		`INSERT INTO user_passkeys (user_id, credential_id, public_key, attestation_type, transports, name, sign_count, aaguid)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		userID, credID, pubKey, attestationType, transports, name, signCount, aaguid)
+		`INSERT INTO user_passkeys (user_id, credential_id, public_key, attestation_type, transports, name, sign_count, aaguid, backup_eligible, backup_state)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		userID, credID, pubKey, attestationType, transports, name, signCount, aaguid, backupEligible, backupState)
 	return err
 }
 
@@ -35,10 +37,10 @@ func FindPasskeyByCredentialID(ctx context.Context, pool *pgxpool.Pool, credID [
 	var p PasskeyRecord
 	err := pool.QueryRow(ctx,
 		`SELECT id, user_id, credential_id, public_key, COALESCE(attestation_type, ''), COALESCE(transports, ''),
-		        name, sign_count, aaguid, created_at, last_used_at
+		        name, sign_count, aaguid, backup_eligible, backup_state, created_at, last_used_at
 		 FROM user_passkeys WHERE credential_id = $1`, credID).
 		Scan(&p.ID, &p.UserID, &p.CredentialID, &p.PublicKey, &p.AttestationType, &p.Transports,
-			&p.Name, &p.SignCount, &p.AAGUID, &p.CreatedAt, &p.LastUsedAt)
+			&p.Name, &p.SignCount, &p.AAGUID, &p.BackupEligible, &p.BackupState, &p.CreatedAt, &p.LastUsedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ func FindPasskeyByCredentialID(ctx context.Context, pool *pgxpool.Pool, credID [
 func ListPasskeys(ctx context.Context, pool *pgxpool.Pool, userID int) ([]PasskeyRecord, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT id, user_id, credential_id, public_key, COALESCE(attestation_type, ''), COALESCE(transports, ''),
-		        name, sign_count, aaguid, created_at, last_used_at
+		        name, sign_count, aaguid, backup_eligible, backup_state, created_at, last_used_at
 		 FROM user_passkeys WHERE user_id = $1 ORDER BY created_at`, userID)
 	if err != nil {
 		return nil, err
@@ -58,7 +60,7 @@ func ListPasskeys(ctx context.Context, pool *pgxpool.Pool, userID int) ([]Passke
 	for rows.Next() {
 		var p PasskeyRecord
 		if err := rows.Scan(&p.ID, &p.UserID, &p.CredentialID, &p.PublicKey, &p.AttestationType, &p.Transports,
-			&p.Name, &p.SignCount, &p.AAGUID, &p.CreatedAt, &p.LastUsedAt); err != nil {
+			&p.Name, &p.SignCount, &p.AAGUID, &p.BackupEligible, &p.BackupState, &p.CreatedAt, &p.LastUsedAt); err != nil {
 			return nil, err
 		}
 		passkeys = append(passkeys, p)
@@ -85,10 +87,10 @@ func RenamePasskey(ctx context.Context, pool *pgxpool.Pool, id, userID int, name
 	return err
 }
 
-func UpdatePasskeyUsage(ctx context.Context, pool *pgxpool.Pool, credID []byte, signCount int) error {
+func UpdatePasskeyUsage(ctx context.Context, pool *pgxpool.Pool, credID []byte, signCount int, backupState bool) error {
 	_, err := pool.Exec(ctx,
-		"UPDATE user_passkeys SET sign_count = $1, last_used_at = NOW() WHERE credential_id = $2",
-		signCount, credID)
+		"UPDATE user_passkeys SET sign_count = $1, backup_state = $2, last_used_at = NOW() WHERE credential_id = $3",
+		signCount, backupState, credID)
 	return err
 }
 

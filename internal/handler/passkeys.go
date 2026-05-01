@@ -53,6 +53,10 @@ func passkeysToCredentials(records []service.PasskeyRecord) []webauthn.Credentia
 			PublicKey:       r.PublicKey,
 			AttestationType: r.AttestationType,
 			Transport:       transports,
+			Flags: webauthn.CredentialFlags{
+				BackupEligible: r.BackupEligible,
+				BackupState:    r.BackupState,
+			},
 			Authenticator: webauthn.Authenticator{
 				SignCount: uint32(r.SignCount),
 				AAGUID:    r.AAGUID,
@@ -162,7 +166,8 @@ func (h *PasskeyHandler) RegisterFinish(w http.ResponseWriter, r *http.Request) 
 	err = service.CreatePasskey(r.Context(), h.Pool, user.ID,
 		credential.ID, credential.PublicKey, credential.AttestationType,
 		strings.Join(transports, ","), name,
-		int(credential.Authenticator.SignCount), credential.Authenticator.AAGUID)
+		int(credential.Authenticator.SignCount), credential.Authenticator.AAGUID,
+		credential.Flags.BackupEligible, credential.Flags.BackupState)
 	if err != nil {
 		slog.Error("Failed to store passkey", "error", err)
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to save passkey.")
@@ -236,8 +241,11 @@ func (h *PasskeyHandler) LoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update sign count and last used
-	_ = service.UpdatePasskeyUsage(r.Context(), h.Pool, credential.ID, int(credential.Authenticator.SignCount))
+	// Update sign count, backup state, and last used. BackupState can flip over a
+	// credential's lifetime (e.g., when a user enables iCloud Keychain sync), so
+	// we refresh the stored value on every successful login.
+	_ = service.UpdatePasskeyUsage(r.Context(), h.Pool, credential.ID,
+		int(credential.Authenticator.SignCount), credential.Flags.BackupState)
 
 	// Log in — skip 2FA (passkeys are inherently MFA)
 	newSess, _ := h.SessionStore.Regenerate(r, sess)

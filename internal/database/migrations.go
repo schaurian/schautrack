@@ -530,7 +530,7 @@ func ensureOIDCAccountsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 
 func ensurePasskeysSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 			CREATE TABLE IF NOT EXISTS user_passkeys (
 				id SERIAL PRIMARY KEY,
 				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -543,7 +543,16 @@ func ensurePasskeysSchema(ctx context.Context, pool *pgxpool.Pool) error {
 				aaguid BYTEA,
 				created_at TIMESTAMPTZ DEFAULT NOW(),
 				last_used_at TIMESTAMPTZ
-			)`)
+			)`); err != nil {
+			return err
+		}
+		// Backup Eligible / Backup State flags (WebAuthn L3). Stored at registration
+		// and re-applied to the Credential at login so go-webauthn's flag-consistency
+		// check passes (otherwise login fails with "Backup Eligible flag inconsistency").
+		_, err := tx.Exec(ctx, `
+			ALTER TABLE user_passkeys
+				ADD COLUMN IF NOT EXISTS backup_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+				ADD COLUMN IF NOT EXISTS backup_state    BOOLEAN NOT NULL DEFAULT FALSE`)
 		return err
 	})
 }
