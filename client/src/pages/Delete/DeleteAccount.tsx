@@ -3,29 +3,22 @@ import { useNavigate } from 'react-router';
 import { api, ApiError } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 
 export default function DeleteAccount() {
-  const [password, setPassword] = useState('');
-  const [token, setToken] = useState('');
+  const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { user, clearUser } = useAuthStore();
+  const { clearUser } = useAuthStore();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDelete = async () => {
     setError('');
     setLoading(true);
-
     try {
-      await api('/delete', {
-        method: 'POST',
-        body: JSON.stringify({ password, token: token || undefined }),
-      });
+      await api('/delete', { method: 'POST' });
       setSuccess('Account deleted. Redirecting...');
       clearUser();
       setTimeout(() => navigate('/'), 2000);
@@ -45,13 +38,26 @@ export default function DeleteAccount() {
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
         {!success && (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            {user?.totpEnabled && (
-              <Input label="2FA Code" value={token} onChange={(e) => setToken(e.target.value)} inputMode="numeric" />
-            )}
-            <Button type="submit" variant="destructive" loading={loading}>Delete My Account</Button>
-          </form>
+          <div className="flex flex-col gap-4">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={confirm}
+                onChange={(e) => setConfirm(e.target.checked)}
+                className="mt-1"
+              />
+              <span>I understand this is permanent and irreversible.</span>
+            </label>
+            <Button
+              type="button"
+              variant="destructive"
+              loading={loading}
+              disabled={!confirm}
+              onClick={handleDelete}
+            >
+              Delete My Account
+            </Button>
+          </div>
         )}
       </Card>
     </div>

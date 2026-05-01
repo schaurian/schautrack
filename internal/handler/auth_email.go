@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pquerna/otp/totp"
-
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
@@ -164,12 +162,11 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 	OkJSON(w)
 }
 
-// EmailChangeRequest handles POST /settings/email/request
+// EmailChangeRequest handles POST /settings/email/request.
+// Authorized by the step-up middleware — caller has already proven identity.
 func (h *AuthHandler) EmailChangeRequest(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		NewEmail string `json:"new_email"`
-		Password string `json:"password"`
-		TOTPCode string `json:"totp_code"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
@@ -196,34 +193,6 @@ func (h *AuthHandler) EmailChangeRequest(w http.ResponseWriter, r *http.Request)
 	if exists {
 		ErrorJSON(w, http.StatusConflict, "This email address is already in use.")
 		return
-	}
-
-	var passwordHash string
-	var totpEnabled bool
-	var totpSecret *string
-	err := h.Pool.QueryRow(r.Context(),
-		"SELECT password_hash, totp_enabled, totp_secret FROM users WHERE id = $1",
-		user.ID).Scan(&passwordHash, &totpEnabled, &totpSecret)
-	if err != nil {
-		ErrorJSON(w, http.StatusNotFound, "User not found.")
-		return
-	}
-
-	valid, _ := verifyPassword(passwordHash, body.Password)
-	if !valid {
-		ErrorJSON(w, http.StatusUnauthorized, "Incorrect password.")
-		return
-	}
-
-	if totpEnabled {
-		if body.TOTPCode == "" {
-			ErrorJSON(w, http.StatusBadRequest, "Please enter your 2FA code.")
-			return
-		}
-		if totpSecret == nil || !totp.Validate(body.TOTPCode, *totpSecret) {
-			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
-			return
-		}
 	}
 
 	code := service.GenerateResetCode()
@@ -326,53 +295,13 @@ func (h *AuthHandler) EmailChangeCancel(w http.ResponseWriter, r *http.Request) 
 	OkJSON(w)
 }
 
-// DeleteAccount handles POST /delete
+// DeleteAccount handles POST /delete.
+// Authorized by the step-up middleware — caller has already proven identity.
 func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Password string `json:"password"`
-		Token    string `json:"token"`
-	}
-	if err := ReadJSON(r, &body); err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
-		return
-	}
-
 	user := middleware.GetCurrentUser(r)
 	if user == nil {
 		ErrorJSON(w, http.StatusUnauthorized, "Session invalid. Please log in again.")
 		return
-	}
-
-	var passwordHash string
-	var totpEnabled bool
-	var totpSecret *string
-	err := h.Pool.QueryRow(r.Context(),
-		"SELECT password_hash, totp_enabled, totp_secret FROM users WHERE id = $1",
-		user.ID).Scan(&passwordHash, &totpEnabled, &totpSecret)
-	if err != nil {
-		ErrorJSON(w, http.StatusNotFound, "Account not found. Please log in again.")
-		return
-	}
-
-	valid, _ := verifyPassword(passwordHash, body.Password)
-	if !valid {
-		ErrorJSON(w, http.StatusUnauthorized, "Incorrect password.")
-		return
-	}
-
-	if totpEnabled {
-		if body.Token == "" {
-			ErrorJSON(w, http.StatusBadRequest, "Enter your 2FA code to confirm deletion.")
-			return
-		}
-		verified := totpSecret != nil && totp.Validate(body.Token, *totpSecret)
-		if !verified {
-			verified = verifyAndUseBackupCodeForLogin(r, h.Pool, user.ID, body.Token)
-		}
-		if !verified {
-			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
-			return
-		}
 	}
 
 	// Delete user in transaction

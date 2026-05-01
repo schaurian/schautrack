@@ -1,3 +1,5 @@
+import { useStepUpStore } from '@/stores/stepUpStore';
+
 let csrfToken: string | null = null;
 let on401Callback: (() => void) | null = null;
 
@@ -35,8 +37,35 @@ export async function api<T = unknown>(
 
   const res = await fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
 
-  // On 403 (CSRF failure), retry once with fresh token
+  // 403 means either CSRF failure or step-up required. Inspect the body to
+  // decide. clone() so we can still consume the body in the CSRF retry path.
   if (res.status === 403) {
+    const body = await res.clone().json().catch(() => null) as
+      | { requireStepUp?: boolean; methods?: string[]; totpRequired?: boolean }
+      | null;
+
+    if (body?.requireStepUp) {
+      // Suspend this request until the user completes step-up. The modal
+      // calls retry() on success, which re-runs the original api() call;
+      // its result resolves the promise we return here. So callers see a
+      // normal async response (or a rejection if the user cancels).
+      return new Promise<T>((resolve, reject) => {
+        useStepUpStore.getState().enqueue({
+          methods: body.methods ?? [],
+          totpRequired: !!body.totpRequired,
+          retry: async () => {
+            try {
+              resolve(await api<T>(url, options));
+            } catch (err) {
+              reject(err);
+            }
+          },
+          cancel: () => reject(new ApiError(403, 'Step-up cancelled', {})),
+        });
+      });
+    }
+
+    // CSRF failure — refresh token and retry once.
     csrfToken = null;
     const freshToken = await fetchCsrfToken();
     headers.set('X-CSRF-Token', freshToken);

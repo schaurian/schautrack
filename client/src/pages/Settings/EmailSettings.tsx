@@ -9,14 +9,11 @@ import { Alert } from '@/components/ui/Alert';
 
 interface Props {
   currentEmail: string;
-  totpEnabled: boolean;
 }
 
-export default function EmailSettings({ currentEmail, totpEnabled }: Props) {
+export default function EmailSettings({ currentEmail }: Props) {
   const navigate = useNavigate();
   const [newEmail, setNewEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [totp, setTotp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,11 +22,7 @@ export default function EmailSettings({ currentEmail, totpEnabled }: Props) {
     setError('');
     setLoading(true);
     try {
-      const res = await requestEmailChange({
-        new_email: newEmail,
-        password,
-        totp_code: totp || undefined,
-      });
+      const res = await requestEmailChange({ new_email: newEmail });
       if (res.ok) {
         navigate('/settings/email/verify');
       } else {
@@ -56,22 +49,6 @@ export default function EmailSettings({ currentEmail, totpEnabled }: Props) {
           onChange={(e) => setNewEmail(e.target.value)}
           required
         />
-        <Input
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {totpEnabled && (
-          <Input
-            label="2FA Code"
-            value={totp}
-            onChange={(e) => setTotp(e.target.value)}
-            inputMode="numeric"
-            maxLength={6}
-          />
-        )}
         <div className="border-t border-border pt-3 mt-1">
           <Button type="submit" className="w-full" loading={loading}>Send Verification Code</Button>
         </div>

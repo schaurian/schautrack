@@ -19,7 +19,9 @@ export function savePreferences(data: { weight_unit: string; timezone: string })
   });
 }
 
-export function savePassword(data: { current_password: string; new_password: string; confirm_password: string; totp_code?: string }) {
+// Step-up auth handles password+TOTP verification before this call lands;
+// the body just carries the new password.
+export function savePassword(data: { new_password: string; confirm_password: string }) {
   return api<{ ok: boolean; error?: string }>('/settings/password', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -46,21 +48,17 @@ export function enable2fa(data: { token: string }) {
   });
 }
 
-export function disable2fa(data: { token?: string; backup_code?: string }) {
-  return api<{ ok: boolean; error?: string }>('/2fa/disable', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export function disable2fa() {
+  return api<{ ok: boolean; error?: string }>('/2fa/disable', { method: 'POST' });
 }
 
-export function regenerateBackupCodes(data: { token: string }) {
+export function regenerateBackupCodes() {
   return api<{ ok: boolean; error?: string; backupCodes?: string[] }>('/2fa/backup-codes', {
     method: 'POST',
-    body: JSON.stringify(data),
   });
 }
 
-export function requestEmailChange(data: { new_email: string; password: string; totp_code?: string }) {
+export function requestEmailChange(data: { new_email: string }) {
   return api<{ ok: boolean; error?: string }>('/settings/email/request', {
     method: 'POST',
     body: JSON.stringify(data),

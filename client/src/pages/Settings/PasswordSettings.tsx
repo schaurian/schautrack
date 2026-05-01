@@ -7,15 +7,9 @@ import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { useToastStore } from '@/stores/toastStore';
 
-interface Props {
-  totpEnabled: boolean;
-}
-
-export default function PasswordSettings({ totpEnabled }: Props) {
-  const [current, setCurrent] = useState('');
+export default function PasswordSettings() {
   const [newPw, setNewPw] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [totp, setTotp] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,9 +21,10 @@ export default function PasswordSettings({ totpEnabled }: Props) {
     setSuccess('');
     setLoading(true);
     try {
-      await savePassword({ current_password: current, new_password: newPw, confirm_password: confirm, totp_code: totp || undefined });
+      await savePassword({ new_password: newPw, confirm_password: confirm });
       setSuccess('Password updated.');
-      setCurrent(''); setNewPw(''); setConfirm(''); setTotp('');
+      setNewPw('');
+      setConfirm('');
       addToast('success', 'Password updated');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed.');
@@ -43,10 +38,8 @@ export default function PasswordSettings({ totpEnabled }: Props) {
       {error && <Alert type="error" message={error} />}
       {success && <Alert type="success" message={success} />}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <Input label="Current Password" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} required />
         <Input label="New Password" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={10} />
         <Input label="Confirm Password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-        {totpEnabled && <Input label="2FA Code" value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />}
         <div className="border-t border-border pt-3 mt-1">
           <Button type="submit" className="w-full" loading={loading}>Update Password</Button>
         </div>

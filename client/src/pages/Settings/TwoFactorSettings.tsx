@@ -14,16 +14,12 @@ interface Props {
 export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
   const [setupData, setSetupData] = useState<{ qrDataUrl: string; secret: string } | null>(null);
   const [token, setToken] = useState('');
-  const [disableToken, setDisableToken] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
-  const [useBackupCode, setUseBackupCode] = useState(false);
-  const [regenToken, setRegenToken] = useState('');
   const [regenLoading, setRegenLoading] = useState(false);
-  const [showRegen, setShowRegen] = useState(false);
 
   const handleSetup = async () => {
     setError('');
@@ -64,24 +60,18 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
     setLoading(false);
   };
 
-  const handleDisable = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDisable = async () => {
     setError('');
     setSuccess('');
     setLoading(true);
     try {
-      const payload = useBackupCode
-        ? { backup_code: disableToken }
-        : { token: disableToken };
-      const res = await disable2fa(payload);
+      const res = await disable2fa();
       if (res.ok) {
         setSuccess('2FA disabled.');
-        setDisableToken('');
         setBackupCodes(null);
-        setUseBackupCode(false);
         onUpdate();
       } else {
-        setError(res.error || 'Invalid code.');
+        setError(res.error || 'Failed to disable 2FA.');
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to disable 2FA.');
@@ -89,19 +79,16 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
     setLoading(false);
   };
 
-  const handleRegenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegenerate = async () => {
     setError('');
     setRegenLoading(true);
     try {
-      const res = await regenerateBackupCodes({ token: regenToken });
+      const res = await regenerateBackupCodes();
       if (res.ok && res.backupCodes) {
         setBackupCodes(res.backupCodes);
         setSuccess('New backup codes generated. Save them now.');
-        setRegenToken('');
-        setShowRegen(false);
       } else {
-        setError(res.error || 'Invalid code.');
+        setError(res.error || 'Failed to regenerate codes.');
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to regenerate codes.');
@@ -182,54 +169,21 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
           <p className="text-muted-foreground text-sm mb-3">
             2FA is enabled on your account.
           </p>
-          <form onSubmit={handleDisable} className="flex flex-col gap-3">
-            <Input
-              label={useBackupCode ? 'Backup Code' : '2FA Code'}
-              value={disableToken}
-              onChange={(e) => setDisableToken(e.target.value)}
-              inputMode={useBackupCode ? 'numeric' : 'numeric'}
-              maxLength={useBackupCode ? 8 : 6}
-              placeholder={useBackupCode ? 'Enter 8-digit backup code' : 'Enter 6-digit code'}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => { setUseBackupCode(!useBackupCode); setDisableToken(''); }}
-              className="text-xs text-primary hover:underline text-left"
-            >
-              {useBackupCode ? 'Use authenticator code instead' : 'Lost your authenticator? Use a backup code'}
-            </button>
-            <div className="border-t border-border pt-3 mt-1">
-              <Button type="submit" variant="destructive" className="w-full" loading={loading}>Disable 2FA</Button>
-            </div>
-          </form>
+          <div className="border-t border-border pt-3 mt-1">
+            <Button type="button" variant="destructive" className="w-full" loading={loading} onClick={handleDisable}>
+              Disable 2FA
+            </Button>
+          </div>
 
           <div className="mt-4 pt-4 border-t border-border">
-            {showRegen ? (
-              <form onSubmit={handleRegenerate} className="flex flex-col gap-3">
-                <Input
-                  label="2FA Code to confirm"
-                  value={regenToken}
-                  onChange={(e) => setRegenToken(e.target.value)}
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="Enter 6-digit code"
-                  required
-                />
-                <div className="border-t border-border pt-3 mt-1 flex gap-2">
-                  <Button type="button" variant="ghost" className="flex-1" onClick={() => { setShowRegen(false); setRegenToken(''); }}>Cancel</Button>
-                  <Button type="submit" className="flex-1" loading={regenLoading}>Regenerate</Button>
-                </div>
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowRegen(true)}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                Regenerate backup codes
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={regenLoading}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+            >
+              {regenLoading ? 'Regenerating...' : 'Regenerate backup codes'}
+            </button>
           </div>
         </>
       ) : setupData ? (

@@ -97,10 +97,10 @@ export default function Settings() {
         {data.user.authMethod !== 'oidc' && (
           <>
             <div className="break-inside-avoid">
-              <EmailSettings currentEmail={data.user.email} totpEnabled={data.user.totpEnabled} />
+              <EmailSettings currentEmail={data.user.email} />
             </div>
             <div className="break-inside-avoid">
-              <PasswordSettings totpEnabled={data.user.totpEnabled} />
+              <PasswordSettings />
             </div>
             <div className="break-inside-avoid">
               <TwoFactorSettings totpEnabled={data.user.totpEnabled} onUpdate={refresh} />

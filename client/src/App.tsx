@@ -5,6 +5,7 @@ import { useSSE } from '@/hooks/useSSE';
 import { setOn401 } from '@/api/client';
 import { queryClient } from './main';
 import Toaster from '@/components/ui/Toaster';
+import StepUpModal from '@/components/StepUpModal';
 import AppRouter from './router';
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
     <>
       {user && <SSEProvider />}
       <Toaster />
+      <StepUpModal />
       {isInitialized ? <AppRouter /> : <LoadingScreen />}
     </>
   );
