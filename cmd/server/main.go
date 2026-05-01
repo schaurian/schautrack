@@ -90,6 +90,7 @@ func main() {
 
 	// Passkey handler
 	var passkeyHandler *handler.PasskeyHandler
+	stepUpHandler := &handler.StepUpHandler{Pool: pool}
 	if cfg.PasskeysEnabled() {
 		origins := cfg.PasskeysRPOrigins
 		if len(origins) == 0 {
@@ -104,6 +105,7 @@ func main() {
 			slog.Error("WebAuthn init failed", "error", err)
 		} else {
 			passkeyHandler = &handler.PasskeyHandler{Pool: pool, WebAuthn: wauthn, SessionStore: sessionStore}
+			stepUpHandler.WebAuthn = wauthn
 		}
 	}
 
@@ -141,6 +143,14 @@ func main() {
 		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/reset-2fa", authHandler.Reset2FA)
 		r.Get("/auth/info", handler.AuthInfo(cfg))
 
+		// Step-up (sudo mode) — elevates the session for sensitive auth-method
+		// changes. Rate-limited to slow brute-forcing the password+TOTP path.
+		r.With(authLimiter.Middleware, middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up", stepUpHandler.PasswordTOTP)
+		if passkeyHandler != nil {
+			r.With(middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up/passkey/begin", stepUpHandler.PasskeyBegin)
+			r.With(middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up/passkey/finish", stepUpHandler.PasskeyFinish)
+		}
+
 		// Settings (requires login)
 		r.With(middleware.RequireLogin).Get("/settings", handler.Settings(pool, cfg.AdminEmail, settingsCache, cfg))
 
@@ -148,29 +158,34 @@ func main() {
 		r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail)).Get("/admin", handler.AdminData(pool, settingsCache, cfg.AdminEmail))
 	})
 
+	// stepUp gates routes that change auth methods. The middleware short-circuits
+	// with 403 + a structured body when the session lacks fresh primary auth;
+	// the client renders a step-up modal and retries on success.
+	stepUp := middleware.RequireStepUp(pool)
+
 	// OIDC routes
 	if oidcHandler != nil {
 		r.Get("/auth/oidc/login", oidcHandler.Login)
 		r.Get("/auth/oidc/callback", oidcHandler.Callback)
-		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/settings/oidc/unlink", oidcHandler.Unlink)
+		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/settings/oidc/unlink", oidcHandler.Unlink)
 	}
 
 	// Passkey routes
 	if passkeyHandler != nil {
 		r.Post("/passkeys/login/begin", passkeyHandler.LoginBegin)
 		r.Post("/passkeys/login/finish", passkeyHandler.LoginFinish)
-		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/passkeys/register/begin", passkeyHandler.RegisterBegin)
-		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/passkeys/register/finish", passkeyHandler.RegisterFinish)
-		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/passkeys/delete", passkeyHandler.Delete)
+		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/passkeys/register/begin", passkeyHandler.RegisterBegin)
+		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/passkeys/register/finish", passkeyHandler.RegisterFinish)
+		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/passkeys/delete", passkeyHandler.Delete)
 		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/passkeys/rename", passkeyHandler.Rename)
 		r.With(middleware.RequireLogin).Get("/passkeys/list", passkeyHandler.List)
 	}
 
 	// Non-API authenticated routes
-	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/delete", authHandler.DeleteAccount)
+	r.With(middleware.RequireLogin, stepUp, session.CsrfProtection).Post("/delete", authHandler.DeleteAccount)
 
 	// Email change routes
-	r.With(strictLimiter.Middleware, middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/settings/email/request", authHandler.EmailChangeRequest)
+	r.With(strictLimiter.Middleware, middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/settings/email/request", authHandler.EmailChangeRequest)
 	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/settings/email/verify", authHandler.EmailChangeVerify)
 	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/settings/email/cancel", authHandler.EmailChangeCancel)
 
@@ -196,12 +211,12 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/preferences", settingsHandler.Preferences)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/macros", settingsHandler.Macros)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/ai", settingsHandler.AISettings)
-	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/settings/password", settingsHandler.Password)
+	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/settings/password", settingsHandler.Password)
 	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/2fa/setup", settingsHandler.TwoFactorSetup)
 	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/2fa/cancel", settingsHandler.TwoFactorCancel)
-	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/2fa/enable", settingsHandler.TwoFactorEnable)
-	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/2fa/disable", settingsHandler.TwoFactorDisable)
-	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/2fa/backup-codes", settingsHandler.RegenerateBackupCodes)
+	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/2fa/enable", settingsHandler.TwoFactorEnable)
+	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/2fa/disable", settingsHandler.TwoFactorDisable)
+	r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/2fa/backup-codes", settingsHandler.RegenerateBackupCodes)
 
 	// Link routes
 	linksHandler := &handler.LinksHandler{Pool: pool, Broker: sseBroker}

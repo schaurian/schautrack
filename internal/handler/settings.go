@@ -263,12 +263,14 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // Password handles POST /settings/password
+// Password handles POST /settings/password.
+// Authorized by the step-up middleware — caller has already proven identity
+// (password+TOTP, or passkey assertion). The handler just validates and writes
+// the new password.
 func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		CurrentPassword string `json:"current_password"`
 		NewPassword     string `json:"new_password"`
 		ConfirmPassword string `json:"confirm_password"`
-		TOTPCode        string `json:"totp_code"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
@@ -277,8 +279,8 @@ func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 
 	user := middleware.GetCurrentUser(r)
 
-	if body.CurrentPassword == "" || body.NewPassword == "" {
-		ErrorJSON(w, http.StatusBadRequest, "Current and new password are required.")
+	if body.NewPassword == "" {
+		ErrorJSON(w, http.StatusBadRequest, "New password is required.")
 		return
 	}
 	if body.NewPassword != body.ConfirmPassword {
@@ -288,30 +290,6 @@ func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 	if len(body.NewPassword) < 10 {
 		ErrorJSON(w, http.StatusBadRequest, "New password must be at least 10 characters.")
 		return
-	}
-
-	var passwordHash string
-	err := h.Pool.QueryRow(r.Context(), "SELECT password_hash FROM users WHERE id = $1", user.ID).Scan(&passwordHash)
-	if err != nil {
-		ErrorJSON(w, http.StatusNotFound, "User not found.")
-		return
-	}
-
-	valid, _ := verifyPassword(passwordHash, body.CurrentPassword)
-	if !valid {
-		ErrorJSON(w, http.StatusUnauthorized, "Current password is incorrect.")
-		return
-	}
-
-	if user.TOTPEnabled && user.TOTPSecret != nil {
-		if body.TOTPCode == "" {
-			ErrorJSON(w, http.StatusBadRequest, "Please enter your 2FA code.")
-			return
-		}
-		if !totp.Validate(body.TOTPCode, *user.TOTPSecret) {
-			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
-			return
-		}
 	}
 
 	hash, err := hashPassword(body.NewPassword)
@@ -426,32 +404,13 @@ func (h *SettingsHandler) TwoFactorEnable(w http.ResponseWriter, r *http.Request
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "backupCodes": plainCodes})
 }
 
-// TwoFactorDisable handles POST /2fa/disable
+// TwoFactorDisable handles POST /2fa/disable.
+// Authorization is provided by the step-up middleware on this route — the
+// caller has already proven identity (password+TOTP, or passkey assertion).
 func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Token      string `json:"token"`
-		BackupCode string `json:"backup_code"`
-	}
-	if err := ReadJSON(r, &body); err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
-		return
-	}
-
 	user := middleware.GetCurrentUser(r)
 	if !user.TOTPEnabled || user.TOTPSecret == nil {
 		ErrorJSON(w, http.StatusBadRequest, "2FA is not enabled.")
-		return
-	}
-
-	verified := false
-	if body.Token != "" {
-		verified = totp.Validate(body.Token, *user.TOTPSecret)
-	}
-	if !verified && body.BackupCode != "" {
-		verified = h.verifyAndUseBackupCode(r, user.ID, body.BackupCode)
-	}
-	if !verified {
-		ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code or backup code.")
 		return
 	}
 
@@ -477,24 +436,12 @@ func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Reques
 	OkJSON(w)
 }
 
-// RegenerateBackupCodes handles POST /2fa/backup-codes
+// RegenerateBackupCodes handles POST /2fa/backup-codes.
+// Authorized by the step-up middleware — caller has already proven identity.
 func (h *SettingsHandler) RegenerateBackupCodes(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Token string `json:"token"`
-	}
-	if err := ReadJSON(r, &body); err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
-		return
-	}
-
 	user := middleware.GetCurrentUser(r)
 	if !user.TOTPEnabled || user.TOTPSecret == nil {
 		ErrorJSON(w, http.StatusBadRequest, "2FA is not enabled.")
-		return
-	}
-
-	if !totp.Validate(body.Token, *user.TOTPSecret) {
-		ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
 		return
 	}
 
