@@ -25,6 +25,7 @@ export default function Settings() {
   const [importLoading, setImportLoading] = useState(false);
   const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const handleFileChange = useCallback(() => {
     const file = fileInputRef.current?.files?.[0];
@@ -45,8 +46,6 @@ export default function Settings() {
     queryClient.invalidateQueries({ queryKey: ['settings'] });
     queryClient.invalidateQueries({ queryKey: ['me'] });
   };
-
-  const [exportLoading, setExportLoading] = useState(false);
 
   const handleImport = async () => {
     const file = fileInputRef.current?.files?.[0];
