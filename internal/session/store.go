@@ -19,6 +19,11 @@ const (
 	AnonMaxAge     = 15 * time.Minute
 	AuthMaxAge     = 30 * 24 * time.Hour
 	PruneInterval  = 5 * time.Minute
+	// StepUpTTL is how long after fresh primary auth a session is considered
+	// "elevated" — i.e., allowed to perform sensitive auth-method changes
+	// (delete passkey, disable TOTP, change password/email, …) without
+	// re-authenticating. See Session.HasRecentStepUp.
+	StepUpTTL = 10 * time.Minute
 )
 
 // Session holds arbitrary data stored in the database.
@@ -75,10 +80,28 @@ func (s *Session) Delete(key string) {
 func (s *Session) SetUserID(id int) {
 	s.Set("userId", id)
 	s.MaxAge = AuthMaxAge
+	// Fresh primary auth doubles as step-up — the user just proved who they are.
+	s.MarkStepUp()
 }
 
 func (s *Session) UserID() (int, bool) {
 	return s.GetInt("userId")
+}
+
+// MarkStepUp records that the user has just completed strong primary auth.
+// Sensitive auth-method changes consult HasRecentStepUp before proceeding.
+func (s *Session) MarkStepUp() {
+	// Stored as int (not int64) so GetInt can read it without a JSON round-trip.
+	s.Set("step_up_at", int(time.Now().Unix()))
+}
+
+// HasRecentStepUp reports whether the session was elevated within StepUpTTL.
+func (s *Session) HasRecentStepUp() bool {
+	ts, ok := s.GetInt("step_up_at")
+	if !ok {
+		return false
+	}
+	return time.Since(time.Unix(int64(ts), 0)) < StepUpTTL
 }
 
 func (s *Session) MarkDirty() {
