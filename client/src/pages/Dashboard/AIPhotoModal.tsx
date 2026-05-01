@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { estimateCalories } from '@/api/ai';
+import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -159,8 +160,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
         setErrorMsg(res.error || 'Estimation failed.');
         setPhase('error');
       }
-    } catch {
-      setErrorMsg('Estimation failed. Please try again.');
+    } catch (err) {
+      setErrorMsg(err instanceof ApiError ? err.message : 'Estimation failed. Please try again.');
       setPhase('error');
     }
   };
