@@ -56,12 +56,10 @@ export default function PasskeySettings({ onUpdate }: Props) {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Remove this passkey?')) return;
     try {
       await deletePasskey(id);
+      setPasskeys((prev) => prev.filter((p) => p.id !== id));
       addToast('success', 'Passkey removed');
-      refresh();
-      fetchUser();
       onUpdate();
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to remove passkey');
@@ -140,7 +138,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
 
         {passkeys.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {passkeys.length} of 10 passkeys used. Passkeys provide passwordless login with biometric verification.
+            {passkeys.length} of 10 passkeys used. A passwordless login that's faster, safer, and can't be easily phished.
           </p>
         )}
       </div>
