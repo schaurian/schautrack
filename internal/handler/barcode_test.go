@@ -130,6 +130,63 @@ func TestBarcode_GatewayTimeout(t *testing.T) {
 	t.Log("Barcode handler uses hardcoded URL; gateway timeout test requires refactoring")
 }
 
+func TestHasValidCheckDigit(t *testing.T) {
+	tests := []struct {
+		name string
+		code string
+		want bool
+	}{
+		// Real EAN-13 codes (verified against world.openfoodfacts.org)
+		{"EAN-13 Coca-Cola valid", "5449000000996", true},
+		{"EAN-13 Edeka Frischkäse valid", "4311501062449", true},
+		// Last-digit flips of valid EAN-13s — typical Quagga2 misreads
+		{"EAN-13 last digit off by 1", "4311501062448", false},
+		{"EAN-13 last digit zero", "4311501062440", false},
+		// Mid-digit flip
+		{"EAN-13 mid digit flipped", "4311501162449", false},
+		// Real EAN-8 (Coca-Cola mini)
+		{"EAN-8 valid", "96385074", true},
+		{"EAN-8 invalid", "96385075", false},
+		// UPC-A (12 digits)
+		{"UPC-A valid", "036000291452", true},
+		{"UPC-A invalid", "036000291453", false},
+		// Lengths without standard checksum: skipped (return true)
+		{"9 digits skipped", "123456789", true},
+		{"10 digits skipped", "1234567890", true},
+		{"11 digits skipped", "12345678901", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := hasValidCheckDigit(tt.code); got != tt.want {
+				t.Errorf("hasValidCheckDigit(%q) = %v, want %v", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBarcode_CheckDigitMismatch(t *testing.T) {
+	cfg := &config.Config{BuildVersion: "test", SupportEmail: "test@test.com"}
+	h := Barcode(cfg)
+
+	r := httptest.NewRequest("GET", "/api/barcode/4311501062448", nil)
+	r = withChiURLParam(r, "code", "4311501062448") // last digit flipped
+	w := httptest.NewRecorder()
+	h(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", w.Code)
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if ok, _ := resp["ok"].(bool); ok {
+		t.Errorf("expected ok=false, got %v", resp)
+	}
+	if code, _ := resp["code"].(string); code != "CHECK_DIGIT" {
+		t.Errorf("expected code=CHECK_DIGIT, got %q", code)
+	}
+}
+
 func TestOrDefault(t *testing.T) {
 	if got := orDefault("hello", "world"); got != "hello" {
 		t.Errorf("orDefault('hello', 'world') = %q, want 'hello'", got)
