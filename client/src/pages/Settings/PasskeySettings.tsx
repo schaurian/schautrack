@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listPasskeys, deletePasskey, renamePasskey, passkeyRegisterBegin, passkeyRegisterFinish, type Passkey } from '@/api/passkeys';
+import { listPasskeys, deletePasskey, renamePasskey, passkeyRegisterBegin, passkeyRegisterFinish, getAuthInfo, type Passkey, type AuthInfo } from '@/api/passkeys';
 import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,6 +15,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
   const [registering, setRegistering] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
+  const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
   const addToast = useToastStore((s) => s.addToast);
   const fetchUser = useAuthStore((s) => s.fetchUser);
 
@@ -25,7 +26,16 @@ export default function PasskeySettings({ onUpdate }: Props) {
     } catch { /* ignore */ }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    getAuthInfo().then(setAuthInfo).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (authInfo?.passkeysEnabled) refresh();
+  }, [authInfo?.passkeysEnabled]);
+
+  if (!authInfo) return null;
+  if (!authInfo.passkeysEnabled) return null;
 
   const handleRegister = async () => {
     const name = newName.trim() || 'Passkey';
@@ -122,7 +132,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
               onChange={(e) => setNewName(e.target.value)}
               maxLength={50}
             />
-            <Button size="default" loading={registering} onClick={handleRegister}>
+            <Button size="default" loading={registering} disabled={!newName.trim()} onClick={handleRegister}>
               Add Passkey
             </Button>
           </div>
