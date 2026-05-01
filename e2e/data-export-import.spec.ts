@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser } from './fixtures/helpers';
+import { completeStepUp } from './fixtures/stepup';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -37,15 +38,19 @@ test.describe('Data Export / Import', () => {
 
     await loginAndGo(page, '/settings');
 
-    // Locate the Export button inside the Data card
-    const exportLink = page.locator('a[href="/settings/export"]');
-    await exportLink.scrollIntoViewIfNeeded({ timeout: 10000 });
-    await expect(exportLink).toBeVisible({ timeout: 10000 });
+    // Wait past step-up grace (TTL=10s in test env) so the modal triggers.
+    await page.waitForTimeout(12000);
 
-    // Set up download listener before clicking
+    // Click Export — step-up modal gates the request.
+    const exportBtn = page.getByRole('button', { name: 'Export JSON', exact: true });
+    await exportBtn.scrollIntoViewIfNeeded({ timeout: 10000 });
+
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      exportLink.click(),
+      (async () => {
+        await exportBtn.click();
+        await completeStepUp(page, user.password);
+      })(),
     ]);
 
     // Verify download fires and filename contains "schautrack"
@@ -137,8 +142,10 @@ test.describe('Data Export / Import', () => {
     const importBtn = page.getByRole('button', { name: 'Import', exact: true });
     await expect(importBtn).toBeEnabled({ timeout: 5000 });
 
-    // Click Import and wait for success message
+    // Wait past step-up grace and import — modal will gate the request.
+    await page.waitForTimeout(12000);
     await importBtn.click();
+    await completeStepUp(page, user.password);
     await expect(page.getByText(/Imported/i)).toBeVisible({ timeout: 15000 });
 
     // Clean up temp file

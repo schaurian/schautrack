@@ -14,7 +14,11 @@ import (
 	"schautrack/internal/service"
 )
 
-// Export handles GET /settings/export
+// Export handles POST /settings/export.
+// Returns the user's full data set as a JSON download. Authorization is via
+// the step-up middleware on the route — the caller has already proven
+// identity. POST (not GET) so CSRF protection applies and the client can
+// retry through the step-up modal interceptor.
 func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)

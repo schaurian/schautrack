@@ -3,7 +3,10 @@ import { createIsolatedUser } from './fixtures/helpers';
 import { completeStepUp, cancelStepUp } from './fixtures/stepup';
 
 // Each test uses a fresh login context so the storageState session age can't
-// influence whether the step-up grace is fresh.
+// influence whether the step-up grace is fresh. Tests share one DB user and
+// mutate the password, so they must run serially to avoid clobbering each
+// other's logins.
+test.describe.configure({ mode: 'serial' });
 
 test.describe('Step-up auth', () => {
   let user: { email: string; password: string; id: string };
@@ -133,6 +136,12 @@ test.describe('Step-up auth', () => {
     await dialog.getByLabel('Password', { exact: true }).fill(user.password);
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/password updated/i).first()).toBeVisible({ timeout: 5000 });
+
+    // Restore original password — within fresh grace, no second modal.
+    await page.getByLabel('New Password').fill(user.password);
+    await page.getByLabel('Confirm Password').fill(user.password);
+    await page.getByRole('button', { name: 'Update Password' }).click();
     await expect(page.getByText(/password updated/i).first()).toBeVisible({ timeout: 5000 });
 
     await ctx.close();

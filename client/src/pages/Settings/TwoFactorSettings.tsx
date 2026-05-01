@@ -166,7 +166,7 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
 
       {totpEnabled ? (
         <>
-          <p className="text-muted-foreground text-sm mb-3">
+          <p className="text-muted-foreground text-sm mt-3 mb-3">
             2FA is enabled on your account.
           </p>
           <div className="border-t border-border pt-3 mt-1">

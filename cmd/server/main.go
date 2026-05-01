@@ -197,8 +197,9 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/entries", entriesHandler.CreateEntry)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/entries/{id}/update", entriesHandler.UpdateEntry)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/entries/{id}/delete", entriesHandler.DeleteEntry)
-	r.With(middleware.RequireLogin).Get("/settings/export", entriesHandler.Export)
-	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/import", entriesHandler.Import)
+	// Export and import both move whole-account data — gate them with step-up.
+	r.With(middleware.RequireLogin, stepUp, session.CsrfProtection).Post("/settings/export", entriesHandler.Export)
+	r.With(middleware.RequireLogin, stepUp, session.CsrfProtection).Post("/settings/import", entriesHandler.Import)
 
 	// Weight routes
 	weightHandler := &handler.WeightHandler{Pool: pool, Broker: sseBroker}

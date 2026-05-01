@@ -76,15 +76,30 @@ export function cancelEmailChange() {
   return api<{ ok: boolean }>('/settings/email/cancel', { method: 'POST' });
 }
 
-export async function importData(file: File, csrfToken: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+// Routed through api() so the step-up modal can intercept the 403 and retry
+// after re-auth. FormData body is left untouched (api() only auto-sets
+// Content-Type for string bodies, so the multipart boundary stays intact).
+export function importData(file: File): Promise<{ ok: boolean; message?: string; error?: string }> {
   const formData = new FormData();
   formData.append('import_file', file);
-  formData.append('_csrf', csrfToken);
-  const res = await fetch('/settings/import', {
+  return api<{ ok: boolean; message?: string; error?: string }>('/settings/import', {
     method: 'POST',
     body: formData,
-    credentials: 'same-origin',
-    headers: { 'X-CSRF-Token': csrfToken, Accept: 'application/json' },
   });
-  return res.json();
+}
+
+// Server returns the full export as JSON. The browser turns that into a
+// download via a Blob URL; routing through api() is what lets the step-up
+// modal intercept the 403 and retry on success.
+export async function exportData(): Promise<void> {
+  const data = await api<unknown>('/settings/export', { method: 'POST' });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `schautrack-export-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

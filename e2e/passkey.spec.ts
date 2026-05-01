@@ -7,6 +7,10 @@ import { attachVirtualAuthenticator } from './fixtures/webauthn';
 // compose.test.yml). The virtual WebAuthn authenticator attached per test
 // handles credentials.create / credentials.get without real biometrics.
 
+// All tests share one DB user — run serially so parallel registrations
+// don't clobber each other's count assertions.
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Passkeys', () => {
   let user: { email: string; password: string; id: string };
 

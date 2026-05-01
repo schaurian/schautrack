@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
-import { getSettings, importData } from '@/api/settings';
-import { getCsrfToken } from '@/api/client';
+import { getSettings, importData, exportData } from '@/api/settings';
+import { ApiError } from '@/api/client';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -46,26 +46,40 @@ export default function Settings() {
     queryClient.invalidateQueries({ queryKey: ['me'] });
   };
 
+  const [exportLoading, setExportLoading] = useState(false);
+
   const handleImport = async () => {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
     setImportLoading(true);
     setImportMessage(null);
     try {
-      const csrfToken = await getCsrfToken();
-      const result = await importData(file, csrfToken);
+      const result = await importData(file);
       if (result.ok) {
         setImportMessage({ type: 'success', text: result.message || 'Data imported successfully.' });
         refresh();
       } else {
         setImportMessage({ type: 'error', text: result.error || 'Import failed.' });
       }
-    } catch {
-      setImportMessage({ type: 'error', text: 'Import failed.' });
+    } catch (err) {
+      setImportMessage({
+        type: 'error',
+        text: err instanceof ApiError ? err.message : 'Import failed.',
+      });
     }
     setImportLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setSelectedFileName(null);
+  };
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      await exportData();
+    } catch {
+      // step-up cancellation lands here as ApiError(403). Quiet failure.
+    }
+    setExportLoading(false);
   };
 
   return (
@@ -129,9 +143,14 @@ export default function Settings() {
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Export</p>
                 <p className="text-xs text-muted-foreground mb-3">Download all your entries as a JSON backup.</p>
-                <a href="/settings/export">
-                  <Button variant="outline" className="w-full">Export JSON</Button>
-                </a>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleExport}
+                  loading={exportLoading}
+                >
+                  Export JSON
+                </Button>
               </div>
               <div className="border-t border-border pt-4">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Import</p>
