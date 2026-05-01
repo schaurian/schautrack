@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -19,12 +20,26 @@ const (
 	AnonMaxAge     = 15 * time.Minute
 	AuthMaxAge     = 30 * 24 * time.Hour
 	PruneInterval  = 5 * time.Minute
-	// StepUpTTL is how long after fresh primary auth a session is considered
-	// "elevated" — i.e., allowed to perform sensitive auth-method changes
-	// (delete passkey, disable TOTP, change password/email, …) without
-	// re-authenticating. See Session.HasRecentStepUp.
-	StepUpTTL = 10 * time.Minute
+	defaultStepUpTTL = 10 * time.Minute
 )
+
+// StepUpTTL is how long after fresh primary auth a session is considered
+// "elevated" — i.e., allowed to perform sensitive auth-method changes
+// (delete passkey, disable TOTP, change password/email, …) without
+// re-authenticating. Defaults to 10 min; overridable via the STEP_UP_TTL
+// environment variable (any value parseable by time.ParseDuration). The
+// override exists for E2E tests that need a short window to exercise both
+// the in-grace and expired paths.
+var StepUpTTL = parseStepUpTTL()
+
+func parseStepUpTTL() time.Duration {
+	if v := os.Getenv("STEP_UP_TTL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return defaultStepUpTTL
+}
 
 // Session holds arbitrary data stored in the database.
 type Session struct {
