@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useStepUpStore } from '@/stores/stepUpStore';
+import { useAuthStore } from '@/stores/authStore';
 import { stepUpPasswordTOTP, stepUpPasskeyBegin, stepUpPasskeyFinish } from '@/api/stepup';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import { Alert } from '@/components/ui/Alert';
 export default function StepUpModal() {
   const pending = useStepUpStore((s) => s.pending);
   const clear = useStepUpStore((s) => s.clear);
+  const userEmail = useAuthStore((s) => s.user?.email);
 
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
@@ -117,6 +119,20 @@ export default function StepUpModal() {
 
         {hasPassword && (
           <form onSubmit={submitPassword} className="flex flex-col gap-3">
+            {/*
+              Hidden username input — Bitwarden, 1Password and the browser's
+              built-in password manager all need a username field paired with
+              the password to match a stored credential. Without it, autofill
+              is silently skipped on this modal.
+            */}
+            <input
+              type="email"
+              name="username"
+              value={userEmail ?? ''}
+              autoComplete="username"
+              readOnly
+              hidden
+            />
             <Input
               label="Password"
               type="password"
