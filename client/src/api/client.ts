@@ -78,8 +78,16 @@ export async function api<T = unknown>(
   }
 
   if (res.status === 401) {
-    csrfToken = null;
-    if (on401Callback) on401Callback();
+    // 401 from a step-up endpoint means the password / TOTP / passkey the
+    // user just entered didn't validate — NOT that the session expired.
+    // We must not redirect to /login or clear the user; the modal needs to
+    // stay open and show an inline error. The on401 redirect path is for
+    // genuine session loss on regular endpoints.
+    const isStepUpEndpoint = url.startsWith('/api/auth/step-up');
+    if (!isStepUpEndpoint) {
+      csrfToken = null;
+      if (on401Callback) on401Callback();
+    }
     const err = await res.json().catch(() => ({ error: 'Unauthorized' }));
     throw new ApiError(401, err.error || 'Unauthorized', err);
   }

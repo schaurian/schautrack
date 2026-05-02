@@ -137,4 +137,84 @@ test.describe('Passkeys', () => {
       await ctx.close();
     }
   });
+
+  test('step-up via passkey (not password)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    const { teardown } = await attachVirtualAuthenticator(ctx, page);
+
+    try {
+      await login(page);
+      await page.goto('/settings');
+      await page.waitForTimeout(12000);
+
+      // Register a passkey so the modal can offer the passkey path.
+      await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
+      await page.getByPlaceholder(/passkey name/i).fill('Step-up Source');
+      await page.getByRole('button', { name: /add passkey/i }).click();
+      await completeStepUp(page, user.password);
+      await expect(page.getByText('Step-up Source')).toBeVisible({ timeout: 10000 });
+
+      // Wait past grace, then trigger Export JSON — it's gated by step-up
+      // but doesn't mutate persistent user state, so leftover state from a
+      // failed assertion can't break later tests.
+      await page.waitForTimeout(12000);
+
+      const exportBtn = page.getByRole('button', { name: 'Export JSON', exact: true });
+      await exportBtn.scrollIntoViewIfNeeded();
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        (async () => {
+          await exportBtn.click();
+          const dialog = page.getByRole('dialog', { name: /confirm it's you/i });
+          await expect(dialog).toBeVisible({ timeout: 5000 });
+          await dialog.getByRole('button', { name: /use passkey/i }).click();
+          await expect(dialog).not.toBeVisible({ timeout: 10000 });
+        })(),
+      ]);
+
+      // Virtual authenticator signed the assertion; the original export
+      // request was retried and the JSON download fired.
+      expect(download.suggestedFilename()).toContain('schautrack');
+    } finally {
+      await teardown();
+      await ctx.close();
+    }
+  });
+
+  test('rename passkey does NOT trigger step-up (label-only change)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    const { teardown } = await attachVirtualAuthenticator(ctx, page);
+
+    try {
+      await login(page);
+      await page.goto('/settings');
+      await page.waitForTimeout(12000);
+
+      await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
+      await page.getByPlaceholder(/passkey name/i).fill('Old Name');
+      await page.getByRole('button', { name: /add passkey/i }).click();
+      await completeStepUp(page, user.password);
+      await expect(page.getByText('Old Name')).toBeVisible({ timeout: 10000 });
+
+      // Wait past grace so a *gated* action would prompt.
+      await page.waitForTimeout(12000);
+
+      // Click the passkey name to enter rename mode, type, blur to save.
+      await page.getByRole('button', { name: 'Old Name' }).click();
+      const editInput = page.locator('input[value="Old Name"]');
+      await editInput.fill('New Name');
+      await editInput.blur();
+
+      // Rename is intentionally NOT gated — verify no modal appeared and
+      // the new name persisted.
+      await expect(page.getByRole('dialog', { name: /confirm it's you/i })).not.toBeVisible();
+      await expect(page.getByText('New Name')).toBeVisible({ timeout: 5000 });
+    } finally {
+      await teardown();
+      await ctx.close();
+    }
+  });
 });
