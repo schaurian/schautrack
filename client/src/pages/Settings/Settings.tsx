@@ -1,11 +1,14 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getSettings, importData, exportData } from '@/api/settings';
 import { ApiError } from '@/api/client';
+import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { OIDC_SETTINGS_ERRORS, OIDC_SETTINGS_SUCCESS } from '@/lib/oidcMessages';
 import MacroSettings from './MacroSettings';
 import PreferencesSettings from './PreferencesSettings';
 import PasswordSettings from './PasswordSettings';
@@ -26,6 +29,28 @@ export default function Settings() {
   const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const addToast = useToastStore((s) => s.addToast);
+
+  // Surface OIDC link-flow outcomes (?error=... / ?success=...) as toasts,
+  // then strip the params so a refresh doesn't fire them again.
+  useEffect(() => {
+    const errorCode = searchParams.get('error');
+    const successCode = searchParams.get('success');
+    if (!errorCode && !successCode) return;
+    if (errorCode) {
+      const msg = OIDC_SETTINGS_ERRORS[errorCode] ?? 'Something went wrong.';
+      addToast('error', msg);
+    }
+    if (successCode) {
+      const msg = OIDC_SETTINGS_SUCCESS[successCode];
+      if (msg) addToast('success', msg);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('error');
+    next.delete('success');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, addToast]);
 
   const handleFileChange = useCallback(() => {
     const file = fileInputRef.current?.files?.[0];

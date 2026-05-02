@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { login, reset2fa } from '@/api/auth';
 import { getAuthInfo, passkeyLoginBegin, passkeyLoginFinish, type AuthInfo } from '@/api/passkeys';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { startAuthentication } from '@simplewebauthn/browser';
+import { OIDC_LOGIN_ERRORS } from '@/lib/oidcMessages';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,11 +29,24 @@ export default function Login() {
   const [resetCode, setResetCode] = useState('');
   const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { fetchUser } = useAuthStore();
 
   useEffect(() => {
     getAuthInfo().then(setAuthInfo).catch(() => {});
   }, []);
+
+  // Surface OIDC redirect failures (?error=...). Strip the param after
+  // reading so a refresh doesn't show the same error again.
+  useEffect(() => {
+    const code = searchParams.get('error');
+    if (!code) return;
+    const msg = OIDC_LOGIN_ERRORS[code] ?? 'Sign-in failed. Please try again.';
+    setError(msg);
+    const next = new URLSearchParams(searchParams);
+    next.delete('error');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handlePasskeyLogin = async () => {
     setPasskeyLoading(true);
