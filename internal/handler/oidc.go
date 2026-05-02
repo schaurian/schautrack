@@ -141,17 +141,17 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	claims.Email = strings.ToLower(strings.TrimSpace(claims.Email))
 
 	if intent == "link" {
-		h.handleLink(w, r, sess, h.providerSlug, claims.Sub, claims.Email)
+		h.handleLink(w, r, sess, h.providerSlug, claims.Sub, claims.Email, claims.EmailVerified)
 		return
 	}
 
-	h.handleLogin(w, r, sess, h.providerSlug, claims.Sub, claims.Email)
+	h.handleLogin(w, r, sess, h.providerSlug, claims.Sub, claims.Email, claims.EmailVerified)
 }
 
-func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject, email string) {
+func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject, email string, emailVerified bool) {
 	ctx := r.Context()
 
-	// 1. Look up by OIDC account
+	// 1. Look up by OIDC account (provider + subject is the canonical identity).
 	account, err := service.FindOIDCAccount(ctx, h.Pool, provider, subject)
 	if err == nil && account != nil {
 		newSess, _ := h.SessionStore.Regenerate(r, sess)
@@ -162,12 +162,22 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 
-	// 2. Look up by email → auto-link
-	if email != "" {
+	// 2. Look up by email → auto-link existing account.
+	//
+	// SECURITY: only follow this path if the IdP asserts email_verified=true.
+	// Otherwise an attacker can register at the IdP with a victim's email
+	// address (without proving they own it), click "Sign in with OIDC" on
+	// schautrack, and we'd silently link their attacker-controlled OIDC
+	// identity to the victim's account.
+	if email != "" && emailVerified {
 		var userID int
 		err := h.Pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1", email).Scan(&userID)
 		if err == nil {
-			_ = service.CreateOIDCAccount(ctx, h.Pool, userID, provider, subject, email)
+			if err := service.CreateOIDCAccount(ctx, h.Pool, userID, provider, subject, email); err != nil {
+				slog.Error("OIDC auto-link failed", "email", email, "error", err)
+				http.Redirect(w, r, "/login?error=link_failed", http.StatusFound)
+				return
+			}
 			newSess2, _ := h.SessionStore.Regenerate(r, sess)
 			session.SetSession(r, newSess2)
 			newSess2.SetUserID(userID)
@@ -175,9 +185,12 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 			http.Redirect(w, r, "/dashboard", http.StatusFound)
 			return
 		}
+	} else if email != "" && !emailVerified {
+		slog.Warn("OIDC: skipping email-based auto-link because email_verified=false",
+			"provider", provider, "subject", subject, "email", email)
 	}
 
-	// 3. Auto-create new user
+	// 3. Auto-create new user.
 	if !h.canAutoCreate(r) {
 		http.Redirect(w, r, "/login?error=registration_disabled", http.StatusFound)
 		return
@@ -202,9 +215,12 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 	if clientTz != "" {
 		tzArg = clientTz
 	}
+	// Mirror the IdP's email_verified flag — if the IdP doesn't trust the
+	// email yet, neither do we. The next login attempt with a verified email
+	// can complete normal verification.
 	err = tx.QueryRow(ctx,
-		`INSERT INTO users (email, email_verified, macros_enabled, timezone) VALUES ($1, true, $2, $3) RETURNING id`,
-		email, defaultMacros, tzArg).Scan(&userID)
+		`INSERT INTO users (email, email_verified, macros_enabled, timezone) VALUES ($1, $2, $3, $4) RETURNING id`,
+		email, emailVerified, defaultMacros, tzArg).Scan(&userID)
 	if err != nil {
 		slog.Error("OIDC auto-create user failed", "email", email, "error", err)
 		http.Redirect(w, r, "/login?error=create_failed", http.StatusFound)
@@ -231,21 +247,38 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 	http.Redirect(w, r, "/dashboard", http.StatusFound)
 }
 
-func (h *OIDCHandler) handleLink(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject, email string) {
+func (h *OIDCHandler) handleLink(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject, email string, emailVerified bool) {
 	user := middleware.GetCurrentUser(r)
 	if user == nil {
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
-	// Check if already linked by another user
+	// Reject linking an OIDC identity whose email isn't verified at the IdP.
+	// Linking is the user's explicit action, but we still don't want them
+	// associating an unproven email with their account — and if the IdP
+	// later verifies a different email for the same subject, our local
+	// records would silently disagree with reality.
+	if email == "" || !emailVerified {
+		slog.Warn("OIDC link rejected: email missing or unverified",
+			"provider", provider, "subject", subject,
+			"email", email, "verified", emailVerified)
+		http.Redirect(w, r, "/settings?error=oidc_email_unverified", http.StatusFound)
+		return
+	}
+
+	// Check if already linked by another user.
 	existing, err := service.FindOIDCAccount(r.Context(), h.Pool, provider, subject)
 	if err == nil && existing != nil && existing.UserID != user.ID {
 		http.Redirect(w, r, "/settings?error=oidc_already_linked", http.StatusFound)
 		return
 	}
 
-	_ = service.CreateOIDCAccount(r.Context(), h.Pool, user.ID, provider, subject, email)
+	if err := service.CreateOIDCAccount(r.Context(), h.Pool, user.ID, provider, subject, email); err != nil {
+		slog.Error("OIDC link failed", "user_id", user.ID, "error", err)
+		http.Redirect(w, r, "/settings?error=oidc_link_failed", http.StatusFound)
+		return
+	}
 	http.Redirect(w, r, "/settings?success=oidc_linked", http.StatusFound)
 }
 
@@ -298,5 +331,7 @@ func generateRandomString(n int) (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return base64.URLEncoding.EncodeToString(b), nil
+	// RawURLEncoding drops '=' padding — the value goes into a URL query
+	// parameter and into the session, both of which are happier without it.
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
