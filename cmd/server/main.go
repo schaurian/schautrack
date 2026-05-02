@@ -174,8 +174,13 @@ func main() {
 	if passkeyHandler != nil {
 		r.Post("/passkeys/login/begin", passkeyHandler.LoginBegin)
 		r.Post("/passkeys/login/finish", passkeyHandler.LoginFinish)
+		// Only /begin needs step-up. /finish is authenticated by the signed
+		// WebAuthn challenge issued from the session in /begin — no additional
+		// re-prompt required, and skipping it avoids a second modal when the
+		// user takes longer than the grace window to complete the platform's
+		// passkey ceremony.
 		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/passkeys/register/begin", passkeyHandler.RegisterBegin)
-		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/passkeys/register/finish", passkeyHandler.RegisterFinish)
+		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/passkeys/register/finish", passkeyHandler.RegisterFinish)
 		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/passkeys/delete", passkeyHandler.Delete)
 		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, session.CsrfProtection).Post("/passkeys/rename", passkeyHandler.Rename)
 		r.With(middleware.RequireLogin).Get("/passkeys/list", passkeyHandler.List)
