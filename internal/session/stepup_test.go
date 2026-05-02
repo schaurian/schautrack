@@ -31,10 +31,10 @@ func TestHasRecentStepUp(t *testing.T) {
 	}{
 		{"no step_up_at", map[string]any{}, false},
 		{"just now", map[string]any{"step_up_at": int(time.Now().Unix())}, true},
-		{"5 min ago", map[string]any{"step_up_at": int(time.Now().Add(-5 * time.Minute).Unix())}, true},
+		{"halfway through TTL", map[string]any{"step_up_at": int(time.Now().Add(-StepUpTTL / 2).Unix())}, true},
 		{"just under TTL", map[string]any{"step_up_at": int(time.Now().Add(-(StepUpTTL - 1*time.Second)).Unix())}, true},
 		{"exactly at TTL", map[string]any{"step_up_at": int(time.Now().Add(-StepUpTTL).Unix())}, false},
-		{"long expired", map[string]any{"step_up_at": int(time.Now().Add(-1 * time.Hour).Unix())}, false},
+		{"well past TTL", map[string]any{"step_up_at": int(time.Now().Add(-StepUpTTL - 1*time.Hour).Unix())}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
