@@ -63,6 +63,9 @@ data:
   {{- if .Values.config.baseUrl }}
   BASE_URL: {{ .Values.config.baseUrl | quote }}
   {{- end }}
+  {{- if .Values.config.stepUpTTL }}
+  STEP_UP_TTL: {{ .Values.config.stepUpTTL | quote }}
+  {{- end }}
   {{- if .Values.oidc.issuer }}
   OIDC_ISSUER: {{ .Values.oidc.issuer | quote }}
   {{- end }}
