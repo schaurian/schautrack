@@ -61,10 +61,8 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    // Find the ENABLE_REGISTRATION select by its label
-    const regLabel = page.getByText('ENABLE_REGISTRATION');
-    await regLabel.scrollIntoViewIfNeeded();
-    const regSelect = regLabel.locator('..').locator('select');
+    const regSelect = page.getByLabel('ENABLE_REGISTRATION');
+    await regSelect.scrollIntoViewIfNeeded();
     await expect(regSelect).toBeVisible({ timeout: 5000 });
 
     // Skip if env-controlled (disabled)
@@ -87,9 +85,8 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    const regLabel2 = page.getByText('ENABLE_REGISTRATION');
-    await regLabel2.scrollIntoViewIfNeeded();
-    const reloadedSelect = regLabel2.locator('..').locator('select');
+    const reloadedSelect = page.getByLabel('ENABLE_REGISTRATION');
+    await reloadedSelect.scrollIntoViewIfNeeded();
     await expect(reloadedSelect).toHaveValue(flipped, { timeout: 5000 });
 
     // Restore
@@ -164,19 +161,14 @@ test.describe('Admin Panel', () => {
   });
 
   test('toggle barcode feature and verify it persists', async ({ page }) => {
-    // ENABLE_BARCODE is set via env var in compose.test.yml — can't toggle
     await page.goto('/admin');
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    // Find the ENABLE_BARCODE select — it has true/false options and its label reads 'ENABLE_BARCODE'
-    const barcodeLabel = page.getByText('ENABLE_BARCODE');
-    await barcodeLabel.scrollIntoViewIfNeeded();
-    await expect(barcodeLabel).toBeVisible({ timeout: 5000 });
-
-    // The select is the sibling element inside the same container
-    const barcodeContainer = barcodeLabel.locator('..');
-    const barcodeSelect = barcodeContainer.locator('select');
+    // The form has proper htmlFor/id pairing so getByLabel resolves directly
+    // to the input/select.
+    const barcodeSelect = page.getByLabel('ENABLE_BARCODE');
+    await barcodeSelect.scrollIntoViewIfNeeded();
     await expect(barcodeSelect).toBeVisible({ timeout: 5000 });
 
     const current = await barcodeSelect.inputValue();
@@ -191,9 +183,8 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    const barcodeLabel2 = page.getByText('ENABLE_BARCODE');
-    await barcodeLabel2.scrollIntoViewIfNeeded();
-    const barcodeSelect2 = barcodeLabel2.locator('..').locator('select');
+    const barcodeSelect2 = page.getByLabel('ENABLE_BARCODE');
+    await barcodeSelect2.scrollIntoViewIfNeeded();
     await expect(barcodeSelect2).toHaveValue(flipped, { timeout: 5000 });
 
     // Restore
@@ -209,9 +200,8 @@ test.describe('Admin Panel', () => {
 
     // Use a DB-only (non-env-controlled) setting like AI_ENDPOINT to test save/persist.
     // SUPPORT_EMAIL, IMPRINT_ADDRESS, IMPRINT_EMAIL may be env-controlled (disabled).
-    const endpointLabel = page.getByText('AI_ENDPOINT');
-    await endpointLabel.scrollIntoViewIfNeeded();
-    const endpointInput = endpointLabel.locator('..').locator('input');
+    const endpointInput = page.getByLabel('AI_ENDPOINT');
+    await endpointInput.scrollIntoViewIfNeeded();
 
     // Skip if env-controlled
     if (await endpointInput.isDisabled()) {
@@ -233,9 +223,8 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    const endpointLabel2 = page.getByText('AI_ENDPOINT');
-    await endpointLabel2.scrollIntoViewIfNeeded();
-    const endpointInput2 = endpointLabel2.locator('..').locator('input');
+    const endpointInput2 = page.getByLabel('AI_ENDPOINT');
+    await endpointInput2.scrollIntoViewIfNeeded();
     await expect(endpointInput2).toHaveValue(testValue, { timeout: 5000 });
 
     // Restore original value
@@ -344,11 +333,11 @@ test.describe('Admin Panel', () => {
 
     // IMPRINT_ADDRESS, IMPRINT_EMAIL, SUPPORT_EMAIL are set via env vars
     // Their inputs should be disabled
-    const imprintInput = page.locator('input[id="imprint_address"]');
+    const imprintInput = page.getByLabel('IMPRINT_ADDRESS');
     await imprintInput.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(imprintInput).toBeDisabled({ timeout: 5000 });
 
-    const supportInput = page.locator('input[id="support_email"]');
+    const supportInput = page.getByLabel('SUPPORT_EMAIL');
     await expect(supportInput).toBeDisabled({ timeout: 5000 });
 
     // Also verify via API: try to POST a change to an env-controlled setting

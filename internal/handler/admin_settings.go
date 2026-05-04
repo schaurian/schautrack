@@ -98,8 +98,11 @@ var adminSettings = []AdminSetting{
 		Help:     "Enable barcode scanning via OpenFoodFacts.",
 		Validate: validBool},
 	{Key: "enable_registration", Env: "ENABLE_REGISTRATION", Section: "features", Tier: "hot",
-		Help:     `"open" (anyone can register) or "false"/"invite" (requires invite code).`,
-		Validate: oneOf("open", "false", "invite", "")},
+		Help: `"open" (or "true") to allow public sign-up; "false"/"invite" to require an invite code.`,
+		// Accept the bool form "true" too — the UI's bool toggle stores it as
+		// "true", and the auth handler treats anything that isn't "false" or
+		// "invite" as open registration.
+		Validate: oneOf("open", "true", "false", "invite", "")},
 
 	// =========================================================================
 	// SMTP
