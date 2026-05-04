@@ -25,7 +25,11 @@ export default function Admin() {
 
   return (
     <div className="flex flex-col gap-6">
-      <AdminSettingsForm settings={data.settings} onSave={() => queryClient.invalidateQueries({ queryKey: ['admin'] })} />
+      <AdminSettingsForm
+        settings={data.settings as unknown as Record<string, SettingMeta>}
+        settingsOrder={(data as unknown as { settingsOrder?: string[] }).settingsOrder ?? Object.keys(data.settings)}
+        onSave={() => queryClient.invalidateQueries({ queryKey: ['admin'] })}
+      />
 
       <InviteManager />
 
@@ -86,93 +90,238 @@ function UserList({ users, onDelete }: { users: Array<{ id: number; email: strin
   );
 }
 
-function AdminSettingsForm({ settings, onSave }: { settings: Record<string, { value: string; source: string }>; onSave: () => void }) {
-  const [values, setValues] = useState<Record<string, string>>(
-    Object.fromEntries(Object.entries(settings).map(([k, v]) => [k, v.value]))
-  );
+interface SettingMeta {
+  value: string;
+  source: string;
+  section: string;
+  tier: 'hot' | 'restart';
+  secret: boolean;
+  dangerous: boolean;
+  help: string;
+  isSet: boolean;
+  envVar: string;
+}
+
+const SECTION_TITLES: Record<string, { title: string; description?: string }> = {
+  general: { title: 'General' },
+  ai: { title: 'AI Features', description: 'Photo-based calorie estimation. Provider keys set here are the global fallback when users don\'t have their own.' },
+  oidc: { title: 'OIDC / SSO', description: 'Single sign-on via an OpenID Connect provider. Set issuer + client id + client secret to enable.' },
+  passkeys: { title: 'Passkeys', description: 'WebAuthn passwordless login. Setting RP ID enables the feature.' },
+  features: { title: 'Features' },
+  smtp: { title: 'SMTP', description: 'Outgoing mail for password reset, email verification, etc.' },
+  security: { title: 'Security' },
+  legal: { title: 'Legal Pages' },
+  seo: { title: 'SEO / Deployment' },
+};
+
+function AdminSettingsForm({
+  settings,
+  settingsOrder,
+  onSave,
+}: {
+  settings: Record<string, SettingMeta>;
+  settingsOrder: string[];
+  onSave: () => void;
+}) {
+  // values are user-edited drafts; only keys present here are sent on save.
+  // Secret fields default to absent (we never receive the stored value); a
+  // user typing into one populates the draft.
+  const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  // Group settings by section, preserving the canonical order from the server.
+  const sections: Record<string, string[]> = {};
+  for (const key of settingsOrder) {
+    const s = settings[key];
+    if (!s) continue;
+    (sections[s.section] ??= []).push(key);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Confirm dangerous changes.
+    const dangerousChanges = Object.keys(values).filter((k) => settings[k]?.dangerous);
+    for (const k of dangerousChanges) {
+      const meta = settings[k];
+      const phrase = k === 'passkeys_rp_id' ? 'INVALIDATE-PASSKEYS'
+        : k === 'ai_key_encryption_secret' ? 'ORPHAN-AI-KEYS'
+        : 'CONFIRM';
+      const typed = window.prompt(
+        `Changing ${meta.envVar} has irreversible consequences:\n\n${meta.help}\n\nType ${phrase} to confirm.`,
+      );
+      if (typed !== phrase) {
+        useToastStore.getState().addToast('info', 'Save cancelled.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      // Only send settings that are NOT env-controlled (env-controlled ones are rejected by backend)
-      const editableValues = Object.fromEntries(
-        Object.entries(values).filter(([k]) => settings[k]?.source !== 'env')
+      // Only send settings that aren't env-controlled.
+      const editable = Object.fromEntries(
+        Object.entries(values).filter(([k]) => settings[k]?.source !== 'env'),
       );
-      await saveAdminSettings(editableValues);
+      if (Object.keys(editable).length === 0) {
+        useToastStore.getState().addToast('info', 'No changes to save.');
+        setLoading(false);
+        return;
+      }
+      await saveAdminSettings(editable);
+      setValues({});
       onSave();
+      useToastStore.getState().addToast('success', 'Settings saved.');
     } catch (err) {
       useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to save settings');
     }
     setLoading(false);
   };
 
-  const settingLabels: Record<string, string> = {
-    support_email: 'SUPPORT_EMAIL',
-    imprint_address: 'IMPRINT_ADDRESS',
-    imprint_email: 'IMPRINT_EMAIL',
-    enable_legal: 'ENABLE_LEGAL',
-    ai_provider: 'AI_PROVIDER',
-    ai_key: 'AI_KEY',
-    ai_endpoint: 'AI_ENDPOINT',
-    ai_model: 'AI_MODEL',
-    ai_daily_limit: 'AI_DAILY_LIMIT',
-    enable_registration: 'ENABLE_REGISTRATION',
-    enable_barcode: 'ENABLE_BARCODE',
-  };
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold">Application Settings</h2>
+      {Object.entries(SECTION_TITLES).map(([sectionKey, { title, description }]) => {
+        const keys = sections[sectionKey];
+        if (!keys || keys.length === 0) return null;
+        return (
+          <SettingsSection
+            key={sectionKey}
+            title={title}
+            description={description}
+            keys={keys}
+            settings={settings}
+            values={values}
+            setValues={setValues}
+          />
+        );
+      })}
+      <div className="flex justify-end">
+        <Button type="submit" loading={loading}>Save</Button>
+      </div>
+    </form>
+  );
+}
 
-  const toggleSettings: Record<string, { trueValue: string; falseValue: string; defaultValue: string }> = {
-    enable_registration: { trueValue: 'true', falseValue: 'false', defaultValue: 'true' },
-    enable_barcode: { trueValue: 'true', falseValue: 'false', defaultValue: 'true' },
-  };
-
-  const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed';
-
+function SettingsSection({
+  title,
+  description,
+  keys,
+  settings,
+  values,
+  setValues,
+}: {
+  title: string;
+  description?: string;
+  keys: string[];
+  settings: Record<string, SettingMeta>;
+  values: Record<string, string>;
+  setValues: (next: Record<string, string>) => void;
+}) {
   return (
     <Card>
-      <h3 className="text-base font-semibold mb-4">Application Settings</h3>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {Object.entries(settings).map(([key, setting]) => {
-          const isEnv = setting.source === 'env';
-          const label = settingLabels[key] || key;
-          const toggle = toggleSettings[key];
-
-          const envTitle = isEnv ? 'Locked — set via environment variable' : undefined;
-
-          if (toggle) {
-            const effectiveValue = values[key] || toggle.defaultValue;
-            const isOn = effectiveValue === toggle.trueValue;
-            return (
-              <div key={key} className="flex flex-col gap-1.5" title={envTitle}>
-                <label className="text-xs font-medium text-muted-foreground">{label}</label>
-                <select
-                  className={selectClass}
-                  value={isOn ? 'true' : 'false'}
-                  onChange={(e) => setValues({ ...values, [key]: e.target.value === 'true' ? toggle.trueValue : toggle.falseValue })}
-                  disabled={isEnv}
-                >
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
-              </div>
-            );
-          }
-
-          return (
-            <div key={key} title={envTitle}>
-              <Input
-                label={label}
-                value={values[key] || ''}
-                onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                disabled={isEnv}
-              />
-            </div>
-          );
-        })}
-        <Button type="submit" size="sm" loading={loading}>Save</Button>
-      </form>
+      <h3 className="text-base font-semibold mb-1">{title}</h3>
+      {description && <p className="text-xs text-muted-foreground mb-4">{description}</p>}
+      <div className="flex flex-col gap-3">
+        {keys.map((key) => (
+          <SettingField
+            key={key}
+            settingKey={key}
+            meta={settings[key]}
+            draft={values[key]}
+            isDirty={key in values}
+            onChange={(v) => setValues({ ...values, [key]: v })}
+          />
+        ))}
+      </div>
     </Card>
+  );
+}
+
+function SettingField({
+  settingKey,
+  meta,
+  draft,
+  isDirty,
+  onChange,
+}: {
+  settingKey: string;
+  meta: SettingMeta;
+  draft: string | undefined;
+  isDirty: boolean;
+  onChange: (v: string) => void;
+}) {
+  const [revealing, setRevealing] = useState(false);
+  const isEnv = meta.source === 'env';
+  const isBool = ['enable_legal', 'enable_barcode', 'enable_registration', 'oidc_require_invite', 'smtp_secure', 'trust_proxy', 'robots_index'].includes(settingKey);
+  const value = isDirty ? draft! : meta.value;
+
+  // Secrets: don't pre-populate the input. Show a "set" indicator + Replace
+  // button. Once revealing, show an empty input the user types into.
+  const showSecretMask = meta.secret && !isDirty && !revealing;
+
+  const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed';
+
+  const fieldId = `admin-setting-${settingKey}`;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <label htmlFor={fieldId} className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {meta.envVar}
+        </label>
+        {isEnv && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+            ENV
+          </span>
+        )}
+        {meta.tier === 'restart' && !isEnv && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30" title="Takes effect on next server restart">
+            🔄 Restart
+          </span>
+        )}
+        {meta.dangerous && !isEnv && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/30">
+            ⚠ Dangerous
+          </span>
+        )}
+        {isDirty && <span className="text-[10px] text-primary">• unsaved</span>}
+      </div>
+
+      {isBool ? (
+        <select
+          id={fieldId}
+          className={inputClass}
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={isEnv}
+        >
+          <option value="">(unset)</option>
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      ) : showSecretMask ? (
+        <div className="flex items-center gap-2">
+          <span className={`flex-1 ${inputClass} ${meta.isSet ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
+            {meta.isSet ? '•••••••• (stored)' : '(unset)'}
+          </span>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setRevealing(true)} disabled={isEnv}>
+            Replace
+          </Button>
+        </div>
+      ) : (
+        <input
+          id={fieldId}
+          type={meta.secret ? 'password' : 'text'}
+          className={inputClass}
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={isEnv}
+          placeholder={meta.secret ? 'Enter new value' : ''}
+          autoComplete={meta.secret ? 'new-password' : 'off'}
+        />
+      )}
+
+      {meta.help && <p className="text-xs text-muted-foreground/80">{meta.help}</p>}
+    </div>
   );
 }
 
