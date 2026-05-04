@@ -12,6 +12,8 @@ import EntryList from './EntryList';
 import WeightRow from './WeightRow';
 import TodoList from './TodoList';
 import NoteEditor from './NoteEditor';
+import FavoritesBar from './FavoritesBar';
+import SaveTodayAsTemplateButton from './SaveTodayAsTemplateButton';
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -111,6 +113,8 @@ export default function Dashboard() {
         todayStr={dashboard.todayStr}
       />
 
+      {canEdit && <FavoritesBar selectedDate={selectedDate} canEdit={canEdit} />}
+
       {canEdit && (
         <EntryForm
           selectedDate={selectedDate}
@@ -153,9 +157,17 @@ export default function Dashboard() {
       )}
 
       <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+        <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between gap-2 flex-wrap">
           <h3 className="text-sm font-medium text-muted-foreground">Entries</h3>
-          <span className="text-sm text-muted-foreground">{selectedDate} &mdash; {currentLabel}</span>
+          <div className="flex items-center gap-3">
+            {canEdit && (
+              <SaveTodayAsTemplateButton
+                entries={dayData?.entries || []}
+                selectedDate={selectedDate}
+              />
+            )}
+            <span className="text-sm text-muted-foreground">{selectedDate} &mdash; {currentLabel}</span>
+          </div>
         </div>
 
         <EntryList

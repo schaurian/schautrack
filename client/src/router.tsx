@@ -9,6 +9,7 @@ import ResetPassword from '@/pages/ResetPassword/ResetPassword';
 import VerifyEmail from '@/pages/VerifyEmail/VerifyEmail';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import Settings from '@/pages/Settings/Settings';
+import Templates from '@/pages/Templates/Templates';
 import Admin from '@/pages/Admin/Admin';
 import Privacy from '@/pages/Legal/Privacy';
 import Terms from '@/pages/Legal/Terms';
@@ -41,6 +42,7 @@ export default function AppRouter() {
         <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/delete" element={<ProtectedRoute><DeleteAccount /></ProtectedRoute>} />
