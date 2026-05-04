@@ -103,10 +103,13 @@ test.describe('Timezone Handling', () => {
     // Set timezone to America/Los_Angeles (PDT = UTC-7)
     psql(`UPDATE users SET timezone = 'America/Los_Angeles' WHERE id = ${user.id}`);
 
-    // Insert entry at UTC 20:00 on 2026-04-01 → 13:00 PDT
-    const entryDate = '2026-04-01';
+    // Pick a recent date so the dashboard's 30d range still includes it.
+    // UTC 20:00 = 13:00 PDT on the same day.
+    const today = new Date();
+    today.setUTCDate(today.getUTCDate() - 5);
+    const entryDate = today.toISOString().slice(0, 10);
     psql(`INSERT INTO calorie_entries (user_id, entry_date, entry_name, amount, created_at)
-          VALUES (${user.id}, '${entryDate}', 'LA Time Test', 200, '2026-04-01 20:00:00+00')`);
+          VALUES (${user.id}, '${entryDate}', 'LA Time Test', 200, '${entryDate} 20:00:00+00')`);
 
     try {
       const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });

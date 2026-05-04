@@ -411,8 +411,9 @@ test.describe('Admin Panel', () => {
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
     // Spot-check each section title — confirms canonical sections render.
+    // exact:true so 'Features' doesn't also match 'AI Features'.
     for (const title of ['General', 'AI Features', 'OIDC / SSO', 'Passkeys', 'Features', 'SMTP', 'Security', 'Legal Pages', 'SEO / Deployment']) {
-      await expect(page.getByRole('heading', { name: title, level: 3 })).toBeVisible({ timeout: 3000 });
+      await expect(page.getByRole('heading', { name: title, level: 3, exact: true })).toBeVisible({ timeout: 3000 });
     }
 
     // Spot-check that the new keys exist as labelled fields.
