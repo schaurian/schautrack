@@ -208,6 +208,8 @@ func (h *AuthHandler) EmailChangeRequest(w http.ResponseWriter, r *http.Request)
 	sess.Set("pendingEmailChange", newEmail)
 	sess.Set("pendingEmailChangeCreatedAt", float64(time.Now().Unix()))
 	sess.Set("emailChangeAttempts", 0)
+	service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, &user.ID, service.AuditEmailChangeRequested, r,
+		map[string]any{"old_email": user.Email, "new_email": newEmail})
 	OkJSON(w)
 }
 
@@ -283,6 +285,8 @@ func (h *AuthHandler) EmailChangeVerify(w http.ResponseWriter, r *http.Request) 
 	sess.Delete("pendingEmailChange")
 	sess.Delete("pendingEmailChangeCreatedAt")
 	sess.Delete("emailChangeAttempts")
+	service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, &user.ID, service.AuditEmailChanged, r,
+		map[string]any{"old_email": user.Email, "new_email": newEmail})
 	OkJSON(w)
 }
 
@@ -333,6 +337,11 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not delete account. Please try again.")
 		return
 	}
+
+	// user_id will be NULLed by the FK ON DELETE SET NULL — capture identifying
+	// info in metadata so the row still tells you "user X deleted their account".
+	service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, nil, service.AuditAccountDeleted, r,
+		map[string]any{"deleted_user_id": user.ID, "email": user.Email})
 
 	sess := session.GetSession(r)
 	h.SessionStore.Destroy(w, r, sess)

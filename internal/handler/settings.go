@@ -26,6 +26,7 @@ type SettingsHandler struct {
 	Pool              *pgxpool.Pool
 	Broker            *sse.Broker
 	AIKeyEncryptSecret string
+	TrustProxy        bool // for audit log IP extraction
 }
 
 // Preferences handles POST /settings/preferences
@@ -301,6 +302,7 @@ func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
 		return
 	}
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditPasswordChanged, r, nil)
 	OkJSON(w)
 }
 
@@ -401,6 +403,7 @@ func (h *SettingsHandler) TwoFactorEnable(w http.ResponseWriter, r *http.Request
 	sess.Delete("tempSecret")
 	sess.Delete("tempUrl")
 	sess.Delete("tempSecretCreatedAt")
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditTOTPEnabled, r, nil)
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "backupCodes": plainCodes})
 }
 
@@ -433,6 +436,7 @@ func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Reques
 		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
 		return
 	}
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditTOTPDisabled, r, nil)
 	OkJSON(w)
 }
 
@@ -468,6 +472,7 @@ func (h *SettingsHandler) RegenerateBackupCodes(w http.ResponseWriter, r *http.R
 		ErrorJSON(w, http.StatusInternalServerError, "Could not regenerate codes.")
 		return
 	}
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditBackupCodesRegen, r, nil)
 
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "backupCodes": plainCodes})
 }

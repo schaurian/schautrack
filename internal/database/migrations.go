@@ -557,6 +557,35 @@ func ensurePasskeysSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureAuditLogSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		// user_id is nullable + ON DELETE SET NULL so audit history survives
+		// account deletion (you still want to know "user X deleted their
+		// account" after the row is gone). action is a stable short code
+		// (e.g. "password_changed"); metadata is freeform jsonb for context
+		// like the old/new email on email change.
+		if _, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS audit_log (
+				id          BIGSERIAL PRIMARY KEY,
+				user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+				action      TEXT NOT NULL,
+				ip          TEXT,
+				user_agent  TEXT,
+				metadata    JSONB,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx,
+			`CREATE INDEX IF NOT EXISTS audit_log_user_created_idx ON audit_log (user_id, created_at DESC)`); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx,
+			`CREATE INDEX IF NOT EXISTS audit_log_action_created_idx ON audit_log (action, created_at DESC)`)
+		return err
+	})
+}
+
 func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Base tables first (others depend on them)
 	if err := ensureBaseSchema(ctx, pool); err != nil {
@@ -584,6 +613,7 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"macros", ensureMacroSchema},
 		{"oidc_accounts", ensureOIDCAccountsSchema},
 		{"passkeys", ensurePasskeysSchema},
+		{"audit_log", ensureAuditLogSchema},
 	}
 
 	results := make(chan migrationResult, len(migrations))

@@ -90,7 +90,7 @@ func main() {
 
 	// Passkey handler
 	var passkeyHandler *handler.PasskeyHandler
-	stepUpHandler := &handler.StepUpHandler{Pool: pool}
+	stepUpHandler := &handler.StepUpHandler{Pool: pool, TrustProxy: cfg.TrustProxy}
 	if cfg.PasskeysEnabled() {
 		origins := cfg.PasskeysRPOrigins
 		if len(origins) == 0 {
@@ -104,7 +104,7 @@ func main() {
 		if err != nil {
 			slog.Error("WebAuthn init failed", "error", err)
 		} else {
-			passkeyHandler = &handler.PasskeyHandler{Pool: pool, WebAuthn: wauthn, SessionStore: sessionStore}
+			passkeyHandler = &handler.PasskeyHandler{Pool: pool, WebAuthn: wauthn, SessionStore: sessionStore, TrustProxy: cfg.TrustProxy}
 			stepUpHandler.WebAuthn = wauthn
 		}
 	}
@@ -217,7 +217,7 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/{id}/delete", weightHandler.WeightDelete)
 
 	// Settings routes
-	settingsHandler := &handler.SettingsHandler{Pool: pool, Broker: sseBroker, AIKeyEncryptSecret: cfg.AIKeyEncryptSecret}
+	settingsHandler := &handler.SettingsHandler{Pool: pool, Broker: sseBroker, AIKeyEncryptSecret: cfg.AIKeyEncryptSecret, TrustProxy: cfg.TrustProxy}
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/preferences", settingsHandler.Preferences)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/macros", settingsHandler.Macros)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/ai", settingsHandler.AISettings)

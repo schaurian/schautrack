@@ -19,8 +19,9 @@ import (
 // the client a session.StepUpTTL window during which gated endpoints accept
 // requests without re-authenticating.
 type StepUpHandler struct {
-	Pool     *pgxpool.Pool
-	WebAuthn *webauthn.WebAuthn
+	Pool       *pgxpool.Pool
+	WebAuthn   *webauthn.WebAuthn
+	TrustProxy bool // for audit log IP extraction
 }
 
 // PasswordTOTP handles POST /api/auth/step-up
@@ -50,17 +51,23 @@ func (h *StepUpHandler) PasswordTOTP(w http.ResponseWriter, r *http.Request) {
 	}
 	valid, _ := verifyPassword(hash, body.Password)
 	if !valid {
+		service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
+			map[string]any{"reason": "wrong_password", "method": "password"})
 		ErrorJSON(w, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
 
 	if user.TOTPEnabled && user.TOTPSecret != nil {
 		if body.Token == "" {
+			service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
+				map[string]any{"reason": "missing_totp", "method": "password"})
 			ErrorJSON(w, http.StatusUnauthorized, "2FA code is required.")
 			return
 		}
 		if !totp.Validate(body.Token, *user.TOTPSecret) &&
 			!verifyAndUseBackupCodeForLogin(r, h.Pool, user.ID, body.Token) {
+			service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
+				map[string]any{"reason": "wrong_totp", "method": "password"})
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
 			return
 		}

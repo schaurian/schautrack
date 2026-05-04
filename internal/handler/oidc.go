@@ -240,6 +240,9 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 
+	service.WriteAudit(ctx, h.Pool, h.Cfg.TrustProxy, &userID, service.AuditOIDCAutoCreated, r,
+		map[string]any{"provider": provider, "subject": subject, "email": email, "email_verified": emailVerified})
+
 	newSess3, _ := h.SessionStore.Regenerate(r, sess)
 	session.SetSession(r, newSess3)
 	newSess3.SetUserID(userID)
@@ -279,6 +282,8 @@ func (h *OIDCHandler) handleLink(w http.ResponseWriter, r *http.Request, sess *s
 		http.Redirect(w, r, "/settings?error=oidc_link_failed", http.StatusFound)
 		return
 	}
+	service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, &user.ID, service.AuditOIDCLinked, r,
+		map[string]any{"provider": provider, "subject": subject, "email": email})
 	http.Redirect(w, r, "/settings?success=oidc_linked", http.StatusFound)
 }
 
@@ -312,6 +317,8 @@ func (h *OIDCHandler) Unlink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, &user.ID, service.AuditOIDCUnlinked, r,
+		map[string]any{"oidc_account_id": body.ID})
 	OkJSON(w)
 }
 

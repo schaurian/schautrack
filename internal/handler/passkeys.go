@@ -20,6 +20,7 @@ type PasskeyHandler struct {
 	Pool         *pgxpool.Pool
 	WebAuthn     *webauthn.WebAuthn
 	SessionStore *session.Store
+	TrustProxy   bool // for audit log IP extraction
 }
 
 // webauthnUser adapts our user model to go-webauthn's User interface.
@@ -174,6 +175,8 @@ func (h *PasskeyHandler) RegisterFinish(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditPasskeyAdded, r,
+		map[string]any{"name": name, "transports": transports})
 	OkJSON(w)
 }
 
@@ -287,6 +290,8 @@ func (h *PasskeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditPasskeyDeleted, r,
+		map[string]any{"passkey_id": body.ID})
 	OkJSON(w)
 }
 
@@ -317,6 +322,8 @@ func (h *PasskeyHandler) Rename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditPasskeyRenamed, r,
+		map[string]any{"passkey_id": body.ID, "new_name": body.Name})
 	OkJSON(w)
 }
 
