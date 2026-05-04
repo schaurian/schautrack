@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAdmin } from '@/hooks/useAuth';
 import { getAdminData, saveAdminSettings, deleteUser, createInvite, getInvites, deleteInvite } from '@/api/admin';
@@ -38,18 +38,37 @@ export default function Admin() {
   );
 }
 
-const PAGE_SIZE = 100;
+const INITIAL_USERS = 25;
+const LOAD_MORE_BATCH = 25;
 
 function UserList({ users, onDelete }: { users: Array<{ id: number; email: string; email_verified: boolean; created_at: string }>; onDelete: (id: number) => void }) {
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
+  const [shown, setShown] = useState(INITIAL_USERS);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const filtered = search
     ? users.filter((u) => u.email.toLowerCase().includes(search.toLowerCase()))
     : users;
+  const visible = filtered.slice(0, shown);
+  const hasMore = shown < filtered.length;
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Infinite scroll: when the bottom sentinel comes into view, reveal another
+  // batch. Re-runs when filtered grows/shrinks or shown changes.
+  useEffect(() => {
+    if (!hasMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShown((n) => n + LOAD_MORE_BATCH);
+        }
+      },
+      { rootMargin: '120px' },
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [hasMore, filtered.length]);
 
   return (
     <Card>
@@ -59,12 +78,12 @@ function UserList({ users, onDelete }: { users: Array<{ id: number; email: strin
       <input
         type="text"
         value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+        onChange={(e) => { setSearch(e.target.value); setShown(INITIAL_USERS); }}
         placeholder="Search by email..."
         className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring mb-3"
       />
       <div className="flex flex-col">
-        {paged.map((user) => (
+        {visible.map((user) => (
           <div key={user.id} className="flex items-center gap-3 border-b border-border py-2 text-sm last:border-b-0">
             <span className="flex-1 font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</span>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -75,15 +94,13 @@ function UserList({ users, onDelete }: { users: Array<{ id: number; email: strin
             <Button size="sm" variant="destructive" onClick={() => onDelete(user.id)}>Delete</Button>
           </div>
         ))}
-        {paged.length === 0 && (
+        {visible.length === 0 && (
           <div className="py-4 text-center text-sm text-muted-foreground">No users found</div>
         )}
       </div>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-          <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-          <span className="text-xs text-muted-foreground">{page + 1} / {totalPages}</span>
-          <Button size="sm" variant="ghost" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+      {hasMore && (
+        <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">
+          Loading more\u2026
         </div>
       )}
     </Card>
