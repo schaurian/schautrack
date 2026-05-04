@@ -57,10 +57,15 @@ test.describe('Timezone Handling', () => {
     // Set timezone to UTC+12 (Pacific/Auckland)
     psql(`UPDATE users SET timezone = 'Pacific/Auckland' WHERE id = ${user.id}`);
 
-    // Insert an entry at UTC 11:00 on 2026-04-01 — this is 23:00 NZST (same day)
-    const entryDate = '2026-04-01';
+    // Use a recent date so the dashboard's 30d range still includes it.
+    // (Hardcoding caused the test to start failing once the calendar moved
+    // past the date.) UTC 11:00 = 23:00 NZST on the same day, so the
+    // entry's NZ date matches entry_date.
+    const today = new Date();
+    today.setUTCDate(today.getUTCDate() - 5);
+    const entryDate = today.toISOString().slice(0, 10);
     psql(`INSERT INTO calorie_entries (user_id, entry_date, entry_name, amount, created_at)
-          VALUES (${user.id}, '${entryDate}', 'NZ Timezone Test', 100, '2026-04-01 11:00:00+00')`);
+          VALUES (${user.id}, '${entryDate}', 'NZ Timezone Test', 100, '${entryDate} 11:00:00+00')`);
 
     try {
       const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
@@ -77,7 +82,9 @@ test.describe('Timezone Handling', () => {
       await expect(page.getByText('NZ Timezone Test')).toBeVisible({ timeout: 5000 });
 
       // Verify it does NOT appear on the next day
-      const nextDay = '2026-04-02';
+      const next = new Date(entryDate);
+      next.setUTCDate(next.getUTCDate() + 1);
+      const nextDay = next.toISOString().slice(0, 10);
       const nextDot = page.locator(`button[aria-label^="${nextDay}"]`).first();
       if (await nextDot.isVisible({ timeout: 2000 }).catch(() => false)) {
         await nextDot.click();
