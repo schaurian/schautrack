@@ -72,7 +72,7 @@ config:
   # Step-up auth grace window — how long after primary login (or a fresh
   # step-up) sensitive auth-method changes are accepted without re-prompting.
   # Any time.ParseDuration value (e.g. "5s", "10m", "1h"). Empty = server
-  # default of 10 min.
+  # default of 30 min.
   stepUpTTL: ""
   # ⚠️  SECURITY WARNING: Change sessionSecret before production deployment!
   # Session secret (required) - generate with: openssl rand -base64 32

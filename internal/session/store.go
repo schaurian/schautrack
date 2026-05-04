@@ -20,13 +20,13 @@ const (
 	AnonMaxAge     = 15 * time.Minute
 	AuthMaxAge     = 30 * 24 * time.Hour
 	PruneInterval  = 5 * time.Minute
-	defaultStepUpTTL = 5 * time.Second // TODO: revert to 10 * time.Minute before merging to main
+	defaultStepUpTTL = 30 * time.Minute
 )
 
 // StepUpTTL is how long after fresh primary auth a session is considered
 // "elevated" — i.e., allowed to perform sensitive auth-method changes
 // (delete passkey, disable TOTP, change password/email, …) without
-// re-authenticating. Defaults to 10 min; overridable via the STEP_UP_TTL
+// re-authenticating. Defaults to 30 min; overridable via the STEP_UP_TTL
 // environment variable (any value parseable by time.ParseDuration). The
 // override exists for E2E tests that need a short window to exercise both
 // the in-grace and expired paths.
