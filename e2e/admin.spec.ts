@@ -402,4 +402,84 @@ test.describe('Admin Panel', () => {
     // Cleanup
     psql(`DELETE FROM invite_codes WHERE code IN ('E2E-UNUSED-CODE', 'E2E-USED-CODE', 'E2E-EXPIRED-CODE')`);
   });
+
+  test('settings sections render with the right keys', async ({ page }) => {
+    await page.goto('/admin');
+    await page.waitForURL('/admin', { timeout: 10000 });
+    await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
+
+    // Spot-check each section title — confirms canonical sections render.
+    for (const title of ['General', 'AI Features', 'OIDC / SSO', 'Passkeys', 'Features', 'SMTP', 'Security', 'Legal Pages', 'SEO / Deployment']) {
+      await expect(page.getByRole('heading', { name: title, level: 3 })).toBeVisible({ timeout: 3000 });
+    }
+
+    // Spot-check that the new keys exist as labelled fields.
+    for (const key of ['STEP_UP_TTL', 'OIDC_ISSUER', 'PASSKEYS_RP_NAME', 'SMTP_HOST', 'BASE_URL']) {
+      await expect(page.getByLabel(key)).toBeVisible({ timeout: 3000 });
+    }
+  });
+
+  test('validators reject bad values via API', async ({ request }) => {
+    const csrfRes = await request.get('/api/csrf');
+    const setCookie = csrfRes.headers()['set-cookie'] || '';
+    const { token: csrfToken } = await csrfRes.json();
+
+    // Server-validated cases — each should be rejected with 400.
+    const cases = [
+      { settings: { step_up_ttl: 'not-a-duration' } },
+      { settings: { smtp_port: '99999' } },
+      { settings: { rate_limit_auth: '-5' } },
+      { settings: { passkeys_rp_id: 'https://schautrack.com' } }, // scheme not allowed
+      { settings: { oidc_issuer: 'not a url' } },
+    ];
+    for (const body of cases) {
+      const res = await request.post('/admin/settings', {
+        data: body,
+        headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json', Cookie: setCookie },
+      });
+      expect(res.status(), `expected 400 for ${JSON.stringify(body)}`).toBe(400);
+    }
+  });
+
+  test('secret values are not returned by the API', async ({ request }) => {
+    // Seed a known-shape secret so we can prove it isn't echoed back.
+    psql(`INSERT INTO admin_settings (key, value) VALUES ('ai_key', 'sk-test-secret-MUST-NOT-LEAK') ON CONFLICT (key) DO UPDATE SET value = 'sk-test-secret-MUST-NOT-LEAK'`);
+    try {
+      const res = await request.get('/api/admin');
+      const body = await res.json();
+      const ai = body.settings.ai_key;
+      expect(ai).toBeTruthy();
+      expect(ai.secret).toBe(true);
+      // value field is masked, isSet flag tells the UI something is stored.
+      expect(ai.value).toBe('');
+      expect(ai.isSet).toBe(true);
+    } finally {
+      psql(`DELETE FROM admin_settings WHERE key = 'ai_key'`);
+    }
+  });
+
+  test('admin save writes an audit_log row', async ({ request }) => {
+    const adminId = psql(`SELECT id FROM users WHERE email = '${ADMIN_EMAIL}'`);
+    psql(`DELETE FROM audit_log WHERE action = 'admin_setting_changed' AND user_id = ${adminId} AND metadata->>'key' = 'ai_endpoint'`);
+
+    const csrfRes = await request.get('/api/csrf');
+    const setCookie = csrfRes.headers()['set-cookie'] || '';
+    const { token: csrfToken } = await csrfRes.json();
+
+    const newEndpoint = `https://audit-test-${Date.now()}.example.com/v1`;
+    const res = await request.post('/admin/settings', {
+      data: { settings: { ai_endpoint: newEndpoint } },
+      headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json', Cookie: setCookie },
+    });
+    expect(res.status()).toBe(200);
+
+    // Audit row must exist with the action + key in metadata.
+    const found = psql(
+      `SELECT count(*) FROM audit_log WHERE action = 'admin_setting_changed' AND user_id = ${adminId} AND metadata->>'key' = 'ai_endpoint' AND metadata->>'value' = '${newEndpoint}'`,
+    );
+    expect(found).toBe('1');
+
+    // Cleanup
+    psql(`DELETE FROM admin_settings WHERE key = 'ai_endpoint'`);
+  });
 });
