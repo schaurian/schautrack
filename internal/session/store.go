@@ -43,11 +43,12 @@ func parseStepUpTTL() time.Duration {
 
 // Session holds arbitrary data stored in the database.
 type Session struct {
-	ID      string
-	Data    map[string]any
-	MaxAge  time.Duration
-	dirty   bool
-	isNew   bool
+	ID        string
+	Data      map[string]any
+	MaxAge    time.Duration
+	dirty     bool
+	isNew     bool
+	destroyed bool
 }
 
 func (s *Session) Set(key string, value any) {
@@ -178,6 +179,13 @@ func (s *Store) Load(r *http.Request) (*Session, error) {
 
 // Save persists the session to the database and sets the cookie.
 func (s *Store) Save(w http.ResponseWriter, r *http.Request, sess *Session) error {
+	// If the session was explicitly destroyed during the request (e.g.
+	// step-up lockout), don't resurrect it. Without this guard, the
+	// middleware's deferred-save writer fires on the response write and
+	// re-INSERTs the row plus re-sets the cookie that Destroy just cleared.
+	if sess.destroyed {
+		return nil
+	}
 	if !sess.dirty && !sess.isNew {
 		// Still refresh cookie for rolling sessions
 		s.setCookie(w, r, sess)
@@ -219,6 +227,9 @@ func (s *Store) Destroy(w http.ResponseWriter, r *http.Request, sess *Session) e
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+	// Mark so the middleware's deferred-save doesn't undo the destroy when
+	// the handler subsequently writes the response body.
+	sess.destroyed = true
 	return nil
 }
 

@@ -78,17 +78,19 @@ export async function api<T = unknown>(
   }
 
   if (res.status === 401) {
-    // 401 from a step-up endpoint means the password / TOTP / passkey the
-    // user just entered didn't validate — NOT that the session expired.
-    // We must not redirect to /login or clear the user; the modal needs to
-    // stay open and show an inline error. The on401 redirect path is for
-    // genuine session loss on regular endpoints.
+    // 401 from a step-up endpoint usually means the password / TOTP / passkey
+    // the user just entered didn't validate — the modal stays open and shows
+    // an inline error. EXCEPTION: if the body has lockout:true, the server
+    // destroyed the session after too many failed attempts; in that case we
+    // do want the on401 redirect path (clear user, kick to /login).
     const isStepUpEndpoint = url.startsWith('/api/auth/step-up');
-    if (!isStepUpEndpoint) {
+    const err = await res.json().catch(() => ({ error: 'Unauthorized' })) as
+      { error?: string; lockout?: boolean };
+    const sessionKilled = !isStepUpEndpoint || err.lockout === true;
+    if (sessionKilled) {
       csrfToken = null;
       if (on401Callback) on401Callback();
     }
-    const err = await res.json().catch(() => ({ error: 'Unauthorized' }));
     throw new ApiError(401, err.error || 'Unauthorized', err);
   }
 

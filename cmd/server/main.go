@@ -90,7 +90,7 @@ func main() {
 
 	// Passkey handler
 	var passkeyHandler *handler.PasskeyHandler
-	stepUpHandler := &handler.StepUpHandler{Pool: pool, TrustProxy: cfg.TrustProxy}
+	stepUpHandler := &handler.StepUpHandler{Pool: pool, SessionStore: sessionStore, TrustProxy: cfg.TrustProxy}
 	if cfg.PasskeysEnabled() {
 		origins := cfg.PasskeysRPOrigins
 		if len(origins) == 0 {

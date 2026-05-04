@@ -138,7 +138,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
 
         {passkeys.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {passkeys.length} of 10 passkeys used. A passwordless login that's faster, safer, and can't be easily phished.
+            {passkeys.length} of 10 passkeys used.
           </p>
         )}
       </div>

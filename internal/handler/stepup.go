@@ -19,9 +19,51 @@ import (
 // the client a session.StepUpTTL window during which gated endpoints accept
 // requests without re-authenticating.
 type StepUpHandler struct {
-	Pool       *pgxpool.Pool
-	WebAuthn   *webauthn.WebAuthn
-	TrustProxy bool // for audit log IP extraction
+	Pool         *pgxpool.Pool
+	WebAuthn     *webauthn.WebAuthn
+	SessionStore *session.Store
+	TrustProxy   bool // for audit log IP extraction
+}
+
+// maxStepUpFailures is the per-session ceiling on failed step-up attempts
+// before we destroy the session and force fresh login. Defense against an
+// attacker with momentary session access (e.g. stolen cookie) brute-forcing
+// the password — the IP rate limiter handles network-level abuse, this
+// counter handles intra-session abuse and survives IP changes.
+const maxStepUpFailures = 5
+
+// recordStepUpFailure increments the per-session failure counter. On the
+// maxStepUpFailures'th failure it destroys the session, writes an audit
+// row, and emits a 401 with lockout:true so the client can redirect to
+// /login. Returns true if a lockout response was written; the caller must
+// then return without writing anything else.
+func (h *StepUpHandler) recordStepUpFailure(
+	w http.ResponseWriter, r *http.Request, sess *session.Session,
+	userID int, reason, method string,
+) bool {
+	failures, _ := sess.GetInt("step_up_failures")
+	failures++
+	sess.Set("step_up_failures", failures)
+
+	service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &userID, service.AuditStepUpFailed, r,
+		map[string]any{"reason": reason, "method": method, "attempt": failures})
+
+	if failures >= maxStepUpFailures {
+		service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &userID, service.AuditStepUpLockout, r,
+			map[string]any{"failures": failures, "method": method})
+		_ = h.SessionStore.Destroy(w, r, sess)
+		JSON(w, http.StatusUnauthorized, map[string]any{
+			"error":   "Too many failed attempts. Please log in again.",
+			"lockout": true,
+		})
+		return true
+	}
+	return false
+}
+
+// recordStepUpSuccess clears the failure counter on a clean step-up.
+func recordStepUpSuccess(sess *session.Session) {
+	sess.Delete("step_up_failures")
 }
 
 // PasswordTOTP handles POST /api/auth/step-up
@@ -49,31 +91,36 @@ func (h *StepUpHandler) PasswordTOTP(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "No password set on this account.")
 		return
 	}
+	sess := session.GetSession(r)
+
 	valid, _ := verifyPassword(hash, body.Password)
 	if !valid {
-		service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
-			map[string]any{"reason": "wrong_password", "method": "password"})
+		if h.recordStepUpFailure(w, r, sess, user.ID, "wrong_password", "password") {
+			return
+		}
 		ErrorJSON(w, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
 
 	if user.TOTPEnabled && user.TOTPSecret != nil {
 		if body.Token == "" {
-			service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
-				map[string]any{"reason": "missing_totp", "method": "password"})
+			if h.recordStepUpFailure(w, r, sess, user.ID, "missing_totp", "password") {
+				return
+			}
 			ErrorJSON(w, http.StatusUnauthorized, "2FA code is required.")
 			return
 		}
 		if !totp.Validate(body.Token, *user.TOTPSecret) &&
 			!verifyAndUseBackupCodeForLogin(r, h.Pool, user.ID, body.Token) {
-			service.WriteAudit(r.Context(), h.Pool, h.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
-				map[string]any{"reason": "wrong_totp", "method": "password"})
+			if h.recordStepUpFailure(w, r, sess, user.ID, "wrong_totp", "password") {
+				return
+			}
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
 			return
 		}
 	}
 
-	sess := session.GetSession(r)
+	recordStepUpSuccess(sess)
 	sess.MarkStepUp()
 	OkJSON(w)
 }
@@ -138,12 +185,16 @@ func (h *StepUpHandler) PasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	credential, err := h.WebAuthn.FinishLogin(wUser, sessionData, r)
 	if err != nil {
 		slog.Error("step-up FinishLogin failed", "error", err)
+		if h.recordStepUpFailure(w, r, sess, user.ID, "passkey_assertion_failed", "passkey") {
+			return
+		}
 		ErrorJSON(w, http.StatusUnauthorized, "Step-up failed.")
 		return
 	}
 	_ = service.UpdatePasskeyUsage(r.Context(), h.Pool, credential.ID,
 		int(credential.Authenticator.SignCount), credential.Flags.BackupState)
 
+	recordStepUpSuccess(sess)
 	sess.MarkStepUp()
 	OkJSON(w)
 }
