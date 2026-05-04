@@ -4,6 +4,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { useStepUpStore } from '@/stores/stepUpStore';
 import { useAuthStore } from '@/stores/authStore';
 import { stepUpPasswordTOTP, stepUpPasskeyBegin, stepUpPasskeyFinish } from '@/api/stepup';
+import { getAuthInfo, type AuthInfo } from '@/api/passkeys';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -27,7 +28,8 @@ export default function StepUpModal() {
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState<'password' | 'passkey' | null>(null);
+  const [loading, setLoading] = useState<'password' | 'passkey' | 'oidc' | null>(null);
+  const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
 
   // Reset form when the modal opens for a new request.
   useEffect(() => {
@@ -36,8 +38,12 @@ export default function StepUpModal() {
       setToken('');
       setError('');
       setLoading(null);
+      // Fetch OIDC label/logo so we can render a labeled "Continue with X"
+      // button when oidc is in the methods list. Only fires the first time
+      // the modal opens — cached after.
+      if (!authInfo) getAuthInfo().then(setAuthInfo).catch(() => {});
     }
-  }, [pending]);
+  }, [pending, authInfo]);
 
   const cancel = () => {
     pending?.cancel();
@@ -76,9 +82,20 @@ export default function StepUpModal() {
     }
   };
 
+  const startOIDCStepUp = () => {
+    setLoading('oidc');
+    // Full-page redirect — JavaScript memory (including the suspended
+    // request) is lost, but the user lands back here with a fresh step-up
+    // grace and can retry the action. The Settings page surfaces a toast
+    // from ?success=stepped_up so they know what happened.
+    const next = window.location.pathname + window.location.search;
+    window.location.href = `/auth/oidc/step-up?next=${encodeURIComponent(next)}`;
+  };
+
   const hasPassword = pending?.methods.includes('password') ?? false;
   const hasPasskey = pending?.methods.includes('passkey') ?? false;
-  const noMethods = !!pending && !hasPassword && !hasPasskey;
+  const hasOIDC = pending?.methods.includes('oidc') ?? false;
+  const noMethods = !!pending && !hasPassword && !hasPasskey && !hasOIDC;
 
   return (
     <Dialog.Root open={!!pending} onOpenChange={(open) => { if (!open) cancel(); }}>
@@ -114,7 +131,23 @@ export default function StepUpModal() {
             </Button>
           )}
 
-          {hasPassword && hasPasskey && (
+          {hasOIDC && authInfo?.oidc && (
+            <Button
+              variant="outline"
+              className={hasPasskey ? 'w-full mt-2' : 'w-full'}
+              onClick={startOIDCStepUp}
+              loading={loading === 'oidc'}
+              disabled={loading !== null}
+            >
+              {authInfo.oidc.logo && (
+                <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+              )}
+              Continue with {authInfo.oidc.label}
+            </Button>
+          )}
+
+          {hasPassword && (hasPasskey || hasOIDC) && (
             <div className="relative my-3">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
               <div className="relative flex justify-center text-xs">

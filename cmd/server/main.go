@@ -171,6 +171,9 @@ func main() {
 	if oidcHandler != nil {
 		r.Get("/auth/oidc/login", oidcHandler.Login)
 		r.Get("/auth/oidc/callback", oidcHandler.Callback)
+		// Step-up via OIDC re-auth — only path that doesn't need RequireLocalAuth
+		// because it's literally for users whose only auth method is OIDC.
+		r.With(middleware.RequireLogin).Get("/auth/oidc/step-up", oidcHandler.StepUpInit)
 		r.With(middleware.RequireLogin, middleware.RequireLocalAuth, stepUp, session.CsrfProtection).Post("/settings/oidc/unlink", oidcHandler.Unlink)
 	}
 

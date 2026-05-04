@@ -23,8 +23,11 @@ export const OIDC_SETTINGS_ERRORS: Record<string, string> = {
   oidc_email_unverified:
     'Your sign-in provider did not confirm your email. Verify it there, then try again.',
   oidc_link_failed: 'Could not link your sign-in provider. Please try again.',
+  oidc_step_up_mismatch:
+    'That sign-in account is not linked to your user. Sign in with the linked account to confirm.',
 };
 
 export const OIDC_SETTINGS_SUCCESS: Record<string, string> = {
   oidc_linked: 'Sign-in provider linked to your account.',
+  stepped_up: 'Re-authenticated. You can try your action again now.',
 };

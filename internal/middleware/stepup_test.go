@@ -16,20 +16,23 @@ func TestStepUpResponse(t *testing.T) {
 		name           string
 		hasPassword    bool
 		passkeyCount   int
+		oidcCount      int
 		totpEnabled    bool
 		wantMethods    []string
 		wantTotpReq    bool
 	}{
-		{"password only", true, 0, false, []string{"password"}, false},
-		{"password + totp", true, 0, true, []string{"password"}, true},
-		{"passkey only", false, 2, false, []string{"passkey"}, false},
-		{"passkey + totp (totp ignored without password)", false, 1, true, []string{"passkey"}, false},
-		{"both", true, 1, false, []string{"password", "passkey"}, false},
-		{"none — locked out", false, 0, false, []string{}, false},
+		{"password only", true, 0, 0, false, []string{"password"}, false},
+		{"password + totp", true, 0, 0, true, []string{"password"}, true},
+		{"passkey only", false, 2, 0, false, []string{"passkey"}, false},
+		{"passkey + totp (totp ignored without password)", false, 1, 0, true, []string{"passkey"}, false},
+		{"both password and passkey", true, 1, 0, false, []string{"password", "passkey"}, false},
+		{"oidc only — federated user with no local creds", false, 0, 1, false, []string{"oidc"}, false},
+		{"all three", true, 1, 1, false, []string{"password", "passkey", "oidc"}, false},
+		{"none — locked out", false, 0, 0, false, []string{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := stepUpResponse(tt.hasPassword, tt.passkeyCount, tt.totpEnabled)
+			got := stepUpResponse(tt.hasPassword, tt.passkeyCount, tt.oidcCount, tt.totpEnabled)
 			if !reflect.DeepEqual(got["methods"], tt.wantMethods) {
 				t.Errorf("methods = %v, want %v", got["methods"], tt.wantMethods)
 			}

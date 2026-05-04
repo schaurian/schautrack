@@ -28,29 +28,34 @@ func RequireStepUp(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			user := GetCurrentUser(r)
 			hasPass := false
 			passkeyCount := 0
+			oidcCount := 0
 			totpEnabled := false
 			if user != nil {
 				hasPass, _ = service.HasPassword(r.Context(), pool, user.ID)
 				passkeyCount, _ = service.CountPasskeys(r.Context(), pool, user.ID)
+				oidcCount, _ = service.CountOIDCAccounts(r.Context(), pool, user.ID)
 				totpEnabled = user.TOTPEnabled
 			}
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
-			_ = json.NewEncoder(w).Encode(stepUpResponse(hasPass, passkeyCount, totpEnabled))
+			_ = json.NewEncoder(w).Encode(stepUpResponse(hasPass, passkeyCount, oidcCount, totpEnabled))
 		})
 	}
 }
 
 // stepUpResponse computes the 403 body. Split out so the policy is testable
 // without a database.
-func stepUpResponse(hasPassword bool, passkeyCount int, totpEnabled bool) map[string]any {
+func stepUpResponse(hasPassword bool, passkeyCount, oidcCount int, totpEnabled bool) map[string]any {
 	methods := []string{}
 	if hasPassword {
 		methods = append(methods, "password")
 	}
 	if passkeyCount > 0 {
 		methods = append(methods, "passkey")
+	}
+	if oidcCount > 0 {
+		methods = append(methods, "oidc")
 	}
 	return map[string]any{
 		"error":         "step_up_required",

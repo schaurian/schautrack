@@ -88,6 +88,47 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
+// StepUpInit handles GET /auth/oidc/step-up — initiates an OIDC redirect
+// whose only purpose is to elevate the existing session for sensitive
+// auth-method changes. After the IdP returns the user, the callback
+// verifies the subject belongs to the current user and marks step-up.
+//
+// The "next" query param is the path the user was on when the modal
+// opened; we redirect them back there after step-up so they can retry
+// their action. Restricted to relative paths to prevent open redirect.
+func (h *OIDCHandler) StepUpInit(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetCurrentUser(r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	state, err := generateRandomString(32)
+	if err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	nonce, err := generateRandomString(32)
+	if err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	next := r.URL.Query().Get("next")
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		next = "/settings"
+	}
+
+	sess := session.GetSession(r)
+	sess.Set("oidc_state", state)
+	sess.Set("oidc_nonce", nonce)
+	sess.Set("oidc_intent", "step_up")
+	sess.Set("oidc_step_up_next", next)
+
+	url := h.oauth2Config.AuthCodeURL(state, oidc.Nonce(nonce))
+	http.Redirect(w, r, url, http.StatusFound)
+}
+
 func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	sess := session.GetSession(r)
 	savedState := sess.GetString("oidc_state")
@@ -144,8 +185,46 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		h.handleLink(w, r, sess, h.providerSlug, claims.Sub, claims.Email, claims.EmailVerified)
 		return
 	}
+	if intent == "step_up" {
+		h.handleStepUp(w, r, sess, h.providerSlug, claims.Sub)
+		return
+	}
 
 	h.handleLogin(w, r, sess, h.providerSlug, claims.Sub, claims.Email, claims.EmailVerified)
+}
+
+// handleStepUp completes an OIDC redirect that was kicked off purely to
+// elevate the current session. We require: (a) the user is still logged in
+// in this session, and (b) the OIDC subject from the IdP matches one of
+// the user's linked OIDC accounts. The latter prevents an attacker who
+// has session access from "stepping up" by signing in as a different
+// Google account they control.
+func (h *OIDCHandler) handleStepUp(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject string) {
+	user := middleware.GetCurrentUser(r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	next := sess.GetString("oidc_step_up_next")
+	sess.Delete("oidc_step_up_next")
+	if next == "" {
+		next = "/settings"
+	}
+
+	account, err := service.FindOIDCAccount(r.Context(), h.Pool, provider, subject)
+	if err != nil || account == nil || account.UserID != user.ID {
+		slog.Warn("OIDC step-up rejected: subject does not match current user",
+			"user_id", user.ID, "provider", provider, "subject", subject)
+		service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, &user.ID, service.AuditStepUpFailed, r,
+			map[string]any{"reason": "oidc_subject_mismatch", "method": "oidc"})
+		http.Redirect(w, r, next+"?error=oidc_step_up_mismatch", http.StatusFound)
+		return
+	}
+
+	sess.MarkStepUp()
+	sess.Delete("step_up_failures")
+	http.Redirect(w, r, next+"?success=stepped_up", http.StatusFound)
 }
 
 func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *session.Session, provider, subject, email string, emailVerified bool) {
