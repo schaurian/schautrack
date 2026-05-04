@@ -23,21 +23,14 @@ type AdminHandler struct {
 	Email    *service.EmailService
 }
 
-var allowedAdminKeys = map[string]string{
-	"support_email":     "SUPPORT_EMAIL",
-	"imprint_address":   "IMPRINT_ADDRESS",
-	"imprint_email":     "IMPRINT_EMAIL",
-	"enable_legal":      "ENABLE_LEGAL",
-	"ai_provider":       "AI_PROVIDER",
-	"ai_key":            "AI_KEY",
-	"ai_endpoint":       "AI_ENDPOINT",
-	"ai_model":          "AI_MODEL",
-	"ai_daily_limit":    "AI_DAILY_LIMIT",
-	"enable_registration": "ENABLE_REGISTRATION",
-	"enable_barcode":    "ENABLE_BARCODE",
-}
-
-// UpdateSettings handles POST /admin/settings
+// UpdateSettings handles POST /admin/settings.
+//
+// Both single ({key, value}) and batch ({settings: {...}}) bodies are
+// accepted. Validates against the canonical adminSettings list:
+//   - the key must be in the allowlist
+//   - the env var must not override the setting
+//   - the value must pass the per-key validator (if any)
+// All checks run before any write, so a batch save is all-or-nothing.
 func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Key      string            `json:"key"`
@@ -49,44 +42,47 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Batch mode
-	if body.Settings != nil {
-		for k := range body.Settings {
-			envVar, ok := allowedAdminKeys[k]
-			if !ok {
-				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Invalid setting key: %s", k))
-				return
-			}
-			if os.Getenv(envVar) != "" {
-				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Setting '%s' is controlled by environment variable.", k))
-				return
-			}
+	// Normalise single → batch so we have one validation+write path.
+	pending := body.Settings
+	if pending == nil {
+		if body.Key == "" {
+			ErrorJSON(w, http.StatusBadRequest, "Missing setting key.")
+			return
 		}
-		for k, v := range body.Settings {
-			if err := h.Settings.SetAdminSetting(r.Context(), k, v); err != nil {
-				ErrorJSON(w, http.StatusInternalServerError, "Failed to update settings.")
-				return
-			}
-		}
-		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Settings updated."})
-		return
+		pending = map[string]string{body.Key: body.Value}
 	}
 
-	// Single mode
-	envVar, ok := allowedAdminKeys[body.Key]
-	if !ok {
-		ErrorJSON(w, http.StatusBadRequest, "Invalid setting key.")
-		return
+	// Validate everything first.
+	for k, v := range pending {
+		spec, ok := adminSettingByKey[k]
+		if !ok {
+			ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Invalid setting key: %s", k))
+			return
+		}
+		if os.Getenv(spec.Env) != "" {
+			ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Setting '%s' is controlled by environment variable.", k))
+			return
+		}
+		if spec.Validate != nil {
+			if err := spec.Validate(v); err != nil {
+				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("%s: %s", k, err.Error()))
+				return
+			}
+		}
 	}
-	if os.Getenv(envVar) != "" {
-		ErrorJSON(w, http.StatusBadRequest, "This setting is controlled by environment variable.")
-		return
+
+	// Write.
+	for k, v := range pending {
+		if err := h.Settings.SetAdminSetting(r.Context(), k, v); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Failed to update settings.")
+			return
+		}
 	}
-	if err := h.Settings.SetAdminSetting(r.Context(), body.Key, body.Value); err != nil {
-		ErrorJSON(w, http.StatusInternalServerError, "Failed to update setting.")
-		return
+	if body.Settings != nil {
+		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Settings updated."})
+	} else {
+		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Setting updated."})
 	}
-	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Setting updated."})
 }
 
 // DeleteUser handles POST /admin/users/:id/delete

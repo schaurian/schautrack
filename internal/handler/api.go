@@ -246,15 +246,6 @@ func getSystemTimezones() []string {
 
 // AdminData handles GET /api/admin
 func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminEmail string) http.HandlerFunc {
-	settingKeys := []struct{ key, env string }{
-		{"support_email", "SUPPORT_EMAIL"}, {"imprint_address", "IMPRINT_ADDRESS"},
-		{"imprint_email", "IMPRINT_EMAIL"}, {"enable_legal", "ENABLE_LEGAL"},
-		{"ai_provider", "AI_PROVIDER"}, {"ai_key", "AI_KEY"},
-		{"ai_endpoint", "AI_ENDPOINT"}, {"ai_model", "AI_MODEL"},
-		{"ai_daily_limit", "AI_DAILY_LIMIT"}, {"enable_registration", "ENABLE_REGISTRATION"},
-		{"enable_barcode", "ENABLE_BARCODE"},
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		rows, err := pool.Query(r.Context(),
 			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC")
@@ -284,20 +275,42 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 			users = []map[string]any{}
 		}
 
+		// Build the settings response from the canonical list. Values for
+		// secret settings are masked (the saved value never crosses the wire
+		// back to the UI — admins re-enter to change).
 		settings := map[string]any{}
-		for _, sk := range settingKeys {
-			effective := settingsCache.GetEffectiveSetting(r.Context(), sk.key, os.Getenv(sk.env))
+		for i := range adminSettings {
+			s := &adminSettings[i]
+			effective := settingsCache.GetEffectiveSetting(r.Context(), s.Key, os.Getenv(s.Env))
 			val := ""
-			if effective.Value != nil {
+			isSet := effective.Value != nil && *effective.Value != ""
+			if isSet && !s.Secret {
 				val = *effective.Value
 			}
-			settings[sk.key] = map[string]any{
-				"value":  val,
-				"source": effective.Source,
+			settings[s.Key] = map[string]any{
+				"value":     val,
+				"source":    effective.Source,
+				"section":   s.Section,
+				"tier":      s.Tier,
+				"secret":    s.Secret,
+				"dangerous": s.Dangerous,
+				"help":      s.Help,
+				"isSet":     isSet, // for secret fields: tells the UI "something is stored" without revealing it
+				"envVar":    s.Env,
 			}
 		}
 
-		JSON(w, http.StatusOK, map[string]any{"users": users, "settings": settings})
+		// Order metadata so the client can render sections in the canonical order.
+		order := make([]string, 0, len(adminSettings))
+		for i := range adminSettings {
+			order = append(order, adminSettings[i].Key)
+		}
+
+		JSON(w, http.StatusOK, map[string]any{
+			"users":         users,
+			"settings":      settings,
+			"settingsOrder": order,
+		})
 	}
 }
 
