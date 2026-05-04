@@ -167,12 +167,9 @@ export default function StepUpModal() {
           )}
 
           <Dialog.Close asChild>
-            <button
-              type="button"
-              className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <Button type="button" variant="ghost" className="mt-4 w-full">
               Cancel
-            </button>
+            </Button>
           </Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>
