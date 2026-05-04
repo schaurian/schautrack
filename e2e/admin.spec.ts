@@ -135,7 +135,9 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Users (')).toBeVisible({ timeout: 10000 });
 
-    // The test user should appear in the user list
+    // List uses infinite scroll (25 visible initially). Use the search to
+    // find the test user instead of relying on it being in the first batch.
+    await page.getByPlaceholder('Search by email...').fill('test@test.com');
     await expect(page.getByText('test@test.com').first()).toBeVisible({ timeout: 5000 });
   });
 
