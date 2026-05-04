@@ -33,6 +33,7 @@ const (
 	AuditStepUpSuccess        = "step_up_success"
 	AuditStepUpFailed         = "step_up_failed"
 	AuditStepUpLockout        = "step_up_lockout"
+	AuditAdminSettingChanged  = "admin_setting_changed"
 )
 
 // WriteAudit records a sensitive action against the user. Fire-and-forget:

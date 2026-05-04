@@ -71,12 +71,27 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Write.
+	// Write + audit.
+	user := middleware.GetCurrentUser(r)
+	var actorID *int
+	if user != nil {
+		actorID = &user.ID
+	}
 	for k, v := range pending {
 		if err := h.Settings.SetAdminSetting(r.Context(), k, v); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Failed to update settings.")
 			return
 		}
+		// Capture *what* changed; for secret keys we only log the key name
+		// and whether a value was set, never the value itself.
+		spec := adminSettingByKey[k]
+		meta := map[string]any{"key": k}
+		if spec != nil && spec.Secret {
+			meta["value_set"] = v != ""
+		} else {
+			meta["value"] = v
+		}
+		service.WriteAudit(r.Context(), h.Pool, h.Cfg.TrustProxy, actorID, service.AuditAdminSettingChanged, r, meta)
 	}
 	if body.Settings != nil {
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Settings updated."})
