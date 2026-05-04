@@ -147,8 +147,12 @@ func main() {
 		// changes. Rate-limited to slow brute-forcing the password+TOTP path.
 		r.With(authLimiter.Middleware, middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up", stepUpHandler.PasswordTOTP)
 		if passkeyHandler != nil {
-			r.With(middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up/passkey/begin", stepUpHandler.PasskeyBegin)
-			r.With(middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up/passkey/finish", stepUpHandler.PasskeyFinish)
+			// Rate-limited for symmetry with the password path. Brute-forcing a
+			// passkey assertion is cryptographically infeasible, but the limiter
+			// also protects against burst /begin spam that would churn server-side
+			// challenges.
+			r.With(authLimiter.Middleware, middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up/passkey/begin", stepUpHandler.PasskeyBegin)
+			r.With(authLimiter.Middleware, middleware.RequireLogin, session.CsrfProtection).Post("/auth/step-up/passkey/finish", stepUpHandler.PasskeyFinish)
 		}
 
 		// Settings (requires login)
