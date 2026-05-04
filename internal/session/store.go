@@ -20,7 +20,7 @@ const (
 	AnonMaxAge     = 15 * time.Minute
 	AuthMaxAge     = 30 * 24 * time.Hour
 	PruneInterval  = 5 * time.Minute
-	defaultStepUpTTL = 10 * time.Minute
+	defaultStepUpTTL = 5 * time.Second // TODO: revert to 10 * time.Minute before merging to main
 )
 
 // StepUpTTL is how long after fresh primary auth a session is considered
