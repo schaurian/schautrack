@@ -204,7 +204,11 @@ test.describe('Passkeys', () => {
 
       // Click the passkey name to enter rename mode, type, blur to save.
       await page.getByRole('button', { name: 'Old Name' }).click();
-      const editInput = page.locator('input[value="Old Name"]');
+      // The rename input is controlled, so its `value` attribute tracks the
+      // typed text — we can't lock the locator to value="Old Name" because
+      // Playwright re-resolves locators on each action and `fill` changes
+      // the value. Match by maxlength (only the rename input has it).
+      const editInput = page.locator('input[maxlength="50"]');
       await editInput.fill('New Name');
       await editInput.blur();
 

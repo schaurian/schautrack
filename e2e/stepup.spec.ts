@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { bcryptHash, createIsolatedUser, psql } from './fixtures/helpers';
 import { completeStepUp, cancelStepUp } from './fixtures/stepup';
 
 // Each test uses a fresh login context so the storageState session age can't
@@ -13,6 +13,15 @@ test.describe('Step-up auth', () => {
 
   test.beforeAll(() => {
     user = createIsolatedUser('stepup');
+  });
+
+  // Reset the user's password before every test. The "wrong password" test
+  // mutates it (and we don't restore it inside the test because the cleanup
+  // would race the 10s test-env step-up grace). Without this, every test
+  // after "wrong password" fails to log in.
+  test.beforeEach(() => {
+    const hash = bcryptHash(user.password);
+    psql(`UPDATE users SET password_hash = '${hash}' WHERE id = ${user.id}`);
   });
 
   async function login(page: import('@playwright/test').Page) {
@@ -142,6 +151,55 @@ test.describe('Step-up auth', () => {
     // a second password change might fall outside the step-up grace window
     // and re-prompt, complicating the assertion. The next test run resets
     // the user via createIsolatedUser, so the leftover state is harmless.
+
+    await ctx.close();
+  });
+
+  test('Escape key cancels the modal (Radix dialog behavior)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await login(page);
+    await page.goto('/settings');
+    await page.waitForTimeout(12000);
+
+    await page.getByText('Change Password').scrollIntoViewIfNeeded();
+    await page.getByLabel('New Password').fill('escape-test-pw');
+    await page.getByLabel('Confirm Password').fill('escape-test-pw');
+    await page.getByRole('button', { name: 'Update Password' }).click();
+
+    const dialog = page.getByRole('dialog', { name: /confirm it's you/i });
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
+
+    // No password change should have happened.
+    await expect(page.getByText(/password updated/i)).not.toBeVisible({ timeout: 1000 });
+
+    await ctx.close();
+  });
+
+  test('clicking outside the modal cancels (Radix dialog behavior)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await login(page);
+    await page.goto('/settings');
+    await page.waitForTimeout(12000);
+
+    await page.getByText('Change Password').scrollIntoViewIfNeeded();
+    await page.getByLabel('New Password').fill('outside-click-test-pw');
+    await page.getByLabel('Confirm Password').fill('outside-click-test-pw');
+    await page.getByRole('button', { name: 'Update Password' }).click();
+
+    const dialog = page.getByRole('dialog', { name: /confirm it's you/i });
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+
+    // Click on the overlay (top-left corner of the screen — outside any
+    // dialog content). Radix Dialog dismisses on overlay click.
+    await page.mouse.click(5, 5);
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
+
+    await expect(page.getByText(/password updated/i)).not.toBeVisible({ timeout: 1000 });
 
     await ctx.close();
   });
