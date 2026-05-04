@@ -292,7 +292,7 @@ function SettingField({
         )}
         {meta.tier === 'restart' && !isEnv && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30" title="Takes effect on next server restart">
-            🔄 Restart
+            🔄 Restart required
           </span>
         )}
         {meta.dangerous && !isEnv && (
