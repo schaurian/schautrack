@@ -89,10 +89,10 @@ export default function PasskeySettings({ onUpdate }: Props) {
         )}
 
         {passkeys.map((pk) => (
-          <div key={pk.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+          <div key={pk.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border px-3 py-2">
             {editingId === pk.id ? (
               <input
-                className="flex-1 rounded-md border border-input bg-muted/50 px-2 py-1 text-sm text-foreground outline-none focus:border-ring"
+                className="flex-1 min-w-0 rounded-md border border-input bg-muted/50 px-2 py-1 text-sm text-foreground outline-none focus:border-ring"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRename(pk.id)}
@@ -102,14 +102,14 @@ export default function PasskeySettings({ onUpdate }: Props) {
               />
             ) : (
               <button
-                className="flex-1 text-left text-sm text-foreground cursor-pointer bg-transparent border-0 p-0 hover:text-primary transition-colors"
+                className="flex-1 min-w-0 truncate text-left text-sm text-foreground cursor-pointer bg-transparent border-0 p-0 hover:text-primary transition-colors"
                 onClick={() => { setEditingId(pk.id); setEditName(pk.name); }}
                 title="Click to rename"
               >
                 {pk.name}
               </button>
             )}
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
+            <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
               {pk.lastUsedAt ? `Used ${new Date(pk.lastUsedAt).toLocaleDateString()}` : 'Never used'}
             </span>
             <button
@@ -122,15 +122,15 @@ export default function PasskeySettings({ onUpdate }: Props) {
         ))}
 
         {passkeys.length < 10 && (
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex flex-col gap-2 mt-1">
             <input
-              className="flex-1 rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none focus:border-ring placeholder:text-muted-foreground/50"
+              className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none focus:border-ring placeholder:text-muted-foreground/50"
               placeholder="Passkey name (e.g., Phone, Laptop)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               maxLength={50}
             />
-            <Button size="default" loading={registering} disabled={!newName.trim()} onClick={handleRegister}>
+            <Button size="default" loading={registering} disabled={!newName.trim()} onClick={handleRegister} className="w-full">
               Add Passkey
             </Button>
           </div>

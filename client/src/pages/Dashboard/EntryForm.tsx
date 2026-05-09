@@ -184,7 +184,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         </div>
 
         {/* Date + AI + Submit */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="date"
             className="rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
@@ -192,7 +192,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             onChange={(e) => setDate(e.target.value)}
           />
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:ml-auto">
             {hasAiEnabled && (
               <button
                 type="button"
@@ -230,11 +230,11 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
               size="default"
               loading={loading}
               disabled={!hasInput}
-              className={
+              className={`flex-1 sm:flex-initial ${
                 hasInput
                   ? 'bg-primary/10 text-primary border border-primary/30 font-semibold hover:bg-primary/20 bg-gradient-to-r from-primary/15 via-secondary/15 to-primary/15 bg-[length:200%_100%] animate-[shimmer_4s_linear_infinite]'
                   : 'bg-muted text-muted-foreground border border-border'
-              }
+              }`}
             >
               Track
             </Button>
