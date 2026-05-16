@@ -125,6 +125,7 @@ func main() {
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
+		r.Get("/latest-version", handler.LatestVersion())
 		r.Get("/csrf", handler.CsrfToken)
 		r.Get("/me", handler.Me(pool, cfg.AdminEmail, settingsCache, cfg))
 

@@ -20,26 +20,12 @@ export default function Footer() {
       .then((d) => {
         if (d.version) {
           setVersion(d.version);
-          if (!d.version.startsWith('staging')) {
-            const cacheKey = 'schautrack_latest_version';
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-              try {
-                const { v, t } = JSON.parse(cached);
-                if (Date.now() - t < 3600000 && v) {
-                  if (isOutdated(d.version, v)) setOutdated(true);
-                  return;
-                }
-              } catch {}
-            }
-            fetch('https://api.github.com/repos/schaurian/schautrack/releases/latest')
+          if (!d.version.startsWith('staging') && d.version !== 'dev') {
+            fetch('/api/latest-version')
               .then((r) => r.json())
               .then((rel) => {
-                const latest = rel.tag_name?.replace(/^v/, '');
-                if (latest) {
-                  localStorage.setItem(cacheKey, JSON.stringify({ v: latest, t: Date.now() }));
-                  if (isOutdated(d.version, latest)) setOutdated(true);
-                }
+                const latest = rel.latest;
+                if (latest && isOutdated(d.version, latest)) setOutdated(true);
               })
               .catch(() => {});
           }
