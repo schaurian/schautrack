@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SharedView } from '@/types';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import ShareCard from './ShareCard';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
-const RANGE_PRESETS = [7, 14, 30, 60, 90, 120, 180];
+const RANGE_PRESETS = [7, 14, 30, 60, 120];
 
 interface Props {
   sharedViews: SharedView[];
@@ -19,6 +19,11 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const [customStart, setCustomStart] = useState(range.start);
   const [customEnd, setCustomEnd] = useState(range.end);
   const isCustomActive = rangePreset === null;
+
+  useEffect(() => {
+    setCustomStart(range.start);
+    setCustomEnd(range.end);
+  }, [range.start, range.end]);
 
   const handlePreset = (days: number) => {
     setShowCustom(false);
