@@ -87,6 +87,22 @@ export interface TodoDay {
   missed_since?: string;
 }
 
+export interface SavedFood {
+  id: number;
+  name: string;
+  emoji: string | null;
+  amount: number | null;
+  macros: {
+    protein: number | null;
+    carbs: number | null;
+    fat: number | null;
+    fiber: number | null;
+    sugar: number | null;
+  };
+  use_count: number;
+  last_used_at: string | null;
+}
+
 export interface DashboardData {
   user: User;
   dailyGoal: number | null;

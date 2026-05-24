@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
+import { createSavedFood } from '@/api/savedFoods';
 import { MACRO_LABELS, computeCaloriesFromMacros } from '@/lib/macros';
 import { parseAmount } from '@/lib/mathParser';
 import { Button } from '@/components/ui/Button';
@@ -30,7 +32,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const [date, setDate] = useState(selectedDate);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [savingFood, setSavingFood] = useState(false);
   const [localAiUsage, setLocalAiUsage] = useState<AIUsage | null>(aiUsage);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setLocalAiUsage(aiUsage);
@@ -115,9 +119,39 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   };
 
   const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
+  const canSaveAsFood = !!(name.trim() && hasInput);
   const nutrientCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
   const nutrientCols = nutrientCount <= 3 ? nutrientCount : Math.ceil(nutrientCount / 2);
   const aiDisabled = hasAiEnabled && localAiUsage && localAiUsage.limit > 0 && localAiUsage.remaining === 0;
+
+  const handleSaveAsFood = async () => {
+    if (!canSaveAsFood || savingFood) return;
+    setSavingFood(true);
+    try {
+      const payload: Parameters<typeof createSavedFood>[0] = { name: name.trim() };
+      if (amount && !autoCalcCalories) {
+        const parsed = parseAmount(amount, { maxAbs: 100000 });
+        if (parsed.ok) payload.amount = parsed.value;
+      } else if (computedCalories) {
+        payload.amount = computedCalories;
+      }
+      for (const key of enabledMacros) {
+        const raw = macros[key];
+        if (raw) {
+          const n = Number(raw);
+          if (Number.isFinite(n)) {
+            (payload as Record<string, unknown>)[`${key}_g`] = n;
+          }
+        }
+      }
+      await createSavedFood(payload);
+      queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
+      addToast('success', `Saved "${name.trim()}"`);
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to save food');
+    }
+    setSavingFood(false);
+  };
 
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
@@ -224,6 +258,22 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 </svg>
               </button>
             )}
+
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
+              onClick={handleSaveAsFood}
+              disabled={!canSaveAsFood || savingFood}
+              title={canSaveAsFood ? 'Save as template for quick-add' : 'Add a name and values first'}
+            >
+              {savingFood ? (
+                <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+              )}
+            </button>
 
             <Button
               type="submit"

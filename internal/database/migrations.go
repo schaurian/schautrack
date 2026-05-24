@@ -557,6 +557,60 @@ func ensurePasskeysSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureSavedFoodsSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS saved_foods (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				name TEXT NOT NULL,
+				emoji TEXT,
+				amount INTEGER,
+				protein_g INTEGER,
+				carbs_g INTEGER,
+				fat_g INTEGER,
+				fiber_g INTEGER,
+				sugar_g INTEGER,
+				use_count INTEGER NOT NULL DEFAULT 0,
+				last_used_at TIMESTAMPTZ,
+				shared BOOLEAN NOT NULL DEFAULT FALSE,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`); err != nil {
+			return err
+		}
+
+		checks := []struct{ name, expr string }{
+			{"saved_foods_amount_range", "amount IS NULL OR (amount >= -9999 AND amount <= 9999)"},
+			{"saved_foods_protein_range", "protein_g IS NULL OR (protein_g >= 0 AND protein_g <= 999)"},
+			{"saved_foods_carbs_range", "carbs_g IS NULL OR (carbs_g >= 0 AND carbs_g <= 999)"},
+			{"saved_foods_fat_range", "fat_g IS NULL OR (fat_g >= 0 AND fat_g <= 999)"},
+			{"saved_foods_fiber_range", "fiber_g IS NULL OR (fiber_g >= 0 AND fiber_g <= 999)"},
+			{"saved_foods_sugar_range", "sugar_g IS NULL OR (sugar_g >= 0 AND sugar_g <= 999)"},
+		}
+		for _, c := range checks {
+			if _, err := tx.Exec(ctx, fmt.Sprintf(`
+				DO $$ BEGIN
+					ALTER TABLE saved_foods ADD CONSTRAINT %s CHECK (%s);
+				EXCEPTION WHEN duplicate_object THEN NULL;
+				END $$`, c.name, c.expr)); err != nil {
+				return err
+			}
+		}
+
+		if _, err := tx.Exec(ctx, `
+			CREATE UNIQUE INDEX IF NOT EXISTS saved_foods_user_name_idx
+				ON saved_foods (user_id, lower(name));
+			CREATE INDEX IF NOT EXISTS saved_foods_rank_idx
+				ON saved_foods (user_id, use_count DESC, last_used_at DESC NULLS LAST);
+			CREATE INDEX IF NOT EXISTS saved_foods_shared_idx
+				ON saved_foods (user_id) WHERE shared = TRUE`); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 func ensureAuditLogSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
 		// user_id is nullable + ON DELETE SET NULL so audit history survives
@@ -614,6 +668,7 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"oidc_accounts", ensureOIDCAccountsSchema},
 		{"passkeys", ensurePasskeysSchema},
 		{"audit_log", ensureAuditLogSchema},
+		{"saved_foods", ensureSavedFoodsSchema},
 	}
 
 	results := make(chan migrationResult, len(migrations))

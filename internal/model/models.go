@@ -90,6 +90,23 @@ type TodoCompletion struct {
 	CompletionDate string `json:"completion_date"`
 }
 
+type SavedFood struct {
+	ID         int        `json:"id"`
+	UserID     int        `json:"user_id"`
+	Name       string     `json:"name"`
+	Emoji      *string    `json:"emoji,omitempty"`
+	Amount     *int       `json:"amount,omitempty"`
+	ProteinG   *int       `json:"protein_g,omitempty"`
+	CarbsG     *int       `json:"carbs_g,omitempty"`
+	FatG       *int       `json:"fat_g,omitempty"`
+	FiberG     *int       `json:"fiber_g,omitempty"`
+	SugarG     *int       `json:"sugar_g,omitempty"`
+	UseCount   int        `json:"use_count"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
 type AdminSetting struct {
 	Key       string    `json:"key"`
 	Value     *string   `json:"value"`

@@ -16,10 +16,26 @@ export default function Toaster() {
             toast.type === 'error' && 'bg-card border-destructive/30 text-red-400',
             toast.type === 'info' && 'bg-card border-[#0ea5e9]/30 text-[#0ea5e9]',
           )}
-          onClick={() => removeToast(toast.id)}
         >
           <span className="flex-1">{toast.message}</span>
-          <button className="bg-transparent border-0 text-muted-foreground hover:text-foreground cursor-pointer text-lg leading-none p-0">&times;</button>
+          {toast.action && (
+            <button
+              type="button"
+              className="bg-transparent border border-current/50 rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-current/10 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                toast.action!.onClick();
+                removeToast(toast.id);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+          <button
+            type="button"
+            className="bg-transparent border-0 text-muted-foreground hover:text-foreground cursor-pointer text-lg leading-none p-0"
+            onClick={() => removeToast(toast.id)}
+          >&times;</button>
         </div>
       ))}
     </div>

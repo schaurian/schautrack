@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import type { Entry } from '@/types';
 import { updateEntry, deleteEntry } from '@/api/entries';
+import { saveEntryAsFood } from '@/api/savedFoods';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/toastStore';
-
-const MACRO_STYLES: Record<string, { bg: string; border: string; label: string }> = {
-  kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20',    label: 'text-macro-kcal/70' },
-  protein: { bg: 'bg-macro-protein/10', border: 'border-macro-protein/20', label: 'text-macro-protein/70' },
-  carbs:   { bg: 'bg-macro-carbs/10',   border: 'border-macro-carbs/20',   label: 'text-macro-carbs/70' },
-  fat:     { bg: 'bg-macro-fat/10',     border: 'border-macro-fat/20',     label: 'text-macro-fat/70' },
-  fiber:   { bg: 'bg-macro-fiber/10',   border: 'border-macro-fiber/20',   label: 'text-macro-fiber/70' },
-  sugar:   { bg: 'bg-macro-sugar/10',   border: 'border-macro-sugar/20',   label: 'text-macro-sugar/70' },
-};
+import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
 
 interface Props {
   entries: Entry[];
@@ -44,23 +37,41 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
             queryClient.invalidateQueries({ queryKey: ['day-entries'] });
           }}
+          onSaveAsFood={() => {
+            queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
+          }}
         />
       ))}
     </div>
   );
 }
 
-function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalories, onUpdate }: {
+function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalories, onUpdate, onSaveAsFood }: {
   entry: Entry;
   canEdit: boolean;
   enabledMacros: string[];
   caloriesEnabled: boolean;
   autoCalcCalories: boolean;
   onUpdate: () => void;
+  onSaveAsFood: () => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [savingFood, setSavingFood] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
+
+  const handleSaveAsFood = async () => {
+    if (savingFood) return;
+    setSavingFood(true);
+    try {
+      await saveEntryAsFood(entry.id);
+      onSaveAsFood();
+      addToast('success', `Saved "${entry.name || 'entry'}" as quick-add`);
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to save');
+    }
+    setSavingFood(false);
+  };
 
   const handleEdit = (field: string, currentValue: string | number | null) => {
     if (!canEdit) return;
@@ -128,6 +139,23 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
           )}
         </span>
         <span className="text-xs text-muted-foreground tabular-nums shrink-0 opacity-85">{entry.time}</span>
+        {canEdit && entry.name && (
+          <button
+            type="button"
+            className="size-7 flex items-center justify-center rounded-[10px] border border-border text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
+            onClick={handleSaveAsFood}
+            disabled={savingFood}
+            title="Save as quick-add"
+          >
+            {savingFood ? (
+              <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+            )}
+          </button>
+        )}
         {canEdit && (
           <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} title="Delete">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -141,102 +169,56 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
       {hasMacros && (
         <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
           {caloriesEnabled && (
-            <MacroPill
-              macroKey="kcal"
-              label="Calories"
-              value={entry.amount || null}
-              unit="kcal"
-              editing={editing === 'amount'}
-              editValue={editValue}
-              onEdit={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)}
-              onChange={setEditValue}
-              onSave={handleSave}
-              onKeyDown={handleKeyDown}
-              canEdit={canEdit && !autoCalcCalories}
-              inputMode="tel"
-            />
-          )}
-          {enabledMacros.map((key) => {
-            const val = entry.macros?.[key];
-            return (
-              <MacroPill
-                key={key}
-                macroKey={key}
-                label={MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
-                value={val ?? null}
-                unit="g"
-                editing={editing === key}
+            editing === 'amount' ? (
+              <MacroPillEditing
+                macroKey="kcal"
+                label="Calories"
+                unit="kcal"
                 editValue={editValue}
-                onEdit={() => handleEdit(key, val ?? null)}
                 onChange={setEditValue}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
+                inputMode="tel"
+              />
+            ) : (
+              <MacroPill
+                macroKey="kcal"
+                label="Calories"
+                value={entry.amount || null}
+                unit="kcal"
+                onClick={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)}
+                canEdit={canEdit && !autoCalcCalories}
+              />
+            )
+          )}
+          {enabledMacros.map((key) => {
+            const val = entry.macros?.[key];
+            const label = MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key;
+            return editing === key ? (
+              <MacroPillEditing
+                key={key}
+                macroKey={key}
+                label={label}
+                unit="g"
+                editValue={editValue}
+                onChange={setEditValue}
+                onSave={handleSave}
+                onKeyDown={handleKeyDown}
+              />
+            ) : (
+              <MacroPill
+                key={key}
+                macroKey={key}
+                label={label}
+                value={val ?? null}
+                unit="g"
+                onClick={() => handleEdit(key, val ?? null)}
                 canEdit={canEdit}
-                inputMode="numeric"
               />
             );
           })}
         </div>
       )}
     </div>
-  );
-}
-
-function MacroPill({ macroKey, label, value, unit, editing, editValue, onEdit, onChange, onSave, onKeyDown, canEdit, inputMode }: {
-  macroKey: string;
-  label: string;
-  value: number | null;
-  unit: string;
-  editing: boolean;
-  editValue: string;
-  onEdit: () => void;
-  onChange: (v: string) => void;
-  onSave: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
-  canEdit: boolean;
-  inputMode: 'tel' | 'numeric';
-}) {
-  const style = MACRO_STYLES[macroKey] || { bg: 'bg-white/[0.06]', border: 'border-white/[0.08]', label: 'text-muted-foreground' };
-  const { bg, border, label: labelColor } = style;
-
-  if (editing) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums',
-          'border-ring', bg,
-        )}
-      >
-        <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', labelColor)}>{label}</span>
-        <input
-          className="bg-transparent border-0 outline-none text-sm font-bold text-foreground tabular-nums p-0"
-          style={{ width: `${Math.max(0.5, editValue.length)}ch` }}
-          value={editValue}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onSave}
-          onKeyDown={onKeyDown}
-          autoFocus
-          inputMode={inputMode}
-        />
-        <span className="text-[0.8em] font-normal text-muted-foreground/55">{unit}</span>
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums transition-colors',
-        bg, border,
-        canEdit ? 'cursor-pointer hover:brightness-125' : 'cursor-default',
-      )}
-      onClick={onEdit}
-      disabled={!canEdit}
-    >
-      <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', labelColor)}>{label}</span>
-      <span className="font-bold text-foreground">{value != null ? value : '-'}</span>
-      {value != null && <span className="text-[0.8em] font-normal text-muted-foreground/55">{unit}</span>}
-    </button>
   );
 }

@@ -7,6 +7,7 @@ import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
 import TodayPanel from './TodayPanel';
 import EntryForm from './EntryForm';
+import SavedFoodsRow from './SavedFoodsRow';
 import Timeline from './Timeline';
 import EntryList from './EntryList';
 import WeightRow from './WeightRow';
@@ -112,21 +113,24 @@ export default function Dashboard() {
       />
 
       {canEdit && (
-        <EntryForm
-          selectedDate={selectedDate}
-          caloriesEnabled={dashboard.caloriesEnabled}
-          autoCalcCalories={dashboard.autoCalcCalories}
-          enabledMacros={dashboard.enabledMacros}
-          hasAiEnabled={dashboard.hasAiEnabled}
-          aiUsage={dashboard.aiUsage}
-          aiProviderName={dashboard.aiProviderName}
-          barcodeEnabled={dashboard.barcodeEnabled}
-          onSubmit={() => {
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-            queryClient.invalidateQueries({ queryKey: ['day-entries'] });
-            queryClient.invalidateQueries({ queryKey: ['weight'] });
-          }}
-        />
+        <>
+          <EntryForm
+            selectedDate={selectedDate}
+            caloriesEnabled={dashboard.caloriesEnabled}
+            autoCalcCalories={dashboard.autoCalcCalories}
+            enabledMacros={dashboard.enabledMacros}
+            hasAiEnabled={dashboard.hasAiEnabled}
+            aiUsage={dashboard.aiUsage}
+            aiProviderName={dashboard.aiProviderName}
+            barcodeEnabled={dashboard.barcodeEnabled}
+            onSubmit={() => {
+              queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+              queryClient.invalidateQueries({ queryKey: ['day-entries'] });
+              queryClient.invalidateQueries({ queryKey: ['weight'] });
+            }}
+          />
+          <SavedFoodsRow selectedDate={selectedDate} />
+        </>
       )}
 
       <Timeline

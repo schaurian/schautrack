@@ -87,6 +87,14 @@ func (b *Broker) BroadcastTodoChange(sourceUserID int) {
 	}
 }
 
+func (b *Broker) BroadcastSavedFoodChange(sourceUserID int) {
+	targets := b.getTargets(sourceUserID)
+	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
+	for _, id := range targets {
+		b.SendEvent(id, "saved-food-change", payload)
+	}
+}
+
 func (b *Broker) BroadcastNoteChange(sourceUserID int) {
 	targets := b.getTargets(sourceUserID)
 	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}

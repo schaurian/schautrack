@@ -18,6 +18,7 @@ import AISettings from './AISettings';
 import LinkSettings from './LinkSettings';
 import TodoSettings from './TodoSettings';
 import NoteSettings from './NoteSettings';
+import SavedFoodsSettings from './SavedFoodsSettings';
 import PasskeySettings from './PasskeySettings';
 import OIDCSettings from './OIDCSettings';
 
@@ -128,6 +129,9 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <NoteSettings user={data.user} onSave={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <SavedFoodsSettings />
         </div>
         <div className="break-inside-avoid">
           <AISettings user={data.user} onSave={refresh} />

@@ -261,6 +261,15 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/{id}/toggle", todosHandler.Toggle)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/reorder", todosHandler.Reorder)
 
+	// Saved foods routes
+	savedFoodsHandler := &handler.SavedFoodsHandler{Pool: pool, Broker: sseBroker}
+	r.With(middleware.RequireLogin).Get("/api/saved-foods", savedFoodsHandler.List)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/saved-foods", savedFoodsHandler.Create)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/saved-foods/{id}/update", savedFoodsHandler.Update)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/saved-foods/{id}/delete", savedFoodsHandler.Delete)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/saved-foods/{id}/track", savedFoodsHandler.Track)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/entries/{id}/save-as-food", savedFoodsHandler.SaveFromEntry)
+
 	// Notes routes
 	notesHandler := &handler.NotesHandler{Pool: pool, Broker: sseBroker}
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes/toggle-enabled", notesHandler.ToggleEnabled)

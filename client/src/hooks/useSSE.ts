@@ -55,6 +55,10 @@ export function useSSE() {
         queryClient.invalidateQueries({ queryKey: ['note'] });
       });
 
+      source.addEventListener('saved-food-change', () => {
+        queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
+      });
+
       source.onopen = () => {
         retryDelayRef.current = 2000;
       };
