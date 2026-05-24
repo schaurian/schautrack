@@ -114,6 +114,7 @@ export default function Dashboard() {
 
       {canEdit && (
         <>
+          <SavedFoodsRow selectedDate={selectedDate} />
           <EntryForm
             selectedDate={selectedDate}
             caloriesEnabled={dashboard.caloriesEnabled}
@@ -129,7 +130,6 @@ export default function Dashboard() {
               queryClient.invalidateQueries({ queryKey: ['weight'] });
             }}
           />
-          <SavedFoodsRow selectedDate={selectedDate} />
         </>
       )}
 
