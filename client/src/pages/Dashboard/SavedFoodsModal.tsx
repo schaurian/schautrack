@@ -228,12 +228,33 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete "${food.name}"?`)) return;
     setBusy(true);
+    // Snapshot so Undo can re-create the row. use_count/last_used_at are not
+    // preserved — acceptable trade-off vs. a soft-delete column on the table.
+    const snapshot = {
+      name: food.name,
+      emoji: food.emoji,
+      amount: food.amount,
+      protein_g: food.macros.protein,
+      carbs_g: food.macros.carbs,
+      fat_g: food.macros.fat,
+      fiber_g: food.macros.fiber,
+      sugar_g: food.macros.sugar,
+    };
     try {
       await deleteSavedFood(food.id);
-      addToast('success', 'Saved food deleted');
       onChange();
+      addToast('success', `Deleted ${food.name}`, {
+        label: 'Undo',
+        onClick: async () => {
+          try {
+            await createSavedFood(snapshot);
+            onChange();
+          } catch (err) {
+            addToast('error', err instanceof Error ? err.message : 'Restore failed');
+          }
+        },
+      });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to delete');
     }
