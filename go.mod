@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/coreos/go-oidc/v3 v3.18.0
-	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-webauthn/webauthn v0.17.3
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/pquerna/otp v1.5.0
