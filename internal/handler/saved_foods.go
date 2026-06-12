@@ -351,6 +351,7 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 
 	var body struct {
 		EntryDate string `json:"entry_date"`
+		Quantity  int    `json:"quantity"`
 	}
 	ReadJSON(r, &body)
 
@@ -364,6 +365,14 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 	if !dateRe.MatchString(entryDate) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
+	}
+
+	qty := body.Quantity
+	if qty < 1 {
+		qty = 1
+	}
+	if qty > 99 {
+		qty = 99
 	}
 
 	tx, err := h.Pool.Begin(r.Context())
@@ -397,8 +406,25 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 
 	entryAmount := 0
 	if amount != nil {
-		entryAmount = *amount
+		entryAmount = *amount * qty
 	}
+	if entryAmount > MaxEntryCalories || entryAmount < -MaxEntryCalories {
+		ErrorJSON(w, http.StatusBadRequest, "Quantity too high for this entry")
+		return
+	}
+
+	mulPtr := func(p *int) *int {
+		if p == nil {
+			return nil
+		}
+		v := *p * qty
+		return &v
+	}
+	mProtein := mulPtr(protein)
+	mCarbs := mulPtr(carbs)
+	mFat := mulPtr(fat)
+	mFiber := mulPtr(fiber)
+	mSugar := mulPtr(sugar)
 
 	var entryID int
 	var createdAt time.Time
@@ -407,7 +433,7 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at`,
 		user.ID, entryDate, entryAmount, nilString(entryName),
-		protein, carbs, fat, fiber, sugar,
+		mProtein, mCarbs, mFat, mFiber, mSugar,
 	).Scan(&entryID, &createdAt)
 	if err != nil {
 		slog.Error("saved_foods track insert", "error", err)
@@ -416,8 +442,8 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := tx.Exec(r.Context(),
-		"UPDATE saved_foods SET use_count = use_count + 1, last_used_at = NOW() WHERE id = $1 AND user_id = $2",
-		id, user.ID); err != nil {
+		"UPDATE saved_foods SET use_count = use_count + $3, last_used_at = NOW() WHERE id = $1 AND user_id = $2",
+		id, user.ID, qty); err != nil {
 		slog.Error("saved_foods bump use_count", "error", err)
 	}
 
@@ -431,7 +457,7 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
 	enabled := service.GetEnabledMacros(mu)
-	macros := buildMacroMap(enabled, protein, carbs, fat, fiber, sugar)
+	macros := buildMacroMap(enabled, mProtein, mCarbs, mFat, mFiber, mSugar)
 
 	JSON(w, http.StatusOK, map[string]any{
 		"ok": true,

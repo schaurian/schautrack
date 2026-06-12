@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoods, trackSavedFood } from '@/api/savedFoods';
 import { deleteEntry } from '@/api/entries';
 import { useToastStore } from '@/stores/toastStore';
 import { Button } from '@/components/ui/Button';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { cn } from '@/lib/utils';
 import type { SavedFood } from '@/types';
 import SavedFoodsModal from './SavedFoodsModal';
@@ -14,12 +15,14 @@ interface Props {
 
 const DESKTOP_CHIPS = 8;
 const MOBILE_CHIPS = 6;
+const LONG_PRESS_MS = 450;
 
 export default function SavedFoodsRow({ selectedDate }: Props) {
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
   const [modalOpen, setModalOpen] = useState(false);
   const [tracking, setTracking] = useState<number | null>(null);
+  const [quantityPickerId, setQuantityPickerId] = useState<number | null>(null);
 
   const { data } = useQuery({
     queryKey: ['savedFoods'],
@@ -29,16 +32,17 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
   const all = data?.savedFoods ?? [];
   if (all.length === 0) return null;
 
-  const handleTrack = async (food: SavedFood) => {
+  const handleTrack = async (food: SavedFood, quantity: number) => {
     if (tracking) return;
     setTracking(food.id);
     try {
-      const res = await trackSavedFood(food.id, selectedDate);
+      const res = await trackSavedFood(food.id, selectedDate, quantity);
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['day-entries'] });
       queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
       const entryId = res.entry.id;
-      addToast('success', `Tracked ${food.name}`, {
+      const label = quantity > 1 ? `Tracked ${quantity}× ${food.name}` : `Tracked ${food.name}`;
+      addToast('success', label, {
         label: 'Undo',
         onClick: async () => {
           try {
@@ -69,12 +73,28 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
         <div className="flex flex-wrap gap-1.5 p-3">
           <div className="contents max-sm:hidden">
             {all.slice(0, DESKTOP_CHIPS).map((food) => (
-              <Chip key={food.id} food={food} loading={tracking === food.id} onTrack={() => handleTrack(food)} />
+              <Chip
+                key={food.id}
+                food={food}
+                loading={tracking === food.id}
+                quantityPickerOpen={quantityPickerId === food.id}
+                onTrack={(qty) => handleTrack(food, qty)}
+                onOpenQuantity={() => setQuantityPickerId(food.id)}
+                onCloseQuantity={() => setQuantityPickerId(null)}
+              />
             ))}
           </div>
           <div className="contents sm:hidden">
             {all.slice(0, MOBILE_CHIPS).map((food) => (
-              <Chip key={food.id} food={food} loading={tracking === food.id} onTrack={() => handleTrack(food)} />
+              <Chip
+                key={food.id}
+                food={food}
+                loading={tracking === food.id}
+                quantityPickerOpen={quantityPickerId === food.id}
+                onTrack={(qty) => handleTrack(food, qty)}
+                onOpenQuantity={() => setQuantityPickerId(food.id)}
+                onCloseQuantity={() => setQuantityPickerId(null)}
+              />
             ))}
           </div>
           {(all.length > DESKTOP_CHIPS || (all.length > MOBILE_CHIPS)) && (
@@ -98,28 +118,140 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
   );
 }
 
-function Chip({ food, loading, onTrack }: { food: SavedFood; loading: boolean; onTrack: () => void }) {
+interface ChipProps {
+  food: SavedFood;
+  loading: boolean;
+  quantityPickerOpen: boolean;
+  onTrack: (quantity: number) => void;
+  onOpenQuantity: () => void;
+  onCloseQuantity: () => void;
+}
+
+function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCloseQuantity }: ChipProps) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [pickerQty, setPickerQty] = useState(2);
+
   const parts: string[] = [];
   if (food.amount != null) parts.push(`${food.amount} kcal`);
   for (const [key, val] of Object.entries(food.macros)) {
     if (val != null) parts.push(`${val}g ${key}`);
   }
-  const tooltip = `Track ${food.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''}`;
+  const tooltip = `Tap to log ${food.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''} · Hold for quantity`;
+
+  // Reset the picker quantity each time it opens so consecutive uses
+  // don't carry over the previous selection.
+  useEffect(() => {
+    if (quantityPickerOpen) setPickerQty(2);
+  }, [quantityPickerOpen]);
+
+  // Click-outside dismiss for the popover.
+  useEffect(() => {
+    if (!quantityPickerOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!popoverRef.current) return;
+      if (popoverRef.current.contains(e.target as Node)) return;
+      onCloseQuantity();
+    };
+    // Defer one tick so the opening pointer-up doesn't immediately close us.
+    const id = window.setTimeout(() => {
+      document.addEventListener('pointerdown', onPointerDown);
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [quantityPickerOpen, onCloseQuantity]);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current != null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (quantityPickerOpen) return;
+    longPressFiredRef.current = false;
+    // Pointer capture would prevent the popover children from receiving events.
+    (e.target as Element).releasePointerCapture?.(e.pointerId);
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressFiredRef.current = true;
+      onOpenQuantity();
+    }, LONG_PRESS_MS);
+  };
+
+  const handlePointerUp = () => {
+    clearLongPressTimer();
+  };
+
+  const handleClick = () => {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    onTrack(1);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    // Right-click is the desktop equivalent of long-press; open the picker.
+    e.preventDefault();
+    if (!quantityPickerOpen) onOpenQuantity();
+  };
 
   return (
-    <button
-      type="button"
-      onClick={onTrack}
-      disabled={loading}
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border border-border bg-white/[0.02] px-3 py-1 text-sm',
-        'hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors cursor-pointer',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onContextMenu={handleContextMenu}
+        disabled={loading}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border border-border bg-white/[0.02] px-3 py-1 text-sm',
+          'hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors cursor-pointer',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          'touch-none', // prevent iOS text-selection callout on long-press
+        )}
+        title={tooltip}
+      >
+        {food.emoji && <span className="text-base leading-none">{food.emoji}</span>}
+        <span className="font-medium">{food.name}</span>
+      </button>
+
+      {quantityPickerOpen && (
+        <div
+          ref={popoverRef}
+          role="dialog"
+          aria-label={`Choose quantity for ${food.name}`}
+          className="absolute left-1/2 z-20 mb-2 -translate-x-1/2 bottom-full flex flex-col items-center gap-2 rounded-lg border-2 border-border bg-card p-3 shadow-lg"
+        >
+          <QuantityStepper value={pickerQty} onChange={setPickerQty} />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onCloseQuantity()}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                onCloseQuantity();
+                onTrack(pickerQty);
+              }}
+              loading={loading}
+            >
+              Log {pickerQty}×
+            </Button>
+          </div>
+        </div>
       )}
-      title={tooltip}
-    >
-      {food.emoji && <span className="text-base leading-none">{food.emoji}</span>}
-      <span className="font-medium">{food.name}</span>
-    </button>
+    </div>
   );
 }

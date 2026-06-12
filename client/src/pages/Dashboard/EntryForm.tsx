@@ -6,6 +6,7 @@ import { createSavedFood } from '@/api/savedFoods';
 import { MACRO_LABELS, computeCaloriesFromMacros } from '@/lib/macros';
 import { parseAmount } from '@/lib/mathParser';
 import { Button } from '@/components/ui/Button';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { useToastStore } from '@/stores/toastStore';
 import AIPhotoModal from './AIPhotoModal';
 import BarcodeScanModal from './BarcodeScanModal';
@@ -28,6 +29,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [macros, setMacros] = useState<Record<string, string>>({});
+  const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState(selectedDate);
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -67,6 +69,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     e.preventDefault();
     setLoading(true);
 
+    const qty = Math.max(1, Math.trunc(quantity));
     const data: Parameters<typeof createEntry>[0] = { entry_date: date };
     if (name.trim()) data.entry_name = name.trim();
     if (amount && !autoCalcCalories) {
@@ -76,7 +79,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         setLoading(false);
         return;
       }
-      data.amount = parsed.value;
+      data.amount = parsed.value * qty;
     }
     for (const key of enabledMacros) {
       if (macros[key]) {
@@ -87,7 +90,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           return;
         }
         const macroKey = `${key}_g` as keyof typeof data;
-        (data as Record<string, unknown>)[macroKey] = parsed;
+        (data as Record<string, unknown>)[macroKey] = parsed * qty;
       }
     }
 
@@ -96,6 +99,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
       setName('');
       setAmount('');
       setMacros({});
+      setQuantity(1);
       onSubmit();
       addToast('success', 'Entry tracked');
     } catch (err) {
@@ -120,9 +124,18 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
 
   const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
   const canSaveAsFood = !!(name.trim() && hasInput);
-  const nutrientCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
-  const nutrientCols = nutrientCount <= 3 ? nutrientCount : Math.ceil(nutrientCount / 2);
   const aiDisabled = hasAiEnabled && localAiUsage && localAiUsage.limit > 0 && localAiUsage.remaining === 0;
+
+  // Per-unit calories for the multiplier preview. Uses the auto-computed value
+  // when macros drive the total, otherwise the raw amount field (parsed via
+  // the same math parser used on submit, so `3*80` previews correctly).
+  const previewBaseKcal = (() => {
+    if (autoCalcCalories) return computedCalories ?? null;
+    if (!amount) return null;
+    const parsed = parseAmount(amount, { maxAbs: 100000 });
+    return parsed.ok ? parsed.value : null;
+  })();
+  const showQtyPreview = quantity > 1 && (previewBaseKcal != null || Object.values(macros).some((v) => v));
 
   const handleSaveAsFood = async () => {
     if (!canSaveAsFood || savingFood) return;
@@ -172,10 +185,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           />
         </div>
 
-        {/* Nutrient inputs */}
-        <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `repeat(${nutrientCols}, 1fr)` }}>
-          {caloriesEnabled && (
-            <div className="flex flex-col gap-1">
+        {/* Calories + Quantity (side-by-side when both shown) */}
+        {caloriesEnabled && (
+          <div className="mb-3 flex items-end gap-2">
+            <div className="flex flex-1 flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
               <input
                 className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
@@ -187,35 +200,63 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 readOnly={autoCalcCalories}
               />
             </div>
-          )}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</label>
+              <QuantityStepper value={quantity} onChange={setQuantity} />
+            </div>
+          </div>
+        )}
 
-          {enabledMacros.map((key) => {
-            const color = {
-              protein: 'text-macro-protein',
-              carbs: 'text-macro-carbs',
-              fat: 'text-macro-fat',
-              fiber: 'text-macro-fiber',
-              sugar: 'text-macro-sugar',
-            }[key] || 'text-muted-foreground';
+        {/* Macros grid */}
+        {enabledMacros.length > 0 && (
+          <div
+            className="grid gap-2 mb-3"
+            style={{ gridTemplateColumns: `repeat(${enabledMacros.length <= 3 ? enabledMacros.length : Math.ceil(enabledMacros.length / 2)}, 1fr)` }}
+          >
+            {enabledMacros.map((key) => {
+              const color = {
+                protein: 'text-macro-protein',
+                carbs: 'text-macro-carbs',
+                fat: 'text-macro-fat',
+                fiber: 'text-macro-fiber',
+                sugar: 'text-macro-sugar',
+              }[key] || 'text-muted-foreground';
 
-            return (
-              <div key={key} className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
-                  {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
-                </label>
-                <input
-                  className={inputClass}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="0"
-                  value={macros[key] || ''}
-                  onChange={(e) => handleMacroChange(key, e.target.value)}
-                />
-              </div>
-            );
-          })}
+              return (
+                <div key={key} className="flex flex-col gap-1">
+                  <label className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
+                    {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
+                  </label>
+                  <input
+                    className={inputClass}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={macros[key] || ''}
+                    onChange={(e) => handleMacroChange(key, e.target.value)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-        </div>
+        {/* Quantity-only row when calories are off but macros are enabled */}
+        {!caloriesEnabled && enabledMacros.length > 0 && (
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quantity</span>
+            <QuantityStepper value={quantity} onChange={setQuantity} />
+          </div>
+        )}
+
+        {/* Multiplier preview */}
+        {showQtyPreview && (
+          <div className="mb-3 text-xs text-muted-foreground tabular-nums">
+            = {previewBaseKcal != null ? `${previewBaseKcal * quantity} kcal` : null}
+            {previewBaseKcal != null && enabledMacros.some((k) => macros[k]) ? ' · ' : ''}
+            {enabledMacros.some((k) => macros[k]) ? `${quantity}× macros` : null}
+          </div>
+        )}
 
         {/* Date + AI + Submit */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

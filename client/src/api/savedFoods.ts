@@ -34,10 +34,12 @@ export function deleteSavedFood(id: number) {
   return api<{ ok: boolean }>(`/api/saved-foods/${id}/delete`, { method: 'POST' });
 }
 
-export function trackSavedFood(id: number, entryDate?: string) {
+export function trackSavedFood(id: number, entryDate?: string, quantity?: number) {
+  const body: { entry_date: string; quantity?: number } = { entry_date: entryDate || '' };
+  if (quantity != null && quantity > 1) body.quantity = quantity;
   return api<{ ok: boolean; entry: Entry }>(`/api/saved-foods/${id}/track`, {
     method: 'POST',
-    body: JSON.stringify({ entry_date: entryDate || '' }),
+    body: JSON.stringify(body),
   });
 }
 
