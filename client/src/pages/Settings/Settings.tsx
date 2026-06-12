@@ -221,6 +221,18 @@ export default function Settings() {
           </Card>
         </div>
       </div>
+
+      <p className="text-center text-xs text-muted-foreground">
+        Spotted a bug or missing a feature?{' '}
+        <a
+          href="https://github.com/schaurian/schautrack/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline"
+        >
+          Open an issue on GitHub
+        </a>
+      </p>
     </div>
   );
 }
