@@ -60,7 +60,10 @@ services:
       retries: 5
       start_period: 5s
     volumes:
-      - db-data:/var/lib/postgresql/data
+      # PostgreSQL 18+ stores data in a version-specific subdirectory; mount the
+      # parent so data persists (data lands in /var/lib/postgresql/18/docker).
+      # See https://github.com/docker-library/postgres/pull/1259
+      - db-data:/var/lib/postgresql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
 volumes:

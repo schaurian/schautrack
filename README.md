@@ -54,6 +54,18 @@ docker compose up -d
 
 App is available at http://localhost:8080.
 
+> **Upgrading from an earlier `compose.yml`?** The database volume now mounts at
+> `/var/lib/postgresql` instead of `/var/lib/postgresql/data` (required for the
+> PostgreSQL 18 image to persist data). If your `db` container is still running
+> with data, back it up **before** pulling the new `compose.yml`:
+>
+> ```bash
+> docker compose exec -T db pg_dumpall -U "$POSTGRES_USER" > schautrack-backup.sql
+> # update compose.yml, recreate the stack, then restore:
+> docker compose up -d
+> cat schautrack-backup.sql | docker compose exec -T db psql -U "$POSTGRES_USER"
+> ```
+
 ## Kubernetes (Helm)
 
 A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
