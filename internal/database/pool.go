@@ -12,25 +12,9 @@ import (
 )
 
 func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	cfg, err := pgxpool.ParseConfig(databaseURL)
+	cfg, err := buildPoolConfig(databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("parse database URL: %w", err)
-	}
-
-	cfg.MaxConns = 20
-	cfg.MinConns = 2
-	cfg.MaxConnIdleTime = 30 * time.Second
-	cfg.MaxConnLifetime = 0
-
-	// Register custom type: return DATE columns as "YYYY-MM-DD" strings
-	// instead of time.Time, to avoid timezone shifting.
-	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		conn.TypeMap().RegisterType(&pgtype.Type{
-			Name:  "date",
-			OID:   1082,
-			Codec: &dateStringCodec{},
-		})
-		return nil
+		return nil, err
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
@@ -44,6 +28,39 @@ func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	}
 
 	return pool, nil
+}
+
+// buildPoolConfig parses databaseURL and applies Schautrack's pool tuning.
+func buildPoolConfig(databaseURL string) (*pgxpool.Config, error) {
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse database URL: %w", err)
+	}
+
+	cfg.MaxConns = 20
+	cfg.MinConns = 2
+	cfg.MaxConnIdleTime = 30 * time.Second
+	// Must be > 0. As of pgx v5.10.0, pgxpool enforces MaxConnLifetime at
+	// acquire time: a connection's expiry is computed at birth as
+	// now + MaxConnLifetime, so MaxConnLifetime == 0 makes every connection
+	// "expired" the instant it is acquired. Acquire then destroys and retries
+	// maxConns+1 times before failing Ping with "too many failed attempts
+	// acquiring connection", crashlooping the app on startup. (Older pgx
+	// treated 0 as "no maximum lifetime".)
+	cfg.MaxConnLifetime = time.Hour
+
+	// Register custom type: return DATE columns as "YYYY-MM-DD" strings
+	// instead of time.Time, to avoid timezone shifting.
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		conn.TypeMap().RegisterType(&pgtype.Type{
+			Name:  "date",
+			OID:   1082,
+			Codec: &dateStringCodec{},
+		})
+		return nil
+	}
+
+	return cfg, nil
 }
 
 // dateStringCodec makes pgx scan DATE columns directly into string as "YYYY-MM-DD".
