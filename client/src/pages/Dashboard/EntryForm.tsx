@@ -126,16 +126,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const canSaveAsFood = !!(name.trim() && hasInput);
   const aiDisabled = hasAiEnabled && localAiUsage && localAiUsage.limit > 0 && localAiUsage.remaining === 0;
 
-  // Per-unit calories for the multiplier preview. Uses the auto-computed value
-  // when macros drive the total, otherwise the raw amount field (parsed via
-  // the same math parser used on submit, so `3*80` previews correctly).
-  const previewBaseKcal = (() => {
-    if (autoCalcCalories) return computedCalories ?? null;
-    if (!amount) return null;
-    const parsed = parseAmount(amount, { maxAbs: 100000 });
-    return parsed.ok ? parsed.value : null;
-  })();
-  const showQtyPreview = quantity > 1 && (previewBaseKcal != null || Object.values(macros).some((v) => v));
+  const showQtyPreview = quantity > 1 && enabledMacros.some((k) => macros[k]);
 
   const handleSaveAsFood = async () => {
     if (!canSaveAsFood || savingFood) return;
@@ -172,38 +163,38 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         <h3 className="text-sm font-medium text-muted-foreground">Log</h3>
       </div>
       <form onSubmit={handleSubmit} className="p-4">
-        {/* Food name */}
-        <div className="mb-3">
-          <input
-            className={inputClass}
-            type="text"
-            placeholder="Breakfast, snack..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => setName((n) => n.trim())}
-            maxLength={120}
-          />
+        {/* Food name + Quantity */}
+        <div className="mb-3 flex items-end gap-2">
+          <div className="flex flex-1 flex-col">
+            <input
+              className={inputClass}
+              type="text"
+              placeholder="Breakfast, snack..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => setName((n) => n.trim())}
+              maxLength={120}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</label>
+            <QuantityStepper value={quantity} onChange={setQuantity} />
+          </div>
         </div>
 
-        {/* Calories + Quantity (side-by-side when both shown) */}
+        {/* Calories */}
         {caloriesEnabled && (
-          <div className="mb-3 flex items-end gap-2">
-            <div className="flex flex-1 flex-col gap-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
-              <input
-                className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
-                type="text"
-                inputMode="tel"
-                placeholder="0"
-                value={autoCalcCalories ? (computedCalories ?? '') : amount}
-                onChange={(e) => setAmount(e.target.value)}
-                readOnly={autoCalcCalories}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</label>
-              <QuantityStepper value={quantity} onChange={setQuantity} />
-            </div>
+          <div className="mb-3 flex flex-col gap-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
+            <input
+              className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
+              type="text"
+              inputMode="tel"
+              placeholder="0"
+              value={autoCalcCalories ? (computedCalories ?? '') : amount}
+              onChange={(e) => setAmount(e.target.value)}
+              readOnly={autoCalcCalories}
+            />
           </div>
         )}
 
@@ -241,20 +232,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           </div>
         )}
 
-        {/* Quantity-only row when calories are off but macros are enabled */}
-        {!caloriesEnabled && enabledMacros.length > 0 && (
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quantity</span>
-            <QuantityStepper value={quantity} onChange={setQuantity} />
-          </div>
-        )}
-
         {/* Multiplier preview */}
         {showQtyPreview && (
           <div className="mb-3 text-xs text-muted-foreground tabular-nums">
-            = {previewBaseKcal != null ? `${previewBaseKcal * quantity} kcal` : null}
-            {previewBaseKcal != null && enabledMacros.some((k) => macros[k]) ? ' · ' : ''}
-            {enabledMacros.some((k) => macros[k]) ? `${quantity}× macros` : null}
+            {quantity}× macros
           </div>
         )}
 
