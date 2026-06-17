@@ -79,7 +79,7 @@ export default function Landing() {
       </section>
 
       <section className="text-center">
-        <a href="https://github.com/schaurian/schautrack#android-app" target="_blank" rel="noopener">
+        <a href="https://play.google.com/store/apps/details?id=to.schauer.schautrack" target="_blank" rel="noopener">
           <img src="/google-play-badge.png" alt="Get it on Google Play" className="h-14 mx-auto" />
         </a>
       </section>
