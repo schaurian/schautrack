@@ -52,7 +52,7 @@ export default function Footer() {
           <a href="/terms" className="text-muted-foreground transition-colors hover:text-foreground">Terms</a>
           <span className="text-muted-foreground/30">·</span>
           <a
-            href="https://github.com/schaurian/schautrack#android-app"
+            href="https://play.google.com/store/apps/details?id=to.schauer.schautrack"
             target="_blank"
             rel="noopener noreferrer"
             title="Get the Android app"
