@@ -18,7 +18,10 @@ interface DashboardState {
 // Initial (data-only) state. Recomputed on each call so `selectedDate`
 // reflects today at reset time, not module-load time.
 const initialState = (): Pick<DashboardState, 'selectedDate' | 'currentUserId' | 'currentLabel' | 'canEdit' | 'rangePreset' | 'rangeStart' | 'rangeEnd'> => ({
-  selectedDate: new Date().toISOString().slice(0, 10),
+  // Local calendar date, not UTC — toISOString would be yesterday/tomorrow
+  // around midnight for non-UTC users. The server-provided timezone date
+  // still overrides this after the first dashboard fetch.
+  selectedDate: new Date().toLocaleDateString('en-CA'),
   currentUserId: null,
   currentLabel: 'You',
   canEdit: true,
