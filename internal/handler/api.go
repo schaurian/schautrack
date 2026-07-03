@@ -314,15 +314,19 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 	}
 }
 
-// RegistrationInfo handles GET /api/auth/registration-info (public endpoint)
+// RegistrationInfo handles GET /api/auth/registration-info (public endpoint).
+//
+// registrationEnabled reports whether sign-up is possible at all (open OR
+// invite mode) — the client uses it to decide whether to render the register
+// form. inviteRequired is an additive flag telling the client to show the
+// invite-code field up front when the server is in invite-only mode.
 func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result := settingsCache.GetEffectiveSetting(r.Context(), "enable_registration", cfg.EnableRegistration)
-		enabled := true
-		if result.Value != nil && *result.Value == "false" {
-			enabled = false
-		}
-		JSON(w, http.StatusOK, map[string]any{"registrationEnabled": enabled})
+		mode := effectiveRegistrationMode(r.Context(), settingsCache, cfg)
+		JSON(w, http.StatusOK, map[string]any{
+			"registrationEnabled": mode != regModeClosed,
+			"inviteRequired":      mode == regModeInvite,
+		})
 	}
 }
 

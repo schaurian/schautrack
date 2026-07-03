@@ -269,7 +269,8 @@ function SettingField({
 }) {
   const [revealing, setRevealing] = useState(false);
   const isEnv = meta.source === 'env';
-  const isBool = ['enable_legal', 'enable_barcode', 'enable_registration', 'oidc_require_invite', 'smtp_secure', 'trust_proxy', 'robots_index'].includes(settingKey);
+  const isBool = ['enable_legal', 'enable_barcode', 'oidc_require_invite', 'smtp_secure', 'trust_proxy', 'robots_index'].includes(settingKey);
+  const isRegistrationMode = settingKey === 'enable_registration';
   const value = isDirty ? draft! : meta.value;
 
   // Secrets: don't pre-populate the input. Show a "set" indicator + Replace
@@ -303,7 +304,20 @@ function SettingField({
         {isDirty && <span className="text-[10px] text-primary">• unsaved</span>}
       </div>
 
-      {isBool ? (
+      {isRegistrationMode ? (
+        <select
+          id={fieldId}
+          className={inputClass}
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={isEnv}
+        >
+          <option value="">(default: open)</option>
+          <option value="open">open — anyone can register</option>
+          <option value="invite">invite — requires an invite code</option>
+          <option value="false">false — registration disabled</option>
+        </select>
+      ) : isBool ? (
         <select
           id={fieldId}
           className={inputClass}

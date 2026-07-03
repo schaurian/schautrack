@@ -401,15 +401,25 @@ func (h *OIDCHandler) Unlink(w http.ResponseWriter, r *http.Request) {
 	OkJSON(w)
 }
 
+// canAutoCreate reports whether an OIDC login for an unknown subject/email may
+// auto-provision a brand-new account. It fails closed for anything other than
+// open registration: the OIDC auto-create flow has no way to collect or
+// validate an invite code, so allowing it in invite-only mode would bypass the
+// invite gate, and "closed" means no new accounts at all.
 func (h *OIDCHandler) canAutoCreate(r *http.Request) bool {
 	if h.Cfg.OIDCRequireInvite {
 		return false
 	}
-	result := h.Settings.GetEffectiveSetting(r.Context(), "enable_registration", h.Cfg.EnableRegistration)
-	if result.Value != nil && *result.Value == "false" {
-		return h.Cfg.OIDCRequireInvite == false // OIDC bypasses invite-only unless explicitly required
+	switch effectiveRegistrationMode(r.Context(), h.Settings, h.Cfg) {
+	case regModeClosed:
+		// Sign-up fully disabled — never auto-create from SSO.
+		return false
+	case regModeInvite:
+		// Invite-only: SSO auto-provisioning would bypass the invite gate.
+		return false
+	default: // open
+		return true
 	}
-	return true
 }
 
 func generateRandomString(n int) (string, error) {
