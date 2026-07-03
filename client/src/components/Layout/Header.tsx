@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import { logout } from '@/api/auth';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +10,7 @@ export default function Header() {
   const { user, isAdmin, pendingLinkRequests, clearUser } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { pathname } = useLocation();
   const navClass = (path: string) => {
     const active = pathname.startsWith(path);
@@ -18,7 +21,11 @@ export default function Header() {
   };
 
   const handleLogout = async () => {
+    // 1. Network logout, then 2. clear all client state so the previous
+    // account's data can't leak into the next login in this tab, then 3. navigate.
     try { await logout(); } catch { /* ignore */ }
+    queryClient.clear();
+    useDashboardStore.getState().reset();
     clearUser();
     navigate('/login');
   };

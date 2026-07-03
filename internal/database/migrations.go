@@ -188,6 +188,36 @@ func ensureEmailVerificationSchema(ctx context.Context, pool *pgxpool.Pool) erro
 		if err != nil {
 			return err
 		}
+
+		// One-time DATA backfill: grandfather in existing users that predate
+		// email verification (they have no pending token). This MUST run at most
+		// once — re-running it on every boot flips email_verified=TRUE for any
+		// user whose only tokens have since expired or been cleaned up by the
+		// 15-min sweep, silently verifying emails nobody confirmed (an email-
+		// verification bypass). A persistent marker row guards it. The DDL above
+		// still runs every boot; only this UPDATE is gated.
+		//
+		// schema_data_migrations is created and read only here, so there is no
+		// concurrent-CREATE race with the parallel ensureXxx migrations.
+		_, err = tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS schema_data_migrations (
+				name TEXT PRIMARY KEY,
+				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`)
+		if err != nil {
+			return err
+		}
+		var backfillDone bool
+		err = tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM schema_data_migrations WHERE name = 'email_verified_backfill'
+			)`).Scan(&backfillDone)
+		if err != nil {
+			return err
+		}
+		if backfillDone {
+			return nil
+		}
 		_, err = tx.Exec(ctx, `
 			UPDATE users SET email_verified = TRUE
 			WHERE email_verified = FALSE
@@ -195,6 +225,12 @@ func ensureEmailVerificationSchema(ctx context.Context, pool *pgxpool.Pool) erro
 					SELECT DISTINCT user_id FROM email_verification_tokens
 					WHERE used = FALSE AND expires_at > NOW()
 				)`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			INSERT INTO schema_data_migrations (name) VALUES ('email_verified_backfill')
+			ON CONFLICT (name) DO NOTHING`)
 		return err
 	})
 }
@@ -482,28 +518,40 @@ func ensureDailyNotesSchema(ctx context.Context, pool *pgxpool.Pool) error {
 
 // InitSchemaWithRetry runs all migrations with exponential backoff.
 func InitSchemaWithRetry(ctx context.Context, pool *pgxpool.Pool, maxRetries int) error {
+	return retrySchemaInit(maxRetries, time.Second, func() error {
+		return runAllMigrations(ctx, pool)
+	})
+}
+
+// retrySchemaInit runs `run` up to maxRetries times with exponential backoff.
+// It returns nil on the first success, or the LAST error once all attempts are
+// exhausted. Returning that error (instead of nil) lets the caller fail fast:
+// serving traffic against a partial/missing schema causes every query to 500,
+// while /api/health only pings the DB — so probes stay green and a broken pod
+// would replace a healthy one under RollingUpdate maxUnavailable:0.
+func retrySchemaInit(maxRetries int, initialDelay time.Duration, run func() error) error {
 	if maxRetries == 0 {
 		maxRetries = 10
 	}
-	initialDelay := time.Second
 
+	var lastErr error
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		err := runAllMigrations(ctx, pool)
-		if err == nil {
+		lastErr = run()
+		if lastErr == nil {
 			log.Println("Schema initialization successful")
 			return nil
 		}
 
 		delay := time.Duration(float64(initialDelay) * math.Pow(2, float64(attempt-1)))
-		log.Printf("Schema init failed (attempt %d/%d): %v", attempt, maxRetries, err)
+		log.Printf("Schema init failed (attempt %d/%d): %v", attempt, maxRetries, lastErr)
 		if attempt < maxRetries {
 			log.Printf("Retrying in %v...", delay)
 			time.Sleep(delay)
 		} else {
-			log.Println("Schema initialization failed after all retries. App will start but may have issues.")
+			log.Println("Schema initialization failed after all retries; aborting startup.")
 		}
 	}
-	return nil
+	return lastErr
 }
 
 func ensureOIDCAccountsSchema(ctx context.Context, pool *pgxpool.Pool) error {

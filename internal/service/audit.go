@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"net"
 	"net/http"
+
+	"schautrack/internal/clientip"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -70,22 +71,10 @@ func WriteAudit(ctx context.Context, pool *pgxpool.Pool, trustProxy bool,
 	}
 }
 
-// clientIPFromRequest mirrors middleware.ClientIP. Inlined to avoid a
-// service → middleware import cycle (middleware already imports service).
+// clientIPFromRequest delegates to the shared clientip package so the audit
+// log and the rate limiter record the same, non-spoofable client IP. It lives
+// in its own leaf package (not middleware) to avoid a service → middleware
+// import cycle.
 func clientIPFromRequest(r *http.Request, trustProxy bool) string {
-	if trustProxy {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			for i := 0; i < len(xff); i++ {
-				if xff[i] == ',' {
-					return xff[:i]
-				}
-			}
-			return xff
-		}
-		if xri := r.Header.Get("X-Real-Ip"); xri != "" {
-			return xri
-		}
-	}
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return host
+	return clientip.FromRequest(r, trustProxy)
 }

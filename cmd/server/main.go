@@ -53,9 +53,13 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Migrations
+	// Migrations. A broken/partial schema makes every query 500 while
+	// /api/health only pings the DB, so probes stay green and RollingUpdate
+	// (maxUnavailable:0) would swap a healthy pod for a broken one. Fail fast so
+	// the old healthy pod keeps serving.
 	if err := database.InitSchemaWithRetry(ctx, pool, 10); err != nil {
-		slog.Warn("schema init returned error", "error", err)
+		slog.Error("schema init failed after all retries; aborting startup", "error", err)
+		os.Exit(1)
 	}
 
 	// Services
@@ -137,7 +141,7 @@ func main() {
 		r.With(authLimiter.Middleware, session.CsrfProtection).Post("/auth/register", authHandler.Register)
 		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/auth/logout", authHandler.Logout)
 		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/forgot-password", authHandler.ForgotPassword)
-		r.With(session.CsrfProtection).Post("/auth/reset-password", authHandler.ResetPassword)
+		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/reset-password", authHandler.ResetPassword)
 		r.With(session.CsrfProtection).Post("/auth/verify-email", authHandler.VerifyEmail)
 		r.With(session.CsrfProtection).Post("/auth/verify-email/resend", authHandler.VerifyEmailResend)
 		r.Get("/auth/captcha", authHandler.Captcha)
@@ -323,7 +327,10 @@ func main() {
 		Addr:         ":" + cfg.Port,
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second, // Long for SSE
+		// Absolute per-response write deadline for slow-loris protection. The
+		// SSE handler clears this deadline for its own connection (via
+		// http.ResponseController) so long-lived streams are not force-closed.
+		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  60 * time.Second,
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx

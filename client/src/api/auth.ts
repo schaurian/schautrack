@@ -34,7 +34,7 @@ export function register(data: { step: string; email?: string; password?: string
 }
 
 export function getRegistrationInfo() {
-  return api<{ registrationEnabled: boolean }>('/api/auth/registration-info');
+  return api<{ registrationEnabled: boolean; inviteRequired?: boolean }>('/api/auth/registration-info');
 }
 
 export function logout() {

@@ -22,13 +22,15 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'credentials' | 'captcha'>('credentials');
   const [requireInvite, setRequireInvite] = useState(false);
+  const [registrationDisabled, setRegistrationDisabled] = useState(false);
   const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
   const navigate = useNavigate();
   const { fetchUser } = useAuthStore();
 
   useEffect(() => {
     getRegistrationInfo().then((info) => {
-      if (!info.registrationEnabled) setRequireInvite(true);
+      if (!info.registrationEnabled) setRegistrationDisabled(true);
+      else if (info.inviteRequired) setRequireInvite(true);
     }).catch(() => {});
     getAuthInfo().then(setAuthInfo).catch(() => {});
   }, []);
@@ -65,6 +67,20 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  if (registrationDisabled) {
+    return (
+      <div className="flex justify-center py-12">
+        <Card className="w-full max-w-sm">
+          <h2 className="mb-6 text-xl font-semibold">Create Account</h2>
+          <Alert type="warning" message="Registration is currently disabled." className="mb-4" />
+          <div className="mt-6 text-sm">
+            <Link to="/login">Already have an account?</Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex justify-center py-12">

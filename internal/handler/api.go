@@ -314,15 +314,19 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 	}
 }
 
-// RegistrationInfo handles GET /api/auth/registration-info (public endpoint)
+// RegistrationInfo handles GET /api/auth/registration-info (public endpoint).
+//
+// registrationEnabled reports whether sign-up is possible at all (open OR
+// invite mode) — the client uses it to decide whether to render the register
+// form. inviteRequired is an additive flag telling the client to show the
+// invite-code field up front when the server is in invite-only mode.
 func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result := settingsCache.GetEffectiveSetting(r.Context(), "enable_registration", cfg.EnableRegistration)
-		enabled := true
-		if result.Value != nil && *result.Value == "false" {
-			enabled = false
-		}
-		JSON(w, http.StatusOK, map[string]any{"registrationEnabled": enabled})
+		mode := effectiveRegistrationMode(r.Context(), settingsCache, cfg)
+		JSON(w, http.StatusOK, map[string]any{
+			"registrationEnabled": mode != regModeClosed,
+			"inviteRequired":      mode == regModeInvite,
+		})
 	}
 }
 
@@ -339,10 +343,20 @@ func CleanExpiredTokens(pool *pgxpool.Pool) {
 	if _, err := pool.Exec(ctx, "DELETE FROM invite_codes WHERE expires_at IS NOT NULL AND expires_at < NOW() AND used_by IS NULL"); err != nil {
 		slog.Error("failed to clean expired invite codes", "error", err)
 	}
+	// Reap abandoned password signups whose email was never verified. Federated
+	// (OIDC) and passkey-backed accounts must NEVER be deleted here: they
+	// authenticate via an external IdP / authenticator and legitimately have no
+	// email_verification_tokens row, so without these guards a freshly
+	// auto-created OIDC user (whose IdP reports email_verified = false, the
+	// stock Keycloak/Authentik/Authelia default) would be purged within minutes
+	// of signup, cascading away all of their entries. Exclude any user that has
+	// an OIDC account or a registered passkey.
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM users
 		WHERE email_verified = FALSE
 			AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
+			AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
+			AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
 	`); err != nil {
 		slog.Error("failed to clean unverified users", "error", err)
 	}
