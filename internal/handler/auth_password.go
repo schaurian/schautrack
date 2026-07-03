@@ -90,6 +90,11 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !codeVerified {
+		attempts, _ := sess.GetInt("resetAttempts")
+		if attempts >= 5 {
+			ErrorJSON(w, http.StatusTooManyRequests, "Too many attempts.")
+			return
+		}
 		if body.Code == "" {
 			ErrorJSON(w, http.StatusBadRequest, "Code is required.")
 			return
@@ -105,10 +110,12 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 			ORDER BY prt.created_at DESC LIMIT 1`,
 			email, body.Code).Scan(&tokenID, &userID, &expiresAt)
 		if err != nil || time.Now().After(expiresAt) {
+			sess.Set("resetAttempts", attempts+1)
 			ErrorJSON(w, http.StatusBadRequest, "Invalid or expired code.")
 			return
 		}
 		sess.Set("resetCodeVerified", true)
+		sess.Delete("resetAttempts")
 		sess.Set("resetTokenId", tokenID)
 		sess.Set("resetUserId", userID)
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "codeVerified": true})
@@ -154,5 +161,6 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	sess.Delete("resetCodeVerified")
 	sess.Delete("resetTokenId")
 	sess.Delete("resetUserId")
+	sess.Delete("resetAttempts")
 	OkJSON(w)
 }
