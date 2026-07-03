@@ -141,6 +141,19 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	flusher.Flush()
 
+	// Clear the write deadline for this long-lived stream. The server sets a
+	// 60s WriteTimeout to blunt slow clients on ordinary responses, but that is
+	// a single absolute deadline for the whole response — net/http never
+	// refreshes it per write. Left in place it would force-close every SSE
+	// stream after ~60s, causing needless reconnect churn (each reconnect costs
+	// a session load + full user SELECT) and dropping any events broadcast
+	// during the reconnect gap. NewResponseController reaches the underlying
+	// net/http conn through the session middleware's deferredSaveWriter.Unwrap().
+	rc := http.NewResponseController(w)
+	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+		slog.Warn("failed to clear SSE write deadline", "error", err)
+	}
+
 	ch := b.Subscribe(userID)
 	defer func() {
 		b.Unsubscribe(userID, ch)
