@@ -16,12 +16,18 @@ export function useAutosave<T>(
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialRef = useRef(true);
   const savingRef = useRef(false);
+  const pendingRef = useRef(false);
   const latestDataRef = useRef(data);
   latestDataRef.current = data;
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const save = useCallback(async () => {
-    if (savingRef.current) return;
+    if (savingRef.current) {
+      // A save is in flight — remember that newer data arrived and save
+      // again once it completes, instead of silently dropping the change.
+      pendingRef.current = true;
+      return;
+    }
     savingRef.current = true;
     setStatus('saving');
     try {
@@ -34,6 +40,10 @@ export function useAutosave<T>(
       addToast('error', err instanceof Error ? err.message : 'Failed to save');
     }
     savingRef.current = false;
+    if (pendingRef.current) {
+      pendingRef.current = false;
+      saveRef.current();
+    }
   }, [saveFn, addToast]);
 
   const saveRef = useRef(save);
