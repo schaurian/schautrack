@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -60,7 +60,7 @@ jobs:
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -134,7 +134,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -157,7 +157,7 @@ jobs:
         platform: ${{ fromJson(needs.compute-version.outputs.platforms) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
         if: matrix.platform != 'linux/amd64'
@@ -271,7 +271,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -341,7 +341,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -390,7 +390,7 @@ jobs:
           helm package helm/schautrack -d .helm-packages
 
       - name: Checkout gh-pages
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
           path: gh-pages
