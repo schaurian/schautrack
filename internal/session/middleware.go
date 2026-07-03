@@ -22,13 +22,10 @@ func Middleware(store *Store) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			sess, err := store.Load(r)
 			if err != nil {
-				sess = &Session{
-					ID:     generateSID(),
-					Data:   make(map[string]any),
-					MaxAge: AnonMaxAge,
-					dirty:  true,
-					isNew:  true,
-				}
+				// Same pristine semantics as any other new session: it is
+				// only persisted (and its cookie only set) if a handler
+				// writes data into it.
+				sess = store.newSession()
 			}
 
 			holder := &sessionHolder{sess: sess}

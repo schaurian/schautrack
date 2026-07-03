@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -124,9 +126,18 @@ func (s *Session) MarkDirty() {
 	s.dirty = true
 }
 
+// dbExecutor is the subset of *pgxpool.Pool the store uses. It exists so
+// tests can substitute a fake and assert on exactly which writes the store
+// attempted (or, for pristine sessions, that none were attempted at all)
+// without a live Postgres.
+type dbExecutor interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 // Store manages sessions in PostgreSQL.
 type Store struct {
-	pool   *pgxpool.Pool
+	pool   dbExecutor
 	secret string
 	mu     sync.Mutex
 }
@@ -186,8 +197,17 @@ func (s *Store) Save(w http.ResponseWriter, r *http.Request, sess *Session) erro
 	if sess.destroyed {
 		return nil
 	}
-	if !sess.dirty && !sess.isNew {
-		// Still refresh cookie for rolling sessions
+	if !sess.dirty {
+		if sess.isNew {
+			// Pristine new session: no handler ever wrote data into it.
+			// Persisting these would INSERT a "session" row and set a cookie
+			// for every cookie-less request — k8s probes hit /api/health every
+			// few seconds, and scanners can inflate the table at line rate.
+			// Sessions become persistable the moment data is written (Set /
+			// Delete / SetUserID / MarkStepUp / MarkDirty) or via Regenerate.
+			return nil
+		}
+		// Loaded, unmodified session: still refresh cookie for rolling sessions
 		s.setCookie(w, r, sess)
 		return nil
 	}
@@ -257,12 +277,16 @@ func (s *Store) Regenerate(r *http.Request, sess *Session) (*Session, error) {
 	return newSess, nil
 }
 
+// newSession returns a pristine (not yet dirty) session. It is only persisted
+// — and its cookie only set — once a handler actually writes data into it;
+// see Save. Regenerate is the exception: it constructs its session with
+// dirty=true because the old row was just deleted and the replacement must
+// survive even if the handler writes no further data.
 func (s *Store) newSession() *Session {
 	return &Session{
 		ID:     generateSID(),
 		Data:   make(map[string]any),
 		MaxAge: AnonMaxAge,
-		dirty:  true,
 		isNew:  true,
 	}
 }
