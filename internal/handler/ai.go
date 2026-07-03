@@ -1,8 +1,10 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -23,14 +25,98 @@ type AIHandler struct {
 	Settings *database.SettingsCache
 }
 
-var imageDataRe = regexp.MustCompile(`^data:image/\w+;base64,`)
+var (
+	imageDataRe      = regexp.MustCompile(`^data:image/\w+;base64,`)
+	imageMediaTypeRe = regexp.MustCompile(`^data:(image/\w+);base64,`)
+)
+
+const (
+	// maxImageBase64Bytes is the largest accepted base64 image payload:
+	// 14MB of base64 is roughly 10MB of raw image data (~1.37x blowup).
+	maxImageBase64Bytes = 14 * 1024 * 1024
+	// maxAIRequestBytes bounds the AI estimate JSON body. It must fit the
+	// 14MB base64 image plus JSON overhead and matches the global 15MB
+	// body cap set in cmd/server/main.go.
+	maxAIRequestBytes = 15 << 20
+)
+
+// aiConfigInputs are the effective global (admin panel / env) and user-level
+// AI settings feeding resolveAIConfig. UserKey must already be decrypted.
+type aiConfigInputs struct {
+	GlobalKey      string
+	GlobalEndpoint string
+	GlobalModel    string
+	UserKey        string
+	UserModel      string
+}
+
+// resolvedAIConfig is the credential set to use for an AI call.
+type resolvedAIConfig struct {
+	APIKey         string
+	Endpoint       string
+	Model          string
+	UsingGlobalKey bool
+}
+
+// resolveAIConfig implements the documented three-tier key hierarchy: a
+// global admin key takes precedence and pins endpoint and model to the global
+// config; otherwise the user's personal key applies, with global settings
+// filling any gaps. Only a global KEY disables personal keys — a provider-only
+// global config must NOT block users from using their own saved key.
+func resolveAIConfig(in aiConfigInputs) resolvedAIConfig {
+	if in.GlobalKey != "" {
+		return resolvedAIConfig{
+			APIKey:         in.GlobalKey,
+			Endpoint:       in.GlobalEndpoint,
+			Model:          in.GlobalModel,
+			UsingGlobalKey: true,
+		}
+	}
+	model := in.UserModel
+	if model == "" {
+		model = in.GlobalModel
+	}
+	return resolvedAIConfig{
+		APIKey:   in.UserKey,
+		Endpoint: in.GlobalEndpoint,
+		Model:    model,
+	}
+}
+
+// aiClientErrorMessage maps an AI provider failure to a safe client-facing
+// message. It must never include the raw upstream response body or the
+// (possibly internal) endpoint URL — those are logged server-side instead.
+func aiClientErrorMessage(err error) string {
+	var provErr *service.AIProviderError
+	if errors.As(err, &provErr) {
+		switch provErr.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return "The AI provider rejected the configured API key."
+		case http.StatusTooManyRequests:
+			return "The AI provider is rate limiting requests. Please try again later."
+		}
+	}
+	return "AI estimation failed, please try again."
+}
+
+func settingValue(s database.SettingResult) string {
+	if s.Value == nil {
+		return ""
+	}
+	return *s.Value
+}
 
 func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Image   string `json:"image"`
 		Context string `json:"context"`
 	}
-	if err := ReadJSON(r, &body); err != nil {
+	if err := ReadJSONLimit(w, r, &body, maxAIRequestBytes); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			ErrorJSON(w, http.StatusRequestEntityTooLarge, "Image too large. Maximum size is 10MB.")
+			return
+		}
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
 		return
 	}
@@ -39,7 +125,7 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid image data")
 		return
 	}
-	if len(body.Image) > 14*1024*1024 {
+	if len(body.Image) > maxImageBase64Bytes {
 		ErrorJSON(w, http.StatusRequestEntityTooLarge, "Image too large. Maximum size is 10MB.")
 		return
 	}
@@ -52,7 +138,7 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	globalEndpoint := h.Settings.GetEffectiveSetting(ctx, "ai_endpoint", os.Getenv("AI_ENDPOINT"))
 	globalModel := h.Settings.GetEffectiveSetting(ctx, "ai_model", os.Getenv("AI_MODEL"))
 
-	// Priority: env/admin setting > user preference
+	// Provider priority: env/admin setting > user preference
 	var provider string
 	if globalProvider.Value != nil && *globalProvider.Value != "" {
 		provider = *globalProvider.Value
@@ -68,27 +154,21 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var apiKey string
-	var endpoint string
-	usingGlobalKey := false
-	hasGlobalConfig := (globalKey.Value != nil && *globalKey.Value != "") ||
-		(globalProvider.Value != nil && *globalProvider.Value != "")
-
-	// When global AI config is set, ignore user's personal key/endpoint/model.
-	// Users can only bring their own key when nothing is configured globally.
-	if hasGlobalConfig {
-		if globalKey.Value != nil {
-			apiKey = *globalKey.Value
-			usingGlobalKey = true
-		}
-		if globalEndpoint.Value != nil {
-			endpoint = *globalEndpoint.Value
-		}
-	} else {
-		if user.AIKey != nil && *user.AIKey != "" {
-			apiKey = service.DecryptApiKey(*user.AIKey, h.Cfg.AIKeyEncryptSecret)
-		}
+	// Only decrypt the personal key when no global key overrides it.
+	globalKeyVal := settingValue(globalKey)
+	var userKey string
+	if globalKeyVal == "" && user.AIKey != nil && *user.AIKey != "" {
+		userKey = service.DecryptApiKey(*user.AIKey, h.Cfg.AIKeyEncryptSecret)
 	}
+
+	cfg := resolveAIConfig(aiConfigInputs{
+		GlobalKey:      globalKeyVal,
+		GlobalEndpoint: settingValue(globalEndpoint),
+		GlobalModel:    settingValue(globalModel),
+		UserKey:        userKey,
+		UserModel:      derefString(user.AIModel),
+	})
+	apiKey, endpoint, customModel, usingGlobalKey := cfg.APIKey, cfg.Endpoint, cfg.Model, cfg.UsingGlobalKey
 
 	if (provider == "openai" || provider == "claude") && apiKey == "" {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("%s requires an API key.", provider))
@@ -104,47 +184,16 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 			usingGlobalKey = true
 		}
 	}
-
-	// Rate limiting
-	usageToday, _ := service.GetAIUsageToday(ctx, h.Pool, user.ID)
-	if usingGlobalKey {
-		dailyLimitSetting := h.Settings.GetEffectiveSetting(ctx, "ai_daily_limit", os.Getenv("AI_DAILY_LIMIT"))
-		if dailyLimitSetting.Value != nil {
-			if limit, err := strconv.Atoi(*dailyLimitSetting.Value); err == nil && limit > 0 && usageToday >= limit {
-				JSON(w, http.StatusTooManyRequests, map[string]any{
-					"ok": false, "error": fmt.Sprintf("Daily limit reached (%d requests).", limit),
-					"limitReached": true, "limit": limit, "used": usageToday,
-				})
-				return
-			}
-		}
-	} else if user.AIDailyLimit != nil && *user.AIDailyLimit > 0 && usageToday >= *user.AIDailyLimit {
-		JSON(w, http.StatusTooManyRequests, map[string]any{
-			"ok": false, "error": fmt.Sprintf("Daily limit reached (%d requests).", *user.AIDailyLimit),
-			"limitReached": true, "limit": *user.AIDailyLimit, "used": usageToday,
-		})
+	if (provider == "openai" || provider == "claude") && customModel == "" {
+		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("%s requires AI_MODEL to be configured.", provider))
 		return
 	}
 
 	// Extract base64 data and media type
 	base64Data := imageDataRe.ReplaceAllString(body.Image, "")
 	mediaType := "image/jpeg"
-	if m := regexp.MustCompile(`^data:(image/\w+);base64,`).FindStringSubmatch(body.Image); len(m) > 1 {
+	if m := imageMediaTypeRe.FindStringSubmatch(body.Image); len(m) > 1 {
 		mediaType = m[1]
-	}
-
-	// Model: global config > user preference
-	var customModel string
-	if hasGlobalConfig && globalModel.Value != nil && *globalModel.Value != "" {
-		customModel = *globalModel.Value
-	} else if !hasGlobalConfig && user.AIModel != nil && *user.AIModel != "" {
-		customModel = *user.AIModel
-	} else if globalModel.Value != nil {
-		customModel = *globalModel.Value
-	}
-	if (provider == "openai" || provider == "claude") && customModel == "" {
-		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("%s requires AI_MODEL to be configured.", provider))
-		return
 	}
 
 	// Build prompt
@@ -178,8 +227,51 @@ If you cannot identify any food in the image, set calories to 0 and food to "No 
 Only respond with the JSON object, no other text.`,
 		contextHint, strings.Join(macroList, ", "), strings.Join(macroList, ", "))
 
-	result, err := service.CallAIProvider(provider, apiKey, endpoint, base64Data, mediaType, prompt, customModel)
+	// Resolve the applicable daily limit (0 = unlimited).
+	dailyLimit := 0
+	if usingGlobalKey {
+		dailyLimitSetting := h.Settings.GetEffectiveSetting(ctx, "ai_daily_limit", os.Getenv("AI_DAILY_LIMIT"))
+		if dailyLimitSetting.Value != nil {
+			if limit, err := strconv.Atoi(*dailyLimitSetting.Value); err == nil && limit > 0 {
+				dailyLimit = limit
+			}
+		}
+	} else if user.AIDailyLimit != nil && *user.AIDailyLimit > 0 {
+		dailyLimit = *user.AIDailyLimit
+	}
+
+	// Reserve the usage slot atomically BEFORE calling the provider so
+	// concurrent requests cannot all pass a stale pre-increment check.
+	// A reservation that yields no estimation is released again below.
+	trackUsage := usingGlobalKey || (user.AIDailyLimit != nil && *user.AIDailyLimit > 0)
+	reserved := false
+	if trackUsage {
+		count, err := service.ReserveAIUsage(ctx, h.Pool, user.ID)
+		if err != nil {
+			// Fail closed: without a usage count we must not hand out
+			// unmetered AI calls.
+			slog.Error("failed to reserve AI usage", "error", err, "userID", user.ID)
+			ErrorJSON(w, http.StatusInternalServerError, "AI estimation failed, please try again.")
+			return
+		}
+		reserved = true
+		if dailyLimit > 0 && count > dailyLimit {
+			service.ReleaseAIUsage(context.WithoutCancel(ctx), h.Pool, user.ID)
+			JSON(w, http.StatusTooManyRequests, map[string]any{
+				"ok": false, "error": fmt.Sprintf("Daily limit reached (%d requests).", dailyLimit),
+				"limitReached": true, "limit": dailyLimit, "used": count - 1,
+			})
+			return
+		}
+	}
+
+	result, err := service.CallAIProvider(ctx, provider, apiKey, endpoint, base64Data, mediaType, prompt, customModel)
 	if err != nil {
+		if reserved {
+			// No estimation happened — hand the slot back. Use a
+			// non-cancelable context so an aborted request still releases.
+			service.ReleaseAIUsage(context.WithoutCancel(ctx), h.Pool, user.ID)
+		}
 		if err.Error() == "NO_FOOD_DETECTED" {
 			JSON(w, http.StatusBadRequest, map[string]any{
 				"ok": false, "error": "Could not identify food in the image.",
@@ -187,13 +279,9 @@ Only respond with the JSON object, no other text.`,
 			})
 			return
 		}
-		ErrorJSON(w, http.StatusInternalServerError, err.Error())
+		slog.Error("AI estimation failed", "provider", provider, "userID", user.ID, "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, aiClientErrorMessage(err))
 		return
-	}
-
-	// Increment usage
-	if usingGlobalKey || (user.AIDailyLimit != nil && *user.AIDailyLimit > 0) {
-		service.IncrementAIUsage(ctx, h.Pool, user.ID)
 	}
 
 	// Compute calories from macros
@@ -221,5 +309,9 @@ Only respond with the JSON object, no other text.`,
 	})
 }
 
-// Suppress unused imports
-var _ = json.Marshal
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
