@@ -37,7 +37,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "schautrack.fullname" . }}
+                  name: {{ .Values.existingSecret | default (include "schautrack.fullname" .) }}
                   key: POSTGRES_PASSWORD
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata

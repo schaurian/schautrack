@@ -98,10 +98,10 @@ var adminSettings = []AdminSetting{
 		Help:     "Enable barcode scanning via OpenFoodFacts.",
 		Validate: validBool},
 	{Key: "enable_registration", Env: "ENABLE_REGISTRATION", Section: "features", Tier: "hot",
-		Help: `"open" (or "true") to allow public sign-up; "false"/"invite" to require an invite code.`,
-		// Accept the bool form "true" too — the UI's bool toggle stores it as
-		// "true", and the auth handler treats anything that isn't "false" or
-		// "invite" as open registration.
+		Help: `"open" (or "true") allows public sign-up; "invite" requires a valid invite code; "false" fully disables sign-up.`,
+		// "true" is accepted as a synonym for "open". Anything unrecognised is
+		// treated as open registration (see registrationMode); only "invite"
+		// gates on a code and only "false" disables sign-up.
 		Validate: oneOf("open", "true", "false", "invite", "")},
 
 	// =========================================================================

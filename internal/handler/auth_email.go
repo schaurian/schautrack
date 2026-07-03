@@ -79,8 +79,16 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	sess.Delete("verifyEmail")
 	sess.Delete("verifyAttempts")
-	sess.SetUserID(userID)
-	sess.Set("auth_method", "password")
+	// Rotate the session ID on privilege elevation to prevent session fixation,
+	// mirroring the login path (auth.go).
+	newSess, regenErr := h.SessionStore.Regenerate(r, sess)
+	if regenErr != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not verify email.")
+		return
+	}
+	newSess.SetUserID(userID)
+	newSess.Set("auth_method", "password")
+	session.SetSession(r, newSess)
 	OkJSON(w)
 }
 
