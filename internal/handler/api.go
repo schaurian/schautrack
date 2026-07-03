@@ -351,13 +351,25 @@ func CleanExpiredTokens(pool *pgxpool.Pool) {
 	// stock Keycloak/Authentik/Authelia default) would be purged within minutes
 	// of signup, cascading away all of their entries. Exclude any user that has
 	// an OIDC account or a registered passkey.
+	// The created_at grace period gives a just-registered user time to
+	// recover (resend the code, or re-login to get a fresh token) before the
+	// account is reaped — previously a single failed/expired verification
+	// email could silently cost the account within one cleanup tick.
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM users
 		WHERE email_verified = FALSE
+			AND created_at < NOW() - interval '1 hour'
 			AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
 			AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
 			AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
 	`); err != nil {
 		slog.Error("failed to clean unverified users", "error", err)
+	}
+	// Retention: audit_log and ai_usage otherwise grow unbounded.
+	if _, err := pool.Exec(ctx, "DELETE FROM audit_log WHERE created_at < NOW() - interval '90 days'"); err != nil {
+		slog.Error("failed to prune old audit log rows", "error", err)
+	}
+	if _, err := pool.Exec(ctx, "DELETE FROM ai_usage WHERE usage_date < CURRENT_DATE - 400"); err != nil {
+		slog.Error("failed to prune old ai_usage rows", "error", err)
 	}
 }

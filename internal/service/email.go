@@ -41,8 +41,12 @@ func (es *EmailService) SendEmail(to, subject, text, html string) error {
 
 	err := smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
 	if err != nil {
+		// Log the raw SMTP detail server-side only; callers must surface a
+		// generic message. Swallowing the error here made every caller
+		// report success even when nothing was sent — combined with the
+		// unverified-user cleanup that silently cost accounts.
 		log.Printf("SMTP send failed: %v", err)
-		return nil // Don't expose SMTP errors to users
+		return fmt.Errorf("email send failed: %w", err)
 	}
 	return nil
 }
