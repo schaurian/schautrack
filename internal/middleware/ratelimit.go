@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"schautrack/internal/clientip"
 )
 
 type rateLimitEntry struct {
@@ -92,24 +93,9 @@ func (rl *RateLimiter) cleanup() {
 	}
 }
 
-// clientIP extracts the client IP from the request. When trustProxy is true,
-// it reads X-Forwarded-For and X-Real-Ip headers set by a reverse proxy or
-// Kubernetes ingress. When false, it uses RemoteAddr directly to prevent
-// clients from spoofing their IP.
+// clientIP extracts the client IP used as the rate-limit bucket key. It
+// delegates to the shared clientip.FromRequest so the limiter and the audit
+// logger derive the same, non-spoofable value from proxy headers.
 func clientIP(r *http.Request, trustProxy bool) string {
-	if trustProxy {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			for i := 0; i < len(xff); i++ {
-				if xff[i] == ',' {
-					return xff[:i]
-				}
-			}
-			return xff
-		}
-		if xri := r.Header.Get("X-Real-Ip"); xri != "" {
-			return xri
-		}
-	}
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return host
+	return clientip.FromRequest(r, trustProxy)
 }

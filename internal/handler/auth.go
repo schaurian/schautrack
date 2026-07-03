@@ -373,8 +373,16 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		sess.Set("verifyEmail", emailClean)
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "requireVerification": true})
 	} else {
-		sess.SetUserID(userID)
-		sess.Set("auth_method", "password")
+		// Rotate the session ID on privilege elevation (session fixation),
+		// mirroring the login path above.
+		newSess, regenErr := h.SessionStore.Regenerate(r, sess)
+		if regenErr != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
+			return
+		}
+		newSess.SetUserID(userID)
+		newSess.Set("auth_method", "password")
+		session.SetSession(r, newSess)
 		OkJSON(w)
 	}
 }

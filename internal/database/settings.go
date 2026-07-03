@@ -2,9 +2,11 @@ package database
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -48,15 +50,42 @@ func (sc *SettingsCache) GetEffectiveSetting(ctx context.Context, key string, en
 
 	var value *string
 	err := sc.pool.QueryRow(ctx, "SELECT value FROM admin_settings WHERE key = $1", key).Scan(&value)
-	if err != nil || value == nil {
-		result := SettingResult{Value: nil, Source: "none"}
-		sc.set(key, result)
-		return result
-	}
 
-	result := SettingResult{Value: value, Source: "db"}
-	sc.set(key, result)
+	var cached *SettingResult
+	if ok {
+		cached = &entry.result
+	}
+	result, cache := resolveSetting(value, err, cached)
+	if cache {
+		sc.set(key, result)
+	}
 	return result
+}
+
+// resolveSetting decides the SettingResult for a lookup and whether it is safe
+// to cache, given the DB scan outcome and any (possibly stale) cached entry.
+//
+// A negative result is only cached when the row genuinely does not exist
+// (pgx.ErrNoRows) or is SQL NULL. On any other error — most importantly a
+// canceled request context, which a client can trigger at will by aborting its
+// own request — we must NOT write {nil,"none"} to the cache for the full TTL,
+// or a single aborted request would, for a minute, make enable_registration,
+// the global ai_key, enable_legal, etc. read as unset for everyone. Instead we
+// serve the stale cached value if we have one, or an uncached negative result.
+func resolveSetting(value *string, err error, cached *SettingResult) (SettingResult, bool) {
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return SettingResult{Value: nil, Source: "none"}, true
+		}
+		if cached != nil {
+			return *cached, false
+		}
+		return SettingResult{Value: nil, Source: "none"}, false
+	}
+	if value == nil {
+		return SettingResult{Value: nil, Source: "none"}, true
+	}
+	return SettingResult{Value: value, Source: "db"}, true
 }
 
 func (sc *SettingsCache) SetAdminSetting(ctx context.Context, key string, value string) error {
