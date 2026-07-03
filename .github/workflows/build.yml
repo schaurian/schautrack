@@ -34,7 +34,11 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Production releases (main + version tags) go to the canonical package;
+  # everything else (staging, PRs) goes to a separate `-staging` package so the
+  # production package only ever contains released images. The staging package
+  # must be public for the cluster to pull it without a pull secret.
+  IMAGE_NAME: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.repository || format('{0}-staging', github.repository) }}
 
 jobs:
   test:
