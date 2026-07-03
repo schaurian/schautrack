@@ -137,7 +137,7 @@ func main() {
 		r.With(authLimiter.Middleware, session.CsrfProtection).Post("/auth/register", authHandler.Register)
 		r.With(middleware.RequireLogin, session.CsrfProtection).Post("/auth/logout", authHandler.Logout)
 		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/forgot-password", authHandler.ForgotPassword)
-		r.With(session.CsrfProtection).Post("/auth/reset-password", authHandler.ResetPassword)
+		r.With(strictLimiter.Middleware, session.CsrfProtection).Post("/auth/reset-password", authHandler.ResetPassword)
 		r.With(session.CsrfProtection).Post("/auth/verify-email", authHandler.VerifyEmail)
 		r.With(session.CsrfProtection).Post("/auth/verify-email/resend", authHandler.VerifyEmailResend)
 		r.Get("/auth/captcha", authHandler.Captcha)
