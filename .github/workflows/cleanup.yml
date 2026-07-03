@@ -7,28 +7,23 @@ on:
 
 jobs:
   cleanup:
-    name: Delete old container images (${{ matrix.package }})
+    name: Delete old container images
     runs-on: arc-runner
     permissions:
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        # schautrack         = production releases (semver + latest) — only untagged junk is pruned; releases are kept forever.
-        # schautrack-staging = ephemeral staging/PR builds — also trims old tagged images.
-        package: [schautrack, schautrack-staging]
     env:
-      PACKAGE: ${{ matrix.package }}
+      PACKAGE: schautrack
       OWNER: ${{ github.repository_owner }}
-      KEEP_EPHEMERAL: 10
+      KEEP_STAGING: 5
     steps:
       - name: Delete untagged images older than 1 day
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== [$PACKAGE] Cleaning up untagged images ==="
+          echo "=== Cleaning up untagged images ==="
           CUTOFF=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)
 
+          # Fetch all versions (paginated)
           PAGE=1
           DELETED=0
           while true; do
@@ -39,6 +34,7 @@ jobs:
             COUNT=$(echo "$VERSIONS" | jq length)
             [ "$COUNT" -eq 0 ] && break
 
+            # Filter untagged versions older than cutoff
             IDS=$(echo "$VERSIONS" | jq -r \
               --arg cutoff "$CUTOFF" \
               '.[] | select(.metadata.container.tags | length == 0) | select(.updated_at < $cutoff) | .id')
@@ -53,19 +49,17 @@ jobs:
             [ "$COUNT" -lt 100 ] && break
             PAGE=$((PAGE + 1))
           done
-          echo "[$PACKAGE] Deleted $DELETED untagged images"
+          echo "Deleted $DELETED untagged images"
 
-      - name: Delete old ephemeral images (keep ${{ env.KEEP_EPHEMERAL }} most recent)
-        # Only the staging package holds ephemeral (staging-*/PR SHA) tags. Never
-        # run this on the production package — it would delete released versions.
-        if: matrix.package == 'schautrack-staging'
+      - name: Delete old staging images (keep ${{ env.KEEP_STAGING }} most recent)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== [$PACKAGE] Trimming old ephemeral images ==="
+          echo "=== Cleaning up old staging images ==="
 
+          # Collect all staging versions across pages
           PAGE=1
-          ALL="[]"
+          ALL_STAGING="[]"
           while true; do
             VERSIONS=$(gh api \
               "/users/${OWNER}/packages/container/${PACKAGE}/versions?per_page=100&page=${PAGE}" \
@@ -74,35 +68,36 @@ jobs:
             COUNT=$(echo "$VERSIONS" | jq length)
             [ "$COUNT" -eq 0 ] && break
 
-            # Only tagged versions are candidates here (untagged handled above).
-            TAGGED=$(echo "$VERSIONS" | jq '[.[] | select(.metadata.container.tags | length > 0)]')
-            ALL=$(echo "$ALL $TAGGED" | jq -s 'add')
+            # Filter to staging-tagged versions
+            STAGING=$(echo "$VERSIONS" | jq \
+              '[.[] | select(.metadata.container.tags | any(startswith("staging-")))]')
+            ALL_STAGING=$(echo "$ALL_STAGING $STAGING" | jq -s 'add')
 
             [ "$COUNT" -lt 100 ] && break
             PAGE=$((PAGE + 1))
           done
 
-          TOTAL=$(echo "$ALL" | jq length)
-          echo "[$PACKAGE] Found $TOTAL tagged ephemeral images"
+          TOTAL=$(echo "$ALL_STAGING" | jq length)
+          echo "Found $TOTAL staging images"
 
-          if [ "$TOTAL" -le "$KEEP_EPHEMERAL" ]; then
-            echo "Nothing to delete (keeping ${KEEP_EPHEMERAL})"
+          if [ "$TOTAL" -le "$KEEP_STAGING" ]; then
+            echo "Nothing to delete (keeping ${KEEP_STAGING})"
             exit 0
           fi
 
-          # Keep the newest N by updated_at (the currently-deployed staging build
-          # is always among the most recent), delete the rest.
-          IDS=$(echo "$ALL" | jq -r \
-            --argjson keep "$KEEP_EPHEMERAL" \
+          # Sort by updated_at descending, skip the newest N, delete the rest
+          IDS=$(echo "$ALL_STAGING" | jq -r \
+            --argjson keep "$KEEP_STAGING" \
             'sort_by(.updated_at) | reverse | .[$keep:] | .[].id')
 
           DELETED=0
           for ID in $IDS; do
-            TAGS=$(echo "$ALL" | jq -r --argjson id "$ID" \
+            TAGS=$(echo "$ALL_STAGING" | jq -r \
+              --argjson id "$ID" \
               '.[] | select(.id == $id) | .metadata.container.tags | join(", ")')
-            echo "Deleting ephemeral version $ID ($TAGS)"
+            echo "Deleting staging version $ID ($TAGS)"
             gh api --method DELETE \
               "/users/${OWNER}/packages/container/${PACKAGE}/versions/${ID}" \
               2>/dev/null && DELETED=$((DELETED + 1)) || echo "  Failed to delete $ID"
           done
-          echo "[$PACKAGE] Deleted $DELETED ephemeral images (kept newest ${KEEP_EPHEMERAL})"
+          echo "Deleted $DELETED staging images (kept newest ${KEEP_STAGING})"
