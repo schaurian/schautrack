@@ -230,6 +230,3 @@ func (h *AdminHandler) DeleteInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	OkJSON(w)
 }
-
-// Suppress unused
-var _ = strings.TrimSpace

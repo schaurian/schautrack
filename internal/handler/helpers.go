@@ -16,9 +16,17 @@ func JSON(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-// ReadJSON decodes a JSON request body into dst.
+// ReadJSON decodes a JSON request body into dst, limited to 10MB.
 func ReadJSON(r *http.Request, dst any) error {
-	body, err := io.ReadAll(io.LimitReader(r.Body, 10<<20)) // 10MB
+	return ReadJSONLimit(nil, r, dst, 10<<20)
+}
+
+// ReadJSONLimit decodes a JSON request body into dst, rejecting bodies larger
+// than limit bytes. Oversize bodies surface as a *http.MaxBytesError (instead
+// of being silently truncated) so callers can map them to 413. w may be nil;
+// when non-nil, the server also stops reading the connection on overflow.
+func ReadJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) error {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
 	if err != nil {
 		return err
 	}
