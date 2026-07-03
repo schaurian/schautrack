@@ -176,14 +176,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AuthHandler) isRegistrationEnabled(r *http.Request) bool {
-	result := h.Settings.GetEffectiveSetting(r.Context(), "enable_registration", h.Cfg.EnableRegistration)
-	if result.Value != nil && *result.Value == "false" {
-		return false
-	}
-	return true
-}
-
 func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request, sess *session.Session, email, password, timezone, inviteCode string) {
 	emailClean := strings.ToLower(strings.TrimSpace(email))
 	if emailClean == "" || password == "" {
@@ -195,8 +187,14 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Check registration mode
-	if !h.isRegistrationEnabled(r) {
+	// Gate on the configured registration mode.
+	switch effectiveRegistrationMode(r.Context(), h.Settings, h.Cfg) {
+	case regModeClosed:
+		// Registration fully disabled — no invite code can override this.
+		ErrorJSON(w, http.StatusForbidden, "Registration is disabled.")
+		return
+	case regModeInvite:
+		// Invite-only: fail closed unless a valid, unused invite code is given.
 		inviteCode = strings.TrimSpace(inviteCode)
 		if inviteCode == "" {
 			JSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "Registration requires an invite code.", "requireInviteCode": true})
@@ -305,12 +303,22 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	// Check if invite mode is active — reject if no invite code was provided
+	// Re-check the registration mode at this final step — it may have changed
+	// between the credentials step and now. Never create a user in a mode that
+	// forbids it (fail closed).
 	invCode := sess.GetString("pendingInviteCode")
-	if invCode == "" && !h.isRegistrationEnabled(r) {
+	switch effectiveRegistrationMode(r.Context(), h.Settings, h.Cfg) {
+	case regModeClosed:
 		sess.Delete("pendingRegistration")
-		ErrorJSON(w, http.StatusForbidden, "Registration requires an invite code.")
+		sess.Delete("pendingInviteCode")
+		ErrorJSON(w, http.StatusForbidden, "Registration is disabled.")
 		return
+	case regModeInvite:
+		if invCode == "" {
+			sess.Delete("pendingRegistration")
+			ErrorJSON(w, http.StatusForbidden, "Registration requires an invite code.")
+			return
+		}
 	}
 
 	// Create user and claim invite code atomically in a transaction
