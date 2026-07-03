@@ -146,7 +146,7 @@ postgresql:
   auth:
     database: schautrack
     username: schautrack
-    # Password (required) - generate with: openssl rand -base64 16
+    # Password (required) - generate with: openssl rand -hex 16
     # DO NOT use default passwords in production
     password: ""
   # Persistence configuration
