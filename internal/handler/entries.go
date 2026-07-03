@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -93,7 +94,12 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
-	totalsByDate := getTotalsByDate(r, h.Pool, user.ID, oldest, newest)
+	totalsByDate, err := getTotalsByDate(r, h.Pool, user.ID, oldest, newest)
+	if err != nil {
+		slog.Error("dashboard: failed to load calorie totals", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to load entries")
+		return
+	}
 	todayTotal := totalsByDate[todayStr]
 	macroModes := service.GetMacroModes(mu)
 	enabledMacros := service.GetEnabledMacros(mu)
@@ -203,7 +209,13 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			linkOldest := linkDayOptions[len(linkDayOptions)-1]
 			linkNewest := linkDayOptions[0]
 			linkGoal := service.GetCalorieGoal(lmu)
-			linkTotals := getTotalsByDate(r, h.Pool, link.UserID, linkOldest, linkNewest)
+			linkTotals, err := getTotalsByDate(r, h.Pool, link.UserID, linkOldest, linkNewest)
+			if err != nil {
+				// Skip this link's card rather than rendering all-zero
+				// totals as if they were real data.
+				slog.Error("dashboard: failed to load linked user's calorie totals", "error", err, "linkUserId", link.UserID)
+				return
+			}
 			linkEnabledMacros := service.GetEnabledMacros(lmu)
 			linkMacroGoals := service.GetMacroGoals(lmu)
 			linkMacroModes := service.GetMacroModes(lmu)
@@ -372,7 +384,12 @@ func (h *EntriesHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	todayStrTz := service.FormatDateInTz(time.Now(), targetTz)
 
 	dailyGoal := service.GetCalorieGoal(mu)
-	totalsByDate := getTotalsByDate(r, h.Pool, targetUserID, oldest, newest)
+	totalsByDate, err := getTotalsByDate(r, h.Pool, targetUserID, oldest, newest)
+	if err != nil {
+		slog.Error("overview: failed to load calorie totals", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to load entries")
+		return
+	}
 	todayTotal := totalsByDate[todayStrTz]
 	threshold := mu.GoalThreshold
 	enabledMacros := service.GetEnabledMacros(mu)

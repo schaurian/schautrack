@@ -106,10 +106,7 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 
 	if v, ok := body["name"]; ok {
 		out.hasName = true
-		out.name = strings.TrimSpace(fmt.Sprintf("%v", v))
-		if len(out.name) > MaxSavedFoodName {
-			out.name = out.name[:MaxSavedFoodName]
-		}
+		out.name = truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), MaxSavedFoodName)
 		if out.name == "" {
 			return nil, http.StatusBadRequest, "Name is required"
 		}
@@ -123,9 +120,7 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 		if raw == "" || raw == "<nil>" {
 			out.emoji = nil
 		} else {
-			if len(raw) > MaxSavedFoodEmoji {
-				raw = raw[:MaxSavedFoodEmoji]
-			}
+			raw = truncateUTF8(raw, MaxSavedFoodEmoji)
 			out.emoji = &raw
 		}
 	}
@@ -362,7 +357,7 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 	if entryDate == "" {
 		entryDate = service.FormatDateInTz(time.Now(), userTz)
 	}
-	if !dateRe.MatchString(entryDate) {
+	if !isValidDate(entryDate) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
@@ -400,9 +395,7 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 	if emoji != nil && *emoji != "" {
 		entryName = *emoji + " " + name
 	}
-	if len(entryName) > 120 {
-		entryName = entryName[:120]
-	}
+	entryName = truncateUTF8(entryName, 120)
 
 	entryAmount := 0
 	if amount != nil {
@@ -413,18 +406,18 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mulPtr := func(p *int) *int {
-		if p == nil {
-			return nil
-		}
-		v := *p * qty
-		return &v
+	// Multiplied macros must respect the macro column CHECK (0..999) just
+	// like the multiplied calorie amount above, or the INSERT fails with a
+	// constraint violation (a 500 for the user).
+	mProtein, okP := multiplyMacro(protein, qty)
+	mCarbs, okC := multiplyMacro(carbs, qty)
+	mFat, okF := multiplyMacro(fat, qty)
+	mFiber, okFi := multiplyMacro(fiber, qty)
+	mSugar, okS := multiplyMacro(sugar, qty)
+	if !okP || !okC || !okF || !okFi || !okS {
+		ErrorJSON(w, http.StatusBadRequest, "Quantity too high for this entry")
+		return
 	}
-	mProtein := mulPtr(protein)
-	mCarbs := mulPtr(carbs)
-	mFat := mulPtr(fat)
-	mFiber := mulPtr(fiber)
-	mSugar := mulPtr(sugar)
 
 	var entryID int
 	var createdAt time.Time
@@ -502,10 +495,7 @@ func (h *SavedFoodsHandler) SaveFromEntry(w http.ResponseWriter, r *http.Request
 	}
 	ReadJSON(r, &body)
 
-	cleanName := strings.TrimSpace(*name)
-	if len(cleanName) > MaxSavedFoodName {
-		cleanName = cleanName[:MaxSavedFoodName]
-	}
+	cleanName := truncateUTF8(strings.TrimSpace(*name), MaxSavedFoodName)
 
 	var count int
 	h.Pool.QueryRow(r.Context(), "SELECT COUNT(*)::int FROM saved_foods WHERE user_id = $1", user.ID).Scan(&count)

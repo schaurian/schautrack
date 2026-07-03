@@ -30,15 +30,17 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	hasCalorieEntry := amountResult.Ok && amountResult.Value != 0
 
 	entryDate, _ := body["entry_date"].(string)
+	entryDate = strings.TrimSpace(entryDate)
 	if entryDate == "" {
 		entryDate = service.FormatDateInTz(time.Now(), userTz)
 	}
+	if !isValidDate(entryDate) {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
+		return
+	}
 	entryName := ""
 	if v, ok := body["entry_name"].(string); ok {
-		entryName = strings.TrimSpace(v)
-		if len(entryName) > 120 {
-			entryName = entryName[:120]
-		}
+		entryName = truncateUTF8(strings.TrimSpace(v), 120)
 	}
 
 	// Parse weight (frontend may send as string or number)
@@ -81,6 +83,10 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		c := macroValues["carbs"]
 		f := macroValues["fat"]
 		if computed := service.ComputeCaloriesFromMacros(p, c, f); computed != nil && *computed > 0 {
+			if !entryCaloriesInRange(*computed) {
+				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories computed from macros exceed the maximum of %d", MaxEntryCalories))
+				return
+			}
 			amountResult.Value = *computed
 			amountResult.Ok = true
 			hasCalorieEntry = true
@@ -172,10 +178,7 @@ func (h *EntriesHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	idx := 1
 
 	if v, ok := body["name"]; ok {
-		name := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if len(name) > 120 {
-			name = name[:120]
-		}
+		name := truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), 120)
 		updates = append(updates, fmt.Sprintf("entry_name = $%d", idx))
 		values = append(values, nilString(name))
 		idx++
@@ -237,7 +240,17 @@ func (h *EntriesHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	var createdAt time.Time
 	var proteinG, carbsG, fatG, fiberG, sugarG *int
 
-	err = h.Pool.QueryRow(r.Context(), query, values...).Scan(
+	// Run the field update and the auto-calc amount update in one
+	// transaction so a rejected computed amount can't leave the entry
+	// half-updated (name/macros committed, amount stale).
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to update entry")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	err = tx.QueryRow(r.Context(), query, values...).Scan(
 		&id, &entryDate, &amount, &entryName, &createdAt,
 		&proteinG, &carbsG, &fatG, &fiberG, &sugarG)
 	if err != nil {
@@ -249,12 +262,21 @@ func (h *EntriesHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	if autoCalc {
 		p, c, f := intOrZero(proteinG), intOrZero(carbsG), intOrZero(fatG)
 		if computed := service.ComputeCaloriesFromMacros(p, c, f); computed != nil {
-			if _, err := h.Pool.Exec(r.Context(), "UPDATE calorie_entries SET amount = $1 WHERE id = $2 AND user_id = $3", *computed, entryID, user.ID); err != nil {
+			if !entryCaloriesInRange(*computed) {
+				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories computed from macros exceed the maximum of %d", MaxEntryCalories))
+				return
+			}
+			if _, err := tx.Exec(r.Context(), "UPDATE calorie_entries SET amount = $1 WHERE id = $2 AND user_id = $3", *computed, entryID, user.ID); err != nil {
 				ErrorJSON(w, http.StatusInternalServerError, "Failed to update entry")
 				return
 			}
 			amount = *computed
 		}
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to update entry")
+		return
 	}
 
 	enabledMacros := service.GetEnabledMacros(mu)
