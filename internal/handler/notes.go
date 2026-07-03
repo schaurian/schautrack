@@ -76,17 +76,13 @@ func (h *NotesHandler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !dateRe.MatchString(body.Date) {
+	if !isValidDate(body.Date) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
 
 	user := middleware.GetCurrentUser(r)
-	content := strings.TrimSpace(body.Content)
-
-	if len(content) > 10000 {
-		content = content[:10000]
-	}
+	content := truncateUTF8(strings.TrimSpace(body.Content), 10000)
 
 	if content == "" {
 		// Delete the note

@@ -73,10 +73,7 @@ func (h *TodosHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(fmt.Sprintf("%v", body["name"]))
-	if len(name) > 100 {
-		name = name[:100]
-	}
+	name := truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", body["name"])), 100)
 	if name == "" {
 		ErrorJSON(w, http.StatusBadRequest, "Name is required")
 		return
@@ -142,10 +139,7 @@ func (h *TodosHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idx := 1
 
 	if v, ok := body["name"]; ok {
-		name := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if len(name) > 100 {
-			name = name[:100]
-		}
+		name := truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), 100)
 		if name == "" {
 			ErrorJSON(w, http.StatusBadRequest, "Name is required")
 			return
@@ -407,7 +401,7 @@ func (h *TodosHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 		tz := getUserTimezone(r, user)
 		dateStr = service.FormatDateInTz(time.Now(), tz)
 	}
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}

@@ -232,7 +232,7 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 	// Model
 	model := strings.TrimSpace(body.AIModel)
 	if len(model) > 100 {
-		model = model[:100]
+		model = truncateUTF8(model, 100)
 	}
 	updates = append(updates, fmt.Sprintf("ai_model = $%d", idx))
 	if model == "" {
@@ -715,7 +715,7 @@ func (h *LinksHandler) LinkLabel(w http.ResponseWriter, r *http.Request) {
 
 	label := strings.TrimSpace(body.Label)
 	if len(label) > 120 {
-		label = label[:120]
+		label = truncateUTF8(label, 120)
 	}
 	var labelPtr *string
 	if label != "" {
