@@ -433,6 +433,8 @@ jobs:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: [compute-version, publish-helm]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    permissions:
+      contents: write # push an empty gh-pages commit when a Pages deployment fails
     steps:
       - name: Determine ArgoCD application
         id: app
@@ -465,11 +467,33 @@ jobs:
               echo "Chart version $VERSION is live on GitHub Pages"
               exit 0
             fi
+            # A Pages deployment can fail outright with "Deployment failed,
+            # try again later." (three times on 2026-07-03) and GitHub never
+            # retries it on its own. Deployments are cached per gh-pages
+            # commit SHA, so re-requesting a build of the SAME commit
+            # (POST /pages/builds) fails instantly with the cached result —
+            # verified 2026-07-03. Only a NEW commit gets a fresh deployment,
+            # so push an empty one, once, 5 minutes in.
+            if [[ $i -eq 60 ]]; then
+              echo "Chart still not visible — pushing an empty gh-pages commit to force a fresh Pages deployment"
+              {
+                git clone --quiet --depth 1 --branch gh-pages \
+                  "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+                  "$RUNNER_TEMP/ghpages-kick" &&
+                git -C "$RUNNER_TEMP/ghpages-kick" \
+                  -c user.name="github-actions[bot]" \
+                  -c user.email="github-actions[bot]@users.noreply.github.com" \
+                  commit --allow-empty -m "chore: retrigger failed Pages deployment" &&
+                git -C "$RUNNER_TEMP/ghpages-kick" push --quiet origin HEAD:gh-pages
+              } || echo "gh-pages kick failed (non-fatal); continuing to wait"
+            fi
             echo "Waiting for GitHub Pages to serve $VERSION... ($i/$MAX_ATTEMPTS)"
             sleep 5
           done
           echo "::warning::Chart $VERSION not visible on GitHub Pages after $((MAX_ATTEMPTS * 5))s; not failing the release — ArgoCD will pick it up on its next poll."
           exit 0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Best-effort: nudge ArgoCD to sync immediately instead of waiting for its
       # poll. A transient ArgoCD hiccup must not red an already-published release.
