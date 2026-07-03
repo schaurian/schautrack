@@ -53,9 +53,13 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Migrations
+	// Migrations. A broken/partial schema makes every query 500 while
+	// /api/health only pings the DB, so probes stay green and RollingUpdate
+	// (maxUnavailable:0) would swap a healthy pod for a broken one. Fail fast so
+	// the old healthy pod keeps serving.
 	if err := database.InitSchemaWithRetry(ctx, pool, 10); err != nil {
-		slog.Warn("schema init returned error", "error", err)
+		slog.Error("schema init failed after all retries; aborting startup", "error", err)
+		os.Exit(1)
 	}
 
 	// Services
