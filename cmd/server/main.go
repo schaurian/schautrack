@@ -327,7 +327,10 @@ func main() {
 		Addr:         ":" + cfg.Port,
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second, // Long for SSE
+		// Absolute per-response write deadline for slow-loris protection. The
+		// SSE handler clears this deadline for its own connection (via
+		// http.ResponseController) so long-lived streams are not force-closed.
+		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  60 * time.Second,
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx
