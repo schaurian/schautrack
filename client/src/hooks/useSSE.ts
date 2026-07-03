@@ -13,20 +13,28 @@ export function useSSE() {
   useEffect(() => {
     if (!window.EventSource) return;
 
+    // Set on cleanup so an in-flight reconnect timer can't spawn a new
+    // EventSource after unmount (e.g. after logout, when the endpoint
+    // would 401 forever).
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
     const connect = () => {
-      if (sourceRef.current) return;
+      if (disposed || sourceRef.current) return;
       const source = new EventSource('/events/entries');
       sourceRef.current = source;
 
       source.addEventListener('entry-change', () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         queryClient.invalidateQueries({ queryKey: ['day-entries'] });
-        queryClient.invalidateQueries({ queryKey: ['overview'] });
+        // The server broadcasts entry-change for weight upserts too.
+        queryClient.invalidateQueries({ queryKey: ['weight'] });
       });
 
       source.addEventListener('settings-change', () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['me'] });
+        // The current user lives in the auth store, not a query.
+        fetchUser();
       });
 
       source.addEventListener('link-change', (e) => {
@@ -66,17 +74,20 @@ export function useSSE() {
       source.onerror = () => {
         source.close();
         sourceRef.current = null;
+        if (disposed) return;
         const delay = retryDelayRef.current;
         retryDelayRef.current = Math.min(delay * 2, 30000);
-        setTimeout(connect, delay);
+        reconnectTimer = setTimeout(connect, delay);
       };
     };
 
     connect();
 
     return () => {
+      disposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       sourceRef.current?.close();
       sourceRef.current = null;
     };
-  }, [queryClient]);
+  }, [queryClient, fetchUser]);
 }
