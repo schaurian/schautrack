@@ -434,7 +434,7 @@ jobs:
     needs: [compute-version, publish-helm]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
     permissions:
-      pages: write # request a Pages rebuild when a deployment fails transiently
+      contents: write # push an empty gh-pages commit when a Pages deployment fails
     steps:
       - name: Determine ArgoCD application
         id: app
@@ -467,18 +467,25 @@ jobs:
               echo "Chart version $VERSION is live on GitHub Pages"
               exit 0
             fi
-            # A Pages deployment can fail outright with a transient
-            # "Deployment failed, try again later." (both main deploys did on
-            # 2026-07-03) and GitHub never retries it on its own — the chart
-            # then stays unpublished until the NEXT gh-pages push, so waiting
-            # longer cannot help. Kick a fresh build of the latest gh-pages
-            # commit once, 5 minutes in.
+            # A Pages deployment can fail outright with "Deployment failed,
+            # try again later." (three times on 2026-07-03) and GitHub never
+            # retries it on its own. Deployments are cached per gh-pages
+            # commit SHA, so re-requesting a build of the SAME commit
+            # (POST /pages/builds) fails instantly with the cached result —
+            # verified 2026-07-03. Only a NEW commit gets a fresh deployment,
+            # so push an empty one, once, 5 minutes in.
             if [[ $i -eq 60 ]]; then
-              echo "Chart still not visible — requesting a GitHub Pages rebuild"
-              curl -sf -X POST \
-                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${{ github.repository }}/pages/builds" || true
+              echo "Chart still not visible — pushing an empty gh-pages commit to force a fresh Pages deployment"
+              {
+                git clone --quiet --depth 1 --branch gh-pages \
+                  "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+                  "$RUNNER_TEMP/ghpages-kick" &&
+                git -C "$RUNNER_TEMP/ghpages-kick" \
+                  -c user.name="github-actions[bot]" \
+                  -c user.email="github-actions[bot]@users.noreply.github.com" \
+                  commit --allow-empty -m "chore: retrigger failed Pages deployment" &&
+                git -C "$RUNNER_TEMP/ghpages-kick" push --quiet origin HEAD:gh-pages
+              } || echo "gh-pages kick failed (non-fatal); continuing to wait"
             fi
             echo "Waiting for GitHub Pages to serve $VERSION... ($i/$MAX_ATTEMPTS)"
             sleep 5
