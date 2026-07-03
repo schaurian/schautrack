@@ -192,6 +192,11 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Disable SLSA provenance / SBOM attestations. They are pushed as
+          # extra manifest entries that show up as "unknown/unknown" platforms
+          # on the GHCR package page (one per built arch), cluttering it.
+          provenance: false
+          sbom: false
 
       - name: Export digest
         run: |
