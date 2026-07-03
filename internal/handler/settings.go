@@ -298,7 +298,26 @@ func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
 		return
 	}
-	if _, err = h.Pool.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, user.ID); err != nil {
+
+	// Write the new password and invalidate every OTHER session of the user
+	// atomically, so a stolen session cookie doesn't survive the change. The
+	// session the user is changing their password from stays logged in.
+	sess := session.GetSession(r)
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	if _, err = tx.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
+		return
+	}
+	if err = invalidateUserSessions(r.Context(), tx, user.ID, sess.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
 		return
 	}
@@ -429,6 +448,12 @@ func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if _, err := tx.Exec(r.Context(), "DELETE FROM totp_backup_codes WHERE user_id = $1", user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+		return
+	}
+	// Disabling 2FA weakens the account's auth: kill every OTHER session so
+	// a stolen cookie can't ride out the change.
+	if err := invalidateUserSessions(r.Context(), tx, user.ID, session.GetSession(r).ID); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
 		return
 	}

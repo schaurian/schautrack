@@ -155,7 +155,10 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 		ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email.")
 		return
 	}
-	h.Email.SendVerificationEmail(email, code)
+	if err := h.Email.SendVerificationEmail(email, code); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
+		return
+	}
 
 	sess.Set("resendAttempts", resendAttempts+1)
 	sess.Set("verifyAttempts", 0)
@@ -210,7 +213,10 @@ func (h *AuthHandler) EmailChangeRequest(w http.ResponseWriter, r *http.Request)
 		ErrorJSON(w, http.StatusInternalServerError, "Could not initiate email change.")
 		return
 	}
-	h.Email.SendEmailChangeVerification(newEmail, code)
+	if err := h.Email.SendEmailChangeVerification(newEmail, code); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
+		return
+	}
 
 	sess := session.GetSession(r)
 	sess.Set("pendingEmailChange", newEmail)
@@ -333,6 +339,10 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		"DELETE FROM account_links WHERE requester_id = $1 OR target_id = $1",
 		"DELETE FROM password_reset_tokens WHERE user_id = $1",
 		"DELETE FROM email_verification_tokens WHERE user_id = $1",
+		// Sessions aren't FK-linked to users: delete them explicitly so no
+		// other device stays "logged in" as a deleted account (matches
+		// admin.go's DeleteUser).
+		`DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = $1`,
 		"DELETE FROM users WHERE id = $1",
 	}
 	for _, q := range tables {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -164,17 +165,24 @@ func (h *AdminHandler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send email if address provided and SMTP is configured
+	// Send email if address provided and SMTP is configured. The invite is
+	// already created and its code is returned below, so a send failure is
+	// reported alongside the result instead of failing the request.
+	emailSent := false
 	if email != "" && h.Email.IsConfigured() {
 		baseURL := h.Cfg.BaseURL
 		if baseURL == "" {
 			baseURL = "https://" + r.Host
 		}
-		h.Email.SendInviteEmail(email, code, baseURL)
+		if err := h.Email.SendInviteEmail(email, code, baseURL); err != nil {
+			slog.Error("failed to send invite email", "error", err, "invite_id", id)
+		} else {
+			emailSent = true
+		}
 	}
 
 	JSON(w, http.StatusOK, map[string]any{
-		"ok": true, "invite": map[string]any{
+		"ok": true, "emailSent": emailSent, "invite": map[string]any{
 			"id": id, "code": code, "email": emailPtr,
 		},
 	})
