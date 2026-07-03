@@ -81,7 +81,7 @@ Database URL
 */}}
 {{- define "schautrack.databaseUrl" -}}
 {{- if .Values.postgresql.enabled }}
-{{- printf "postgres://%s:%s@%s:5432/%s" .Values.postgresql.auth.username .Values.postgresql.auth.password (include "schautrack.postgresql.fullname" .) .Values.postgresql.auth.database }}
+{{- printf "postgres://%s:%s@%s:5432/%s" (.Values.postgresql.auth.username | urlquery) (.Values.postgresql.auth.password | urlquery) (include "schautrack.postgresql.fullname" .) .Values.postgresql.auth.database }}
 {{- else }}
 {{- .Values.externalDatabase.url }}
 {{- end }}
