@@ -111,8 +111,13 @@ func (h *WeightHandler) WeightDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := middleware.GetCurrentUser(r)
-	if _, err := h.Pool.Exec(r.Context(), "DELETE FROM weight_entries WHERE id = $1 AND user_id = $2", weightID, user.ID); err != nil {
+	tag, err := h.Pool.Exec(r.Context(), "DELETE FROM weight_entries WHERE id = $1 AND user_id = $2", weightID, user.ID)
+	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete weight entry")
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		ErrorJSON(w, http.StatusNotFound, "Weight entry not found")
 		return
 	}
 	if h.Broker != nil {
