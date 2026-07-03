@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import { useSSE } from '@/hooks/useSSE';
 import { setOn401 } from '@/api/client';
 import { queryClient } from './main';
@@ -21,6 +22,7 @@ export default function App() {
       const wasAuthenticated = useAuthStore.getState().isInitialized && useAuthStore.getState().user !== null;
       clearUser();
       queryClient.clear();
+      useDashboardStore.getState().reset();
       if (wasAuthenticated) {
         navigateRef.current('/login', { replace: true });
       }

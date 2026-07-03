@@ -12,22 +12,33 @@ interface DashboardState {
   selectDay: (date: string) => void;
   selectUser: (userId: number, label: string, canEdit: boolean) => void;
   setRange: (preset: number | null, start: string, end: string) => void;
+  reset: () => void;
 }
+
+// Initial (data-only) state. Recomputed on each call so `selectedDate`
+// reflects today at reset time, not module-load time.
+const initialState = (): Pick<DashboardState, 'selectedDate' | 'currentUserId' | 'currentLabel' | 'canEdit' | 'rangePreset' | 'rangeStart' | 'rangeEnd'> => ({
+  selectedDate: new Date().toISOString().slice(0, 10),
+  currentUserId: null,
+  currentLabel: 'You',
+  canEdit: true,
+  rangePreset: 14,
+  rangeStart: '',
+  rangeEnd: '',
+});
 
 export const useDashboardStore = create<DashboardState>()(
   persist(
     (set) => ({
-      selectedDate: new Date().toISOString().slice(0, 10),
-      currentUserId: null,
-      currentLabel: 'You',
-      canEdit: true,
-      rangePreset: 14,
-      rangeStart: '',
-      rangeEnd: '',
+      ...initialState(),
 
       selectDay: (date) => set({ selectedDate: date }),
       selectUser: (userId, label, canEdit) => set({ currentUserId: userId, currentLabel: label, canEdit }),
       setRange: (preset, start, end) => set({ rangePreset: preset, rangeStart: start, rangeEnd: end }),
+      // Restore all data fields to their initial values. Called on logout /
+      // session expiry so no account's currentUserId or dashboard state leaks
+      // into the next login in the same tab. Clears the persisted range too.
+      reset: () => set(initialState()),
     }),
     {
       name: 'schautrack.dashboard',
