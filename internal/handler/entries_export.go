@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,9 +11,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 )
+
+// execBatch sends a pgx batch on the transaction and returns the first error
+// encountered, draining the batch results before returning so the connection
+// is safe to use (e.g. for rollback) afterwards.
+func execBatch(ctx context.Context, tx pgx.Tx, batch *pgx.Batch) error {
+	br := tx.SendBatch(ctx, batch)
+	var firstErr error
+	for i := 0; i < batch.Len(); i++ {
+		if _, err := br.Exec(); err != nil {
+			firstErr = err
+			break
+		}
+	}
+	if err := br.Close(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
+}
 
 // Export handles POST /settings/export.
 // Returns the user's full data set as a JSON download. Authorization is via
@@ -92,6 +113,14 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 		w.Write(wj)
 		first = false
 	}
+	if err := weights.Err(); err != nil {
+		// The response is already partially written, so we cannot send an
+		// error status. Abort without closing the JSON structure: a
+		// deliberately truncated, invalid file cannot be mistaken for a
+		// complete backup.
+		slog.Error("export aborted: weight row iteration failed", "error", err)
+		return
+	}
 	fmt.Fprint(w, "],\n")
 
 	// Entries
@@ -132,6 +161,12 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 		ej, _ := json.Marshal(entry)
 		w.Write(ej)
 		first = false
+	}
+	if err := entries.Err(); err != nil {
+		// See the weights.Err() comment above: leave the JSON truncated so
+		// a partial export is detectably invalid.
+		slog.Error("export aborted: entry row iteration failed", "error", err)
+		return
 	}
 	fmt.Fprint(w, "]\n}")
 }
@@ -211,7 +246,7 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 			} else if v, ok := entry["entry_date"].(string); ok {
 				dateStr = v
 			}
-			if !dateRe.MatchString(dateStr) {
+			if !isValidDate(dateStr) {
 				continue
 			}
 			amountResult := service.ParseAmount(fmt.Sprintf("%v", entry["amount"]), MaxEntryCalories)
@@ -220,16 +255,10 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 			}
 			var name *string
 			if n, ok := entry["name"].(string); ok && n != "" {
-				s := n
-				if len(s) > 120 {
-					s = s[:120]
-				}
+				s := truncateUTF8(n, 120)
 				name = &s
 			} else if n, ok := entry["entry_name"].(string); ok && n != "" {
-				s := n
-				if len(s) > 120 {
-					s = s[:120]
-				}
+				s := truncateUTF8(n, 120)
 				name = &s
 			}
 			var createdAt *time.Time
@@ -273,7 +302,7 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 			} else if v, ok := wEntry["entry_date"].(string); ok {
 				dateStr = v
 			}
-			if !dateRe.MatchString(dateStr) {
+			if !isValidDate(dateStr) {
 				continue
 			}
 			wr := service.ParseWeight(fmt.Sprintf("%v", wEntry["weight"]))
@@ -343,34 +372,53 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Insert entries
-	for _, entry := range toInsert {
-		cols := "user_id, entry_date, amount, entry_name"
-		vals := "$1, $2, $3, $4"
-		args := []any{user.ID, entry.date, entry.amount, entry.name}
-		idx := 5
-		if entry.createdAt != nil {
-			cols += ", created_at"
-			vals += fmt.Sprintf(", $%d", idx)
-			args = append(args, *entry.createdAt)
-			idx++
-		}
-		for _, key := range service.MacroKeys {
-			if v, ok := entry.macros[key]; ok {
-				cols += ", " + key + "_g"
+	// Insert entries. Up to 10,000 rows may be imported, so send the
+	// INSERTs as a pipelined pgx batch on the transaction instead of one
+	// round-trip per row. Per-row values and error semantics are unchanged:
+	// any failed statement aborts the import and rolls back the tx.
+	if len(toInsert) > 0 {
+		batch := &pgx.Batch{}
+		for _, entry := range toInsert {
+			cols := "user_id, entry_date, amount, entry_name"
+			vals := "$1, $2, $3, $4"
+			args := []any{user.ID, entry.date, entry.amount, entry.name}
+			idx := 5
+			if entry.createdAt != nil {
+				cols += ", created_at"
 				vals += fmt.Sprintf(", $%d", idx)
-				args = append(args, v)
+				args = append(args, *entry.createdAt)
 				idx++
 			}
+			for _, key := range service.MacroKeys {
+				if v, ok := entry.macros[key]; ok {
+					cols += ", " + key + "_g"
+					vals += fmt.Sprintf(", $%d", idx)
+					args = append(args, v)
+					idx++
+				}
+			}
+			batch.Queue(fmt.Sprintf("INSERT INTO calorie_entries (%s) VALUES (%s)", cols, vals), args...)
 		}
-		if _, err := tx.Exec(r.Context(), fmt.Sprintf("INSERT INTO calorie_entries (%s) VALUES (%s)", cols, vals), args...); err != nil {
+		if err := execBatch(r.Context(), tx, batch); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Import failed.")
 			return
 		}
 	}
 
-	for _, we := range weightToInsert {
-		if _, err := service.UpsertWeightEntry(r.Context(), tx, user.ID, we.date, we.weight); err != nil {
+	// Weight rows are batched the same way. This inlines the upsert
+	// statement from service.UpsertWeightEntry (minus the unused RETURNING
+	// clause) because a batch queues raw SQL.
+	if len(weightToInsert) > 0 {
+		batch := &pgx.Batch{}
+		for _, we := range weightToInsert {
+			batch.Queue(`
+				INSERT INTO weight_entries (user_id, entry_date, weight)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (user_id, entry_date)
+					DO UPDATE SET weight = EXCLUDED.weight, updated_at = NOW()`,
+				user.ID, we.date, we.weight)
+		}
+		if err := execBatch(r.Context(), tx, batch); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Import failed.")
 			return
 		}

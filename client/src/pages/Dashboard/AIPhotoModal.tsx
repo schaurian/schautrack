@@ -78,7 +78,13 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cameraReady, setCameraReady] = useState(false);
 
+  // Incremented on every stopCamera so an in-flight getUserMedia (e.g. the
+  // permission prompt is open while the modal closes) knows it went stale
+  // and must release the acquired tracks instead of orphaning a live stream.
+  const cameraSessionRef = useRef(0);
+
   const stopCamera = useCallback(() => {
+    cameraSessionRef.current++;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -87,15 +93,23 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
 
   const startCamera = useCallback(async () => {
     stopCamera();
+    const session = cameraSessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1024 }, height: { ideal: 768 } },
       });
+      if (session !== cameraSessionRef.current) {
+        // Camera was stopped (modal closed / mode switched) while we were
+        // waiting — turn the stream off again immediately.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch {
+      if (session !== cameraSessionRef.current) return;
       setErrorMsg('Could not access camera. Try uploading instead.');
       setMode('upload');
     }

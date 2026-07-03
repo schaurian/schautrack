@@ -54,8 +54,11 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 			"INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
 			userID, code, time.Now().Add(30*time.Minute)); err != nil {
 			slog.Error("failed to insert password reset token", "error", err)
-		} else {
-			h.Email.SendPasswordResetEmail(userEmail, code)
+		} else if err := h.Email.SendPasswordResetEmail(userEmail, code); err != nil {
+			// Deliberately NOT surfaced to the client: this endpoint must
+			// stay non-enumerating, and a send-failure response would reveal
+			// that the account exists. Log it and return the generic success.
+			slog.Error("failed to send password reset email", "error", err)
 		}
 	}
 	// Always return success (don't reveal if email exists)
@@ -149,12 +152,32 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
 		return
 	}
-	if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, userID); err != nil {
+
+	// Update the password, consume the token, and invalidate EVERY existing
+	// session of the user atomically: an attacker holding a stolen session
+	// cookie must not keep access after the victim resets their password.
+	// The caller's own (anonymous) session carries no userId and survives.
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
 		return
 	}
-	if _, err := h.Pool.Exec(r.Context(), "UPDATE password_reset_tokens SET used = TRUE WHERE id = $1", tokenID); err != nil {
-		slog.Error("failed to mark password reset token as used", "error", err, "token_id", tokenID)
+	defer tx.Rollback(r.Context())
+	if _, err := tx.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, userID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
+		return
+	}
+	if _, err := tx.Exec(r.Context(), "UPDATE password_reset_tokens SET used = TRUE WHERE id = $1", tokenID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
+		return
+	}
+	if err := invalidateUserSessions(r.Context(), tx, userID, ""); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
+		return
 	}
 
 	sess.Delete("resetEmail")

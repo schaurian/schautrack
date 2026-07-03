@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -244,11 +246,54 @@ func getSystemTimezones() []string {
 	return nil
 }
 
+// adminUsersMaxLimit hard-caps how many users a single GET /api/admin call
+// returns (and is also the default when no limit parameter is given), so the
+// endpoint never streams an unbounded users table. Older/larger installs page
+// through with ?limit=&offset=.
+const adminUsersMaxLimit = 1000
+
+// parseLimitOffset parses optional limit/offset query parameters. An empty
+// limit falls back to def; values above max are clamped to max. An empty
+// offset falls back to 0. Non-numeric, zero or negative limits and negative
+// offsets are rejected.
+func parseLimitOffset(limitStr, offsetStr string, def, max int) (limit, offset int, err error) {
+	limit = def
+	if limitStr != "" {
+		n, convErr := strconv.Atoi(limitStr)
+		if convErr != nil || n < 1 {
+			return 0, 0, errors.New("limit must be a positive integer")
+		}
+		limit = n
+		if limit > max {
+			limit = max
+		}
+	}
+	if offsetStr != "" {
+		n, convErr := strconv.Atoi(offsetStr)
+		if convErr != nil || n < 0 {
+			return 0, 0, errors.New("offset must be a non-negative integer")
+		}
+		offset = n
+	}
+	return limit, offset, nil
+}
+
 // AdminData handles GET /api/admin
 func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminEmail string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		limit, offset, err := parseLimitOffset(
+			r.URL.Query().Get("limit"), r.URL.Query().Get("offset"),
+			adminUsersMaxLimit, adminUsersMaxLimit)
+		if err != nil {
+			ErrorJSON(w, http.StatusBadRequest, "Invalid limit/offset parameter.")
+			return
+		}
+
+		// id DESC tiebreaker keeps the order deterministic when created_at
+		// collides, so pagination never skips or repeats rows.
 		rows, err := pool.Query(r.Context(),
-			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC")
+			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2",
+			limit, offset)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not load users.")
 			return
@@ -351,13 +396,25 @@ func CleanExpiredTokens(pool *pgxpool.Pool) {
 	// stock Keycloak/Authentik/Authelia default) would be purged within minutes
 	// of signup, cascading away all of their entries. Exclude any user that has
 	// an OIDC account or a registered passkey.
+	// The created_at grace period gives a just-registered user time to
+	// recover (resend the code, or re-login to get a fresh token) before the
+	// account is reaped — previously a single failed/expired verification
+	// email could silently cost the account within one cleanup tick.
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM users
 		WHERE email_verified = FALSE
+			AND created_at < NOW() - interval '1 hour'
 			AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
 			AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
 			AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
 	`); err != nil {
 		slog.Error("failed to clean unverified users", "error", err)
+	}
+	// Retention: audit_log and ai_usage otherwise grow unbounded.
+	if _, err := pool.Exec(ctx, "DELETE FROM audit_log WHERE created_at < NOW() - interval '90 days'"); err != nil {
+		slog.Error("failed to prune old audit log rows", "error", err)
+	}
+	if _, err := pool.Exec(ctx, "DELETE FROM ai_usage WHERE usage_date < CURRENT_DATE - 400"); err != nil {
+		slog.Error("failed to prune old ai_usage rows", "error", err)
 	}
 }

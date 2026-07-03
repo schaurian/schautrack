@@ -65,12 +65,12 @@ func sanitizeDateRange(startStr, endStr string, fallbackDays int, userTz string)
 	return startDate, endDate
 }
 
-func getTotalsByDate(r *http.Request, pool *pgxpool.Pool, userID int, oldest, newest string) map[string]int {
+func getTotalsByDate(r *http.Request, pool *pgxpool.Pool, userID int, oldest, newest string) (map[string]int, error) {
 	rows, err := pool.Query(r.Context(),
 		"SELECT entry_date, SUM(amount) AS total FROM calorie_entries WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3 GROUP BY entry_date",
 		userID, oldest, newest)
 	if err != nil {
-		return map[string]int{}
+		return nil, err
 	}
 	defer rows.Close()
 	result := map[string]int{}
@@ -82,7 +82,12 @@ func getTotalsByDate(r *http.Request, pool *pgxpool.Pool, userID int, oldest, ne
 		}
 		result[date] = total
 	}
-	return result
+	// A mid-iteration error would otherwise silently yield partial totals
+	// that callers present as complete data.
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal *int, enabledMacros []string, macroGoals map[string]int, macroModes map[string]string, macroTotalsByDate map[string]map[string]int, threshold int) []dailyStat {

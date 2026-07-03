@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/authStore';
 import { getSettings, importData, exportData } from '@/api/settings';
 import { ApiError } from '@/api/client';
 import { useToastStore } from '@/stores/toastStore';
@@ -70,7 +71,9 @@ export default function Settings() {
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['settings'] });
-    queryClient.invalidateQueries({ queryKey: ['me'] });
+    // The current user lives in the auth store, not a query — re-fetch it
+    // so changes (macros, preferences, …) propagate app-wide.
+    useAuthStore.getState().fetchUser();
   };
 
   const handleImport = async () => {

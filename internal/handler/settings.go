@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -232,7 +235,7 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 	// Model
 	model := strings.TrimSpace(body.AIModel)
 	if len(model) > 100 {
-		model = model[:100]
+		model = truncateUTF8(model, 100)
 	}
 	updates = append(updates, fmt.Sprintf("ai_model = $%d", idx))
 	if model == "" {
@@ -298,7 +301,26 @@ func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
 		return
 	}
-	if _, err = h.Pool.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, user.ID); err != nil {
+
+	// Write the new password and invalidate every OTHER session of the user
+	// atomically, so a stolen session cookie doesn't survive the change. The
+	// session the user is changing their password from stays logged in.
+	sess := session.GetSession(r)
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	if _, err = tx.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, user.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
+		return
+	}
+	if err = invalidateUserSessions(r.Context(), tx, user.ID, sess.ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not change password. Please try again.")
 		return
 	}
@@ -432,6 +454,12 @@ func (h *SettingsHandler) TwoFactorDisable(w http.ResponseWriter, r *http.Reques
 		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
 		return
 	}
+	// Disabling 2FA weakens the account's auth: kill every OTHER session so
+	// a stolen cookie can't ride out the change.
+	if err := invalidateUserSessions(r.Context(), tx, user.ID, session.GetSession(r).ID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
+		return
+	}
 	if err := tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not disable 2FA.")
 		return
@@ -491,6 +519,41 @@ type LinksHandler struct {
 
 const MaxLinks = 10
 
+// linkLockNamespace is the classid used for the transaction-scoped advisory
+// locks taken by the account-link mutation handlers ("link" in ASCII).
+const linkLockNamespace = int32(0x6C696E6B)
+
+// countAcceptedLinksSQL counts a user's accepted links in either direction.
+const countAcceptedLinksSQL = "SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)"
+
+// linkLockOrder returns the two user IDs as advisory-lock keys in canonical
+// (ascending) order. Every link mutation on the same pair must acquire the
+// locks in this order so concurrent transactions cannot deadlock.
+func linkLockOrder(a, b int) (first, second int32) {
+	if a > b {
+		a, b = b, a
+	}
+	return int32(a), int32(b)
+}
+
+// lockLinkPair takes a transaction-scoped advisory lock for each of the two
+// users involved in a link mutation, in canonical order. This serializes all
+// concurrent link requests/acceptances touching either user, making the
+// check-then-insert MaxLinks and duplicate-pair checks safe at READ COMMITTED
+// without any schema change. The locks are released automatically on
+// commit/rollback.
+func lockLinkPair(ctx context.Context, tx pgx.Tx, a, b int) error {
+	first, second := linkLockOrder(a, b)
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1::int4, $2::int4)", linkLockNamespace, first); err != nil {
+		return err
+	}
+	if second == first {
+		return nil
+	}
+	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1::int4, $2::int4)", linkLockNamespace, second)
+	return err
+}
+
 // LinkRequest handles POST /settings/link/request
 func (h *LinksHandler) LinkRequest(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -513,54 +576,89 @@ func (h *LinksHandler) LinkRequest(w http.ResponseWriter, r *http.Request) {
 	var targetEmail string
 	err := h.Pool.QueryRow(r.Context(), "SELECT id, email FROM users WHERE LOWER(email) = LOWER($1)", email).Scan(&targetID, &targetEmail)
 	if err != nil {
-		JSON(w, http.StatusNotFound, map[string]any{"ok": false, "message": "No account found for that email."})
+		ErrorJSON(w, http.StatusNotFound, "No account found for that email.")
 		return
 	}
 	if targetID == user.ID {
-		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "message": "You cannot link to your own account."})
+		ErrorJSON(w, http.StatusBadRequest, "You cannot link to your own account.")
 		return
 	}
 
-	// Check existing link
+	// The duplicate-pair and MaxLinks checks below are check-then-insert, so
+	// they run inside a transaction holding per-user advisory locks: without
+	// them, two users requesting each other simultaneously could create two
+	// pending rows, and concurrent requests/accepts could exceed MaxLinks.
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	if err := lockLinkPair(r.Context(), tx, user.ID, targetID); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
+		return
+	}
+
+	// Check existing link. The $n::int casts matter: without them Postgres
+	// cannot infer the parameter types inside LEAST()/GREATEST(), falls back
+	// to text, and the whole statement fails with "operator does not exist:
+	// integer = text" — which the old code silently swallowed, so duplicates
+	// were only ever caught by the unique pair index as a 500.
 	var existingStatus *string
 	var existingRequesterID *int
-	if err := h.Pool.QueryRow(r.Context(), `
+	if scanErr := tx.QueryRow(r.Context(), `
 		SELECT status, requester_id FROM account_links
-		WHERE LEAST(requester_id, target_id) = LEAST($1, $2)
-			AND GREATEST(requester_id, target_id) = GREATEST($1, $2) LIMIT 1`,
-		user.ID, targetID).Scan(&existingStatus, &existingRequesterID); err != nil {
-		// pgx.ErrNoRows is expected when no link exists — only log unexpected errors
+		WHERE LEAST(requester_id, target_id) = LEAST($1::int, $2::int)
+			AND GREATEST(requester_id, target_id) = GREATEST($1::int, $2::int) LIMIT 1`,
+		user.ID, targetID).Scan(&existingStatus, &existingRequesterID); scanErr != nil {
+		if !errors.Is(scanErr, pgx.ErrNoRows) {
+			// a real statement error poisons the transaction — bail out
+			ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
+			return
+		}
 		existingStatus = nil
 	}
 
 	if existingStatus != nil {
 		if *existingStatus == "accepted" {
-			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": "You are already linked with this account."})
+			ErrorJSON(w, http.StatusConflict, "You are already linked with this account.")
 		} else if existingRequesterID != nil && *existingRequesterID == user.ID {
-			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": "Request already sent and pending approval."})
+			ErrorJSON(w, http.StatusConflict, "Request already sent and pending approval.")
 		} else {
-			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": "They already sent you a request. Check incoming requests below."})
+			ErrorJSON(w, http.StatusConflict, "They already sent you a request. Check incoming requests below.")
 		}
 		return
 	}
 
-	myCount, _ := service.CountAcceptedLinks(r.Context(), h.Pool, user.ID)
-	if myCount >= MaxLinks {
-		JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": fmt.Sprintf("You already have %d linked accounts.", MaxLinks)})
+	var myCount, targetCount int
+	if err := tx.QueryRow(r.Context(), countAcceptedLinksSQL, user.ID).Scan(&myCount); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
 		return
 	}
-	targetCount, _ := service.CountAcceptedLinks(r.Context(), h.Pool, targetID)
+	if myCount >= MaxLinks {
+		ErrorJSON(w, http.StatusConflict, fmt.Sprintf("You already have %d linked accounts.", MaxLinks))
+		return
+	}
+	if err := tx.QueryRow(r.Context(), countAcceptedLinksSQL, targetID).Scan(&targetCount); err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
+		return
+	}
 	if targetCount >= MaxLinks {
-		JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": "The other account already reached the linking limit."})
+		ErrorJSON(w, http.StatusConflict, "The other account already reached the linking limit.")
 		return
 	}
 
 	var insertedID int
 	var createdAt time.Time
-	err = h.Pool.QueryRow(r.Context(),
+	err = tx.QueryRow(r.Context(),
 		"INSERT INTO account_links (requester_id, target_id, status) VALUES ($1, $2, 'pending') RETURNING id, created_at",
 		user.ID, targetID).Scan(&insertedID, &createdAt)
 	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not send link request.")
 		return
 	}
@@ -599,7 +697,7 @@ func (h *LinksHandler) LinkRespond(w http.ResponseWriter, r *http.Request) {
 		"SELECT requester_id, target_id, status FROM account_links WHERE id = $1 AND status = 'pending' LIMIT 1",
 		body.RequestID).Scan(&requesterID, &targetID, &status)
 	if err != nil || targetID != user.ID {
-		JSON(w, http.StatusNotFound, map[string]any{"ok": false, "message": "Request not found."})
+		ErrorJSON(w, http.StatusNotFound, "Request not found.")
 		return
 	}
 
@@ -611,29 +709,41 @@ func (h *LinksHandler) LinkRespond(w http.ResponseWriter, r *http.Request) {
 		}
 		defer tx.Rollback(r.Context())
 
+		// Serialize against concurrent link mutations touching either user,
+		// so the check-then-update below cannot exceed MaxLinks.
+		if err := lockLinkPair(r.Context(), tx, user.ID, requesterID); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not update request.")
+			return
+		}
+
 		// Check link limits within transaction
 		var myCount, reqCount int
-		if err := tx.QueryRow(r.Context(),
-			"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)", user.ID).Scan(&myCount); err != nil {
+		if err := tx.QueryRow(r.Context(), countAcceptedLinksSQL, user.ID).Scan(&myCount); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not check link limits.")
 			return
 		}
 		if myCount >= MaxLinks {
-			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": fmt.Sprintf("You already have %d linked accounts.", MaxLinks)})
+			ErrorJSON(w, http.StatusConflict, fmt.Sprintf("You already have %d linked accounts.", MaxLinks))
 			return
 		}
-		if err := tx.QueryRow(r.Context(),
-			"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)", requesterID).Scan(&reqCount); err != nil {
+		if err := tx.QueryRow(r.Context(), countAcceptedLinksSQL, requesterID).Scan(&reqCount); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not check link limits.")
 			return
 		}
 		if reqCount >= MaxLinks {
-			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": "The requester is already at the link limit."})
+			ErrorJSON(w, http.StatusConflict, "The requester is already at the link limit.")
 			return
 		}
 
-		if _, err := tx.Exec(r.Context(), "UPDATE account_links SET status = 'accepted', updated_at = NOW() WHERE id = $1", body.RequestID); err != nil {
+		// status = 'pending' guard: the row was read before the transaction
+		// began, so a concurrent accept/decline may have consumed it already.
+		tag, err := tx.Exec(r.Context(), "UPDATE account_links SET status = 'accepted', updated_at = NOW() WHERE id = $1 AND status = 'pending'", body.RequestID)
+		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not accept link request.")
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			ErrorJSON(w, http.StatusNotFound, "Request not found.")
 			return
 		}
 		if err := tx.Commit(r.Context()); err != nil {
@@ -679,7 +789,7 @@ func (h *LinksHandler) LinkRemove(w http.ResponseWriter, r *http.Request) {
 		"DELETE FROM account_links WHERE id = $1 AND (requester_id = $2 OR target_id = $2) RETURNING status, requester_id, target_id",
 		body.LinkID, user.ID).Scan(&delStatus, &delRequesterID, &delTargetID)
 	if err != nil {
-		JSON(w, http.StatusNotFound, map[string]any{"ok": false, "message": "Link not found."})
+		ErrorJSON(w, http.StatusNotFound, "Link not found.")
 		return
 	}
 
@@ -715,7 +825,7 @@ func (h *LinksHandler) LinkLabel(w http.ResponseWriter, r *http.Request) {
 
 	label := strings.TrimSpace(body.Label)
 	if len(label) > 120 {
-		label = label[:120]
+		label = truncateUTF8(label, 120)
 	}
 	var labelPtr *string
 	if label != "" {

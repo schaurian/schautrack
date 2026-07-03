@@ -21,16 +21,36 @@ export default function AISettings({ user, onSave }: Props) {
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
 
-  // Auto-save everything including API key (on blur via useAutosave)
-  const autoData = useMemo(() => ({ provider, model, apiKey }), [provider, model, apiKey]);
+  // Auto-save provider/model only. The API key is deliberately excluded:
+  // debounced saves while typing would store partial keys on the server.
+  const autoData = useMemo(() => ({ provider, model }), [provider, model]);
 
   const autoSaveFn = useCallback(async (d: typeof autoData) => {
-    await saveAiSettings({ ai_provider: d.provider, ai_key: d.apiKey, ai_model: d.model });
-    if (d.apiKey) setApiKey('');
+    await saveAiSettings({ ai_provider: d.provider, ai_model: d.model });
     onSave();
   }, [onSave]);
 
   const { status } = useAutosave(autoData, autoSaveFn, { delay: 1200 });
+
+  // The key is submitted explicitly on blur of its input, and the field is
+  // only cleared after that save succeeds.
+  const [keySaving, setKeySaving] = useState(false);
+  const handleKeyBlur = async () => {
+    const key = apiKey.trim();
+    if (!key) return;
+    setKeySaving(true);
+    try {
+      // The server overwrites provider/model on every save, so send the
+      // current values alongside the key.
+      await saveAiSettings({ ai_provider: provider, ai_key: key, ai_model: model });
+      setApiKey('');
+      onSave();
+      addToast('success', 'API key saved');
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to save API key');
+    }
+    setKeySaving(false);
+  };
 
   const handleClear = async () => {
     setLoading(true);
@@ -60,6 +80,7 @@ export default function AISettings({ user, onSave }: Props) {
         </div>
         <Input label="Model (optional)" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. gpt-4o" />
         <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+          onBlur={handleKeyBlur} disabled={keySaving}
           placeholder={user.hasAiKey ? `\u2022\u2022\u2022\u2022${user.aiKeyLast4}` : 'Enter API key'} />
         {!user.hasAiKey && user.hasGlobalAiKey && (
           <p className="text-xs text-muted-foreground">A global API key is configured. AI features work without setting your own key.</p>

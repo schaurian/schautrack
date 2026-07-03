@@ -48,7 +48,7 @@ schautrack/
 │   └── sse/               # Server-Sent Events broker
 ├── public/                # Static assets (logo, favicons)
 ├── db/
-│   └── init.sql           # Database schema
+│   └── init.sql           # Intentionally empty — schema comes from Go migrations
 ├── Dockerfile             # 3-stage build (client, Go binary, Alpine)
 ├── compose.yml            # Production Docker Compose
 ├── compose.dev.yml        # Local development setup
@@ -215,7 +215,7 @@ docker compose -f compose.dev.yml up -d --build
 ```
 - Web app: http://localhost:3000
 - PostgreSQL: localhost:5432
-- Database initializes from `db/init.sql`
+- Database schema is created by the app's startup migrations (`db/init.sql` is intentionally a no-op)
 - Go build: `go build ./cmd/server/`
 - Tests: `go test ./...`
 
@@ -251,7 +251,7 @@ displayTz := targetUser.Timezone // or "UTC" if nil
 ## Common Tasks
 
 ### Adding a New Feature
-1. Update database schema in `db/init.sql` if needed
+1. Schema changes go in `internal/database/migrations.go` only (`db/init.sql` is intentionally empty — migrations are the single source of truth)
 2. Add migration in `internal/database/migrations.go`
 3. Add service logic in `internal/service/`
 4. Add HTTP handler in `internal/handler/`

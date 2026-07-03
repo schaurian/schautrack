@@ -19,8 +19,12 @@ export default function Admin() {
 
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('Delete this user?')) return;
-    await deleteUser(userId);
-    queryClient.invalidateQueries({ queryKey: ['admin'] });
+    try {
+      await deleteUser(userId);
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
+    } catch (err) {
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to delete user');
+    }
   };
 
   return (
@@ -100,7 +104,7 @@ function UserList({ users, onDelete }: { users: Array<{ id: number; email: strin
       </div>
       {hasMore && (
         <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">
-          Loading more\u2026
+          Loading more&hellip;
         </div>
       )}
     </Card>
@@ -377,8 +381,12 @@ function InviteManager() {
   };
 
   const handleDelete = async (id: number) => {
-    await deleteInvite(id);
-    queryClient.invalidateQueries({ queryKey: ['invites'] });
+    try {
+      await deleteInvite(id);
+      queryClient.invalidateQueries({ queryKey: ['invites'] });
+    } catch (err) {
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to delete invite');
+    }
   };
 
   const handleCopy = async (invite: InviteCode) => {
