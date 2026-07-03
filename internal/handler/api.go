@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -244,11 +246,54 @@ func getSystemTimezones() []string {
 	return nil
 }
 
+// adminUsersMaxLimit hard-caps how many users a single GET /api/admin call
+// returns (and is also the default when no limit parameter is given), so the
+// endpoint never streams an unbounded users table. Older/larger installs page
+// through with ?limit=&offset=.
+const adminUsersMaxLimit = 1000
+
+// parseLimitOffset parses optional limit/offset query parameters. An empty
+// limit falls back to def; values above max are clamped to max. An empty
+// offset falls back to 0. Non-numeric, zero or negative limits and negative
+// offsets are rejected.
+func parseLimitOffset(limitStr, offsetStr string, def, max int) (limit, offset int, err error) {
+	limit = def
+	if limitStr != "" {
+		n, convErr := strconv.Atoi(limitStr)
+		if convErr != nil || n < 1 {
+			return 0, 0, errors.New("limit must be a positive integer")
+		}
+		limit = n
+		if limit > max {
+			limit = max
+		}
+	}
+	if offsetStr != "" {
+		n, convErr := strconv.Atoi(offsetStr)
+		if convErr != nil || n < 0 {
+			return 0, 0, errors.New("offset must be a non-negative integer")
+		}
+		offset = n
+	}
+	return limit, offset, nil
+}
+
 // AdminData handles GET /api/admin
 func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminEmail string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		limit, offset, err := parseLimitOffset(
+			r.URL.Query().Get("limit"), r.URL.Query().Get("offset"),
+			adminUsersMaxLimit, adminUsersMaxLimit)
+		if err != nil {
+			ErrorJSON(w, http.StatusBadRequest, "Invalid limit/offset parameter.")
+			return
+		}
+
+		// id DESC tiebreaker keeps the order deterministic when created_at
+		// collides, so pagination never skips or repeats rows.
 		rows, err := pool.Query(r.Context(),
-			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC")
+			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2",
+			limit, offset)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not load users.")
 			return

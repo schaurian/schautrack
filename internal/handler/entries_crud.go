@@ -278,8 +278,13 @@ func (h *EntriesHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := middleware.GetCurrentUser(r)
-	if _, err := h.Pool.Exec(r.Context(), "DELETE FROM calorie_entries WHERE id = $1 AND user_id = $2", entryID, user.ID); err != nil {
+	tag, err := h.Pool.Exec(r.Context(), "DELETE FROM calorie_entries WHERE id = $1 AND user_id = $2", entryID, user.ID)
+	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete entry")
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		ErrorJSON(w, http.StatusNotFound, "Entry not found")
 		return
 	}
 	h.Broker.BroadcastEntryChange(user.ID)

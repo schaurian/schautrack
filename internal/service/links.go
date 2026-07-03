@@ -38,14 +38,6 @@ type LinkState struct {
 	Outgoing []LinkRequest `json:"outgoing"`
 }
 
-func CountAcceptedLinks(ctx context.Context, pool *pgxpool.Pool, userID int) (int, error) {
-	var count int
-	err := pool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)",
-		userID).Scan(&count)
-	return count, err
-}
-
 func GetLinkRequests(ctx context.Context, pool *pgxpool.Pool, userID int) (LinkState, error) {
 	state := LinkState{Incoming: []LinkRequest{}, Outgoing: []LinkRequest{}}
 
