@@ -447,7 +447,14 @@ jobs:
             VERSION="${{ needs.compute-version.outputs.version }}"
             URL="https://helm.schautrack.com/index.yaml"
           fi
-          MAX_ATTEMPTS=90
+          # GitHub Pages rebuilds the custom-domain CDN asynchronously after the
+          # gh-pages push, and *queues* deployments when several pushes land
+          # close together, so propagation can take well over the old 450s.
+          # Wait generously, but DO NOT fail the release if it is slow: the
+          # image and Helm chart are already published, and ArgoCD polls the
+          # Helm repo on its own interval (~3m), so the deploy still happens.
+          # This step is only a best-effort accelerator for the refresh below.
+          MAX_ATTEMPTS=180   # 180 * 5s = 15m
           for i in $(seq 1 $MAX_ATTEMPTS); do
             if curl -sf "$URL?_=$(date +%s)" | grep -q "version: $VERSION"; then
               echo "Chart version $VERSION is live on GitHub Pages"
@@ -456,10 +463,13 @@ jobs:
             echo "Waiting for GitHub Pages to serve $VERSION... ($i/$MAX_ATTEMPTS)"
             sleep 5
           done
-          echo "::error::Timed out waiting for chart $VERSION on GitHub Pages after $((MAX_ATTEMPTS * 5))s"
-          exit 1
+          echo "::warning::Chart $VERSION not visible on GitHub Pages after $((MAX_ATTEMPTS * 5))s; not failing the release — ArgoCD will pick it up on its next poll."
+          exit 0
 
-      - name: Refresh ArgoCD application
+      # Best-effort: nudge ArgoCD to sync immediately instead of waiting for its
+      # poll. A transient ArgoCD hiccup must not red an already-published release.
+      - name: Refresh ArgoCD application (best-effort)
+        continue-on-error: true
         run: |
           curl -sSf -X GET \
             "${{ secrets.ARGOCD_SERVER }}/api/v1/applications/${{ steps.app.outputs.name }}?refresh=normal" \
