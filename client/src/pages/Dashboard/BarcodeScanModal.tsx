@@ -42,9 +42,17 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
   // consecutive identical reads before triggering a lookup.
   const lastCodeRef = useRef<{ code: string; count: number }>({ code: '', count: 0 });
 
+  // Incremented on every stopScanner so an in-flight Quagga.init (camera
+  // permission prompt open while the modal closes) knows it went stale and
+  // must shut the camera down instead of starting the scanner.
+  const scanSessionRef = useRef(0);
+
   const stopScanner = useCallback(() => {
+    scanSessionRef.current++;
+    // Always detach the detection handler — it is registered before init
+    // finishes, so it can exist while quaggaRunning is still false.
+    Quagga.offDetected();
     if (quaggaRunning.current) {
-      Quagga.offDetected();
       Quagga.stop();
       quaggaRunning.current = false;
     }
@@ -87,6 +95,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
   const startScanner = useCallback(() => {
     if (!scannerRef.current || quaggaRunning.current) return;
+    const session = scanSessionRef.current;
 
     Quagga.init(
       {
@@ -105,6 +114,12 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
         locate: true,
       },
       (err: Error | null) => {
+        if (session !== scanSessionRef.current) {
+          // Scanner was stopped (modal closed / mode switched) while init
+          // was acquiring the camera — release it instead of starting.
+          if (!err) Quagga.stop();
+          return;
+        }
         if (err) {
           setCameraAvailable(false);
           return;

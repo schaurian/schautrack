@@ -7,7 +7,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
-import { MACRO_LABELS } from '@/lib/macros';
+import { MACRO_LABELS, getEnabledMacros } from '@/lib/macros';
 import { cn } from '@/lib/utils';
 import type { SavedFood } from '@/types';
 
@@ -24,9 +24,7 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
   const addToast = useToastStore((s) => s.addToast);
   const user = useAuthStore((s) => s.user);
   const enabledMacros = useMemo(
-    () => Object.entries(user?.macrosEnabled ?? {})
-      .filter(([k, v]) => v === true && k !== 'auto_calc_calories' && k !== 'calories')
-      .map(([k]) => k),
+    () => getEnabledMacros(user?.macrosEnabled ?? {}) as string[],
     [user]
   );
   const caloriesEnabled = user?.macrosEnabled?.calories !== false;

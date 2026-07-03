@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getNote, saveNote } from '@/api/notes';
 import { useToastStore } from '@/stores/toastStore';
 
@@ -10,13 +10,17 @@ interface Props {
 }
 
 export default function NoteEditor({ date, userId, canEdit }: Props) {
-  const queryClient = useQueryClient();
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef('');
+  // Track editing state so a refetch (SSE note-change, window refocus, …)
+  // can't clobber keystrokes typed during the save/refetch window.
+  const dirtyRef = useRef(false);
+  const focusedRef = useRef(false);
+  const valueRef = useRef('');
 
   const { data } = useQuery({
     queryKey: ['note', userId, date],
@@ -25,8 +29,19 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   });
 
   useEffect(() => {
-    if (data) {
+    // Switching day/user is a hard context switch — discard local edit
+    // state so the incoming note content always syncs. Any pending edit
+    // was already flushed by the blur that preceded the switch.
+    dirtyRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, [date, userId]);
+
+  useEffect(() => {
+    // Only sync server content into local state while the user isn't
+    // editing; otherwise in-progress typing would be silently replaced.
+    if (data && !dirtyRef.current && !focusedRef.current) {
       setValue(data.content || '');
+      valueRef.current = data.content || '';
       lastSavedRef.current = data.content || '';
     }
   }, [data]);
@@ -38,7 +53,8 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
     try {
       await saveNote(date, content);
       lastSavedRef.current = content;
-      queryClient.invalidateQueries({ queryKey: ['note'] });
+      // Only mark clean if nothing was typed while the save was in flight.
+      if (valueRef.current === content) dirtyRef.current = false;
       setSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
@@ -46,16 +62,23 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
       useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to save note');
     }
     setSaving(false);
-  }, [date, queryClient]);
+  }, [date]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setValue(newValue);
+    valueRef.current = newValue;
+    dirtyRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => doSave(newValue), 1000);
   };
 
+  const handleFocus = () => {
+    focusedRef.current = true;
+  };
+
   const handleBlur = () => {
+    focusedRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
     doSave(value);
   };
@@ -76,6 +99,7 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
         <textarea
           value={value}
           onChange={handleChange}
+          onFocus={handleFocus}
           onBlur={handleBlur}
           disabled={!canEdit}
           maxLength={10000}

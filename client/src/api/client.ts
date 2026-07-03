@@ -37,11 +37,12 @@ export async function api<T = unknown>(
 
   const res = await fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
 
-  // 403 means either CSRF failure or step-up required. Inspect the body to
-  // decide. clone() so we can still consume the body in the CSRF retry path.
+  // 403 means either CSRF failure, step-up required, or a plain
+  // authorization failure. Inspect the body to decide. clone() so we can
+  // still consume the body in the CSRF retry path.
   if (res.status === 403) {
     const body = await res.clone().json().catch(() => null) as
-      | { requireStepUp?: boolean; methods?: string[]; totpRequired?: boolean }
+      | { requireStepUp?: boolean; methods?: string[]; totpRequired?: boolean; error?: string }
       | null;
 
     if (body?.requireStepUp) {
@@ -65,16 +66,23 @@ export async function api<T = unknown>(
       });
     }
 
+    // Only mutating requests carry a CSRF token, so only they can hit a
+    // stale-token 403. A 403 on GET/HEAD is a real authorization failure.
+    const method = (options.method || 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD') {
+      throw new ApiError(403, body?.error || 'Forbidden', (body ?? {}) as Record<string, unknown>);
+    }
+
     // CSRF failure — refresh token and retry once.
     csrfToken = null;
     const freshToken = await fetchCsrfToken();
     headers.set('X-CSRF-Token', freshToken);
-    const retry = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+    const retry = await fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
     if (!retry.ok) {
       const err = await retry.json().catch(() => ({ error: 'Request failed' }));
       throw new ApiError(retry.status, err.error || 'Request failed', err);
     }
-    return retry.json();
+    return parseBody<T>(retry);
   }
 
   if (res.status === 401) {
@@ -99,12 +107,16 @@ export async function api<T = unknown>(
     throw new ApiError(res.status, err.error || 'Request failed', err);
   }
 
-  // Handle empty responses
+  return parseBody<T>(res);
+}
+
+// Tolerant body handling: empty / non-JSON responses resolve to {} instead
+// of throwing a SyntaxError from res.json().
+function parseBody<T>(res: Response): Promise<T> {
   const contentType = res.headers.get('content-type');
   if (!contentType || !contentType.includes('application/json')) {
-    return {} as T;
+    return Promise.resolve({} as T);
   }
-
   return res.json();
 }
 
