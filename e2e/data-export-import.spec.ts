@@ -145,6 +145,8 @@ test.describe('Data Export / Import', () => {
     // Expire the step-up grace server-side, then import — the modal gates the request.
     expireStepUpGrace(user.id);
     await importBtn.click();
+    // A confirmation dialog gates the destructive import; confirm it first.
+    await page.getByRole('button', { name: 'Replace all entries', exact: true }).click();
     await completeStepUp(page, user.password);
     await expect(page.getByText(/Imported/i)).toBeVisible({ timeout: 15000 });
 

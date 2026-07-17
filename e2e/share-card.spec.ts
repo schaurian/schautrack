@@ -39,9 +39,9 @@ test.describe('Share Card', () => {
     const todayDot = page.locator(`button[aria-label^="${today}"]`);
     await expect(todayDot).toBeVisible({ timeout: 15000 });
 
-    // Before adding entry: dot should be "zero"
+    // Before adding entry: dot should be the "no entries" state
     const initialLabel = await todayDot.getAttribute('aria-label');
-    expect(initialLabel).toMatch(/zero/);
+    expect(initialLabel).toMatch(/no entries/);
 
     // Add an entry
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Share card test');
@@ -49,8 +49,8 @@ test.describe('Share Card', () => {
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // After adding: dot should no longer be "zero"
-    await expect(todayDot).not.toHaveAttribute('aria-label', new RegExp(`${today}:.*zero`), { timeout: 15000 });
+    // After adding: dot should no longer be the "no entries" state
+    await expect(todayDot).not.toHaveAttribute('aria-label', new RegExp(`${today}:.*no entries`), { timeout: 15000 });
 
     // Should be "under" or "over" depending on goal
     const updatedLabel = await todayDot.getAttribute('aria-label');
