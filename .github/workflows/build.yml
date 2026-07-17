@@ -32,6 +32,14 @@ on:
       - 'helm/**'
       - '.github/workflows/build.yml'
 
+# Serialize runs per ref so two quick merges to the same branch cannot race:
+# without this, both runs compute the same next version from the same latest
+# tag and clobber each other's image/tag. Queue rather than cancel so an
+# in-flight image push is never interrupted.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -128,7 +136,10 @@ jobs:
 
   create-tag:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
-    needs: compute-version
+    # Only push the git tag once the image artifact actually exists, so a build
+    # failure (e.g. a client tsc error caught inside the Docker build) never
+    # leaves a dangling version tag with no corresponding image or release.
+    needs: [compute-version, create-manifest]
     if: needs.compute-version.outputs.should_tag == 'true'
     permissions:
       contents: write
@@ -270,7 +281,10 @@ jobs:
 
   create-release:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
-    needs: [compute-version, create-manifest]
+    # Runs after create-tag so the release always references a tag that was
+    # pushed only after the image artifact exists (create-tag needs the
+    # manifest, so this transitively runs after create-manifest too).
+    needs: [compute-version, create-tag]
     if: needs.compute-version.outputs.should_tag == 'true'
     permissions:
       contents: write
