@@ -188,6 +188,7 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 |----------|---------|-------------|
 | `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
 | `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per 15 minutes per IP |
+| `RATE_LIMIT_STRICT` | `5` | Max requests per 5-minute window per IP on sensitive endpoints (password-reset request/confirm, 2FA reset, email-change request, AI estimate) |
 | `STEP_UP_TTL` | `30m` | Grace window after fresh primary auth during which sensitive auth-method changes (delete passkey, disable 2FA, change password/email, etc.) are accepted without re-prompting. Any `time.ParseDuration` value. |
 
 **CAPTCHA:** A self-generated SVG CAPTCHA guards against brute-force and abuse. It is always required to complete registration and to resend a verification email, and is triggered on login after 3 failed attempts (counted per session, per account, and per client IP). No third-party CAPTCHA service or key is needed — it works out of the box.
