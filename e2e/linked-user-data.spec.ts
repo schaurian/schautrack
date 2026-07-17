@@ -55,7 +55,7 @@ test.describe('Linked User Data', () => {
 
     // Find the label span for the owner's card, then find the card's today dot as a sibling
     // The ShareCard structure: .rounded-xl > div.mb-2 > span[label], followed by a div with dots
-    const ownerLabel = page.locator('span.text-sm.font-medium').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') }).first();
+    const ownerLabel = page.locator('.text-sm.font-medium').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') }).first();
     await expect(ownerLabel).toBeVisible({ timeout: 8000 });
 
     // The dots grid is a sibling div of the label's parent div, inside the same .rounded-xl
