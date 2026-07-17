@@ -25,6 +25,8 @@ spec:
       labels:
         {{- include "schautrack.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "schautrack.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
