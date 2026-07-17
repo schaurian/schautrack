@@ -189,7 +189,9 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             BUILD_VERSION=${{ needs.compute-version.outputs.version }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          # Build on every event (validates the image compiles, incl. client tsc),
+          # but only push to the registry for push events — never from PR context.
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name == 'push' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Disable SLSA provenance / SBOM attestations. They are pushed as
@@ -199,12 +201,14 @@ jobs:
           sbom: false
 
       - name: Export digest
+        if: github.event_name == 'push'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v7
         with:
           name: digests-${{ strategy.job-index }}
@@ -215,6 +219,9 @@ jobs:
   create-manifest:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: [compute-version, build-and-push]
+    # Only assemble/push the multi-arch manifest for push events — PR builds
+    # do not push images, so there are no digests to reference.
+    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
@@ -342,6 +349,10 @@ jobs:
   publish-helm:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: [compute-version, create-manifest]
+    # Never package/publish the chart from PR context: for PRs compute-version
+    # emits an 8-char SHA that is not valid semver (helm package would reject it),
+    # and gh-pages must only be written by push events on main/staging.
+    if: github.event_name == 'push'
     permissions:
       contents: write
     steps:
