@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
@@ -18,7 +18,6 @@ import NoteEditor from './NoteEditor';
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
-  const queryClient = useQueryClient();
 
   // Fetch dashboard data
   const { data: dashboard, isLoading, isError, error, isFetching, refetch } = useQuery({
@@ -130,9 +129,11 @@ export default function Dashboard() {
             aiProviderName={dashboard.aiProviderName}
             barcodeEnabled={dashboard.barcodeEnabled}
             onSubmit={() => {
-              queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-              queryClient.invalidateQueries({ queryKey: ['day-entries'] });
-              queryClient.invalidateQueries({ queryKey: ['weight'] });
+              // Refresh is driven by the entry-change SSE echo (useSSE): the
+              // server broadcasts entry-change to this user's own sessions too,
+              // so invalidating here as well would double-fetch the heavy
+              // /api/dashboard endpoint. Relying solely on the echo also keeps
+              // the user's other tabs/devices (and linked users) in sync.
             }}
           />
         </>

@@ -34,8 +34,11 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
           caloriesEnabled={caloriesEnabled}
           autoCalcCalories={autoCalcCalories}
           onUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-            queryClient.invalidateQueries({ queryKey: ['day-entries'] });
+            // Refresh is driven by the entry-change SSE echo (useSSE): the
+            // server broadcasts entry-change to this user's own sessions too,
+            // so invalidating here as well would double-fetch the heavy
+            // /api/dashboard endpoint. Relying solely on the echo also keeps
+            // the user's other tabs/devices (and linked users) in sync.
           }}
           onSaveAsFood={() => {
             queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
