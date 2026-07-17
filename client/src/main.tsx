@@ -4,18 +4,13 @@ import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import App from './App';
+// Self-hosted Noto Sans (weights 400/500/600/700) — replaces the third-party
+// Google Fonts request for GDPR compliance and air-gapped/self-hosted support.
+import '@fontsource/noto-sans/400.css';
+import '@fontsource/noto-sans/500.css';
+import '@fontsource/noto-sans/600.css';
+import '@fontsource/noto-sans/700.css';
 import '@/styles/global.css';
-
-// Load the Noto Sans web font stylesheet asynchronously instead of as a
-// render-blocking <link> in index.html, so first paint isn't delayed by the
-// DNS+TLS round trips to fonts.googleapis.com/fonts.gstatic.com. Injecting it
-// from the bundle (script-src 'self') keeps the CSP intact — the inline
-// media=print/onload swap would be blocked by our script-src policy.
-const fontStylesheet = document.createElement('link');
-fontStylesheet.rel = 'stylesheet';
-fontStylesheet.href =
-  'https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap';
-document.head.appendChild(fontStylesheet);
 
 export const queryClient = new QueryClient({
   defaultOptions: {
