@@ -116,6 +116,10 @@ func main() {
 
 	// Router
 	r := chi.NewRouter()
+	// AccessLog is outermost so it observes the final committed status (including
+	// Recovery's 500s) and emits one structured request log — the only source of
+	// request rates, latencies and error counts this deployment has.
+	r.Use(middleware.AccessLog(cfg.TrustProxy))
 	r.Use(middleware.Recovery)
 	r.Use(middleware.MaxBodySize(15 << 20)) // 15MB global limit
 	r.Use(middleware.SecurityHeaders)
