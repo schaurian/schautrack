@@ -28,6 +28,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Daily notes and recurring todos with streak tracking
 - Account linking to share data with friends
 - Two-factor authentication (TOTP) with backup codes
+- Brute-force protection with CAPTCHA challenges on login, registration, and verification-email resend
 - Invite-only registration mode
 - Real-time updates via Server-Sent Events (SSE)
 - Docker and Kubernetes ready (~21MB image)
@@ -187,6 +188,10 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
 | `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per 15 minutes per IP |
 | `STEP_UP_TTL` | `30m` | Grace window after fresh primary auth during which sensitive auth-method changes (delete passkey, disable 2FA, change password/email, etc.) are accepted without re-prompting. Any `time.ParseDuration` value. |
+
+**CAPTCHA:** A self-generated SVG CAPTCHA guards against brute-force and abuse. It is always required to complete registration and to resend a verification email, and is triggered on login after 3 failed attempts (counted per session, per account, and per client IP). No third-party CAPTCHA service or key is needed — it works out of the box.
+
+> **`CAPTCHA_BYPASS`** (default: unset) — a **test-only** escape hatch. When set to `true`, `VerifyCaptcha` accepts *any* non-empty answer, disabling CAPTCHA protection entirely. It exists so the end-to-end test suite (`compose.test.yml`) can drive auth flows headlessly. **Never set this in production** — doing so removes all brute-force protection from login and registration.
 
 ### Legal Pages
 
