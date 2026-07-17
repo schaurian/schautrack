@@ -6,6 +6,8 @@ node_modules
 .claude
 IMPROVEMENTS.md
 client/dist
+*.tsbuildinfo
+.dev/
 e2e/.auth/
 test-results/
 playwright-report/
