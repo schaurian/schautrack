@@ -14,7 +14,12 @@ services:
     image: ghcr.io/schaurian/schautrack:latest
     env_file: .env
     ports:
-      - "8080:3000"
+      # Bind to loopback only: this file assumes a reverse proxy in front, and
+      # the app trusts X-Forwarded-For by default (TRUST_PROXY=true). Exposing
+      # the raw port on 0.0.0.0 would let clients spoof their apparent IP and
+      # defeat the rate limiters. If you deploy without a proxy, change this to
+      # "8080:3000" and set TRUST_PROXY=false in .env.
+      - "127.0.0.1:8080:3000"
     depends_on:
       db:
         condition: service_healthy
