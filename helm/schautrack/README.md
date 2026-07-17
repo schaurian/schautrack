@@ -231,7 +231,7 @@ smtp:
 | `ai.keyEncryptionSecret` | Secret for encrypting user API keys | `""` |
 | `ai.endpoint` | Custom API endpoint | `""` |
 | `ai.model` | Model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`) | `""` |
-| `ai.dailyLimit` | Daily requests per user (0 = unlimited) | `10` |
+| `ai.dailyLimit` | Daily requests per user (0 = unlimited). The app defaults to unlimited; this chart sets `10`. | `10` |
 
 ### SMTP
 
