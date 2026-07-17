@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
@@ -8,8 +8,12 @@ import { parseAmount } from '@/lib/mathParser';
 import { Button } from '@/components/ui/Button';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { useToastStore } from '@/stores/toastStore';
-import AIPhotoModal from './AIPhotoModal';
-import BarcodeScanModal from './BarcodeScanModal';
+
+// Lazy-loaded so their chunks (BarcodeScanModal pulls in the heavy quagga2
+// barcode decoder) are only fetched when a user first opens a scanner, rather
+// than eagerly on every page load.
+const AIPhotoModal = lazy(() => import('./AIPhotoModal'));
+const BarcodeScanModal = lazy(() => import('./BarcodeScanModal'));
 
 interface Props {
   selectedDate: string;
@@ -37,6 +41,14 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const [savingFood, setSavingFood] = useState(false);
   const [localAiUsage, setLocalAiUsage] = useState<AIUsage | null>(aiUsage);
   const queryClient = useQueryClient();
+
+  // Once a modal has been opened it stays mounted (kept alive by these latches)
+  // so its existing close-cleanup effects keep running; it just isn't mounted —
+  // and its chunk isn't fetched — until the first open.
+  const aiModalMounted = useRef(false);
+  const barcodeModalMounted = useRef(false);
+  if (aiModalOpen) aiModalMounted.current = true;
+  if (barcodeModalOpen) barcodeModalMounted.current = true;
 
   useEffect(() => {
     setLocalAiUsage(aiUsage);
@@ -314,27 +326,35 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         </div>
       </form>
 
-      <AIPhotoModal
-        isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        onResult={(result) => {
-          applyResult(result);
-          setLocalAiUsage((u) => u && u.limit > 0 ? { ...u, used: u.used + 1, remaining: Math.max(0, u.remaining - 1) } : u);
-          setAiModalOpen(false);
-        }}
-        enabledMacros={enabledMacros}
-        providerName={aiProviderName}
-      />
+      {aiModalMounted.current && (
+        <Suspense fallback={null}>
+          <AIPhotoModal
+            isOpen={aiModalOpen}
+            onClose={() => setAiModalOpen(false)}
+            onResult={(result) => {
+              applyResult(result);
+              setLocalAiUsage((u) => u && u.limit > 0 ? { ...u, used: u.used + 1, remaining: Math.max(0, u.remaining - 1) } : u);
+              setAiModalOpen(false);
+            }}
+            enabledMacros={enabledMacros}
+            providerName={aiProviderName}
+          />
+        </Suspense>
+      )}
 
-      <BarcodeScanModal
-        isOpen={barcodeModalOpen}
-        onClose={() => setBarcodeModalOpen(false)}
-        onResult={(result) => {
-          applyResult(result);
-          setBarcodeModalOpen(false);
-        }}
-        enabledMacros={enabledMacros}
-      />
+      {barcodeModalMounted.current && (
+        <Suspense fallback={null}>
+          <BarcodeScanModal
+            isOpen={barcodeModalOpen}
+            onClose={() => setBarcodeModalOpen(false)}
+            onResult={(result) => {
+              applyResult(result);
+              setBarcodeModalOpen(false);
+            }}
+            enabledMacros={enabledMacros}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
