@@ -143,6 +143,7 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 |----------|---------|-------------|
 | `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
 | `ENABLE_REGISTRATION` | `open` | `open` (anyone can register) or `false` / `invite` (requires invite code). Also configurable via `/admin`. |
+| `UPDATE_CHECK_ENABLED` | `true` | Check GitHub (`api.github.com`) for a newer release so the footer can flag an outdated instance. Set `false` to opt out of the outbound request — recommended for privacy-sensitive or air-gapped self-hosts. |
 
 ### OIDC (Single Sign-On)
 
