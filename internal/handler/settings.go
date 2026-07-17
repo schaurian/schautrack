@@ -751,6 +751,11 @@ func (h *LinksHandler) LinkRespond(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// The accepted-links set of both parties just changed; drop their cached
+		// broadcast targets so entry updates start flowing across the new link
+		// immediately instead of after the broker cache TTL.
+		h.Broker.InvalidateLinks(user.ID, requesterID)
+
 		h.Broker.BroadcastLinkChange(requesterID, "accepted", map[string]any{
 			"linkId": body.RequestID, "userId": user.ID, "email": user.Email,
 		})
@@ -797,6 +802,11 @@ func (h *LinksHandler) LinkRemove(w http.ResponseWriter, r *http.Request) {
 	if delRequesterID != user.ID {
 		otherID = delRequesterID
 	}
+
+	// Removing (or cancelling) a link changes the accepted-links set of both
+	// parties; drop their cached broadcast targets so updates stop crossing the
+	// removed link immediately instead of after the broker cache TTL.
+	h.Broker.InvalidateLinks(user.ID, otherID)
 
 	if delStatus == "accepted" {
 		h.Broker.BroadcastLinkChange(otherID, "removed", map[string]any{"linkId": body.LinkID})
