@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, fetchMailpitMessages, extractCodeFromEmail, clearMailpit } from './fixtures/helpers';
+import { psql, createIsolatedUser, expireStepUpGrace, fetchMailpitMessages, extractCodeFromEmail, clearMailpit } from './fixtures/helpers';
 import { completeStepUp } from './fixtures/stepup';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
@@ -45,8 +45,8 @@ test.describe('Email Change', () => {
     const emailHeading = page.getByText('Change Email', { exact: true });
     await emailHeading.scrollIntoViewIfNeeded();
 
-    // Wait past step-up grace (TTL=10s in test env) so the modal triggers.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side (deterministic) so the modal triggers.
+    expireStepUpGrace(user.id);
 
     // Fill new email and submit — step-up modal will gate the request.
     await page.getByLabel('New Email').fill(newEmail);
@@ -86,8 +86,8 @@ test.describe('Email Change', () => {
     const emailSection = page.getByText('Change Email').first();
     await emailSection.scrollIntoViewIfNeeded();
 
-    // Wait past step-up grace.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side.
+    expireStepUpGrace(user.id);
 
     await page.getByLabel('New Email').fill(newEmail);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();
@@ -127,8 +127,8 @@ test.describe('Email Change', () => {
     const emailSection = page.getByText('Change Email').first();
     await emailSection.scrollIntoViewIfNeeded();
 
-    // Wait past step-up grace.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side.
+    expireStepUpGrace(user.id);
 
     await page.getByLabel('New Email').fill(newEmail);
     await page.getByRole('button', { name: 'Send Verification Code' }).click();

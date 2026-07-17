@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { psql, bcryptHash, loginUser } from './fixtures/helpers';
+import { psql, bcryptHash, loginUser, expireStepUpGrace } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 const BCRYPT_EMAIL = 'e2e-bcrypt-migration@test.local';
 const BCRYPT_PASSWORD = 'bcrypttest1234';
+
+let bcryptUserId = '';
 
 test.describe.serial('Bcrypt Migration', () => {
   test.beforeAll(() => {
@@ -14,9 +16,9 @@ test.describe.serial('Bcrypt Migration', () => {
        ON CONFLICT (email) DO UPDATE SET password_hash = '${hash}', email_verified = true,
          totp_enabled = false, totp_secret = NULL`
     );
-    const uid = psql(`SELECT id FROM users WHERE email = '${BCRYPT_EMAIL}'`);
-    if (uid) {
-      psql(`DELETE FROM calorie_entries WHERE user_id = ${uid}`);
+    bcryptUserId = psql(`SELECT id FROM users WHERE email = '${BCRYPT_EMAIL}'`);
+    if (bcryptUserId) {
+      psql(`DELETE FROM calorie_entries WHERE user_id = ${bcryptUserId}`);
     }
   });
 
@@ -68,10 +70,10 @@ test.describe.serial('Bcrypt Migration', () => {
       await passwordHeading.scrollIntoViewIfNeeded();
       await expect(passwordHeading).toBeVisible({ timeout: 10000 });
 
-      // Wait past step-up grace (TTL=10s in test env) so the modal triggers,
-      // forcing a password re-verification — that's what exercises the bcrypt
-      // hash code path.
-      await page.waitForTimeout(12000);
+      // Expire the step-up grace server-side (deterministic) so the modal
+      // triggers, forcing a password re-verification — that's what exercises
+      // the bcrypt hash code path.
+      expireStepUpGrace(bcryptUserId);
 
       await page.getByLabel('New Password').fill(newPassword);
       await page.getByLabel('Confirm Password').fill(newPassword);

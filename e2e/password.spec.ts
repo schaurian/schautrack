@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
 import { completeStepUp } from './fixtures/stepup';
+import { psql, refreshStepUpGrace } from './fixtures/helpers';
 
 test.describe('Password Change', () => {
   test('mismatched passwords are rejected client-side (no step-up triggered)', async ({ page }) => {
@@ -37,8 +38,12 @@ test.describe('Password Change', () => {
     await completeStepUp(page, 'test1234test');
     await expect(page.getByText(/password updated/i).first()).toBeVisible({ timeout: 5000 });
 
-    // Change it back — should land within the step-up grace window from the
-    // first change, so no second modal expected.
+    // Change it back within the step-up grace window (no second modal expected).
+    // Refresh the grace server-side (deterministic) rather than relying on the
+    // first change landing under STEP_UP_TTL — UI latency could otherwise push
+    // the second change past the window and spuriously re-prompt.
+    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
+    refreshStepUpGrace(userId);
     await page.getByLabel('New Password').fill('test1234test');
     await page.getByLabel('Confirm Password').fill('test1234test');
     await page.getByRole('button', { name: 'Update Password' }).click();
