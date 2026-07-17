@@ -348,9 +348,10 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
           className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
           onClick={handleDelete}
           disabled={busy}
+          aria-label="Delete saved food"
           title="Delete"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6L6 18" /><path d="M6 6l12 12" />
           </svg>
         </button>
