@@ -40,6 +40,23 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 
 Source code available at [schautrack-android](https://github.com/schaurian/schautrack-android).
 
+### Android App Links
+
+The server serves a [Digital Asset Links](https://developers.google.com/digital-asset-links/v1/getting-started)
+file at `/.well-known/assetlinks.json` so that `https://` links to your domain
+open directly in the app (App Links verification; also used for TWA validation).
+
+The endpoint stays disabled (404) until you provide your app's SHA-256
+signing-certificate fingerprint(s), which are **specific to your build** and must
+not be copied from elsewhere:
+
+- `ANDROID_CERT_FINGERPRINTS` — comma-separated fingerprint(s) in `AA:BB:...:FF`
+  form. Find them in the Play Console under **Test and release → App integrity →
+  App signing**, or from your keystore with
+  `keytool -list -v -keystore <keystore> -alias <alias>`.
+- `ANDROID_PACKAGE_NAME` — defaults to `to.schauer.schautrack`; override for a
+  fork with a different published package.
+
 ## Quickstart (Docker)
 
 ```bash
@@ -209,6 +226,8 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ROBOTS_INDEX` | `false` | Set to `true` to allow search engine indexing (default: noindex for self-hosters) |
+| `ANDROID_PACKAGE_NAME` | `to.schauer.schautrack` | Package name published in `/.well-known/assetlinks.json` for Android App Links. |
+| `ANDROID_CERT_FINGERPRINTS` | *(empty)* | Comma-separated SHA-256 signing-cert fingerprint(s) (UPPER:CO:LON form) for App Links. **Deployment-specific** — see [Android App Links](#android-app-links). Empty disables `/.well-known/assetlinks.json`. |
 
 ## Contributing
 

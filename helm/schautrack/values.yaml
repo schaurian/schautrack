@@ -126,6 +126,14 @@ config:
   robotsIndex: false
   # Base URL for SEO meta tags (leave empty to auto-detect from request)
   baseUrl: ""
+  # Android App Links (Digital Asset Links) — binds the domain to the published
+  # Android app so https:// links open in the app. Served at
+  # /.well-known/assetlinks.json only when androidCertFingerprints is set.
+  androidPackageName: "to.schauer.schautrack"
+  # SHA-256 signing-cert fingerprint(s), comma-separated in UPPER:CO:LON form.
+  # DEPLOYMENT-SPECIFIC — from Play Console → App signing (or keytool -list -v).
+  # Empty = endpoint disabled. Never commit a placeholder/fake value.
+  androidCertFingerprints: ""
 
 # SMTP configuration (for password reset emails)
 # ⚠️  SECURITY WARNING: SMTP credentials are sensitive! 

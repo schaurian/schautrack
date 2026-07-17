@@ -63,6 +63,12 @@ data:
   {{- if .Values.config.baseUrl }}
   BASE_URL: {{ .Values.config.baseUrl | quote }}
   {{- end }}
+  {{- if .Values.config.androidPackageName }}
+  ANDROID_PACKAGE_NAME: {{ .Values.config.androidPackageName | quote }}
+  {{- end }}
+  {{- if .Values.config.androidCertFingerprints }}
+  ANDROID_CERT_FINGERPRINTS: {{ .Values.config.androidCertFingerprints | quote }}
+  {{- end }}
   {{- if .Values.config.stepUpTTL }}
   STEP_UP_TTL: {{ .Values.config.stepUpTTL | quote }}
   {{- end }}

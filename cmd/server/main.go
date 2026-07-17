@@ -136,6 +136,10 @@ func main() {
 	r.Get("/robots.txt", handler.RobotsTxt(cfg))
 	r.Get("/sitemap.xml", handler.SitemapXml(cfg))
 
+	// Android App Links (Digital Asset Links). 404s until a signing-cert
+	// fingerprint is configured (ANDROID_CERT_FINGERPRINTS).
+	r.Get("/.well-known/assetlinks.json", handler.AssetLinks(cfg))
+
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
