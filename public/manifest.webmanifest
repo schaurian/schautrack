@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Schautrack",
+  "short_name": "Schautrack",
+  "description": "Self-hostable nutrition tracker — log calories, macros, and weight, set goals, and track progress.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#070d1a",
+  "background_color": "#070d1a",
+  "icons": [
+    { "src": "/favicon-16.png", "sizes": "16x16", "type": "image/png" },
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
