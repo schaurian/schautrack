@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -40,5 +41,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+  },
+  test: {
+    // Pure logic modules under src/lib need no DOM; keep the runner lean.
+    environment: 'node',
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });
