@@ -177,7 +177,9 @@ ai:
 
 > **Note:** Ollama models must be downloaded before use. Models specified in API requests will fail if not pre-downloaded on your Ollama server.
 
-### Enabling SMTP (password reset)
+### Enabling SMTP (transactional email)
+
+Configuring SMTP enables all transactional email flows: password reset, registration email verification, email-change verification, and 2FA reset. Without SMTP configured, none of these flows can deliver their codes.
 
 ```yaml
 smtp:
