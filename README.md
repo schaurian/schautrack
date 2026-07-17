@@ -126,7 +126,9 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 
 **Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.
 
-### SMTP (Password Reset)
+### SMTP (Transactional Email)
+
+Configuring SMTP enables all transactional email flows: password reset, registration email verification, email-change verification, and 2FA reset. Without SMTP configured, none of these flows can deliver their codes.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
