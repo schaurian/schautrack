@@ -336,7 +336,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
         </span>
 
         {food.use_count > 0 && (
-          <span className="text-[10px] tabular-nums text-muted-foreground/60 shrink-0">{food.use_count}×</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">{food.use_count}×</span>
         )}
 
         {selectedDate && (

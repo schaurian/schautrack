@@ -328,7 +328,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
             )}
 
             {providerName && (
-              <div className="text-center text-[10px] text-muted-foreground/60">
+              <div className="text-center text-[10px] text-muted-foreground">
                 Your photo will be sent to {providerName} for analysis
               </div>
             )}

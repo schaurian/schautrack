@@ -437,7 +437,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
             {/* Attribution */}
             {(phase === 'result' || phase === 'scanning') && (
-              <div className="text-center text-[10px] text-muted-foreground/60">
+              <div className="text-center text-[10px] text-muted-foreground">
                 Barcode data is sent to and provided by{' '}
                 <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline hover:text-muted-foreground">
                   Open Food Facts
