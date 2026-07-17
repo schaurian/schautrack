@@ -169,6 +169,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             <input
               className={inputClass}
               type="text"
+              aria-label="Food name"
               placeholder="Breakfast, snack..."
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -185,8 +186,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         {/* Calories */}
         {caloriesEnabled && (
           <div className="mb-3 flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
+            <label htmlFor="entry-calories" className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
             <input
+              id="entry-calories"
               className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
               type="text"
               inputMode="tel"
@@ -215,10 +217,11 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
 
               return (
                 <div key={key} className="flex flex-col gap-1">
-                  <label className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
+                  <label htmlFor={`entry-macro-${key}`} className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
                     {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
                   </label>
                   <input
+                    id={`entry-macro-${key}`}
                     className={inputClass}
                     type="text"
                     inputMode="numeric"
@@ -243,6 +246,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="date"
+            aria-label="Entry date"
             className="rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             value={date}
             onChange={(e) => setDate(e.target.value)}

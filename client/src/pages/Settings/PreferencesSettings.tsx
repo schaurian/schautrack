@@ -30,15 +30,15 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
       <h3 className="text-sm font-semibold mb-3">Internationalization</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight Unit</label>
-          <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lb')} className={selectClass}>
+          <label htmlFor="pref-weight-unit" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight Unit</label>
+          <select id="pref-weight-unit" value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lb')} className={selectClass}>
             <option value="kg">Kilograms (kg)</option>
             <option value="lb">Pounds (lb)</option>
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timezone</label>
-          <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
+          <label htmlFor="pref-timezone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timezone</label>
+          <select id="pref-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
             {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
