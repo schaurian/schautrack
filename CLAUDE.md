@@ -6,10 +6,19 @@ This document contains important context and decisions for Claude Code when work
 
 **Schautrack** is a calorie tracking web application built with Go (chi router) and PostgreSQL. It supports:
 - User authentication with optional 2FA (TOTP) and backup codes
+- Passkeys / WebAuthn — passwordless login and step-up (`handler/passkeys.go`, `service/passkeys.go`, enabled via `PASSKEYS_RP_ID`)
+- OIDC / OpenID Connect SSO — single external provider, invite-aware, with brand logo detection (`handler/oidc.go`, `service/oidc.go`, enabled via `OIDC_ISSUER`)
+- Step-up (re-)authentication — a grace-windowed elevation required for sensitive auth-method changes (`handler/stepup.go`, `middleware/stepup`, `STEP_UP_TTL`)
+- Email verification and transactional email — registration verification, email-change verification, password reset, and 2FA-reset emails (`handler/auth_email.go`, `service/email.go`; requires SMTP)
+- Captcha — SVG challenge on login / registration / verification-resend for brute-force protection (`service/captcha.go`, `GET /auth/captcha`)
 - Calorie entry tracking with daily goals
 - AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
+- Macro (macronutrient) tracking — protein, carbs, fat, fiber, sugar (`service/macros.go`, `POST /settings/macros`)
+- Saved foods — reusable quick-add favorites that can be tracked into entries (`handler/saved_foods.go`, `/api/saved-foods`)
+- Recurring per-day todos (`handler/todos.go`, `service/todos.go`, `/api/todos`)
 - Weight tracking
 - Daily notes per date (enableable per user)
+- Account data export / import (`handler/entries_export.go`, `POST /settings/export`)
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
 - Real-time updates via Server-Sent Events (SSE)
@@ -41,17 +50,24 @@ schautrack/
 │   ├── config/            # Environment variable parsing
 │   ├── database/          # Pool, migrations, settings cache
 │   ├── model/             # Data models (User, Entry, etc.)
-│   ├── session/           # PostgreSQL session store, CSRF
-│   ├── middleware/         # Auth, rate limiting, security headers, timezone
+│   ├── session/           # PostgreSQL session store, CSRF, step-up TTL
+│   ├── middleware/         # Auth, rate limiting, security headers, timezone, step-up
+│   ├── clientip/          # Client IP extraction (proxy-aware)
 │   ├── handler/           # HTTP handlers (auth, entries, settings, etc.)
 │   ├── service/           # Business logic (macros, math parser, AI, email, etc.)
 │   └── sse/               # Server-Sent Events broker
+├── e2e/                   # Playwright end-to-end specs (run via root package.json)
+├── helm/schautrack/       # Helm chart (Kubernetes deployment)
+├── docs/                  # Manual test checklist + screenshots
+├── scripts/               # Build helpers (bump-version.sh, generate-changelog.sh)
 ├── public/                # Static assets (logo, favicons)
 ├── db/
 │   └── init.sql           # Intentionally empty — schema comes from Go migrations
 ├── Dockerfile             # 3-stage build (client, Go binary, Alpine)
 ├── compose.yml            # Production Docker Compose
 ├── compose.dev.yml        # Local development setup
+├── compose.test.yml       # E2E test harness (app + DB, CAPTCHA_BYPASS enabled)
+├── package.json           # Root — Playwright test:e2e scripts only
 ├── go.mod
 └── go.sum
 ```
@@ -67,11 +83,11 @@ schautrack/
 - **Styling:** CSS Modules with CSS custom properties
 
 ### Backend
-- **Language:** Go 1.25
+- **Language:** Go 1.26
 - **Router:** go-chi/chi v5 (stdlib-compatible)
 - **Database:** PostgreSQL 18 via jackc/pgx v5
 - **Session Store:** Custom PostgreSQL store (internal/session)
-- **Authentication:** alexedwards/argon2id + golang.org/x/crypto/bcrypt + pquerna/otp (TOTP)
+- **Authentication:** alexedwards/argon2id + golang.org/x/crypto/bcrypt + pquerna/otp (TOTP) + go-webauthn/webauthn (passkeys) + coreos/go-oidc (OIDC SSO)
 - **Real-time:** Server-Sent Events (SSE) via internal/sse broker
 - **API:** JSON-only (no server-side rendering)
 - **Docker image:** ~21MB (Alpine + static Go binary)
@@ -172,25 +188,61 @@ The CI automatically computes semantic versions based on commit message prefixes
 
 ## Environment Variables
 
+> Canonical, exhaustive table with all defaults lives in `README.md`. `internal/config/config.go` is the source of truth for what the process reads; a few knobs (`ENABLE_LEGAL`, `STEP_UP_TTL`, `CAPTCHA_BYPASS`) are read outside the config package and are noted below.
+
 Required:
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Session encryption key
 
-Optional:
+Server / general:
+- `PORT`: Port to listen on (default: `3000`)
+- `ADMIN_EMAIL`: Email address granted access to the `/admin` page
+- `BUILD_VERSION`: Injected during build, displayed in footer (default: `dev`)
+
+SEO:
+- `ROBOTS_INDEX`: Set to `true` to allow search-engine indexing (default: noindex)
+- `BASE_URL`: Base URL for SEO meta tags and the OIDC redirect fallback (auto-detected from request if unset)
+
+Legal / support:
 - `SUPPORT_EMAIL`: Contact email for support pages
-- `IMPRINT_URL`: Custom imprint page URL (default: '/imprint')
+- `ENABLE_LEGAL`: Set to `true` to enable the `/imprint`, `/privacy`, `/terms` pages (read via `enable_legal` effective setting in `handler/legal.go`; can also be set via admin panel)
+- `IMPRINT_URL`: Custom imprint page URL (default: `/imprint`)
 - `IMPRINT_ADDRESS`: Full name and address text (rendered as SVG, use \n for line breaks)
 - `IMPRINT_EMAIL`: Email text (rendered as SVG)
-- `BUILD_VERSION`: Injected during build, displayed in footer
 
 Features:
 - `ENABLE_BARCODE`: Enable barcode scanning via OpenFoodFacts (default: `true`, set `false` to disable)
 
-Security:
-- `TRUST_PROXY`: Trust `X-Forwarded-For`/`X-Real-Ip` headers for rate limiting (default: `true`, set `false` for direct-access deployments without a reverse proxy)
-
 Registration:
 - `ENABLE_REGISTRATION`: `open` (default, anyone can register) or `false`/`invite` (requires invite code). Can also be set via admin panel.
+
+Security / rate limiting:
+- `TRUST_PROXY`: Trust `X-Forwarded-For`/`X-Real-Ip` headers for rate limiting (default: `true`, set `false` for direct-access deployments without a reverse proxy)
+- `RATE_LIMIT_AUTH`: Max auth attempts per IP per **15-minute** window on login/register/step-up (default: `10`)
+- `RATE_LIMIT_STRICT`: Max attempts per IP per **5-minute** window on the strict limiter (forgot/reset password, 2FA reset, email-change request, AI estimate) (default: `5`)
+- `STEP_UP_TTL`: Grace window after fresh primary auth during which sensitive auth-method changes are accepted without re-prompting. Any `time.ParseDuration` value (default: `30m`; read in `internal/session/store.go`)
+- `CAPTCHA_BYPASS`: **Test-only** — when `true`, any non-empty captcha answer passes. Set only in the E2E harness (`compose.test.yml`); never in production.
+
+SMTP (transactional email — powers password reset, email verification, email change, and 2FA reset):
+- `SMTP_HOST`: SMTP server hostname (SMTP is considered configured when `SMTP_HOST` and `SMTP_FROM` are both set)
+- `SMTP_PORT`: SMTP port (default: `587`)
+- `SMTP_USER`: SMTP username
+- `SMTP_PASS`: SMTP password
+- `SMTP_FROM`: From address for emails (required alongside `SMTP_HOST` to enable SMTP; used verbatim by `service/email.go`)
+- `SMTP_SECURE`: Set to `true` for implicit SSL/TLS (default: `false` / STARTTLS)
+
+OIDC / SSO (single provider — enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are all set):
+- `OIDC_ISSUER`: OIDC issuer URL (e.g. `https://accounts.google.com`)
+- `OIDC_CLIENT_ID`: OAuth2 client ID
+- `OIDC_CLIENT_SECRET`: OAuth2 client secret
+- `OIDC_LABEL`: Login button label (default: capitalized brand derived from the issuer host, else `SSO`)
+- `OIDC_REQUIRE_INVITE`: Require an invite code for OIDC registration (default: `false` — OIDC bypasses invite-only mode)
+- `OIDC_REDIRECT_URL`: OAuth2 callback URL (auto-built as `<BASE_URL>/auth/oidc/callback` when unset)
+
+Passkeys / WebAuthn (enabled when `PASSKEYS_RP_ID` is set):
+- `PASSKEYS_RP_ID`: Relying Party ID — your domain (e.g. `schautrack.com`)
+- `PASSKEYS_RP_NAME`: Display name shown in passkey dialogs (default: `Schautrack`)
+- `PASSKEYS_RP_ORIGINS`: Comma-separated allowed origins for multi-domain setups
 
 AI Configuration (Global Fallbacks):
 - `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
