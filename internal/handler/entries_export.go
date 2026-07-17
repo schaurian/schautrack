@@ -171,35 +171,47 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "]\n}")
 }
 
-// Import handles POST /settings/import
-func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
-	// Parse multipart form (max 10MB)
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "No file uploaded.")
-		return
-	}
-	file, _, err := r.FormFile("import_file")
-	if err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "No file uploaded.")
-		return
-	}
-	defer file.Close()
+// importEntry is a single calorie entry that survived import validation and is
+// ready to be inserted into calorie_entries.
+type importEntry struct {
+	date      string
+	amount    int
+	name      *string
+	createdAt *time.Time
+	macros    map[string]*int
+}
 
-	raw, err := io.ReadAll(io.LimitReader(file, 10<<20))
-	if err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "Could not read file.")
-		return
-	}
+// importWeight is a single weight entry that survived import validation.
+type importWeight struct {
+	date   string
+	weight float64
+}
 
-	var parsed map[string]any
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		ErrorJSON(w, http.StatusBadRequest, "Invalid JSON file.")
-		return
-	}
+// importData is the fully validated payload extracted from an import file:
+// only rows/settings safe to write survive here. It is produced by
+// parseImportData with no database, request, or user access so the
+// destructive-import parse phase can be unit tested in isolation.
+type importData struct {
+	entries         []importEntry
+	weights         []importWeight
+	goalCandidate   *float64
+	hasUserSettings bool
+}
 
-	user := middleware.GetCurrentUser(r)
-	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
+// isEmpty reports whether the import carries nothing worth writing. Import
+// returns 400 — and, critically, performs no destructive DELETE — when this is
+// true, so a garbage or all-invalid file can never wipe the user's data.
+func (d importData) isEmpty() bool {
+	return len(d.entries) == 0 && len(d.weights) == 0 && !d.hasUserSettings
+}
 
+// parseImportData validates and extracts the importable payload from an
+// already-JSON-decoded import file. It is a pure function (no DB, no request,
+// no user) so the validation that guards the destructive import — the loop
+// that rejects bad dates, zero/oversized amounts, malformed timestamps and
+// out-of-range macros — can be table-tested directly. Invalid rows are
+// silently skipped; entries and weights are each capped at 10,000 rows.
+func parseImportData(parsed map[string]any) importData {
 	// Extract calorie goal from various formats
 	var goalCandidate *float64
 	if userObj, ok := parsed["user"].(map[string]any); ok {
@@ -223,13 +235,6 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse entries
-	type importEntry struct {
-		date      string
-		amount    int
-		name      *string
-		createdAt *time.Time
-		macros    map[string]*int
-	}
 	var toInsert []importEntry
 	if entries, ok := parsed["entries"].([]any); ok {
 		for _, e := range entries {
@@ -282,10 +287,6 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse weight entries
-	type importWeight struct {
-		date   string
-		weight float64
-	}
 	var weightToInsert []importWeight
 	if weights, ok := parsed["weights"].([]any); ok {
 		for _, w := range weights {
@@ -321,10 +322,55 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if len(toInsert) == 0 && len(weightToInsert) == 0 && !hasUserSettings {
+	return importData{
+		entries:         toInsert,
+		weights:         weightToInsert,
+		goalCandidate:   goalCandidate,
+		hasUserSettings: hasUserSettings,
+	}
+}
+
+// Import handles POST /settings/import
+func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form (max 10MB)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "No file uploaded.")
+		return
+	}
+	file, _, err := r.FormFile("import_file")
+	if err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "No file uploaded.")
+		return
+	}
+	defer file.Close()
+
+	raw, err := io.ReadAll(io.LimitReader(file, 10<<20))
+	if err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "Could not read file.")
+		return
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid JSON file.")
+		return
+	}
+
+	// Validate and extract the importable payload before touching the
+	// database. The emptiness guard below must run before any DELETE so a
+	// garbage file can never wipe the user's existing data.
+	data := parseImportData(parsed)
+	toInsert := data.entries
+	weightToInsert := data.weights
+	goalCandidate := data.goalCandidate
+	hasUserSettings := data.hasUserSettings
+
+	if data.isEmpty() {
 		ErrorJSON(w, http.StatusBadRequest, "No valid entries found in import file.")
 		return
 	}
+
+	user := middleware.GetCurrentUser(r)
 
 	tx, err := h.Pool.Begin(r.Context())
 	if err != nil {
@@ -440,6 +486,5 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		parts = append(parts, "user settings")
 	}
 
-	_ = mu // used for consistency
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Imported %s.", strings.Join(parts, " and "))})
 }
