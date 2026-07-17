@@ -45,7 +45,7 @@ export default function ForgotPassword() {
         <h2 className="mb-6 text-xl font-semibold">Forgot Password</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           {captchaSvg && (
             <div className="flex flex-col gap-2">
               <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
