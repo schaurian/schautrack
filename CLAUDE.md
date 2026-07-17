@@ -163,10 +163,9 @@ The CI automatically computes semantic versions based on commit message prefixes
   - **OpenAI:** GPT-4o-mini via `https://api.openai.com/v1` (default)
   - **Claude:** Sonnet 4.5 via `https://api.anthropic.com/v1`
   - **Ollama:** Local/self-hosted via `http://localhost:11434/v1` (API key optional)
-- **Three-tier key hierarchy:**
-  1. User personal API key (encrypted in database)
-  2. Global admin API key (set in admin panel or environment variable)
-  3. Environment variable fallback
+- **Key precedence** (`resolveAIConfig` in `internal/handler/ai.go`) — the **global key takes precedence over the user's personal key**, not the other way around:
+  1. **Global admin key** — used whenever it is set, and it also pins the endpoint and model to the global config. Source order: the `AI_KEY` environment variable overrides the admin-panel `ai_key` setting (`GetEffectiveSetting` in `internal/database/settings.go` treats env as the override and the DB setting as the fallback).
+  2. **User personal API key** (encrypted in database) — only honored when **no global key** is configured; the personal key isn't even decrypted otherwise. In that case the global endpoint still applies and the model prefers the user's, falling back to the global one.
 - **Custom endpoints:** Users can override default API endpoints for proxies or self-hosted deployments
 - **Rate limiting:** Global API key usage is limited per user per day (configurable via `AI_DAILY_LIMIT`)
 
