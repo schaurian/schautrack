@@ -16,6 +16,14 @@ const STATUS_COLORS: Record<string, string> = {
   none: 'bg-white/[0.03]',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  under: 'under goal',
+  over: 'over goal',
+  over_threshold: 'well over goal',
+  zero: 'no entries',
+  none: 'no entries',
+};
+
 export default function DayDot({ date, status, isToday, isSelected, onClick }: Props) {
   return (
     <button
@@ -29,7 +37,7 @@ export default function DayDot({ date, status, isToday, isSelected, onClick }: P
       )}
       onClick={onClick}
       title={date}
-      aria-label={`${date}: ${status}`}
+      aria-label={`${date}: ${STATUS_LABELS[status] || 'no entries'}`}
     />
   );
 }
