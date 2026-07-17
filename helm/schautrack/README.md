@@ -91,7 +91,7 @@ existingSecret: "my-schautrack-secrets"
 
 # These values are ignored when existingSecret is set:
 # config.sessionSecret, smtp.user, smtp.pass, ai.key, ai.keyEncryptionSecret,
-# postgresql.auth.password, externalDatabase.url
+# oidc.clientSecret, postgresql.auth.password, externalDatabase.url
 ```
 
 The referenced Secret must contain these keys:
@@ -105,6 +105,7 @@ The referenced Secret must contain these keys:
 | `SMTP_PASS` | No | SMTP password |
 | `AI_KEY` | No | API key for AI provider |
 | `AI_KEY_ENCRYPTION_SECRET` | No | Secret for encrypting user API keys |
+| `OIDC_CLIENT_SECRET` | No | OAuth2 client secret (required when `oidc.issuer` is set) |
 
 Example External Secrets Operator configuration:
 
@@ -221,6 +222,7 @@ smtp:
 | `config.trustProxy` | Trust X-Forwarded-For headers for rate limiting | `""` (true) |
 | `config.robotsIndex` | Allow search engine indexing | `false` |
 | `config.baseUrl` | Base URL for SEO meta tags (auto-detects if empty) | `""` |
+| `config.stepUpTTL` | Step-up auth grace window after login before sensitive auth-method changes require re-prompting. Any Go duration (e.g. `5s`, `10m`, `1h`); empty = server default of 30m | `""` |
 
 ### AI
 
@@ -243,6 +245,27 @@ smtp:
 | `smtp.pass` | SMTP password | `""` |
 | `smtp.from` | From address | `""` |
 | `smtp.secure` | Use TLS | `false` |
+
+### OIDC / Single Sign-On
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `oidc.issuer` | OIDC issuer URL (enables OIDC when set) | `""` |
+| `oidc.clientId` | OAuth2 Client ID from your provider | `""` |
+| `oidc.clientSecret` | OAuth2 Client Secret (stored in the chart Secret as `OIDC_CLIENT_SECRET`) | `""` |
+| `oidc.label` | Sign-in button label (defaults to issuer host, e.g. `Google`) | `""` |
+| `oidc.requireInvite` | Require an invite code for OIDC sign-up | `false` |
+| `oidc.redirectUrl` | Callback URL override (auto-built from `config.baseUrl` if empty) | `""` |
+
+> The redirect URI registered with your OIDC provider must be `<config.baseUrl>/auth/oidc/callback`.
+
+### Passkeys / WebAuthn
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `passkeys.rpId` | Relying Party ID, e.g. `schautrack.com` (enables passkeys when set; baked into every registered passkey, so changing it invalidates existing ones) | `""` |
+| `passkeys.rpName` | Display name shown in browser/OS passkey prompts | `""` (`Schautrack`) |
+| `passkeys.rpOrigins` | Allowed origins, comma-separated full URLs with scheme | `""` (`https://<rpId>`) |
 
 ### PostgreSQL (bundled)
 
@@ -308,9 +331,17 @@ smtp:
 
 ## Upgrading
 
-### To 1.0.0
+The chart follows semantic versioning; no breaking changes have been released
+through the current `0.2.x` series. `helm upgrade` in place is safe.
 
-No breaking changes.
+### 0.2.x
+
+- Added optional OIDC / Single Sign-On support (`oidc.*`, `OIDC_CLIENT_SECRET`).
+- Added optional Passkeys / WebAuthn support (`passkeys.*`).
+- Exposed the step-up auth grace window (`config.stepUpTTL`).
+
+All of the above are opt-in and disabled by default, so existing releases are
+unaffected until the corresponding values are set.
 
 ## License
 
