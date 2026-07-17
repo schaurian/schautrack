@@ -36,6 +36,7 @@ type Config struct {
 	// Features
 	EnableBarcode      bool
 	EnableRegistration string
+	UpdateCheckEnabled bool
 
 	// Rate limiting
 	RateLimitAuth   int
@@ -127,6 +128,7 @@ func Load() (*Config, error) {
 
 		EnableBarcode:      os.Getenv("ENABLE_BARCODE") != "false",
 		EnableRegistration: os.Getenv("ENABLE_REGISTRATION"),
+		UpdateCheckEnabled: os.Getenv("UPDATE_CHECK_ENABLED") != "false",
 
 		RateLimitAuth:   rateLimitAuth,
 		RateLimitStrict: rateLimitStrict,
