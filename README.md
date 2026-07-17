@@ -183,7 +183,7 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
-| `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per minute per IP |
+| `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per 15 minutes per IP |
 | `STEP_UP_TTL` | `30m` | Grace window after fresh primary auth during which sensitive auth-method changes (delete passkey, disable 2FA, change password/email, etc.) are accepted without re-prompting. Any `time.ParseDuration` value. |
 
 ### Legal Pages
