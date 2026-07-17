@@ -118,8 +118,13 @@ func main() {
 	r.Use(middleware.Recovery)
 	r.Use(middleware.MaxBodySize(15 << 20)) // 15MB global limit
 	r.Use(middleware.SecurityHeaders)
-	r.Use(session.Middleware(sessionStore))
-	r.Use(middleware.AttachUser(pool))
+	// Static asset requests (Vite build output, favicons, logos, fonts) never
+	// read the session or the current user, so skip the session load + full
+	// 19-column users SELECT for them — a single page load fans out to ~a dozen
+	// such requests. Authenticated /api/ and /events/ routes are never
+	// classified static and keep the full session + user pipeline.
+	r.Use(middleware.SkipStaticAssets(session.Middleware(sessionStore)))
+	r.Use(middleware.SkipStaticAssets(middleware.AttachUser(pool)))
 	r.Use(middleware.RememberClientTimezone)
 
 	// SEO routes
