@@ -23,6 +23,7 @@ export default function Login() {
   const [requireToken, setRequireToken] = useState(false);
   const [canReset2fa, setCanReset2fa] = useState(false);
   const [captchaSvg, setCaptchaSvg] = useState('');
+  const [captchaQuestion, setCaptchaQuestion] = useState('');
   const [resetMode, setResetMode] = useState<false | 'request' | 'verify'>(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetPassword, setResetPassword] = useState('');
@@ -86,6 +87,7 @@ export default function Login() {
       if (err instanceof ApiError) {
         setError(err.message);
         if (typeof err.data.captchaSvg === 'string') setCaptchaSvg(err.data.captchaSvg);
+        if (typeof err.data.captchaQuestion === 'string') setCaptchaQuestion(err.data.captchaQuestion);
         if (err.data.requireCaptcha) setCaptcha('');
       } else { setError('Could not log in.'); }
       setLoading(false);
@@ -206,6 +208,11 @@ export default function Login() {
                   <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
                     <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
                   </div>
+                  {captchaQuestion && (
+                    <p className="text-sm text-muted-foreground">
+                      Cannot see the image? Enter the answer to this question instead: {captchaQuestion}
+                    </p>
+                  )}
                   <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
                 </div>
               )}

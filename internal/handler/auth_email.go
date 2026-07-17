@@ -128,7 +128,7 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 			c := service.GenerateCaptcha()
 			sess.Set("resendCaptchaAnswer", c.Text)
 			JSON(w, http.StatusBadRequest, map[string]any{
-				"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "requireCaptcha": true,
+				"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true,
 			})
 			return
 		}
