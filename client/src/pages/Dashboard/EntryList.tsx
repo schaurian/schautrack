@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Entry } from '@/types';
-import { updateEntry, deleteEntry } from '@/api/entries';
+import { updateEntry, deleteEntry, createEntry } from '@/api/entries';
 import { saveEntryAsFood } from '@/api/savedFoods';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
@@ -101,10 +101,35 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   };
 
   const handleDelete = async () => {
+    // Snapshot the entry so an accidental delete can be undone. The recreated
+    // entry gets a new id (the server has no soft-delete) — an acceptable
+    // trade-off, matching the saved-foods Undo pattern.
+    const snapshot: Parameters<typeof createEntry>[0] = { entry_date: entry.date };
+    if (entry.name) snapshot.entry_name = entry.name;
+    if (entry.amount) snapshot.amount = entry.amount;
+    if (entry.macros) {
+      const m = entry.macros;
+      if (m.protein != null) snapshot.protein_g = m.protein;
+      if (m.carbs != null) snapshot.carbs_g = m.carbs;
+      if (m.fat != null) snapshot.fat_g = m.fat;
+      if (m.fiber != null) snapshot.fiber_g = m.fiber;
+      if (m.sugar != null) snapshot.sugar_g = m.sugar;
+    }
+
     try {
       await deleteEntry(entry.id);
       onUpdate();
-      addToast('success', 'Entry deleted');
+      addToast('success', 'Entry deleted', {
+        label: 'Undo',
+        onClick: async () => {
+          try {
+            await createEntry(snapshot);
+            onUpdate();
+          } catch (err) {
+            addToast('error', err instanceof Error ? err.message : 'Restore failed');
+          }
+        },
+      });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to delete entry');
     }
