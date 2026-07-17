@@ -168,7 +168,7 @@ The CI automatically computes semantic versions based on commit message prefixes
   2. Global admin API key (set in admin panel or environment variable)
   3. Environment variable fallback
 - **Custom endpoints:** Users can override default API endpoints for proxies or self-hosted deployments
-- **Rate limiting:** Global API key usage is limited per user per day (configurable via `AI_DAILY_LIMIT`)
+- **Rate limiting:** Global API key usage can be capped per user per day (configurable via `AI_DAILY_LIMIT`; unlimited by default)
 
 ## Environment Variables
 
@@ -198,7 +198,7 @@ AI Configuration (Global Fallbacks):
 - `AI_KEY_ENCRYPTION_SECRET`: Random 32-byte hex string used to encrypt user API keys in the database
 - `AI_ENDPOINT`: Optional custom endpoint override (leave blank to use provider defaults)
 - `AI_MODEL`: Optional model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`)
-- `AI_DAILY_LIMIT`: Daily AI request limit per user when using global key (default: unlimited)
+- `AI_DAILY_LIMIT`: Daily AI request limit per user when using global key (default: unlimited; the Helm chart sets it to 10)
 
 ## Development Workflow
 

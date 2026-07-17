@@ -122,7 +122,7 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 | `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string for encrypting user API keys |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
 | `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
-| `AI_DAILY_LIMIT` | `10` | Daily limit for AI requests per user when using global key (0 = unlimited) |
+| `AI_DAILY_LIMIT` | *(unset → unlimited)* | Daily limit for AI requests per user when using global key (`0` or unset = unlimited). The app applies **no** limit unless this is set via env or the admin panel. Note: the Helm chart sets this to `10` by default. |
 
 **Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.
 
