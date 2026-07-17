@@ -5,6 +5,7 @@ import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
+import { QueryError } from '@/components/ui/QueryError';
 import TodayPanel from './TodayPanel';
 import EntryForm from './EntryForm';
 import SavedFoodsRow from './SavedFoodsRow';
@@ -20,7 +21,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   // Fetch dashboard data
-  const { data: dashboard, isLoading } = useQuery({
+  const { data: dashboard, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['dashboard', rangePreset, rangeStart, rangeEnd],
     queryFn: () => getDashboard({
       range: rangePreset || undefined,
@@ -91,6 +92,10 @@ export default function Dashboard() {
     }
     return statuses;
   }, [selectedMacroTotals, dashboard]);
+
+  if (isError && !dashboard) {
+    return <QueryError error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
 
   if (authLoading || isLoading || !dashboard) {
     return <div className="flex items-center justify-center py-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;

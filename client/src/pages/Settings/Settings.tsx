@@ -9,6 +9,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { QueryError } from '@/components/ui/QueryError';
 import { OIDC_SETTINGS_ERRORS, OIDC_SETTINGS_SUCCESS } from '@/lib/oidcMessages';
 import MacroSettings from './MacroSettings';
 import PreferencesSettings from './PreferencesSettings';
@@ -60,10 +61,14 @@ export default function Settings() {
     setImportMessage(null);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['settings'],
     queryFn: getSettings,
   });
+
+  if (isError && !data) {
+    return <QueryError error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
 
   if (authLoading || isLoading || !data) {
     return <div className="flex items-center justify-center p-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
