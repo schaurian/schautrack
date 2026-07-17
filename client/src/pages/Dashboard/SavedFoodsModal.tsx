@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoods, trackSavedFood, deleteSavedFood, createSavedFood, updateSavedFood } from '@/api/savedFoods';
 import type { SavedFoodPayload } from '@/api/savedFoods';
@@ -52,8 +53,6 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
     if (creating) draftRef.current?.focus();
   }, [creating]);
 
-  if (!isOpen) return null;
-
   const all = data?.savedFoods ?? [];
   const filtered = search
     ? all.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
@@ -88,21 +87,27 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
 
   const handleDraftKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') commitDraft();
-    if (e.key === 'Escape') cancelDraft();
+    // Cancel the inline draft on Escape without letting the Dialog catch it and
+    // close the whole modal.
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      cancelDraft();
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-xl border-2 border-border bg-card overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[150] bg-background/80 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[150] w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border-2 border-border bg-card overflow-hidden focus:outline-none">
         <div className="flex items-center justify-between px-4 py-3 border-b-2 border-border">
-          <h2 className="text-base font-semibold">Saved foods</h2>
-          <button
-            type="button"
+          <Dialog.Title className="text-base font-semibold">Saved foods</Dialog.Title>
+          <Dialog.Close
+            aria-label="Close"
             className="text-muted-foreground hover:text-foreground bg-transparent border-0 text-2xl leading-none cursor-pointer"
-            onClick={onClose}
           >
             &times;
-          </button>
+          </Dialog.Close>
         </div>
 
         <div className="px-4 py-3 border-b border-border flex items-center gap-2">
@@ -161,8 +166,9 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
             </div>
           )}
         </div>
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -222,7 +228,12 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSave();
-    if (e.key === 'Escape') setEditing(null);
+    // Cancel the inline edit on Escape without letting the Dialog catch it and
+    // close the whole modal.
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      setEditing(null);
+    }
   };
 
   const handleDelete = async () => {
