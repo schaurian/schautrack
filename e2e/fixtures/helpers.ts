@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import * as crypto from 'crypto';
 
 const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
@@ -18,10 +18,22 @@ function detectDbContainer(): string {
   }
 }
 
-/** Run a SQL query against the test database and return the first line of trimmed output. */
-export function psql(sql: string): string {
-  const raw = execSync(
-    `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
+/**
+ * Run a SQL query against the test database and return the first line of trimmed output.
+ *
+ * Pass `vars` to bind values as psql variables instead of interpolating them into the SQL
+ * string. Reference them in `sql` as `:'name'` (safely quoted string literal) or `:name`
+ * (raw). This keeps user-controlled values (emails, hashes) out of the SQL text, so a value
+ * containing a quote can neither break nor inject into the statement.
+ *
+ * The command is invoked via execFileSync with an argument array (no shell), so the container
+ * name and variable values are never re-parsed by a shell.
+ */
+export function psql(sql: string, vars: Record<string, string | number> = {}): string {
+  const varArgs = Object.entries(vars).flatMap(([k, v]) => ['-v', `${k}=${v}`]);
+  const raw = execFileSync(
+    'docker',
+    ['exec', '-i', DB_CONTAINER, 'psql', '-U', DB_USER, '-d', DB_NAME, '-tA', ...varArgs],
     { input: sql + '\n', encoding: 'utf-8' }
   ).trim();
   // Filter out command tags like "INSERT 0 1", "DELETE 3", "UPDATE 1" etc.
@@ -31,8 +43,11 @@ export function psql(sql: string): string {
 
 /** Generate a bcrypt hash for the given password. */
 export function bcryptHash(password: string): string {
-  return execSync(
-    `python3 -c "import bcrypt; print(bcrypt.hashpw(b'${password}', bcrypt.gensalt(10)).decode())"`,
+  // Pass the password as an argv element (read via sys.argv[1]) instead of interpolating it
+  // into the -c script string, so a password containing quotes can't break the shell command.
+  return execFileSync(
+    'python3',
+    ['-c', 'import bcrypt, sys; print(bcrypt.hashpw(sys.argv[1].encode(), bcrypt.gensalt(10)).decode())', password],
     { encoding: 'utf-8' }
   ).trim();
 }
@@ -120,12 +135,14 @@ export function createIsolatedUser(specName: string, opts: { features?: boolean 
   const hash = bcryptHash(password);
   const features = opts.features !== false;
 
-  // Upsert user atomically to avoid race conditions when multiple workers call this simultaneously
+  // Upsert user atomically to avoid race conditions when multiple workers call this simultaneously.
+  // email/hash are bound as psql variables (:'email' / :'hash') so they are safely quoted.
   const id = psql(
     `INSERT INTO users (email, password_hash, email_verified)
-     VALUES ('${email}', '${hash}', true)
-     ON CONFLICT (email) DO UPDATE SET password_hash = '${hash}', email_verified = true, totp_enabled = false, totp_secret = NULL
-     RETURNING id`
+     VALUES (:'email', :'hash', true)
+     ON CONFLICT (email) DO UPDATE SET password_hash = :'hash', email_verified = true, totp_enabled = false, totp_secret = NULL
+     RETURNING id`,
+    { email, hash }
   );
   psql(`DELETE FROM totp_backup_codes WHERE user_id = ${id}`);
   // Clean all data
