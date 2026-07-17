@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"schautrack/internal/config"
@@ -319,7 +320,14 @@ func main() {
 	clientDist := "client/dist"
 	if info, err := os.Stat(clientDist); err == nil && info.IsDir() {
 		spaHandler := spaFallback(clientDist, "public")
-		r.Handle("/*", spaHandler)
+		// gzip/deflate the static bundle: the main JS chunk ships ~192 KB
+		// instead of ~667 KB. Scoped to the file server only — chi's Compress
+		// picks encodings off Accept-Encoding and gates on the response
+		// Content-Type. Called with no explicit type list so it uses chi's
+		// defaults, which cover text/html, text/css, text/javascript (Go's mime
+		// type for .js), application/json and image/svg+xml. It never wraps the
+		// streaming SSE handler, which is registered as its own /events/ route.
+		r.Handle("/*", chimw.Compress(5)(spaHandler))
 	}
 
 	// Start server with BaseContext for clean shutdown propagation
