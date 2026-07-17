@@ -14,6 +14,8 @@ on:
       - 'client/**'
       - 'db/init.sql'
       - 'helm/**'
+      - 'public/**'
+      - 'cliff.toml'
       - '.github/workflows/build.yml'
     tags:
       - 'v*'
@@ -30,6 +32,8 @@ on:
       - 'client/**'
       - 'db/init.sql'
       - 'helm/**'
+      - 'public/**'
+      - 'cliff.toml'
       - '.github/workflows/build.yml'
 
 env:
