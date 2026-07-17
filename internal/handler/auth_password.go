@@ -31,7 +31,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
 		c := service.GenerateCaptcha()
 		sess.Set("captchaAnswer", c.Text)
-		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data})
+		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question})
 		return
 	}
 

@@ -11,12 +11,13 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [captcha, setCaptcha] = useState('');
   const [captchaSvg, setCaptchaSvg] = useState('');
+  const [captchaQuestion, setCaptchaQuestion] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    getCaptcha().then((data) => setCaptchaSvg(data.svg)).catch(() => setError('Failed to load captcha'));
+    getCaptcha().then((data) => { setCaptchaSvg(data.svg); setCaptchaQuestion(data.question || ''); }).catch(() => setError('Failed to load captcha'));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,6 +32,7 @@ export default function ForgotPassword() {
       if (err instanceof ApiError) {
         setError(err.message);
         if (err.data.captchaSvg) setCaptchaSvg(err.data.captchaSvg as string);
+        if (err.data.captchaQuestion) setCaptchaQuestion(err.data.captchaQuestion as string);
       } else {
         setError('Request failed.');
       }
@@ -51,6 +53,11 @@ export default function ForgotPassword() {
               <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
                 <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
               </div>
+              {captchaQuestion && (
+                <p className="text-sm text-muted-foreground">
+                  Cannot see the image? Enter the answer to this question instead: {captchaQuestion}
+                </p>
+              )}
               <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}

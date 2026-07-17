@@ -143,6 +143,7 @@ func replyWithCaptchaIfNeeded(w http.ResponseWriter, sess *session.Session, emai
 		c := service.GenerateCaptcha()
 		sess.Set("captchaAnswer", c.Text)
 		resp["captchaSvg"] = c.Data
+		resp["captchaQuestion"] = c.Question
 		resp["requireCaptcha"] = true
 	}
 	JSON(w, http.StatusUnauthorized, resp)
@@ -300,5 +301,5 @@ func (h *AuthHandler) Captcha(w http.ResponseWriter, r *http.Request) {
 	c := service.GenerateCaptcha()
 	sess := session.GetSession(r)
 	sess.Set("captchaAnswer", c.Text)
-	JSON(w, http.StatusOK, map[string]any{"svg": c.Data})
+	JSON(w, http.StatusOK, map[string]any{"svg": c.Data, "question": c.Question})
 }

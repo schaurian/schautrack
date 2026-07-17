@@ -5,24 +5,65 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 )
 
 type CaptchaResult struct {
+	// Text is the session secret. It bundles both challenge answers as
+	// "<svgAnswer>|<altAnswer>" so either the visual or the non-visual answer
+	// is accepted. It is never sent to the client.
 	Text string `json:"-"`
-	Data string `json:"data"` // SVG string
+	Data string `json:"data"` // SVG string (visual challenge)
+	// Question is a plain-text arithmetic challenge shown alongside the SVG as
+	// a non-visual alternative for users who cannot see the image (WCAG 1.1.1).
+	Question string `json:"question"`
 }
 
 const captchaChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
 
-// GenerateCaptcha creates an SVG captcha image with random text.
+// numberWords maps small integers to their English spelling so the non-visual
+// challenge reads naturally to a screen reader ("What is four plus three?").
+var numberWords = []string{
+	"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+	"ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+	"seventeen", "eighteen",
+}
+
+func numberWord(n int) string {
+	if n >= 0 && n < len(numberWords) {
+		return numberWords[n]
+	}
+	return strconv.Itoa(n)
+}
+
+// GenerateCaptcha creates a visual SVG captcha plus a non-visual text challenge.
+// Both answers are bundled into the session secret (Text) and VerifyCaptcha
+// accepts either, so blind users who cannot read the distorted SVG can solve
+// the spoken-word arithmetic question instead.
 func GenerateCaptcha() CaptchaResult {
 	text := randomString(5)
 	svg := renderCaptchaSVG(text)
-	return CaptchaResult{Text: text, Data: svg}
+	question, altAnswer := generateAltChallenge()
+	return CaptchaResult{
+		Text:     text + "|" + altAnswer,
+		Data:     svg,
+		Question: question,
+	}
 }
 
-// VerifyCaptcha compares the session answer with the user answer (case-insensitive).
+// generateAltChallenge builds a simple "What is A plus B?" question with the
+// operands spelled out, returning the question text and the numeric answer.
+func generateAltChallenge() (question, answer string) {
+	a := randInt(1, 10)
+	b := randInt(1, 10)
+	question = fmt.Sprintf("What is %s plus %s?", numberWord(a), numberWord(b))
+	return question, strconv.Itoa(a + b)
+}
+
+// VerifyCaptcha reports whether userAnswer solves either challenge encoded in
+// the session secret: the visual SVG text (case-insensitive) or the non-visual
+// arithmetic answer (accepted as digits "7" or the spelled word "seven").
 // When CAPTCHA_BYPASS=true (E2E test mode), any non-empty answer passes.
 func VerifyCaptcha(sessionAnswer, userAnswer string) bool {
 	if sessionAnswer == "" || userAnswer == "" {
@@ -31,10 +72,37 @@ func VerifyCaptcha(sessionAnswer, userAnswer string) bool {
 	if os.Getenv("CAPTCHA_BYPASS") == "true" {
 		return true
 	}
-	return strings.EqualFold(
-		strings.TrimSpace(sessionAnswer),
-		strings.TrimSpace(userAnswer),
-	)
+	svgAnswer, altAnswer := splitCaptchaToken(sessionAnswer)
+	if strings.EqualFold(strings.TrimSpace(svgAnswer), strings.TrimSpace(userAnswer)) {
+		return true
+	}
+	return altAnswer != "" && matchesAltAnswer(altAnswer, userAnswer)
+}
+
+// splitCaptchaToken separates the bundled session secret into its visual and
+// non-visual answers. Tokens issued before the non-visual challenge existed
+// carry no separator and are treated as visual-only.
+func splitCaptchaToken(token string) (svgAnswer, altAnswer string) {
+	if i := strings.IndexByte(token, '|'); i >= 0 {
+		return token[:i], token[i+1:]
+	}
+	return token, ""
+}
+
+// matchesAltAnswer accepts the arithmetic answer either as digits ("7") or as
+// the spelled-out word ("seven"), case-insensitively.
+func matchesAltAnswer(altAnswer, userAnswer string) bool {
+	u := strings.TrimSpace(userAnswer)
+	if u == "" {
+		return false
+	}
+	if u == strings.TrimSpace(altAnswer) {
+		return true
+	}
+	if n, err := strconv.Atoi(strings.TrimSpace(altAnswer)); err == nil {
+		return strings.EqualFold(u, numberWord(n))
+	}
+	return false
 }
 
 func randomString(n int) string {
