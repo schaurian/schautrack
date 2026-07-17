@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"math"
 	"net/http"
@@ -88,6 +89,50 @@ func getTotalsByDate(r *http.Request, pool *pgxpool.Pool, userID int, oldest, ne
 		return nil, err
 	}
 	return result, nil
+}
+
+// getTotalsAndMacrosByDate scans the calorie_entries range a single time and
+// returns both the per-day calorie totals and the per-day macro totals. It
+// replaces the two separate range scans (getTotalsByDate + GetMacroTotalsByDate)
+// on the Dashboard's hot path. The macro map is always populated; callers with
+// no macros enabled simply ignore it. The results are byte-for-byte identical to
+// the two-query version (SUM(amount) and the COALESCE'd macro SUMs, grouped by
+// entry_date over the same user_id/date range).
+func getTotalsAndMacrosByDate(ctx context.Context, pool *pgxpool.Pool, userID int, oldest, newest string) (map[string]int, map[string]map[string]int, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT entry_date,
+			SUM(amount) AS total,
+			COALESCE(SUM(protein_g), 0) AS protein,
+			COALESCE(SUM(carbs_g), 0) AS carbs,
+			COALESCE(SUM(fat_g), 0) AS fat,
+			COALESCE(SUM(fiber_g), 0) AS fiber,
+			COALESCE(SUM(sugar_g), 0) AS sugar
+		FROM calorie_entries
+		WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+		GROUP BY entry_date`, userID, oldest, newest)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	totals := map[string]int{}
+	macros := make(map[string]map[string]int)
+	for rows.Next() {
+		var date string
+		var total, protein, carbs, fat, fiber, sugar int
+		if err := rows.Scan(&date, &total, &protein, &carbs, &fat, &fiber, &sugar); err != nil {
+			continue
+		}
+		totals[date] = total
+		macros[date] = map[string]int{
+			"protein": protein, "carbs": carbs, "fat": fat, "fiber": fiber, "sugar": sugar,
+		}
+	}
+	// Propagate mid-iteration errors instead of returning partial totals.
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	return totals, macros, nil
 }
 
 func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal *int, enabledMacros []string, macroGoals map[string]int, macroModes map[string]string, macroTotalsByDate map[string]map[string]int, threshold int) []dailyStat {
