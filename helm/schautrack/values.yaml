@@ -30,8 +30,25 @@ serviceAccount:
   name: ""
 
 podAnnotations: {}
-podSecurityContext: {}
-securityContext: {}
+
+# Pod-level security context for the web pod (applies to init + app containers).
+# The app image runs as the non-root UID 1000 baked in at build time.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security context for the web (and init) containers.
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
 
 service:
   type: ClusterIP
@@ -140,7 +157,25 @@ postgresql:
     repository: postgres
     tag: "18-alpine"
     pullPolicy: IfNotPresent
-  # Database credentials  
+  # Pod-level security context for the postgres pod.
+  # The postgres alpine image uses UID/GID 70; fsGroup makes the mounted PVC
+  # group-writable so postgres can create/own its PGDATA subdirectory.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    fsGroup: 70
+    seccompProfile:
+      type: RuntimeDefault
+  # Container-level security context for the postgres container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 70
+    capabilities:
+      drop:
+        - ALL
+  # Database credentials
   # ⚠️  SECURITY WARNING: Database passwords are critical secrets!
   # Use existingSecret in production - never commit passwords to Git
   auth:
