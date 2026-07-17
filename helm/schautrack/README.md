@@ -221,6 +221,8 @@ smtp:
 | `config.trustProxy` | Trust X-Forwarded-For headers for rate limiting | `""` (true) |
 | `config.robotsIndex` | Allow search engine indexing | `false` |
 | `config.baseUrl` | Base URL for SEO meta tags (auto-detects if empty) | `""` |
+| `config.androidPackageName` | Package name for Android App Links (`/.well-known/assetlinks.json`) | `to.schauer.schautrack` |
+| `config.androidCertFingerprints` | Comma-separated SHA-256 signing-cert fingerprint(s) for App Links (**deployment-specific**; empty disables the endpoint) | `""` |
 
 ### AI
 
