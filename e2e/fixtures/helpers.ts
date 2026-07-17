@@ -167,6 +167,43 @@ export function createIsolatedUser(specName: string, opts: { features?: boolean 
 }
 
 /**
+ * Deterministically expire a user's step-up grace window so the very next
+ * sensitive action re-prompts immediately.
+ *
+ * This is the reliable, instant replacement for `page.waitForTimeout(12000)`
+ * (sleeping past the test-env STEP_UP_TTL). Step-up freshness is stored purely
+ * server-side as a `step_up_at` unix timestamp inside the session JSON (see
+ * internal/session/store.go: MarkStepUp / HasRecentStepUp), which is reloaded
+ * from the DB on every request. Back-dating it to the epoch makes
+ * HasRecentStepUp() return false on the next request — no wall-clock waiting,
+ * no flakiness. Every active session row for the user is updated, which is
+ * harmless for stale/prior-login rows.
+ *
+ * Pass the numeric user id (e.g. from createIsolatedUser().id).
+ */
+export function expireStepUpGrace(userId: string | number): void {
+  psql(
+    `UPDATE "session"
+     SET sess = jsonb_set(sess::jsonb, '{step_up_at}', to_jsonb(0), true)::json
+     WHERE sess->>'userId' = '${userId}'`
+  );
+}
+
+/**
+ * Deterministically refresh a user's step-up grace (set `step_up_at` to now)
+ * so an assertion that must run *inside* the grace window can't flake when UI
+ * latency would otherwise push the action past STEP_UP_TTL. The inverse of
+ * expireStepUpGrace(). Pass the numeric user id.
+ */
+export function refreshStepUpGrace(userId: string | number): void {
+  psql(
+    `UPDATE "session"
+     SET sess = jsonb_set(sess::jsonb, '{step_up_at}', to_jsonb(extract(epoch from now())::bigint), true)::json
+     WHERE sess->>'userId' = '${userId}'`
+  );
+}
+
+/**
  * Login as a specific user via the API (fast, no UI interaction).
  * Uses direct HTTP requests to get a session cookie, then creates a browser context with it.
  */

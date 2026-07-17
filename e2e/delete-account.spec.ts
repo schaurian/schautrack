@@ -1,24 +1,26 @@
 import { test, expect } from '@playwright/test';
-import { psql, bcryptHash } from './fixtures/helpers';
+import { psql, bcryptHash, expireStepUpGrace } from './fixtures/helpers';
 import { completeStepUp } from './fixtures/stepup';
 
 const DELETE_EMAIL = 'delete-e2e@test.com';
 const DELETE_PASSWORD = 'deletetest1234';
 
-function ensureDeleteUser() {
+let deleteUserId: string;
+
+function ensureDeleteUser(): string {
   const hash = bcryptHash(DELETE_PASSWORD);
   const exists = psql(`SELECT id FROM users WHERE email = '${DELETE_EMAIL}'`);
   if (exists) {
     psql(`UPDATE users SET password_hash = '${hash}', email_verified = true, totp_enabled = false, totp_secret = NULL WHERE email = '${DELETE_EMAIL}'`);
     psql(`DELETE FROM totp_backup_codes WHERE user_id = ${exists}`);
-  } else {
-    psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${DELETE_EMAIL}', '${hash}', true)`);
+    return exists;
   }
+  return psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${DELETE_EMAIL}', '${hash}', true) RETURNING id`);
 }
 
 test.describe('Delete Account', () => {
   test.beforeAll(() => {
-    ensureDeleteUser();
+    deleteUserId = ensureDeleteUser();
   });
 
   test('user can delete their own account', async ({ browser }) => {
@@ -41,8 +43,8 @@ test.describe('Delete Account', () => {
     // re-prompt is handled by the step-up modal.
     await expect(page.getByRole('heading', { name: 'Delete Account' })).toBeVisible({ timeout: 5000 });
 
-    // Wait past the step-up grace window so the modal triggers (TTL=10s in test env).
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side (deterministic) so the modal triggers.
+    expireStepUpGrace(deleteUserId);
 
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Delete My Account' }).click();

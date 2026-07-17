@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, expireStepUpGrace, refreshStepUpGrace } from './fixtures/helpers';
 import { completeStepUp } from './fixtures/stepup';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
@@ -56,9 +56,9 @@ test.describe('Password Change', () => {
     await page.waitForURL('/settings');
 
     // A fresh login grants the step-up grace window (login doubles as step-up).
-    // STEP_UP_TTL=10s in compose.test.yml — wait it out so the password change
-    // actually triggers the step-up modal we want to exercise here.
-    await page.waitForTimeout(12000);
+    // Expire it server-side (deterministic) instead of sleeping out STEP_UP_TTL,
+    // so the password change below actually triggers the step-up modal.
+    expireStepUpGrace(user.id);
 
     const passwordHeading = page.getByText('Change Password');
     await passwordHeading.scrollIntoViewIfNeeded();
@@ -70,8 +70,10 @@ test.describe('Password Change', () => {
     await completeStepUp(page, user.password);
     await expect(page.getByText(/password updated/i).first()).toBeVisible({ timeout: 5000 });
 
-    // Change it back — should land within the fresh step-up grace from the
-    // change we just completed, so no second modal expected.
+    // Change it back within the step-up grace window (no second modal expected).
+    // Refresh the grace server-side (deterministic) so UI latency can't push the
+    // second change past STEP_UP_TTL and spuriously re-prompt.
+    refreshStepUpGrace(user.id);
     await page.getByLabel('New Password').fill(user.password);
     await page.getByLabel('Confirm Password').fill(user.password);
     await page.getByRole('button', { name: 'Update Password' }).click();

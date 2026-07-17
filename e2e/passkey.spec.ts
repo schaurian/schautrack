@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser, psql } from './fixtures/helpers';
+import { createIsolatedUser, expireStepUpGrace, psql } from './fixtures/helpers';
 import { completeStepUp } from './fixtures/stepup';
 import { attachVirtualAuthenticator } from './fixtures/webauthn';
 
@@ -40,8 +40,8 @@ test.describe('Passkeys', () => {
       await login(page);
       await page.goto('/settings');
 
-      // Wait past grace so step-up gates the registration call.
-      await page.waitForTimeout(12000);
+      // Expire grace server-side so step-up gates the registration call.
+      expireStepUpGrace(user.id);
 
       const passkeyHeading = page.getByRole('heading', { name: /passkeys/i });
       await passkeyHeading.scrollIntoViewIfNeeded();
@@ -80,7 +80,7 @@ test.describe('Passkeys', () => {
     try {
       await login(page);
       await page.goto('/settings');
-      await page.waitForTimeout(12000);
+      expireStepUpGrace(user.id);
 
       await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
       await page.getByPlaceholder(/passkey name/i).fill('Login Test');
@@ -111,7 +111,7 @@ test.describe('Passkeys', () => {
     try {
       await login(page);
       await page.goto('/settings');
-      await page.waitForTimeout(12000);
+      expireStepUpGrace(user.id);
 
       // Register one passkey (step-up).
       await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
@@ -120,8 +120,8 @@ test.describe('Passkeys', () => {
       await completeStepUp(page, user.password);
       await expect(page.getByText('To Be Deleted')).toBeVisible({ timeout: 10000 });
 
-      // Wait past grace to force the delete to require fresh step-up.
-      await page.waitForTimeout(12000);
+      // Expire grace to force the delete to require fresh step-up.
+      expireStepUpGrace(user.id);
 
       // Click Remove on the passkey row.
       const row = page.locator('div').filter({ hasText: /^To Be Deleted/ });
@@ -146,7 +146,7 @@ test.describe('Passkeys', () => {
     try {
       await login(page);
       await page.goto('/settings');
-      await page.waitForTimeout(12000);
+      expireStepUpGrace(user.id);
 
       // Register a passkey so the modal can offer the passkey path.
       await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
@@ -155,10 +155,10 @@ test.describe('Passkeys', () => {
       await completeStepUp(page, user.password);
       await expect(page.getByText('Step-up Source')).toBeVisible({ timeout: 10000 });
 
-      // Wait past grace, then trigger Export JSON — it's gated by step-up
+      // Expire grace, then trigger Export JSON — it's gated by step-up
       // but doesn't mutate persistent user state, so leftover state from a
       // failed assertion can't break later tests.
-      await page.waitForTimeout(12000);
+      expireStepUpGrace(user.id);
 
       const exportBtn = page.getByRole('button', { name: 'Export JSON', exact: true });
       await exportBtn.scrollIntoViewIfNeeded();
@@ -191,7 +191,7 @@ test.describe('Passkeys', () => {
     try {
       await login(page);
       await page.goto('/settings');
-      await page.waitForTimeout(12000);
+      expireStepUpGrace(user.id);
 
       await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
       await page.getByPlaceholder(/passkey name/i).fill('Old Name');
@@ -199,8 +199,8 @@ test.describe('Passkeys', () => {
       await completeStepUp(page, user.password);
       await expect(page.getByText('Old Name')).toBeVisible({ timeout: 10000 });
 
-      // Wait past grace so a *gated* action would prompt.
-      await page.waitForTimeout(12000);
+      // Expire grace so a *gated* action would prompt.
+      expireStepUpGrace(user.id);
 
       // Click the passkey name to enter rename mode, type, blur to save.
       await page.getByRole('button', { name: 'Old Name' }).click();

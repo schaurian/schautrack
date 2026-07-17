@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bcryptHash, createIsolatedUser, psql } from './fixtures/helpers';
+import { bcryptHash, createIsolatedUser, expireStepUpGrace, psql } from './fixtures/helpers';
 import { completeStepUp, cancelStepUp } from './fixtures/stepup';
 
 // Each test uses a fresh login context so the storageState session age can't
@@ -69,9 +69,9 @@ test.describe('Step-up auth', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // STEP_UP_TTL=10s in compose.test.yml — wait long enough that the grace
-    // expires before we trigger a sensitive action.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side (deterministic) instead of sleeping
+    // past STEP_UP_TTL, so the next sensitive action re-prompts immediately.
+    expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
     const newPw = 'after-expiry-pw-1';
@@ -100,8 +100,8 @@ test.describe('Step-up auth', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // Wait past grace so the modal triggers.
-    await page.waitForTimeout(12000);
+    // Expire grace server-side so the modal triggers.
+    expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
     await page.getByLabel('New Password').fill('cancel-test-pw-1');
@@ -125,7 +125,7 @@ test.describe('Step-up auth', () => {
 
     await page.goto('/settings');
     await page.waitForURL('/settings');
-    await page.waitForTimeout(12000);
+    expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
     await page.getByLabel('New Password').fill('wrong-pw-test');
@@ -160,7 +160,7 @@ test.describe('Step-up auth', () => {
     const page = await ctx.newPage();
     await login(page);
     await page.goto('/settings');
-    await page.waitForTimeout(12000);
+    expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
     await page.getByLabel('New Password').fill('escape-test-pw');
@@ -184,7 +184,7 @@ test.describe('Step-up auth', () => {
     const page = await ctx.newPage();
     await login(page);
     await page.goto('/settings');
-    await page.waitForTimeout(12000);
+    expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
     await page.getByLabel('New Password').fill('outside-click-test-pw');
