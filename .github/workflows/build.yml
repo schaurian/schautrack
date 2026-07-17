@@ -56,8 +56,29 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run tests
+      - name: Run Go tests
         run: go test ./...
+
+      # Client type errors were previously caught only inside the Docker build
+      # (client "build" is "tsc -b && vite build"), which runs after
+      # compute-version and in parallel with create-tag — so a type regression
+      # could still get a git tag pushed with no matching image. Gate on an
+      # explicit client typecheck here in the test job, which every downstream
+      # job (compute-version -> create-tag / build-and-push) already depends on.
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: client
+
+      - name: Typecheck client
+        run: npm run typecheck
+        working-directory: client
 
   compute-version:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
