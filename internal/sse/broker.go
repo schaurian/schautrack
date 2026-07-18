@@ -14,17 +14,30 @@ import (
 	"schautrack/internal/service"
 )
 
+// linkCacheEntry holds a resolved set of accepted-link user IDs for one source
+// user together with its expiry.
+type linkCacheEntry struct {
+	linked  []int
+	expires time.Time
+}
+
 // Broker manages SSE connections per user.
 type Broker struct {
 	mu      sync.RWMutex
 	clients map[int]map[chan []byte]struct{}
 	pool    *pgxpool.Pool
+
+	// linkMu guards linkCache, a short-TTL cache of each user's accepted-link
+	// target IDs so a burst of broadcasts does not repeat the same DB lookup.
+	linkMu    sync.Mutex
+	linkCache map[int]linkCacheEntry
 }
 
 func NewBroker(pool *pgxpool.Pool) *Broker {
 	b := &Broker{
-		clients: make(map[int]map[chan []byte]struct{}),
-		pool:    pool,
+		clients:   make(map[int]map[chan []byte]struct{}),
+		pool:      pool,
+		linkCache: make(map[int]linkCacheEntry),
 	}
 	go b.cleanupLoop()
 	return b
@@ -184,19 +197,77 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// linkCacheTTL bounds how long a resolved accepted-links set is reused between
+// broadcasts. It absorbs bursts of rapid mutations — which would otherwise each
+// issue an identical link lookup — while keeping staleness small even if an
+// explicit invalidation were ever missed. Link accept/remove call
+// InvalidateLinks, so newly (un)linked users take effect immediately.
+const linkCacheTTL = 5 * time.Second
+
 func (b *Broker) getTargets(sourceUserID int) []int {
-	targets := []int{sourceUserID}
+	// If nobody at all is connected, no event can be delivered to any user, so
+	// resolving link targets would be pure waste — e.g. mutations from the
+	// mobile app or API while no dashboard is open.
+	b.mu.RLock()
+	anyClients := len(b.clients) > 0
+	b.mu.RUnlock()
+	if !anyClients {
+		return nil
+	}
+
+	// Serve the linked-user set from the cache while it is fresh.
+	if linked, ok := b.cachedLinks(sourceUserID); ok {
+		return append([]int{sourceUserID}, linked...)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
 	if err != nil {
+		// Don't cache failures — fall back to just the source user.
 		slog.Error("failed to load linked users for broadcast", "error", err)
-		return targets
+		return []int{sourceUserID}
 	}
+	linked := make([]int, 0, len(links))
 	for _, link := range links {
-		targets = append(targets, link.UserID)
+		linked = append(linked, link.UserID)
 	}
-	return targets
+	b.storeLinks(sourceUserID, linked)
+	return append([]int{sourceUserID}, linked...)
+}
+
+// cachedLinks returns the cached accepted-link target IDs for userID when a
+// fresh entry exists. The returned slice is owned by the cache and must not be
+// mutated by callers (getTargets only ever appends it onto a fresh slice).
+func (b *Broker) cachedLinks(userID int) ([]int, bool) {
+	b.linkMu.Lock()
+	defer b.linkMu.Unlock()
+	entry, ok := b.linkCache[userID]
+	if !ok || time.Now().After(entry.expires) {
+		return nil, false
+	}
+	return entry.linked, true
+}
+
+func (b *Broker) storeLinks(userID int, linked []int) {
+	b.linkMu.Lock()
+	defer b.linkMu.Unlock()
+	if b.linkCache == nil {
+		b.linkCache = make(map[int]linkCacheEntry)
+	}
+	b.linkCache[userID] = linkCacheEntry{linked: linked, expires: time.Now().Add(linkCacheTTL)}
+}
+
+// InvalidateLinks drops any cached accepted-links set for the given users so the
+// next broadcast re-resolves it from the database. Callers in the link handlers
+// invoke this whenever a user's set of accepted links changes (accept/remove),
+// which keeps real-time delivery correct without waiting for the TTL.
+func (b *Broker) InvalidateLinks(userIDs ...int) {
+	b.linkMu.Lock()
+	defer b.linkMu.Unlock()
+	for _, id := range userIDs {
+		delete(b.linkCache, id)
+	}
 }
 
 func (b *Broker) cleanupLoop() {

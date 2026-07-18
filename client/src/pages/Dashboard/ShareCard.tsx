@@ -59,15 +59,18 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
             maxLength={30}
             autoFocus
           />
-        ) : (
-          <span
-            className={cn(
-              'text-sm font-medium text-foreground',
-              canEditLabel && 'cursor-pointer hover:text-primary transition-colors'
-            )}
-            onClick={canEditLabel ? () => setEditing(true) : undefined}
-            title={canEditLabel ? 'Click to edit label' : undefined}
+        ) : canEditLabel ? (
+          <button
+            type="button"
+            className="bg-transparent border border-transparent p-0 text-sm font-medium text-foreground text-left cursor-pointer hover:text-primary transition-colors"
+            onClick={() => setEditing(true)}
+            aria-label={`Edit label for ${view.label}`}
+            title="Click to edit label"
           >
+            {view.label}
+          </button>
+        ) : (
+          <span className="text-sm font-medium text-foreground">
             {view.label}
           </span>
         )}

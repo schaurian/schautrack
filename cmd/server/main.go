@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"schautrack/internal/config"
@@ -115,21 +116,34 @@ func main() {
 
 	// Router
 	r := chi.NewRouter()
+	// AccessLog is outermost so it observes the final committed status (including
+	// Recovery's 500s) and emits one structured request log — the only source of
+	// request rates, latencies and error counts this deployment has.
+	r.Use(middleware.AccessLog(cfg.TrustProxy))
 	r.Use(middleware.Recovery)
 	r.Use(middleware.MaxBodySize(15 << 20)) // 15MB global limit
 	r.Use(middleware.SecurityHeaders)
-	r.Use(session.Middleware(sessionStore))
-	r.Use(middleware.AttachUser(pool))
+	// Static asset requests (Vite build output, favicons, logos, fonts) never
+	// read the session or the current user, so skip the session load + full
+	// 19-column users SELECT for them — a single page load fans out to ~a dozen
+	// such requests. Authenticated /api/ and /events/ routes are never
+	// classified static and keep the full session + user pipeline.
+	r.Use(middleware.SkipStaticAssets(session.Middleware(sessionStore)))
+	r.Use(middleware.SkipStaticAssets(middleware.AttachUser(pool)))
 	r.Use(middleware.RememberClientTimezone)
 
 	// SEO routes
 	r.Get("/robots.txt", handler.RobotsTxt(cfg))
 	r.Get("/sitemap.xml", handler.SitemapXml(cfg))
 
+	// Android App Links (Digital Asset Links). 404s until a signing-cert
+	// fingerprint is configured (ANDROID_CERT_FINGERPRINTS).
+	r.Get("/.well-known/assetlinks.json", handler.AssetLinks(cfg))
+
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
-		r.Get("/latest-version", handler.LatestVersion())
+		r.Get("/latest-version", handler.LatestVersion(cfg.UpdateCheckEnabled))
 		r.Get("/csrf", handler.CsrfToken)
 		r.Get("/me", handler.Me(pool, cfg.AdminEmail, settingsCache, cfg))
 
@@ -319,7 +333,14 @@ func main() {
 	clientDist := "client/dist"
 	if info, err := os.Stat(clientDist); err == nil && info.IsDir() {
 		spaHandler := spaFallback(clientDist, "public")
-		r.Handle("/*", spaHandler)
+		// gzip/deflate the static bundle: the main JS chunk ships ~192 KB
+		// instead of ~667 KB. Scoped to the file server only — chi's Compress
+		// picks encodings off Accept-Encoding and gates on the response
+		// Content-Type. Called with no explicit type list so it uses chi's
+		// defaults, which cover text/html, text/css, text/javascript (Go's mime
+		// type for .js), application/json and image/svg+xml. It never wraps the
+		// streaming SSE handler, which is registered as its own /events/ route.
+		r.Handle("/*", chimw.Compress(5)(spaHandler))
 	}
 
 	// Start server with BaseContext for clean shutdown propagation

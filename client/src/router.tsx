@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
 import Layout from '@/components/Layout/Layout';
@@ -7,14 +8,17 @@ import Register from '@/pages/Register/Register';
 import ForgotPassword from '@/pages/ForgotPassword/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword/ResetPassword';
 import VerifyEmail from '@/pages/VerifyEmail/VerifyEmail';
-import Dashboard from '@/pages/Dashboard/Dashboard';
-import Settings from '@/pages/Settings/Settings';
-import Admin from '@/pages/Admin/Admin';
-import Privacy from '@/pages/Legal/Privacy';
-import Terms from '@/pages/Legal/Terms';
-import Imprint from '@/pages/Legal/Imprint';
-import DeleteAccount from '@/pages/Delete/DeleteAccount';
-import VerifyEmailChange from '@/pages/VerifyEmailChange/VerifyEmailChange';
+
+// The authenticated and legal pages are code-split into their own chunks so
+// the initial (unauthenticated) load no longer ships the entire app.
+const Dashboard = lazy(() => import('@/pages/Dashboard/Dashboard'));
+const Settings = lazy(() => import('@/pages/Settings/Settings'));
+const Admin = lazy(() => import('@/pages/Admin/Admin'));
+const Privacy = lazy(() => import('@/pages/Legal/Privacy'));
+const Terms = lazy(() => import('@/pages/Legal/Terms'));
+const Imprint = lazy(() => import('@/pages/Legal/Imprint'));
+const DeleteAccount = lazy(() => import('@/pages/Delete/DeleteAccount'));
+const VerifyEmailChange = lazy(() => import('@/pages/VerifyEmailChange/VerifyEmailChange'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuthStore();

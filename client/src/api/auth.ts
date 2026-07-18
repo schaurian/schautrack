@@ -7,6 +7,7 @@ interface LoginResponse {
   requireCaptcha?: boolean;
   canReset2fa?: boolean;
   captchaSvg?: string;
+  captchaQuestion?: string;
   error?: string;
 }
 
@@ -16,6 +17,7 @@ interface RegisterResponse {
   requireVerification?: boolean;
   requireInviteCode?: boolean;
   captchaSvg?: string;
+  captchaQuestion?: string;
   error?: string;
 }
 
@@ -42,7 +44,7 @@ export function logout() {
 }
 
 export function forgotPassword(data: { email: string; captcha: string }) {
-  return api<{ ok: boolean; error?: string; captchaSvg?: string }>('/api/auth/forgot-password', {
+  return api<{ ok: boolean; error?: string; captchaSvg?: string; captchaQuestion?: string }>('/api/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -77,7 +79,7 @@ export function reset2fa(data: { step: string; email?: string; password?: string
 }
 
 export function getCaptcha() {
-  return api<{ svg: string }>('/api/auth/captcha');
+  return api<{ svg: string; question?: string }>('/api/auth/captcha');
 }
 
 export function getMe() {

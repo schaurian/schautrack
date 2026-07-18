@@ -14,7 +14,12 @@ services:
     image: ghcr.io/schaurian/schautrack:latest
     env_file: .env
     ports:
-      - "8080:3000"
+      # Bind to loopback only: this file assumes a reverse proxy in front, and
+      # the app trusts X-Forwarded-For by default (TRUST_PROXY=true). Exposing
+      # the raw port on 0.0.0.0 would let clients spoof their apparent IP and
+      # defeat the rate limiters. If you deploy without a proxy, change this to
+      # "8080:3000" and set TRUST_PROXY=false in .env.
+      - "127.0.0.1:8080:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -37,7 +42,9 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      # Escape as $$ so the variables expand inside the container (from
+      # env_file), not at compose parse time from the host env / auto-loaded .env.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 5

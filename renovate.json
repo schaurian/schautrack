@@ -1,10 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
   "baseBranches": ["staging"],
   "timezone": "Europe/Berlin",
   "labels": ["dependencies"],
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
-  "dependencyDashboard": false
+  "dependencyDashboard": false,
+  "packageRules": [
+    {
+      "description": "Block PostgreSQL major upgrades: a new major (e.g. 18 -> 19) makes the existing /var/lib/postgresql data directory incompatible with no pg_upgrade path in these compose/helm deployments, so the db container crashloops. Majors require a deliberate manual migration plan.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ]
 }

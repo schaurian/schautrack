@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
+import { QueryError } from '@/components/ui/QueryError';
 import TodayPanel from './TodayPanel';
 import EntryForm from './EntryForm';
 import SavedFoodsRow from './SavedFoodsRow';
@@ -17,10 +18,9 @@ import NoteEditor from './NoteEditor';
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
-  const queryClient = useQueryClient();
 
   // Fetch dashboard data
-  const { data: dashboard, isLoading } = useQuery({
+  const { data: dashboard, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['dashboard', rangePreset, rangeStart, rangeEnd],
     queryFn: () => getDashboard({
       range: rangePreset || undefined,
@@ -92,6 +92,10 @@ export default function Dashboard() {
     return statuses;
   }, [selectedMacroTotals, dashboard]);
 
+  if (isError && !dashboard) {
+    return <QueryError error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
+
   if (authLoading || isLoading || !dashboard) {
     return <div className="flex items-center justify-center py-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
   }
@@ -125,9 +129,11 @@ export default function Dashboard() {
             aiProviderName={dashboard.aiProviderName}
             barcodeEnabled={dashboard.barcodeEnabled}
             onSubmit={() => {
-              queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-              queryClient.invalidateQueries({ queryKey: ['day-entries'] });
-              queryClient.invalidateQueries({ queryKey: ['weight'] });
+              // Refresh is driven by the entry-change SSE echo (useSSE): the
+              // server broadcasts entry-change to this user's own sessions too,
+              // so invalidating here as well would double-fetch the heavy
+              // /api/dashboard endpoint. Relying solely on the echo also keeps
+              // the user's other tabs/devices (and linked users) in sync.
             }}
           />
         </>

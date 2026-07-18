@@ -112,14 +112,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		// session counter at zero. Issue a challenge instead of processing.
 		c := service.GenerateCaptcha()
 		sess.Set("captchaAnswer", c.Text)
-		JSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Captcha required.", "captchaSvg": c.Data, "requireCaptcha": true})
+		JSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Captcha required.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 		return
 	}
 	if captchaAnswer != "" {
 		if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
 			c := service.GenerateCaptcha()
 			sess.Set("captchaAnswer", c.Text)
-			JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "requireCaptcha": true})
+			JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 			return
 		}
 		sess.Delete("captchaAnswer")
@@ -307,7 +307,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 
 	c := service.GenerateCaptcha()
 	sess.Set("captchaAnswer", c.Text)
-	JSON(w, http.StatusOK, map[string]any{"ok": true, "requireCaptcha": true, "captchaSvg": c.Data})
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "requireCaptcha": true, "captchaSvg": c.Data, "captchaQuestion": c.Question})
 }
 
 func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, sess *session.Session, captcha string) {
@@ -333,7 +333,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 	if !service.VerifyCaptcha(captchaAnswer, captcha) {
 		c := service.GenerateCaptcha()
 		sess.Set("captchaAnswer", c.Text)
-		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data})
+		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question})
 		return
 	}
 	sess.Delete("captchaAnswer")

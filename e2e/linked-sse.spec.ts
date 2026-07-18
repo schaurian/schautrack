@@ -47,7 +47,7 @@ test.describe('Linked User SSE Propagation', () => {
       // Wait directly for user A's share card label — don't use Timeline heading as a proxy
       // because Timeline renders before share cards data loads.
       const userALabel = pageB
-        .locator('span.text-sm.font-medium')
+        .locator('.text-sm.font-medium')
         .filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') })
         .first();
 

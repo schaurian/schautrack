@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, expireStepUpGrace } from './fixtures/helpers';
 import { completeStepUp } from './fixtures/stepup';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
@@ -38,8 +38,8 @@ test.describe('Data Export / Import', () => {
 
     await loginAndGo(page, '/settings');
 
-    // Wait past step-up grace (TTL=10s in test env) so the modal triggers.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side (deterministic) so the modal triggers.
+    expireStepUpGrace(user.id);
 
     // Click Export — step-up modal gates the request.
     const exportBtn = page.getByRole('button', { name: 'Export JSON', exact: true });
@@ -142,9 +142,11 @@ test.describe('Data Export / Import', () => {
     const importBtn = page.getByRole('button', { name: 'Import', exact: true });
     await expect(importBtn).toBeEnabled({ timeout: 5000 });
 
-    // Wait past step-up grace and import — modal will gate the request.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side, then import — the modal gates the request.
+    expireStepUpGrace(user.id);
     await importBtn.click();
+    // A confirmation dialog gates the destructive import; confirm it first.
+    await page.getByRole('button', { name: 'Replace all entries', exact: true }).click();
     await completeStepUp(page, user.password);
     await expect(page.getByText(/Imported/i)).toBeVisible({ timeout: 15000 });
 

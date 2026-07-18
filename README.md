@@ -28,6 +28,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Daily notes and recurring todos with streak tracking
 - Account linking to share data with friends
 - Two-factor authentication (TOTP) with backup codes
+- Brute-force protection with CAPTCHA challenges on login, registration, and verification-email resend
 - Invite-only registration mode
 - Real-time updates via Server-Sent Events (SSE)
 - Docker and Kubernetes ready (~21MB image)
@@ -38,6 +39,23 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 <a href="https://play.google.com/store/apps/details?id=to.schauer.schautrack"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80"></a>
 
 Source code available at [schautrack-android](https://github.com/schaurian/schautrack-android).
+
+### Android App Links
+
+The server serves a [Digital Asset Links](https://developers.google.com/digital-asset-links/v1/getting-started)
+file at `/.well-known/assetlinks.json` so that `https://` links to your domain
+open directly in the app (App Links verification; also used for TWA validation).
+
+The endpoint stays disabled (404) until you provide your app's SHA-256
+signing-certificate fingerprint(s), which are **specific to your build** and must
+not be copied from elsewhere:
+
+- `ANDROID_CERT_FINGERPRINTS` — comma-separated fingerprint(s) in `AA:BB:...:FF`
+  form. Find them in the Play Console under **Test and release → App integrity →
+  App signing**, or from your keystore with
+  `keytool -list -v -keystore <keystore> -alias <alias>`.
+- `ANDROID_PACKAGE_NAME` — defaults to `to.schauer.schautrack`; override for a
+  fork with a different published package.
 
 ## Quickstart (Docker)
 
@@ -122,11 +140,13 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 | `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string for encrypting user API keys |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
 | `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
-| `AI_DAILY_LIMIT` | `10` | Daily limit for AI requests per user when using global key (0 = unlimited) |
+| `AI_DAILY_LIMIT` | *(unset → unlimited)* | Daily limit for AI requests per user when using global key (`0` or unset = unlimited). The app applies **no** limit unless this is set via env or the admin panel. Note: the Helm chart sets this to `10` by default. |
 
 **Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.
 
-### SMTP (Password Reset)
+### SMTP (Transactional Email)
+
+Configuring SMTP enables all transactional email flows: password reset, registration email verification, email-change verification, and 2FA reset. Without SMTP configured, none of these flows can deliver their codes.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -143,6 +163,7 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 |----------|---------|-------------|
 | `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
 | `ENABLE_REGISTRATION` | `open` | `open` (anyone can register) or `false` / `invite` (requires invite code). Also configurable via `/admin`. |
+| `UPDATE_CHECK_ENABLED` | `true` | Check GitHub (`api.github.com`) for a newer release so the footer can flag an outdated instance. Set `false` to opt out of the outbound request — recommended for privacy-sensitive or air-gapped self-hosts. |
 
 ### OIDC (Single Sign-On)
 
@@ -183,8 +204,13 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
-| `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per minute per IP |
+| `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per 15 minutes per IP |
+| `RATE_LIMIT_STRICT` | `5` | Max requests per 5-minute window per IP on sensitive endpoints (password-reset request/confirm, 2FA reset, email-change request, AI estimate) |
 | `STEP_UP_TTL` | `30m` | Grace window after fresh primary auth during which sensitive auth-method changes (delete passkey, disable 2FA, change password/email, etc.) are accepted without re-prompting. Any `time.ParseDuration` value. |
+
+**CAPTCHA:** A self-generated SVG CAPTCHA guards against brute-force and abuse. It is always required to complete registration and to resend a verification email, and is triggered on login after 3 failed attempts (counted per session, per account, and per client IP). No third-party CAPTCHA service or key is needed — it works out of the box.
+
+> **`CAPTCHA_BYPASS`** (default: unset) — a **test-only** escape hatch. When set to `true`, `VerifyCaptcha` accepts *any* non-empty answer, disabling CAPTCHA protection entirely. It exists so the end-to-end test suite (`compose.test.yml`) can drive auth flows headlessly. **Never set this in production** — doing so removes all brute-force protection from login and registration.
 
 ### Legal Pages
 
@@ -200,6 +226,8 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ROBOTS_INDEX` | `false` | Set to `true` to allow search engine indexing (default: noindex for self-hosters) |
+| `ANDROID_PACKAGE_NAME` | `to.schauer.schautrack` | Package name published in `/.well-known/assetlinks.json` for Android App Links. |
+| `ANDROID_CERT_FINGERPRINTS` | *(empty)* | Comma-separated SHA-256 signing-cert fingerprint(s) (UPPER:CO:LON form) for App Links. **Deployment-specific** — see [Android App Links](#android-app-links). Empty disables `/.well-known/assetlinks.json`. |
 
 ## Contributing
 

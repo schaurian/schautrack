@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,6 +12,17 @@ export default function Header() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { pathname } = useLocation();
+
+  // Close the mobile drawer on Escape so keyboard users aren't trapped behind it.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
+
   const navClass = (path: string) => {
     const active = pathname.startsWith(path);
     return cn(
@@ -35,7 +46,7 @@ export default function Header() {
       <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-3">
         <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2 text-foreground no-underline">
           <div className="size-12 rounded-[10px] bg-card border border-border shadow-[0_10px_30px_rgba(0,0,0,0.35)] overflow-hidden grid place-items-center shrink-0">
-            <img src="/logo.png" alt="" className="w-full h-full object-cover block" />
+            <img src="/logo-128.webp" alt="" width={48} height={48} decoding="async" className="w-full h-full object-cover block" />
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-[18px] font-bold tracking-tight">Schautrack</span>
@@ -50,6 +61,8 @@ export default function Header() {
               className="relative z-[102] flex items-center justify-center p-2 md:hidden text-foreground"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle menu"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
             >
               {menuOpen ? (
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,7 +75,7 @@ export default function Header() {
               )}
             </button>
 
-            <nav className={cn(
+            <nav id="mobile-nav" className={cn(
               'flex items-center gap-1',
               'max-md:fixed max-md:right-0 max-md:top-0 max-md:z-[101] max-md:h-screen max-md:w-[280px] max-md:translate-x-full max-md:invisible max-md:flex-col max-md:items-stretch max-md:border-l max-md:border-border max-md:bg-background max-md:pt-16 max-md:transition-[transform,visibility] max-md:duration-250',
               menuOpen && 'max-md:translate-x-0 max-md:visible'
@@ -78,7 +91,10 @@ export default function Header() {
               <Link to="/settings" onClick={() => setMenuOpen(false)} className={cn(navClass('/settings'), 'relative')}>
                 Settings
                 {pendingLinkRequests > 0 && (
-                  <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0ea5e9] max-md:top-4 max-md:right-3" />
+                  <>
+                    <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0ea5e9] max-md:top-4 max-md:right-3" aria-hidden="true" />
+                    <span className="sr-only">{pendingLinkRequests} pending link requests</span>
+                  </>
                 )}
               </Link>
               <button type="button" onClick={handleLogout}

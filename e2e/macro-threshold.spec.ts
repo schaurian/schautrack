@@ -40,11 +40,11 @@ test.describe.serial('Macro Threshold', () => {
 
     // Wait for SSE to update the dot, with fallback reload
     let label = await todayDot.getAttribute('aria-label');
-    if (!label?.includes('over_threshold')) {
+    if (!label?.includes('well over goal')) {
       await page.waitForTimeout(3000);
       label = await todayDot.getAttribute('aria-label');
     }
-    if (!label?.includes('over_threshold')) {
+    if (!label?.includes('well over goal')) {
       // Reload to get fresh data if SSE update was missed
       await page.reload();
       await page.waitForLoadState('domcontentloaded');
@@ -53,7 +53,7 @@ test.describe.serial('Macro Threshold', () => {
 
     await expect(page.locator(`button[aria-label^="${today}"]`)).toHaveAttribute(
       'aria-label',
-      new RegExp(`${today}:.*over_threshold`),
+      new RegExp(`${today}:.*well over goal`),
       { timeout: 10000 }
     );
 
@@ -79,11 +79,11 @@ test.describe.serial('Macro Threshold', () => {
 
     // Wait for SSE update, with fallback reload
     let label = await todayDot.getAttribute('aria-label');
-    if (!label?.match(/over/) || label?.includes('over_threshold')) {
+    if (!label?.includes('over goal') || label?.includes('well over goal')) {
       await page.waitForTimeout(3000);
       label = await todayDot.getAttribute('aria-label');
     }
-    if (!label?.match(/over/) || label?.includes('over_threshold')) {
+    if (!label?.includes('over goal') || label?.includes('well over goal')) {
       await page.reload();
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator(`button[aria-label^="${today}"]`)).toBeVisible({ timeout: 10000 });
@@ -92,11 +92,11 @@ test.describe.serial('Macro Threshold', () => {
     const finalDot = page.locator(`button[aria-label^="${today}"]`);
     await expect(finalDot).toHaveAttribute(
       'aria-label',
-      new RegExp(`${today}:.*over`),
+      new RegExp(`${today}:.*over goal`),
       { timeout: 10000 }
     );
     const finalLabel = await finalDot.getAttribute('aria-label');
-    expect(finalLabel).not.toMatch(/over_threshold/);
+    expect(finalLabel).not.toMatch(/well over goal/);
 
     await ctx.close();
   });

@@ -48,11 +48,11 @@ export default function ResetPassword() {
         {!success && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {!codeVerified ? (
-              <Input label="Reset Code" value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="off" />
+              <Input label="Reset Code" value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]*" />
             ) : (
               <>
-                <Input label="New Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={10} />
-                <Input label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                <Input label="New Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={10} autoComplete="new-password" />
+                <Input label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
               </>
             )}
             <Button type="submit" loading={loading}>{codeVerified ? 'Reset Password' : 'Verify Code'}</Button>

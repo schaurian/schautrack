@@ -198,6 +198,74 @@ func TestConcurrentSubscribeUnsubscribeSendEvent(t *testing.T) {
 	}
 }
 
+func TestGetTargetsShortCircuitsWithNoClients(t *testing.T) {
+	// The test broker has a nil pool: if getTargets reached the DB it would
+	// panic. With no subscribers, it must short-circuit before the lookup.
+	b := newTestBroker()
+	if got := b.getTargets(1); got != nil {
+		t.Fatalf("expected nil targets when no clients are connected, got %v", got)
+	}
+}
+
+func TestGetTargetsUsesCacheWithoutQueryingDB(t *testing.T) {
+	// nil pool: reaching the DB would panic. A subscribed client pushes
+	// getTargets past the short-circuit, so a pre-seeded cache must satisfy it.
+	b := newTestBroker()
+	ch := b.Subscribe(1)
+	defer b.Unsubscribe(1, ch)
+
+	b.storeLinks(1, []int{2, 3})
+	got := b.getTargets(1)
+
+	if len(got) != 3 || got[0] != 1 {
+		t.Fatalf("expected [1 2 3] with source first, got %v", got)
+	}
+	seen := map[int]bool{}
+	for _, id := range got {
+		seen[id] = true
+	}
+	if !seen[1] || !seen[2] || !seen[3] {
+		t.Fatalf("expected targets to include 1,2,3; got %v", got)
+	}
+}
+
+func TestGetTargetsDoesNotAliasCache(t *testing.T) {
+	b := newTestBroker()
+	ch := b.Subscribe(1)
+	defer b.Unsubscribe(1, ch)
+
+	b.storeLinks(1, []int{2})
+	got := b.getTargets(1)
+	got[len(got)-1] = 999 // mutating the returned slice must not corrupt the cache
+
+	linked, ok := b.cachedLinks(1)
+	if !ok || len(linked) != 1 || linked[0] != 2 {
+		t.Fatalf("cache was mutated through the returned slice: %v", linked)
+	}
+}
+
+func TestInvalidateLinksForcesRefresh(t *testing.T) {
+	b := newTestBroker()
+	b.storeLinks(1, []int{2})
+	if _, ok := b.cachedLinks(1); !ok {
+		t.Fatal("expected a fresh cache entry after storeLinks")
+	}
+	b.InvalidateLinks(1)
+	if _, ok := b.cachedLinks(1); ok {
+		t.Fatal("expected a cache miss after InvalidateLinks")
+	}
+}
+
+func TestCachedLinksExpires(t *testing.T) {
+	b := newTestBroker()
+	b.linkCache = map[int]linkCacheEntry{
+		1: {linked: []int{2}, expires: time.Now().Add(-time.Second)},
+	}
+	if _, ok := b.cachedLinks(1); ok {
+		t.Fatal("expected an expired cache entry to miss")
+	}
+}
+
 func TestServeHTTPRejectsNilContext(t *testing.T) {
 	b := newTestBroker()
 	req := httptest.NewRequest("GET", "/events", nil)

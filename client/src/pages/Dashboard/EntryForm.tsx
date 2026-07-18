@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
@@ -8,8 +8,12 @@ import { parseAmount } from '@/lib/mathParser';
 import { Button } from '@/components/ui/Button';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { useToastStore } from '@/stores/toastStore';
-import AIPhotoModal from './AIPhotoModal';
-import BarcodeScanModal from './BarcodeScanModal';
+
+// Lazy-loaded so their chunks (BarcodeScanModal pulls in the heavy quagga2
+// barcode decoder) are only fetched when a user first opens a scanner, rather
+// than eagerly on every page load.
+const AIPhotoModal = lazy(() => import('./AIPhotoModal'));
+const BarcodeScanModal = lazy(() => import('./BarcodeScanModal'));
 
 interface Props {
   selectedDate: string;
@@ -37,6 +41,14 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const [savingFood, setSavingFood] = useState(false);
   const [localAiUsage, setLocalAiUsage] = useState<AIUsage | null>(aiUsage);
   const queryClient = useQueryClient();
+
+  // Once a modal has been opened it stays mounted (kept alive by these latches)
+  // so its existing close-cleanup effects keep running; it just isn't mounted —
+  // and its chunk isn't fetched — until the first open.
+  const aiModalMounted = useRef(false);
+  const barcodeModalMounted = useRef(false);
+  if (aiModalOpen) aiModalMounted.current = true;
+  if (barcodeModalOpen) barcodeModalMounted.current = true;
 
   useEffect(() => {
     setLocalAiUsage(aiUsage);
@@ -169,6 +181,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             <input
               className={inputClass}
               type="text"
+              aria-label="Food name"
               placeholder="Breakfast, snack..."
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -185,8 +198,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         {/* Calories */}
         {caloriesEnabled && (
           <div className="mb-3 flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
+            <label htmlFor="entry-calories" className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
             <input
+              id="entry-calories"
               className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
               type="text"
               inputMode="tel"
@@ -215,10 +229,11 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
 
               return (
                 <div key={key} className="flex flex-col gap-1">
-                  <label className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
+                  <label htmlFor={`entry-macro-${key}`} className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
                     {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
                   </label>
                   <input
+                    id={`entry-macro-${key}`}
                     className={inputClass}
                     type="text"
                     inputMode="numeric"
@@ -243,6 +258,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="date"
+            aria-label="Entry date"
             className="rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -255,9 +271,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
                 onClick={() => setAiModalOpen(true)}
                 disabled={!!aiDisabled}
+                aria-label="Estimate calories with AI"
                 title={aiDisabled ? 'Daily AI limit reached' : 'Estimate with AI'}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
                   <path d="M20 3v4" /><path d="M22 5h-4" />
                 </svg>
@@ -272,9 +289,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 type="button"
                 className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
                 onClick={() => setBarcodeModalOpen(true)}
+                aria-label="Scan barcode"
                 title="Scan barcode"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 5v-2h4" /><path d="M17 3h4v2" /><path d="M21 19v2h-4" /><path d="M7 21h-4v-2" />
                   <path d="M7 8v8" /><path d="M12 8v8" /><path d="M17 8v8" /><path d="M5 8v8" /><path d="M15 8v8" /><path d="M19 8v8" />
                 </svg>
@@ -286,12 +304,13 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
               className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
               onClick={handleSaveAsFood}
               disabled={!canSaveAsFood || savingFood}
+              aria-label="Save as quick-add"
               title={canSaveAsFood ? 'Save as template for quick-add' : 'Add a name and values first'}
             >
               {savingFood ? (
                 <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
               ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                 </svg>
               )}
@@ -314,27 +333,35 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         </div>
       </form>
 
-      <AIPhotoModal
-        isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        onResult={(result) => {
-          applyResult(result);
-          setLocalAiUsage((u) => u && u.limit > 0 ? { ...u, used: u.used + 1, remaining: Math.max(0, u.remaining - 1) } : u);
-          setAiModalOpen(false);
-        }}
-        enabledMacros={enabledMacros}
-        providerName={aiProviderName}
-      />
+      {aiModalMounted.current && (
+        <Suspense fallback={null}>
+          <AIPhotoModal
+            isOpen={aiModalOpen}
+            onClose={() => setAiModalOpen(false)}
+            onResult={(result) => {
+              applyResult(result);
+              setLocalAiUsage((u) => u && u.limit > 0 ? { ...u, used: u.used + 1, remaining: Math.max(0, u.remaining - 1) } : u);
+              setAiModalOpen(false);
+            }}
+            enabledMacros={enabledMacros}
+            providerName={aiProviderName}
+          />
+        </Suspense>
+      )}
 
-      <BarcodeScanModal
-        isOpen={barcodeModalOpen}
-        onClose={() => setBarcodeModalOpen(false)}
-        onResult={(result) => {
-          applyResult(result);
-          setBarcodeModalOpen(false);
-        }}
-        enabledMacros={enabledMacros}
-      />
+      {barcodeModalMounted.current && (
+        <Suspense fallback={null}>
+          <BarcodeScanModal
+            isOpen={barcodeModalOpen}
+            onClose={() => setBarcodeModalOpen(false)}
+            onResult={(result) => {
+              applyResult(result);
+              setBarcodeModalOpen(false);
+            }}
+            enabledMacros={enabledMacros}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

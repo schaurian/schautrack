@@ -70,12 +70,15 @@ export default defineConfig({
       },
       dependencies: ['admin-setup'],
     },
-    // Tests that modify admin_settings — run last to avoid interference
+    // Tests that modify admin_settings — must run after ALL shared-state specs
+    // finish, so depend on both `admin` and `chromium`. Without `chromium` these
+    // specs (which flip global admin_settings like enable_registration and
+    // enable_barcode) run concurrently with the chromium project and corrupt it.
     {
       name: 'admin-settings',
       testMatch: [/barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/],
       use: { ...devices['Desktop Chrome'] },
-      dependencies: ['admin'],
+      dependencies: ['admin', 'chromium'],
     },
     // Graceful shutdown — runs LAST after all other tests (kills the container)
     {
