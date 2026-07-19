@@ -1,1 +1,133 @@
-{}
+{
+  "hero": {
+    "title": "Track nutrition, not complexity",
+    "subtitle": "A free, open-source, self-hostable nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance. Your data, your server.",
+    "getStarted": "Get Started",
+    "viewSource": "View Source"
+  },
+  "features": {
+    "simpleLogging": {
+      "title": "Simple Logging",
+      "desc": "Log calories and macros in seconds. Or scan a barcode to pull nutrition data instantly."
+    },
+    "aiEstimation": {
+      "title": "AI Estimation",
+      "desc": "Snap a photo and let AI estimate calories and macros for you."
+    },
+    "shareWithFriends": {
+      "title": "Share with Friends",
+      "desc": "Link accounts with friends or partners to keep each other accountable."
+    },
+    "selfHostable": {
+      "title": "Self-Hostable",
+      "desc": "Run your own instance. Your data stays yours."
+    }
+  },
+  "googlePlay": {
+    "alt": "Get it on Google Play"
+  },
+  "imprint": {
+    "heading": "Imprint",
+    "addressAlt": "Address",
+    "emailAlt": "Email"
+  },
+  "privacy": {
+    "heading": "Privacy Policy",
+    "intro": "Schautrack collects only the data necessary to provide the calorie and macro tracking service.",
+    "dataWeCollect": {
+      "heading": "Data We Collect",
+      "items": {
+        "email": "Email address (for authentication and account recovery)",
+        "entries": "Calorie, macro, and weight entries you create",
+        "notes": "Daily notes and todos (if you enable them)",
+        "preferences": "Timezone and display preferences",
+        "authMaterial": "Authentication material you choose to set up: password hash, TOTP secret, backup codes, passkey credentials"
+      }
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "Schautrack sets one strictly necessary first-party session cookie (<code>schautrack.sid</code>) to keep you signed in. No analytics or third-party cookies are used."
+    },
+    "logsSecurity": {
+      "heading": "Logs & Security",
+      "body": "For sensitive account actions (logins, password and email changes, 2FA changes, passkey changes, account deletion) we record the action, your IP address, and your user agent so the account owner can review activity and so we can detect abuse. The same information is held briefly to rate-limit authentication endpoints."
+    },
+    "accountLinking": {
+      "heading": "Account Linking",
+      "body": "If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo entries. They cannot edit or delete them. You can remove the link at any time from Settings."
+    },
+    "subprocessors": {
+      "heading": "Sub-processors",
+      "intro": "We use a small number of external services to operate Schautrack:",
+      "items": {
+        "aiEstimation": "<strong>AI nutrition estimation:</strong> When you submit a food photo for estimation, the photo is sent to the AI provider configured by the operator of this Schautrack instance — currently either OpenAI or Anthropic Claude (both based in the United States), or a self-hosted Ollama instance. You can also configure your own API key for any of these providers in Settings. If you do not use this feature, no photo data is shared with any AI provider.",
+        "barcodeLookups": "<strong>Barcode lookups:</strong> Scanned barcode numbers are sent to <linkOff>Open Food Facts</linkOff> to retrieve product nutrition data, under the <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
+        "hosting": "<strong>Hosting:</strong> an EU-based hosting provider in Germany.",
+        "emailDelivery": "<strong>Email delivery:</strong> a transactional email provider for verification, password reset, and account-change notifications.",
+        "backups": "<strong>Backups:</strong> encrypted offsite backups stored in the EU."
+      }
+    },
+    "internationalTransfers": {
+      "heading": "International Transfers",
+      "body": "If the configured AI provider is OpenAI or Anthropic Claude, submitting a photo for estimation transfers that image to a recipient in the United States. Such transfers rely on the provider's Standard Contractual Clauses. You can avoid these transfers by not using the AI estimation feature, or by configuring a self-hosted Ollama endpoint in Settings."
+    },
+    "retention": {
+      "heading": "Retention",
+      "items": {
+        "entries": "Calorie, macro, weight, note, and todo entries are retained until you delete them or delete your account.",
+        "sessions": "Authenticated sessions expire 30 days after your last visit; anonymous sessions expire after 15 minutes of inactivity.",
+        "auditLog": "Audit log entries (sensitive auth actions, with IP and user agent) are retained for the lifetime of the account.",
+        "accountDeletion": "When you delete your account, all associated data is removed."
+      }
+    },
+    "dataWeDontCollect": {
+      "heading": "Data We Don't Collect",
+      "items": {
+        "noAnalytics": "No analytics or tracking scripts",
+        "noThirdPartyCookies": "No third-party cookies",
+        "noDataSold": "No data sold to third parties"
+      }
+    },
+    "rights": {
+      "heading": "Your Rights & Data Deletion",
+      "body1": "You can delete your account and all associated data at any time from Settings. For other GDPR requests (access, rectification, portability, objection), contact the address listed on the <linkImprint>Imprint</linkImprint> page.",
+      "body2": "If you reside in the EU/EEA, you also have the right to lodge a complaint with your local data-protection supervisory authority. The competent authority for the operator of this instance is the <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
+    }
+  },
+  "terms": {
+    "heading": "Terms of Service",
+    "intro": "By using Schautrack, you agree to these terms.",
+    "service": {
+      "heading": "Service",
+      "body": "Schautrack provides calorie and nutrition tracking tools. The service is provided \"as is\" without warranty."
+    },
+    "notMedicalAdvice": {
+      "heading": "Not Medical Advice",
+      "body": "Calorie counts, macro estimates from photos, and barcode nutrition data are informational only and may be inaccurate. Schautrack is not a medical device and is not a substitute for professional medical, dietary, or nutritional advice. Do not rely on it for clinical decisions or for the management of any medical condition. Verify nutrition information on product packaging when precision matters, and consult a qualified professional for medical or dietary concerns."
+    },
+    "yourAccount": {
+      "heading": "Your Account",
+      "body": "You are responsible for maintaining the security of your account and for any credentials you choose to set up, including your password, two-factor authentication codes, backup codes, and passkeys."
+    },
+    "accountLinking": {
+      "heading": "Account Linking",
+      "body": "If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo entries. Only link accounts with people you trust, and remove the link from Settings if you no longer want to share."
+    },
+    "thirdPartyData": {
+      "heading": "Third-Party Data",
+      "body": "Barcode nutrition data is provided by <linkOff>Open Food Facts</linkOff> under the <linkOdbl>Open Database License (ODbL)</linkOdbl>. This data is community-contributed and may not always be accurate."
+    },
+    "acceptableUse": {
+      "heading": "Acceptable Use",
+      "body": "Don't abuse the service, attempt to access other users' data, or use automated tools to scrape the service."
+    },
+    "changes": {
+      "heading": "Changes to These Terms",
+      "body": "These terms may be updated from time to time. The version published on this page is the version that applies to your use of the service. Material changes will be communicated by email to your registered address where reasonably possible."
+    },
+    "governingLaw": {
+      "heading": "Governing Law",
+      "body": "These terms are governed by the laws of the Federal Republic of Germany. Mandatory consumer protection rights of your country of residence remain unaffected."
+    }
+  }
+}
