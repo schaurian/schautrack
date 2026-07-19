@@ -210,12 +210,10 @@ export default function Dashboard() {
       )}
 
       {showCat('nutrition') && (
-        <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-            <h3 className="text-sm font-medium text-muted-foreground">{t('dashboard.entriesSectionTitle')}</h3>
-            <span className="text-sm text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>
-          </div>
-
+        <section>
+          <SectionLabel right={<span className="text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>}>
+            {t('dashboard.entriesSectionTitle')}
+          </SectionLabel>
           <EntryList
             entries={dayData?.entries || []}
             canEdit={canEdit}
@@ -223,7 +221,7 @@ export default function Dashboard() {
             caloriesEnabled={dashboard.caloriesEnabled}
             autoCalcCalories={dashboard.autoCalcCalories}
           />
-        </div>
+        </section>
       )}
 
       {showCat('weight') && (
