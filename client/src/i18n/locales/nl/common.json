@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Schautrack",
+    "loading": "Bezig met laden..."
+  },
+  "header": {
+    "tagline": "Elke dag telt",
+    "toggleMenu": "Menu openen/sluiten"
+  },
+  "nav": {
+    "admin": "Beheer",
+    "dashboard": "Dashboard",
+    "plan": "Plan",
+    "settings": "Instellingen",
+    "pendingLinkRequests": "{{n}} openstaande koppelverzoeken",
+    "logout": "Uitloggen",
+    "login": "Inloggen",
+    "register": "Registreren"
+  },
+  "footer": {
+    "tagline": "Dag voor dag",
+    "imprint": "Colofon",
+    "privacy": "Privacy",
+    "terms": "Voorwaarden",
+    "androidApp": "Download de Android-app",
+    "updateAvailable": "Update beschikbaar — klik om te bekijken",
+    "viewOnGithub": "Bekijk op GitHub"
+  },
+  "errorBoundary": {
+    "title": "Er is iets misgegaan",
+    "unexpectedError": "Er is een onverwachte fout opgetreden.",
+    "reload": "Pagina opnieuw laden"
+  },
+  "stepUp": {
+    "title": "Bevestig dat jij het bent",
+    "description": "Voor deze wijziging is opnieuw verifiëren nodig.",
+    "noMethods": "Geen manier om opnieuw te verifiëren beschikbaar. Log uit en weer in om deze wijziging door te voeren, of stel eerst een wachtwoord in / voeg een passkey toe.",
+    "usePasskey": "Passkey gebruiken",
+    "continueWith": "Doorgaan met {{provider}}",
+    "or": "of",
+    "password": "Wachtwoord",
+    "totpLabel": "2FA-code",
+    "totpPlaceholder": "6-cijferige code of back-upcode",
+    "continue": "Doorgaan",
+    "cancel": "Annuleren",
+    "errors": {
+      "stepUpFailed": "Opnieuw verifiëren mislukt",
+      "passkeyFailed": "Verifiëren met passkey mislukt"
+    }
+  },
+  "quantityStepper": {
+    "label": "Aantal",
+    "decrease": "Aantal verlagen",
+    "increase": "Aantal verhogen"
+  },
+  "queryError": {
+    "generic": "Deze pagina kon niet worden geladen. Probeer het opnieuw.",
+    "offline": "Het lijkt erop dat je offline bent. Controleer je verbinding en probeer het opnieuw.",
+    "retry": "Opnieuw proberen"
+  },
+  "toaster": {
+    "dismiss": "Sluiten"
+  },
+  "errors": {
+    "failedToSave": "Opslaan mislukt"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} wil koppelen met jou"
+  },
+  "macros": {
+    "protein": "Eiwitten",
+    "carbs": "Koolhydraten",
+    "fat": "Vet",
+    "fiber": "Vezels",
+    "sugar": "Suiker",
+    "noGoalSet": "Geen doel ingesteld",
+    "goalMet": "Doel behaald",
+    "overTarget": "{{amount}} boven doel",
+    "remaining": "{{amount}} resterend",
+    "over": "{{amount}} te veel"
+  }
+}

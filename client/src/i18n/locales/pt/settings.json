@@ -1,0 +1,262 @@
+{
+  "i18n": { "language": "Idioma", "automatic": "Automático (idioma do navegador)" },
+
+  "status": {
+    "saving": "A guardar...",
+    "saved": "Guardado"
+  },
+
+  "macro": {
+    "heading": "Objetivos Nutricionais",
+    "calories": "Calorias",
+    "goalPlaceholder": "Objetivo",
+    "modeLimit": "Limite",
+    "modeTarget": "Meta",
+    "autoCalculate": "Calcular calorias automaticamente",
+    "threshold": "Limiar",
+    "unitKcal": "kcal",
+    "unitGram": "g"
+  },
+
+  "preferences": {
+    "heading": "Internacionalização",
+    "weightUnit": {
+      "label": "Unidade de Peso",
+      "kg": "Quilogramas (kg)",
+      "lb": "Libras (lb)"
+    },
+    "timezone": {
+      "label": "Fuso Horário"
+    }
+  },
+
+  "todo": {
+    "heading": "Tarefas",
+    "description": "Faça a gestão das suas tarefas no painel.",
+    "toggleFailed": "Falha ao atualizar definição"
+  },
+
+  "note": {
+    "heading": "Notas Diárias",
+    "description": "Escreva uma nota diária no painel para qualquer data.",
+    "toggleFailed": "Falha ao atualizar definição"
+  },
+
+  "savedFoods": {
+    "heading": "Alimentos guardados",
+    "description": "Etiquetas de adição rápida no painel. {{count}} guardado(s).",
+    "manage": "Gerir alimentos guardados"
+  },
+
+  "ai": {
+    "heading": "Definições de IA",
+    "provider": "Fornecedor",
+    "providerDefault": "Predefinido",
+    "modelLabel": "Modelo (opcional)",
+    "modelPlaceholder": "ex.: gpt-4o",
+    "apiKeyLabel": "Chave da API",
+    "apiKeyPlaceholder": "Introduza a chave da API",
+    "apiKeyMaskedPlaceholder": "••••{{last4}}",
+    "globalKeyNotice": "Está configurada uma chave da API global. As funcionalidades de IA funcionam sem definir a sua própria chave.",
+    "clearAll": "Limpar Tudo",
+    "keySaved": "Chave da API guardada",
+    "keySaveFailed": "Falha ao guardar a chave da API",
+    "settingsCleared": "Definições de IA limpas",
+    "clearFailed": "Falha ao limpar as definições de IA"
+  },
+
+  "email": {
+    "heading": "Alterar Email",
+    "current": "Atual: {{email}}",
+    "newEmailLabel": "Novo Email",
+    "submit": "Enviar Código de Verificação",
+    "requestFailed": "Falha ao solicitar alteração de email."
+  },
+
+  "password": {
+    "heading": "Alterar Palavra-passe",
+    "newLabel": "Nova Palavra-passe",
+    "confirmLabel": "Confirmar Palavra-passe",
+    "submit": "Atualizar Palavra-passe",
+    "mismatch": "As novas palavras-passe não coincidem.",
+    "updated": "Palavra-passe atualizada.",
+    "updatedToast": "Palavra-passe atualizada",
+    "failed": "Falhou."
+  },
+
+  "twofa": {
+    "heading": "Autenticação de Dois Fatores",
+    "setupFailed": "Configuração falhou.",
+    "enabledWithCodes": "2FA ativada. Guarde os seus códigos de recuperação abaixo.",
+    "enabledSuccess": "2FA ativada com sucesso.",
+    "invalidCode": "Código inválido.",
+    "enableFailed": "Falha ao ativar 2FA.",
+    "disabled": "2FA desativada.",
+    "disableFailed": "Falha ao desativar 2FA.",
+    "regenerated": "Novos códigos de recuperação gerados. Guarde-os agora.",
+    "regenerateFailed": "Falha ao gerar novos códigos.",
+    "backupCodesTitle": "Códigos de Recuperação",
+    "backupCodesDescription": "Guarde estes códigos num local seguro. Cada código só pode ser usado uma vez para iniciar sessão caso perca o seu autenticador.",
+    "copyAll": "Copiar Tudo",
+    "copied": "Copiado!",
+    "download": "Transferir",
+    "done": "Concluído",
+    "enabledNotice": "A 2FA está ativada na sua conta.",
+    "disableButton": "Desativar 2FA",
+    "regenerating": "A gerar...",
+    "regenerateBackupCodes": "Gerar novos códigos de recuperação",
+    "scanQr": "Digitalize este código QR com a sua aplicação de autenticação:",
+    "qrAlt": "Código QR de 2FA",
+    "copy": "Copiar",
+    "verificationCodeLabel": "Código de Verificação",
+    "verificationCodePlaceholder": "Introduza o código de 6 dígitos",
+    "cancel": "Cancelar",
+    "activate": "Ativar",
+    "setupButton": "Configurar 2FA"
+  },
+
+  "passkey": {
+    "heading": "Chaves de Acesso",
+    "defaultName": "Chave de Acesso",
+    "empty": "Nenhuma chave de acesso registada. Adicione uma para iniciar sessão sem palavra-passe.",
+    "usedOn": "Usada em {{date}}",
+    "neverUsed": "Nunca usada",
+    "remove": "Remover",
+    "renameTitle": "Clique para renomear",
+    "namePlaceholder": "Nome da chave de acesso (ex.: Telemóvel, Portátil)",
+    "add": "Adicionar Chave de Acesso",
+    "countUsed": "{{count}} de 10 chaves de acesso usadas.",
+    "registered": "Chave de acesso registada",
+    "registerFailed": "Falha ao registar chave de acesso",
+    "removed": "Chave de acesso removida",
+    "removeFailed": "Falha ao remover chave de acesso",
+    "renameFailed": "Falha ao renomear"
+  },
+
+  "oidc": {
+    "heading": "Início de Sessão Único",
+    "unlink": "Desassociar",
+    "link": "Associar",
+    "unlinkConfirm": "Desassociar {{label}}?",
+    "accountNotFound": "Conta não encontrada",
+    "unlinked": "{{label}} desassociado",
+    "unlinkFailed": "Falha ao desassociar",
+    "genericError": "Ocorreu um erro.",
+    "errors": {
+      "oidc_already_linked": "Essa conta do fornecedor de início de sessão já está associada a outro utilizador.",
+      "oidc_email_unverified": "O seu fornecedor de início de sessão não confirmou o seu email. Verifique-o lá e tente novamente.",
+      "oidc_link_failed": "Não foi possível associar o seu fornecedor de início de sessão. Tente novamente.",
+      "oidc_step_up_mismatch": "Essa conta de início de sessão não está associada ao seu utilizador. Inicie sessão com a conta associada para confirmar."
+    },
+    "success": {
+      "oidc_linked": "Fornecedor de início de sessão associado à sua conta.",
+      "stepped_up": "Reautenticado. Já pode tentar a sua ação novamente."
+    }
+  },
+
+  "link": {
+    "heading": "Associações de Conta",
+    "incoming": "Recebidos",
+    "pending": "Pendentes",
+    "linked": "Associados",
+    "accept": "Aceitar",
+    "decline": "Recusar",
+    "cancel": "Cancelar",
+    "remove": "Remover",
+    "requestLabel": "Associar por email",
+    "sendRequest": "Enviar Pedido",
+    "requestFailed": "Falha ao enviar pedido de associação",
+    "respondFailed": "Falha ao responder à associação",
+    "removeFailed": "Falha ao remover associação",
+    "labelUpdateFailed": "Falha ao atualizar etiqueta"
+  },
+
+  "data": {
+    "heading": "Dados",
+    "exportLabel": "Exportar",
+    "exportDescription": "Descarregue todos os seus registos como uma cópia de segurança JSON.",
+    "exportButton": "Exportar JSON",
+    "importLabel": "Importar",
+    "importDescription": "Restaure a partir de uma cópia de segurança JSON. Isto substitui todos os registos existentes.",
+    "chooseFile": "Escolher um ficheiro…",
+    "importButton": "Importar",
+    "importSuccess": "Dados importados com sucesso.",
+    "importFailed": "A importação falhou."
+  },
+
+  "confirmImport": {
+    "title": "Substituir todos os registos?",
+    "descriptionPrefix": "A importação de",
+    "descriptionSuffix": "irá eliminar permanentemente todos os seus registos existentes e substituí-los pelo conteúdo deste ficheiro. Esta ação não pode ser desfeita.",
+    "replaceAll": "Substituir todos os registos",
+    "cancel": "Cancelar"
+  },
+
+  "danger": {
+    "heading": "Zona de Perigo",
+    "description": "Eliminar permanentemente a sua conta e todos os dados.",
+    "deleteAccount": "Eliminar Conta"
+  },
+
+  "footer": {
+    "bugReport": "Encontrou um erro ou uma funcionalidade em falta?",
+    "openIssue": "Abra um problema no GitHub"
+  },
+
+  "admin": {
+    "sections": {
+      "general": { "title": "Geral" },
+      "ai": { "title": "Funcionalidades de IA", "description": "Estimativa de calorias baseada em fotografia. As chaves de fornecedor definidas aqui são a alternativa global quando os utilizadores não têm a sua própria." },
+      "oidc": { "title": "OIDC / SSO", "description": "Início de sessão único através de um fornecedor OpenID Connect. Defina issuer + client id + client secret para ativar." },
+      "passkeys": { "title": "Chaves de Acesso", "description": "Início de sessão sem palavra-passe via WebAuthn. Definir o RP ID ativa a funcionalidade." },
+      "features": { "title": "Funcionalidades" },
+      "smtp": { "title": "SMTP", "description": "Correio de saída para reposição de palavra-passe, verificação de email, etc." },
+      "security": { "title": "Segurança" },
+      "legal": { "title": "Páginas Legais" },
+      "seo": { "title": "SEO / Implementação" }
+    },
+    "appSettingsHeading": "Definições da Aplicação",
+    "save": "Guardar",
+    "deleteUserConfirm": "Eliminar este utilizador?",
+    "deleteUserFailed": "Falha ao eliminar utilizador",
+    "usersHeading": "Utilizadores ({{count}})",
+    "searchPlaceholder": "Pesquisar por email...",
+    "verified": "Verificado",
+    "unverified": "Não verificado",
+    "delete": "Eliminar",
+    "noUsersFound": "Nenhum utilizador encontrado",
+    "loadingMore": "A carregar mais…",
+    "envBadge": "ENV",
+    "restartRequiredBadge": "🔄 Reinício necessário",
+    "restartRequiredTitle": "Entra em vigor no próximo reinício do servidor",
+    "dangerousBadge": "⚠ Perigoso",
+    "unsavedBadge": "• não guardado",
+    "registrationDefault": "(predefinição: aberto)",
+    "registrationOpen": "aberto — qualquer pessoa pode registar-se",
+    "registrationInvite": "convite — requer um código de convite",
+    "registrationDisabled": "false — registo desativado",
+    "unset": "(não definido)",
+    "boolTrue": "true",
+    "boolFalse": "false",
+    "secretStored": "•••••••• (guardado)",
+    "replace": "Substituir",
+    "secretPlaceholder": "Introduza um novo valor",
+    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
+    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
+    "confirmPhraseGeneric": "CONFIRM",
+    "dangerousPrompt": "Alterar {{envVar}} tem consequências irreversíveis:\n\n{{help}}\n\nEscreva {{phrase}} para confirmar.",
+    "saveCancelled": "Guardar cancelado.",
+    "noChanges": "Sem alterações para guardar.",
+    "settingsSaved": "Definições guardadas.",
+    "saveSettingsFailed": "Falha ao guardar definições",
+    "inviteCodesHeading": "Códigos de Convite",
+    "emailOptionalPlaceholder": "Email (opcional)",
+    "createInvite": "Criar Convite",
+    "createInviteFailed": "Falha ao criar convite",
+    "deleteInviteFailed": "Falha ao eliminar convite",
+    "usedBy": "Usado por {{email}}",
+    "copyLink": "Copiar Link",
+    "copied": "Copiado!",
+    "expiresOn": "expira em {{date}}"
+  }
+}

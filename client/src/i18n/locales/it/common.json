@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Schautrack",
+    "loading": "Caricamento..."
+  },
+  "header": {
+    "tagline": "Ogni giorno conta",
+    "toggleMenu": "Attiva/disattiva il menu"
+  },
+  "nav": {
+    "admin": "Amministrazione",
+    "dashboard": "Dashboard",
+    "plan": "Piano",
+    "settings": "Impostazioni",
+    "pendingLinkRequests": "{{n}} richieste di collegamento in sospeso",
+    "logout": "Esci",
+    "login": "Accedi",
+    "register": "Registrati"
+  },
+  "footer": {
+    "tagline": "Un giorno alla volta",
+    "imprint": "Note legali",
+    "privacy": "Privacy",
+    "terms": "Termini",
+    "androidApp": "Scarica l'app Android",
+    "updateAvailable": "Aggiornamento disponibile — clicca per vedere",
+    "viewOnGithub": "Vedi su GitHub"
+  },
+  "errorBoundary": {
+    "title": "Qualcosa è andato storto",
+    "unexpectedError": "Si è verificato un errore imprevisto.",
+    "reload": "Ricarica pagina"
+  },
+  "stepUp": {
+    "title": "Conferma che sei tu",
+    "description": "Questa modifica richiede una nuova autenticazione.",
+    "noMethods": "Nessun metodo di ri-autenticazione disponibile. Esci e accedi di nuovo per apportare questa modifica, oppure imposta prima una password o aggiungi una passkey.",
+    "usePasskey": "Usa passkey",
+    "continueWith": "Continua con {{provider}}",
+    "or": "oppure",
+    "password": "Password",
+    "totpLabel": "Codice 2FA",
+    "totpPlaceholder": "Codice a 6 cifre o codice di backup",
+    "continue": "Continua",
+    "cancel": "Annulla",
+    "errors": {
+      "stepUpFailed": "Ri-autenticazione non riuscita",
+      "passkeyFailed": "Ri-autenticazione con passkey non riuscita"
+    }
+  },
+  "quantityStepper": {
+    "label": "Quantità",
+    "decrease": "Diminuisci quantità",
+    "increase": "Aumenta quantità"
+  },
+  "queryError": {
+    "generic": "Impossibile caricare questa pagina. Riprova.",
+    "offline": "Sembra che tu sia offline. Controlla la connessione e riprova.",
+    "retry": "Riprova"
+  },
+  "toaster": {
+    "dismiss": "Chiudi"
+  },
+  "errors": {
+    "failedToSave": "Salvataggio non riuscito"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} vuole collegarsi con te"
+  },
+  "macros": {
+    "protein": "Proteine",
+    "carbs": "Carboidrati",
+    "fat": "Grassi",
+    "fiber": "Fibre",
+    "sugar": "Zuccheri",
+    "noGoalSet": "Nessun obiettivo impostato",
+    "goalMet": "Obiettivo raggiunto",
+    "overTarget": "{{amount}} oltre l'obiettivo",
+    "remaining": "{{amount}} rimanenti",
+    "over": "{{amount}} in eccesso"
+  }
+}

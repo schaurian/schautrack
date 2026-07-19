@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Schautrack",
+    "loading": "Lädt..."
+  },
+  "header": {
+    "tagline": "Jeder Tag zählt",
+    "toggleMenu": "Menü ein-/ausblenden"
+  },
+  "nav": {
+    "admin": "Admin",
+    "dashboard": "Dashboard",
+    "plan": "Plan",
+    "settings": "Einstellungen",
+    "pendingLinkRequests": "{{n}} ausstehende Verknüpfungsanfragen",
+    "logout": "Abmelden",
+    "login": "Anmelden",
+    "register": "Registrieren"
+  },
+  "footer": {
+    "tagline": "Ein Tag nach dem anderen",
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "terms": "Nutzungsbedingungen",
+    "androidApp": "Android-App laden",
+    "updateAvailable": "Update verfügbar — klicken zum Anzeigen",
+    "viewOnGithub": "Auf GitHub ansehen"
+  },
+  "errorBoundary": {
+    "title": "Etwas ist schiefgelaufen",
+    "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten.",
+    "reload": "Seite neu laden"
+  },
+  "stepUp": {
+    "title": "Bestätige, dass du es bist",
+    "description": "Diese Änderung erfordert eine erneute Authentifizierung.",
+    "noMethods": "Keine Methode zur erneuten Authentifizierung verfügbar. Melde dich ab und wieder an, um diese Änderung vorzunehmen, oder lege zuerst ein Passwort fest / füge einen Passkey hinzu.",
+    "usePasskey": "Passkey verwenden",
+    "continueWith": "Weiter mit {{provider}}",
+    "or": "oder",
+    "password": "Passwort",
+    "totpLabel": "2FA-Code",
+    "totpPlaceholder": "6-stelliger Code oder Backup-Code",
+    "continue": "Weiter",
+    "cancel": "Abbrechen",
+    "errors": {
+      "stepUpFailed": "Erneute Authentifizierung fehlgeschlagen",
+      "passkeyFailed": "Passkey-Authentifizierung fehlgeschlagen"
+    }
+  },
+  "quantityStepper": {
+    "label": "Menge",
+    "decrease": "Menge verringern",
+    "increase": "Menge erhöhen"
+  },
+  "queryError": {
+    "generic": "Diese Seite konnte nicht geladen werden. Bitte versuche es erneut.",
+    "offline": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut.",
+    "retry": "Erneut versuchen"
+  },
+  "toaster": {
+    "dismiss": "Schließen"
+  },
+  "errors": {
+    "failedToSave": "Speichern fehlgeschlagen"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} möchte sich mit dir verknüpfen"
+  },
+  "macros": {
+    "protein": "Protein",
+    "carbs": "Kohlenhydrate",
+    "fat": "Fett",
+    "fiber": "Ballaststoffe",
+    "sugar": "Zucker",
+    "noGoalSet": "Kein Ziel gesetzt",
+    "goalMet": "Ziel erreicht",
+    "overTarget": "{{amount}} über dem Ziel",
+    "remaining": "{{amount}} übrig",
+    "over": "{{amount}} über"
+  }
+}

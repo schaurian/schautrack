@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Schautrack",
+    "loading": "Cargando..."
+  },
+  "header": {
+    "tagline": "Cada día cuenta",
+    "toggleMenu": "Alternar menú"
+  },
+  "nav": {
+    "admin": "Admin",
+    "dashboard": "Panel",
+    "plan": "Plan",
+    "settings": "Ajustes",
+    "pendingLinkRequests": "{{n}} solicitudes de vínculo pendientes",
+    "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
+    "register": "Registrarse"
+  },
+  "footer": {
+    "tagline": "Un día a la vez",
+    "imprint": "Aviso legal",
+    "privacy": "Privacidad",
+    "terms": "Términos",
+    "androidApp": "Consigue la app de Android",
+    "updateAvailable": "Actualización disponible — haz clic para ver",
+    "viewOnGithub": "Ver en GitHub"
+  },
+  "errorBoundary": {
+    "title": "Algo salió mal",
+    "unexpectedError": "Ocurrió un error inesperado.",
+    "reload": "Recargar página"
+  },
+  "stepUp": {
+    "title": "Confirma que eres tú",
+    "description": "Este cambio requiere una autenticación reciente.",
+    "noMethods": "No hay ningún método de reautenticación disponible. Cierra sesión y vuelve a iniciarla para hacer este cambio, o configura primero una contraseña o añade una clave de acceso.",
+    "usePasskey": "Usar clave de acceso",
+    "continueWith": "Continuar con {{provider}}",
+    "or": "o",
+    "password": "Contraseña",
+    "totpLabel": "Código 2FA",
+    "totpPlaceholder": "Código de 6 dígitos o código de respaldo",
+    "continue": "Continuar",
+    "cancel": "Cancelar",
+    "errors": {
+      "stepUpFailed": "Error en la reautenticación",
+      "passkeyFailed": "Error en la reautenticación con clave de acceso"
+    }
+  },
+  "quantityStepper": {
+    "label": "Cantidad",
+    "decrease": "Disminuir cantidad",
+    "increase": "Aumentar cantidad"
+  },
+  "queryError": {
+    "generic": "No se pudo cargar esta página. Inténtalo de nuevo.",
+    "offline": "Parece que estás sin conexión. Comprueba tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar"
+  },
+  "toaster": {
+    "dismiss": "Descartar"
+  },
+  "errors": {
+    "failedToSave": "Error al guardar"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} quiere vincularse contigo"
+  },
+  "macros": {
+    "protein": "Proteína",
+    "carbs": "Carbohidratos",
+    "fat": "Grasa",
+    "fiber": "Fibra",
+    "sugar": "Azúcar",
+    "noGoalSet": "Sin objetivo definido",
+    "goalMet": "Objetivo alcanzado",
+    "overTarget": "{{amount}} por encima del objetivo",
+    "remaining": "{{amount}} restante",
+    "over": "{{amount}} de más"
+  }
+}

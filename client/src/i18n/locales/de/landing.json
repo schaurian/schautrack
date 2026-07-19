@@ -1,0 +1,133 @@
+{
+  "hero": {
+    "title": "Ernährung tracken, nicht Komplexität",
+    "subtitle": "Ein kostenloser, quelloffener und selbst hostbarer Ernährungs-Tracker, der dir nicht im Weg steht. Erfasse Kalorien und Makros, setze dir Ziele und behalte deinen Tag auf einen Blick im Überblick. Deine Daten, dein Server.",
+    "getStarted": "Loslegen",
+    "viewSource": "Quellcode ansehen"
+  },
+  "features": {
+    "simpleLogging": {
+      "title": "Einfaches Erfassen",
+      "desc": "Erfasse Kalorien und Makros in Sekunden. Oder scanne einen Barcode, um Nährwertdaten sofort abzurufen."
+    },
+    "aiEstimation": {
+      "title": "KI-Schätzung",
+      "desc": "Mach ein Foto und lass die KI Kalorien und Makros für dich schätzen."
+    },
+    "shareWithFriends": {
+      "title": "Mit Freunden teilen",
+      "desc": "Verknüpfe dein Konto mit Freunden oder deinem Partner, um euch gegenseitig zu motivieren."
+    },
+    "selfHostable": {
+      "title": "Selbst hostbar",
+      "desc": "Betreibe deine eigene Instanz. Deine Daten bleiben deine."
+    }
+  },
+  "googlePlay": {
+    "alt": "Jetzt bei Google Play"
+  },
+  "imprint": {
+    "heading": "Impressum",
+    "addressAlt": "Adresse",
+    "emailAlt": "E-Mail"
+  },
+  "privacy": {
+    "heading": "Datenschutzerklärung",
+    "intro": "Schautrack erhebt nur die Daten, die für die Bereitstellung des Kalorien- und Makro-Tracking-Dienstes notwendig sind.",
+    "dataWeCollect": {
+      "heading": "Welche Daten wir erheben",
+      "items": {
+        "email": "E-Mail-Adresse (zur Authentifizierung und Kontowiederherstellung)",
+        "entries": "Von dir erstellte Kalorien-, Makro- und Gewichtseinträge",
+        "notes": "Tägliche Notizen und Todos (falls aktiviert)",
+        "preferences": "Zeitzone und Anzeigeeinstellungen",
+        "authMaterial": "Von dir eingerichtetes Authentifizierungsmaterial: Passwort-Hash, TOTP-Secret, Backup-Codes, Passkey-Anmeldedaten"
+      }
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "Schautrack setzt ein unbedingt erforderliches First-Party-Session-Cookie (<code>schautrack.sid</code>), um dich angemeldet zu halten. Es werden keine Analyse- oder Drittanbieter-Cookies verwendet."
+    },
+    "logsSecurity": {
+      "heading": "Protokolle & Sicherheit",
+      "body": "Bei sicherheitsrelevanten Kontoaktionen (Anmeldungen, Passwort- und E-Mail-Änderungen, 2FA-Änderungen, Passkey-Änderungen, Kontolöschung) erfassen wir die Aktion, deine IP-Adresse und deinen User-Agent, damit der Kontoinhaber die Aktivität überprüfen kann und wir Missbrauch erkennen können. Dieselben Informationen werden kurzzeitig aufbewahrt, um Authentifizierungs-Endpunkte ratenzubegrenzen."
+    },
+    "accountLinking": {
+      "heading": "Kontoverknüpfung",
+      "body": "Wenn du eine Verknüpfungsanfrage eines anderen Nutzers annimmst, kann dieser Nutzer deine Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge einsehen. Er kann sie nicht bearbeiten oder löschen. Du kannst die Verknüpfung jederzeit in den Einstellungen entfernen."
+    },
+    "subprocessors": {
+      "heading": "Unterauftragsverarbeiter",
+      "intro": "Wir nutzen einige wenige externe Dienste zum Betrieb von Schautrack:",
+      "items": {
+        "aiEstimation": "<strong>KI-Nährwertschätzung:</strong> Wenn du ein Foto deines Essens zur Schätzung einreichst, wird das Foto an den vom Betreiber dieser Schautrack-Instanz konfigurierten KI-Anbieter gesendet — derzeit entweder OpenAI oder Anthropic Claude (beide mit Sitz in den USA) oder eine selbst gehostete Ollama-Instanz. Du kannst in den Einstellungen auch einen eigenen API-Schlüssel für jeden dieser Anbieter konfigurieren. Wenn du diese Funktion nicht nutzt, werden keine Fotodaten mit einem KI-Anbieter geteilt.",
+        "barcodeLookups": "<strong>Barcode-Abfragen:</strong> Gescannte Barcode-Nummern werden an <linkOff>Open Food Facts</linkOff> gesendet, um Nährwertdaten zum Produkt abzurufen, gemäß der <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
+        "hosting": "<strong>Hosting:</strong> ein EU-Hosting-Anbieter mit Sitz in Deutschland.",
+        "emailDelivery": "<strong>E-Mail-Versand:</strong> ein Anbieter für transaktionale E-Mails für Bestätigungen, Passwort-Resets und Benachrichtigungen bei Kontoänderungen.",
+        "backups": "<strong>Backups:</strong> verschlüsselte Offsite-Backups, gespeichert in der EU."
+      }
+    },
+    "internationalTransfers": {
+      "heading": "Internationale Datenübermittlungen",
+      "body": "Wenn als KI-Anbieter OpenAI oder Anthropic Claude konfiguriert ist, wird das eingereichte Foto zur Schätzung an einen Empfänger in den USA übermittelt. Solche Übermittlungen stützen sich auf die Standardvertragsklauseln des jeweiligen Anbieters. Du kannst diese Übermittlungen vermeiden, indem du die KI-Schätzung nicht nutzt oder in den Einstellungen einen selbst gehosteten Ollama-Endpunkt konfigurierst."
+    },
+    "retention": {
+      "heading": "Aufbewahrung",
+      "items": {
+        "entries": "Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge werden aufbewahrt, bis du sie löschst oder dein Konto löschst.",
+        "sessions": "Authentifizierte Sitzungen laufen 30 Tage nach deinem letzten Besuch ab; anonyme Sitzungen laufen nach 15 Minuten Inaktivität ab.",
+        "auditLog": "Audit-Log-Einträge (sicherheitsrelevante Authentifizierungsaktionen mit IP-Adresse und User-Agent) werden für die Dauer des Kontos aufbewahrt.",
+        "accountDeletion": "Wenn du dein Konto löschst, werden alle zugehörigen Daten entfernt."
+      }
+    },
+    "dataWeDontCollect": {
+      "heading": "Welche Daten wir nicht erheben",
+      "items": {
+        "noAnalytics": "Keine Analyse- oder Tracking-Skripte",
+        "noThirdPartyCookies": "Keine Drittanbieter-Cookies",
+        "noDataSold": "Kein Verkauf von Daten an Dritte"
+      }
+    },
+    "rights": {
+      "heading": "Deine Rechte & Datenlöschung",
+      "body1": "Du kannst dein Konto und alle zugehörigen Daten jederzeit in den Einstellungen löschen. Für weitere DSGVO-Anfragen (Auskunft, Berichtigung, Übertragbarkeit, Widerspruch) wende dich an die auf der <linkImprint>Impressum</linkImprint>-Seite genannte Adresse.",
+      "body2": "Wenn du in der EU/im EWR wohnst, hast du außerdem das Recht, eine Beschwerde bei deiner örtlichen Datenschutzaufsichtsbehörde einzureichen. Die zuständige Behörde für den Betreiber dieser Instanz ist das <linkBayLDA>Bayerische Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
+    }
+  },
+  "terms": {
+    "heading": "Nutzungsbedingungen",
+    "intro": "Durch die Nutzung von Schautrack stimmst du diesen Bedingungen zu.",
+    "service": {
+      "heading": "Dienst",
+      "body": "Schautrack stellt Werkzeuge zum Tracken von Kalorien und Ernährung bereit. Der Dienst wird \"wie besehen\" ohne Gewährleistung bereitgestellt."
+    },
+    "notMedicalAdvice": {
+      "heading": "Kein medizinischer Rat",
+      "body": "Kalorienangaben, aus Fotos geschätzte Makrowerte und Barcode-Nährwertdaten dienen nur zur Information und können ungenau sein. Schautrack ist kein Medizinprodukt und kein Ersatz für professionelle medizinische, diätetische oder ernährungswissenschaftliche Beratung. Verlasse dich nicht darauf für klinische Entscheidungen oder die Behandlung einer Erkrankung. Überprüfe die Nährwertangaben auf der Produktverpackung, wenn Genauigkeit wichtig ist, und wende dich bei medizinischen oder ernährungsbezogenen Anliegen an eine qualifizierte Fachperson."
+    },
+    "yourAccount": {
+      "heading": "Dein Konto",
+      "body": "Du bist für die Sicherheit deines Kontos verantwortlich sowie für alle Zugangsdaten, die du einrichtest, einschließlich deines Passworts, der Zwei-Faktor-Authentifizierungscodes, Backup-Codes und Passkeys."
+    },
+    "accountLinking": {
+      "heading": "Kontoverknüpfung",
+      "body": "Wenn du eine Verknüpfungsanfrage eines anderen Nutzers annimmst, kann dieser Nutzer deine Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge einsehen. Verknüpfe dein Konto nur mit Personen, denen du vertraust, und entferne die Verknüpfung in den Einstellungen, wenn du nicht mehr teilen möchtest."
+    },
+    "thirdPartyData": {
+      "heading": "Daten Dritter",
+      "body": "Barcode-Nährwertdaten werden von <linkOff>Open Food Facts</linkOff> unter der <linkOdbl>Open Database License (ODbL)</linkOdbl> bereitgestellt. Diese Daten stammen aus Community-Beiträgen und sind möglicherweise nicht immer korrekt."
+    },
+    "acceptableUse": {
+      "heading": "Angemessene Nutzung",
+      "body": "Missbrauche den Dienst nicht, versuche nicht, auf die Daten anderer Nutzer zuzugreifen, und verwende keine automatisierten Tools, um den Dienst auszulesen."
+    },
+    "changes": {
+      "heading": "Änderungen dieser Bedingungen",
+      "body": "Diese Bedingungen können von Zeit zu Zeit aktualisiert werden. Die auf dieser Seite veröffentlichte Version ist die für deine Nutzung des Dienstes geltende Version. Wesentliche Änderungen werden dir, soweit zumutbar, per E-Mail an deine registrierte Adresse mitgeteilt."
+    },
+    "governingLaw": {
+      "heading": "Anwendbares Recht",
+      "body": "Diese Bedingungen unterliegen dem Recht der Bundesrepublik Deutschland. Zwingende verbraucherschutzrechtliche Vorschriften deines Wohnsitzlandes bleiben unberührt."
+    }
+  }
+}

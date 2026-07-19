@@ -1,0 +1,262 @@
+{
+  "i18n": { "language": "Langue", "automatic": "Automatique (langue du navigateur)" },
+
+  "status": {
+    "saving": "Enregistrement...",
+    "saved": "Enregistré"
+  },
+
+  "macro": {
+    "heading": "Objectifs nutritionnels",
+    "calories": "Calories",
+    "goalPlaceholder": "Objectif",
+    "modeLimit": "Limite",
+    "modeTarget": "Cible",
+    "autoCalculate": "Calculer automatiquement les calories",
+    "threshold": "Seuil",
+    "unitKcal": "kcal",
+    "unitGram": "g"
+  },
+
+  "preferences": {
+    "heading": "Internationalisation",
+    "weightUnit": {
+      "label": "Unité de poids",
+      "kg": "Kilogrammes (kg)",
+      "lb": "Livres (lb)"
+    },
+    "timezone": {
+      "label": "Fuseau horaire"
+    }
+  },
+
+  "todo": {
+    "heading": "Tâches",
+    "description": "Gérez vos tâches sur le tableau de bord.",
+    "toggleFailed": "Échec de la mise à jour du paramètre"
+  },
+
+  "note": {
+    "heading": "Notes quotidiennes",
+    "description": "Rédigez une note quotidienne sur le tableau de bord pour n'importe quelle date.",
+    "toggleFailed": "Échec de la mise à jour du paramètre"
+  },
+
+  "savedFoods": {
+    "heading": "Aliments enregistrés",
+    "description": "Puces d'ajout rapide sur le tableau de bord. {{count}} enregistré(s).",
+    "manage": "Gérer les aliments enregistrés"
+  },
+
+  "ai": {
+    "heading": "Paramètres IA",
+    "provider": "Fournisseur",
+    "providerDefault": "Par défaut",
+    "modelLabel": "Modèle (facultatif)",
+    "modelPlaceholder": "p. ex. gpt-4o",
+    "apiKeyLabel": "Clé API",
+    "apiKeyPlaceholder": "Entrez la clé API",
+    "apiKeyMaskedPlaceholder": "••••{{last4}}",
+    "globalKeyNotice": "Une clé API globale est configurée. Les fonctionnalités IA fonctionnent sans que vous définissiez votre propre clé.",
+    "clearAll": "Tout effacer",
+    "keySaved": "Clé API enregistrée",
+    "keySaveFailed": "Échec de l'enregistrement de la clé API",
+    "settingsCleared": "Paramètres IA effacés",
+    "clearFailed": "Échec de l'effacement des paramètres IA"
+  },
+
+  "email": {
+    "heading": "Modifier l'e-mail",
+    "current": "Actuel : {{email}}",
+    "newEmailLabel": "Nouvel e-mail",
+    "submit": "Envoyer le code de vérification",
+    "requestFailed": "Échec de la demande de changement d'e-mail."
+  },
+
+  "password": {
+    "heading": "Modifier le mot de passe",
+    "newLabel": "Nouveau mot de passe",
+    "confirmLabel": "Confirmer le mot de passe",
+    "submit": "Mettre à jour le mot de passe",
+    "mismatch": "Les nouveaux mots de passe ne correspondent pas.",
+    "updated": "Mot de passe mis à jour.",
+    "updatedToast": "Mot de passe mis à jour",
+    "failed": "Échec."
+  },
+
+  "twofa": {
+    "heading": "Authentification à deux facteurs",
+    "setupFailed": "Échec de la configuration.",
+    "enabledWithCodes": "2FA activée. Enregistrez vos codes de secours ci-dessous.",
+    "enabledSuccess": "2FA activée avec succès.",
+    "invalidCode": "Code invalide.",
+    "enableFailed": "Échec de l'activation de la 2FA.",
+    "disabled": "2FA désactivée.",
+    "disableFailed": "Échec de la désactivation de la 2FA.",
+    "regenerated": "Nouveaux codes de secours générés. Enregistrez-les maintenant.",
+    "regenerateFailed": "Échec de la régénération des codes.",
+    "backupCodesTitle": "Codes de secours",
+    "backupCodesDescription": "Enregistrez ces codes dans un endroit sûr. Chaque code ne peut être utilisé qu'une seule fois pour vous connecter si vous perdez votre authentificateur.",
+    "copyAll": "Tout copier",
+    "copied": "Copié !",
+    "download": "Télécharger",
+    "done": "Terminé",
+    "enabledNotice": "La 2FA est activée sur votre compte.",
+    "disableButton": "Désactiver la 2FA",
+    "regenerating": "Régénération...",
+    "regenerateBackupCodes": "Régénérer les codes de secours",
+    "scanQr": "Scannez ce QR code avec votre application d'authentification :",
+    "qrAlt": "QR code 2FA",
+    "copy": "Copier",
+    "verificationCodeLabel": "Code de vérification",
+    "verificationCodePlaceholder": "Entrez le code à 6 chiffres",
+    "cancel": "Annuler",
+    "activate": "Activer",
+    "setupButton": "Configurer la 2FA"
+  },
+
+  "passkey": {
+    "heading": "Clés d'accès",
+    "defaultName": "Clé d'accès",
+    "empty": "Aucune clé d'accès enregistrée. Ajoutez-en une pour vous connecter sans mot de passe.",
+    "usedOn": "Utilisée le {{date}}",
+    "neverUsed": "Jamais utilisée",
+    "remove": "Retirer",
+    "renameTitle": "Cliquez pour renommer",
+    "namePlaceholder": "Nom de la clé d'accès (p. ex. Téléphone, Ordinateur portable)",
+    "add": "Ajouter une clé d'accès",
+    "countUsed": "{{count}} clé(s) d'accès sur 10 utilisées.",
+    "registered": "Clé d'accès enregistrée",
+    "registerFailed": "Échec de l'enregistrement de la clé d'accès",
+    "removed": "Clé d'accès retirée",
+    "removeFailed": "Échec du retrait de la clé d'accès",
+    "renameFailed": "Échec du renommage"
+  },
+
+  "oidc": {
+    "heading": "Authentification unique",
+    "unlink": "Dissocier",
+    "link": "Lier",
+    "unlinkConfirm": "Dissocier {{label}} ?",
+    "accountNotFound": "Compte introuvable",
+    "unlinked": "{{label}} dissocié",
+    "unlinkFailed": "Échec de la dissociation",
+    "genericError": "Une erreur est survenue.",
+    "errors": {
+      "oidc_already_linked": "Ce compte de fournisseur de connexion est déjà lié à un autre utilisateur.",
+      "oidc_email_unverified": "Votre fournisseur de connexion n'a pas confirmé votre e-mail. Vérifiez-le là-bas, puis réessayez.",
+      "oidc_link_failed": "Impossible de lier votre fournisseur de connexion. Veuillez réessayer.",
+      "oidc_step_up_mismatch": "Ce compte de connexion n'est pas lié à votre utilisateur. Connectez-vous avec le compte lié pour confirmer."
+    },
+    "success": {
+      "oidc_linked": "Fournisseur de connexion lié à votre compte.",
+      "stepped_up": "Ré-authentifié. Vous pouvez maintenant réessayer votre action."
+    }
+  },
+
+  "link": {
+    "heading": "Liaisons de compte",
+    "incoming": "Reçues",
+    "pending": "En attente",
+    "linked": "Liés",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "cancel": "Annuler",
+    "remove": "Retirer",
+    "requestLabel": "Lier par e-mail",
+    "sendRequest": "Envoyer la demande",
+    "requestFailed": "Échec de l'envoi de la demande de liaison",
+    "respondFailed": "Échec de la réponse à la demande de liaison",
+    "removeFailed": "Échec de la suppression de la liaison",
+    "labelUpdateFailed": "Échec de la mise à jour du libellé"
+  },
+
+  "data": {
+    "heading": "Données",
+    "exportLabel": "Exporter",
+    "exportDescription": "Téléchargez toutes vos entrées sous forme de sauvegarde JSON.",
+    "exportButton": "Exporter en JSON",
+    "importLabel": "Importer",
+    "importDescription": "Restaurez à partir d'une sauvegarde JSON. Cela remplace toutes les entrées existantes.",
+    "chooseFile": "Choisir un fichier…",
+    "importButton": "Importer",
+    "importSuccess": "Données importées avec succès.",
+    "importFailed": "Échec de l'importation."
+  },
+
+  "confirmImport": {
+    "title": "Remplacer toutes les entrées ?",
+    "descriptionPrefix": "L'importation de",
+    "descriptionSuffix": "supprimera définitivement toutes vos entrées existantes et les remplacera par le contenu de ce fichier. Cette action est irréversible.",
+    "replaceAll": "Remplacer toutes les entrées",
+    "cancel": "Annuler"
+  },
+
+  "danger": {
+    "heading": "Zone de danger",
+    "description": "Supprimez définitivement votre compte et toutes vos données.",
+    "deleteAccount": "Supprimer le compte"
+  },
+
+  "footer": {
+    "bugReport": "Vous avez repéré un bug ou une fonctionnalité manquante ?",
+    "openIssue": "Ouvrir un ticket sur GitHub"
+  },
+
+  "admin": {
+    "sections": {
+      "general": { "title": "Général" },
+      "ai": { "title": "Fonctionnalités IA", "description": "Estimation calorique à partir de photos. Les clés de fournisseur définies ici servent de solution de repli globale lorsque les utilisateurs n'ont pas la leur." },
+      "oidc": { "title": "OIDC / SSO", "description": "Authentification unique via un fournisseur OpenID Connect. Définissez l'émetteur, l'ID client et le secret client pour l'activer." },
+      "passkeys": { "title": "Clés d'accès", "description": "Connexion sans mot de passe via WebAuthn. Définir l'ID RP active la fonctionnalité." },
+      "features": { "title": "Fonctionnalités" },
+      "smtp": { "title": "SMTP", "description": "Courrier sortant pour la réinitialisation du mot de passe, la vérification de l'e-mail, etc." },
+      "security": { "title": "Sécurité" },
+      "legal": { "title": "Pages légales" },
+      "seo": { "title": "SEO / Déploiement" }
+    },
+    "appSettingsHeading": "Paramètres de l'application",
+    "save": "Enregistrer",
+    "deleteUserConfirm": "Supprimer cet utilisateur ?",
+    "deleteUserFailed": "Échec de la suppression de l'utilisateur",
+    "usersHeading": "Utilisateurs ({{count}})",
+    "searchPlaceholder": "Rechercher par e-mail...",
+    "verified": "Vérifié",
+    "unverified": "Non vérifié",
+    "delete": "Supprimer",
+    "noUsersFound": "Aucun utilisateur trouvé",
+    "loadingMore": "Chargement…",
+    "envBadge": "ENV",
+    "restartRequiredBadge": "🔄 Redémarrage requis",
+    "restartRequiredTitle": "Prend effet au prochain redémarrage du serveur",
+    "dangerousBadge": "⚠ Dangereux",
+    "unsavedBadge": "• non enregistré",
+    "registrationDefault": "(par défaut : ouvert)",
+    "registrationOpen": "ouvert — tout le monde peut s'inscrire",
+    "registrationInvite": "invitation — nécessite un code d'invitation",
+    "registrationDisabled": "false — inscription désactivée",
+    "unset": "(non défini)",
+    "boolTrue": "true",
+    "boolFalse": "false",
+    "secretStored": "•••••••• (enregistré)",
+    "replace": "Remplacer",
+    "secretPlaceholder": "Entrez une nouvelle valeur",
+    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
+    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
+    "confirmPhraseGeneric": "CONFIRM",
+    "dangerousPrompt": "La modification de {{envVar}} a des conséquences irréversibles :\n\n{{help}}\n\nTapez {{phrase}} pour confirmer.",
+    "saveCancelled": "Enregistrement annulé.",
+    "noChanges": "Aucune modification à enregistrer.",
+    "settingsSaved": "Paramètres enregistrés.",
+    "saveSettingsFailed": "Échec de l'enregistrement des paramètres",
+    "inviteCodesHeading": "Codes d'invitation",
+    "emailOptionalPlaceholder": "E-mail (facultatif)",
+    "createInvite": "Créer une invitation",
+    "createInviteFailed": "Échec de la création de l'invitation",
+    "deleteInviteFailed": "Échec de la suppression de l'invitation",
+    "usedBy": "Utilisé par {{email}}",
+    "copyLink": "Copier le lien",
+    "copied": "Copié !",
+    "expiresOn": "expire le {{date}}"
+  }
+}

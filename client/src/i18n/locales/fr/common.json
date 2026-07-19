@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Schautrack",
+    "loading": "Chargement..."
+  },
+  "header": {
+    "tagline": "Chaque jour compte",
+    "toggleMenu": "Basculer le menu"
+  },
+  "nav": {
+    "admin": "Admin",
+    "dashboard": "Tableau de bord",
+    "plan": "Plan",
+    "settings": "Paramètres",
+    "pendingLinkRequests": "{{n}} demandes de liaison en attente",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "register": "Inscription"
+  },
+  "footer": {
+    "tagline": "Un jour à la fois",
+    "imprint": "Mentions légales",
+    "privacy": "Confidentialité",
+    "terms": "Conditions",
+    "androidApp": "Obtenir l'application Android",
+    "updateAvailable": "Mise à jour disponible — cliquez pour l'afficher",
+    "viewOnGithub": "Voir sur GitHub"
+  },
+  "errorBoundary": {
+    "title": "Un problème est survenu",
+    "unexpectedError": "Une erreur inattendue s'est produite.",
+    "reload": "Recharger la page"
+  },
+  "stepUp": {
+    "title": "Confirmez que c'est bien vous",
+    "description": "Cette modification nécessite une nouvelle authentification.",
+    "noMethods": "Aucune méthode de ré-authentification disponible. Déconnectez-vous et reconnectez-vous pour effectuer cette modification, ou définissez d'abord un mot de passe / ajoutez une clé d'accès.",
+    "usePasskey": "Utiliser une clé d'accès",
+    "continueWith": "Continuer avec {{provider}}",
+    "or": "ou",
+    "password": "Mot de passe",
+    "totpLabel": "Code 2FA",
+    "totpPlaceholder": "Code à 6 chiffres ou code de secours",
+    "continue": "Continuer",
+    "cancel": "Annuler",
+    "errors": {
+      "stepUpFailed": "Échec de la ré-authentification",
+      "passkeyFailed": "Échec de la ré-authentification par clé d'accès"
+    }
+  },
+  "quantityStepper": {
+    "label": "Quantité",
+    "decrease": "Diminuer la quantité",
+    "increase": "Augmenter la quantité"
+  },
+  "queryError": {
+    "generic": "Impossible de charger cette page. Veuillez réessayer.",
+    "offline": "Vous semblez être hors ligne. Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer"
+  },
+  "toaster": {
+    "dismiss": "Ignorer"
+  },
+  "errors": {
+    "failedToSave": "Échec de l'enregistrement"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} souhaite se lier à vous"
+  },
+  "macros": {
+    "protein": "Protéines",
+    "carbs": "Glucides",
+    "fat": "Lipides",
+    "fiber": "Fibres",
+    "sugar": "Sucre",
+    "noGoalSet": "Aucun objectif défini",
+    "goalMet": "Objectif atteint",
+    "overTarget": "{{amount}} au-dessus de l'objectif",
+    "remaining": "{{amount}} restant",
+    "over": "{{amount}} en trop"
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "hero": {
+    "title": "Houd voeding bij, niet complexiteit",
+    "subtitle": "Een gratis, open-source voedingstracker die je zelf kunt hosten en die niet in de weg zit. Houd calorieën en macro's bij, stel doelen in en zie in één oogopslag hoe je dag verloopt. Jouw data, jouw server.",
+    "getStarted": "Aan de slag",
+    "viewSource": "Bekijk broncode"
+  },
+  "features": {
+    "simpleLogging": {
+      "title": "Eenvoudig bijhouden",
+      "desc": "Houd calorieën en macro's binnen enkele seconden bij. Of scan een barcode om direct voedingsgegevens op te halen."
+    },
+    "aiEstimation": {
+      "title": "AI-schatting",
+      "desc": "Maak een foto en laat AI de calorieën en macro's voor je schatten."
+    },
+    "shareWithFriends": {
+      "title": "Delen met vrienden",
+      "desc": "Koppel je account aan vrienden of partners om elkaar scherp te houden."
+    },
+    "selfHostable": {
+      "title": "Zelf te hosten",
+      "desc": "Draai je eigen instantie. Jouw data blijft van jou."
+    }
+  },
+  "googlePlay": {
+    "alt": "Verkrijgbaar bij Google Play"
+  },
+  "imprint": {
+    "heading": "Colofon",
+    "addressAlt": "Adres",
+    "emailAlt": "E-mail"
+  },
+  "privacy": {
+    "heading": "Privacybeleid",
+    "intro": "Schautrack verzamelt alleen de gegevens die nodig zijn om de calorie- en macrotrackingdienst te leveren.",
+    "dataWeCollect": {
+      "heading": "Gegevens die we verzamelen",
+      "items": {
+        "email": "E-mailadres (voor authenticatie en accountherstel)",
+        "entries": "Calorie-, macro- en gewichtsitems die je aanmaakt",
+        "notes": "Dagelijkse notities en taken (als je deze inschakelt)",
+        "preferences": "Tijdzone- en weergavevoorkeuren",
+        "authMaterial": "Authenticatiegegevens die je zelf instelt: wachtwoordhash, TOTP-geheim, back-upcodes, passkey-gegevens"
+      }
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "Schautrack plaatst één strikt noodzakelijke first-party sessiecookie (<code>schautrack.sid</code>) om je ingelogd te houden. Er worden geen analytische cookies of cookies van derden gebruikt."
+    },
+    "logsSecurity": {
+      "heading": "Logs & beveiliging",
+      "body": "Voor gevoelige accountacties (inloggen, wachtwoord- en e-mailwijzigingen, 2FA-wijzigingen, passkey-wijzigingen, accountverwijdering) registreren we de actie, je IP-adres en je user agent, zodat de accounteigenaar activiteit kan controleren en we misbruik kunnen detecteren. Dezelfde informatie wordt kort bewaard om authenticatie-endpoints te limiteren."
+    },
+    "accountLinking": {
+      "heading": "Accountkoppeling",
+      "body": "Als je een koppelverzoek van een andere gebruiker accepteert, kan die gebruiker je calorie-, macro-, gewichts-, notitie- en taakitems bekijken. Ze kunnen deze niet bewerken of verwijderen. Je kunt de koppeling op elk moment verwijderen via Instellingen."
+    },
+    "subprocessors": {
+      "heading": "Subverwerkers",
+      "intro": "We gebruiken een klein aantal externe diensten om Schautrack te laten draaien:",
+      "items": {
+        "aiEstimation": "<strong>AI-voedingsschatting:</strong> Wanneer je een foto van eten indient voor een schatting, wordt de foto verstuurd naar de AI-provider die is geconfigureerd door de beheerder van deze Schautrack-instantie — momenteel OpenAI of Anthropic Claude (beide gevestigd in de Verenigde Staten), of een zelf gehoste Ollama-instantie. Je kunt in Instellingen ook je eigen API-sleutel voor elk van deze providers configureren. Als je deze functie niet gebruikt, wordt er geen fotodata gedeeld met een AI-provider.",
+        "barcodeLookups": "<strong>Barcode-opzoekingen:</strong> Gescande barcodenummers worden verstuurd naar <linkOff>Open Food Facts</linkOff> om productvoedingsgegevens op te halen, onder de <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
+        "hosting": "<strong>Hosting:</strong> een in de EU gevestigde hostingprovider in Duitsland.",
+        "emailDelivery": "<strong>E-mailbezorging:</strong> een transactionele e-mailprovider voor verificatie, wachtwoordreset en meldingen over accountwijzigingen.",
+        "backups": "<strong>Back-ups:</strong> versleutelde offsite back-ups opgeslagen in de EU."
+      }
+    },
+    "internationalTransfers": {
+      "heading": "Internationale overdrachten",
+      "body": "Als de geconfigureerde AI-provider OpenAI of Anthropic Claude is, wordt de foto bij het indienen voor een schatting overgedragen aan een ontvanger in de Verenigde Staten. Dergelijke overdrachten zijn gebaseerd op de Standard Contractual Clauses van de provider. Je kunt deze overdrachten vermijden door de AI-schattingsfunctie niet te gebruiken, of door in Instellingen een zelf gehost Ollama-endpoint te configureren."
+    },
+    "retention": {
+      "heading": "Bewaartermijn",
+      "items": {
+        "entries": "Calorie-, macro-, gewichts-, notitie- en taakitems worden bewaard totdat je ze verwijdert of je account verwijdert.",
+        "sessions": "Geauthenticeerde sessies verlopen 30 dagen na je laatste bezoek; anonieme sessies verlopen na 15 minuten inactiviteit.",
+        "auditLog": "Auditlogitems (gevoelige authenticatieacties, met IP en user agent) worden bewaard voor de levensduur van het account.",
+        "accountDeletion": "Wanneer je je account verwijdert, worden alle bijbehorende gegevens verwijderd."
+      }
+    },
+    "dataWeDontCollect": {
+      "heading": "Gegevens die we niet verzamelen",
+      "items": {
+        "noAnalytics": "Geen analytics- of trackingscripts",
+        "noThirdPartyCookies": "Geen cookies van derden",
+        "noDataSold": "Geen gegevens verkocht aan derden"
+      }
+    },
+    "rights": {
+      "heading": "Jouw rechten & gegevensverwijdering",
+      "body1": "Je kunt je account en alle bijbehorende gegevens op elk moment verwijderen via Instellingen. Voor andere AVG-verzoeken (inzage, rectificatie, overdraagbaarheid, bezwaar) neem je contact op met het adres dat vermeld staat op de pagina <linkImprint>Colofon</linkImprint>.",
+      "body2": "Als je in de EU/EER woont, heb je ook het recht om een klacht in te dienen bij je lokale toezichthoudende autoriteit voor gegevensbescherming. De bevoegde autoriteit voor de beheerder van deze instantie is de <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
+    }
+  },
+  "terms": {
+    "heading": "Servicevoorwaarden",
+    "intro": "Door Schautrack te gebruiken, ga je akkoord met deze voorwaarden.",
+    "service": {
+      "heading": "Dienst",
+      "body": "Schautrack biedt tools voor het bijhouden van calorieën en voeding. De dienst wordt geleverd \"zoals deze is\", zonder garantie."
+    },
+    "notMedicalAdvice": {
+      "heading": "Geen medisch advies",
+      "body": "Calorietellingen, macroschattingen op basis van foto's en voedingsgegevens van barcodes zijn uitsluitend informatief en kunnen onnauwkeurig zijn. Schautrack is geen medisch hulpmiddel en is geen vervanging voor professioneel medisch, diëtistisch of voedingsadvies. Vertrouw er niet op voor klinische beslissingen of het beheer van een medische aandoening. Controleer de voedingsinformatie op de verpakking wanneer nauwkeurigheid belangrijk is, en raadpleeg een gekwalificeerde professional voor medische of voedingsgerelateerde vragen."
+    },
+    "yourAccount": {
+      "heading": "Jouw account",
+      "body": "Je bent zelf verantwoordelijk voor de beveiliging van je account en voor alle inloggegevens die je instelt, waaronder je wachtwoord, tweefactorauthenticatiecodes, back-upcodes en passkeys."
+    },
+    "accountLinking": {
+      "heading": "Accountkoppeling",
+      "body": "Als je een koppelverzoek van een andere gebruiker accepteert, kan die gebruiker je calorie-, macro-, gewichts-, notitie- en taakitems bekijken. Koppel alleen accounts met mensen die je vertrouwt en verwijder de koppeling via Instellingen als je niet langer wilt delen."
+    },
+    "thirdPartyData": {
+      "heading": "Gegevens van derden",
+      "body": "Voedingsgegevens van barcodes worden geleverd door <linkOff>Open Food Facts</linkOff> onder de <linkOdbl>Open Database License (ODbL)</linkOdbl>. Deze gegevens worden door de community aangeleverd en zijn mogelijk niet altijd nauwkeurig."
+    },
+    "acceptableUse": {
+      "heading": "Toegestaan gebruik",
+      "body": "Misbruik de dienst niet, probeer geen toegang te krijgen tot gegevens van andere gebruikers en gebruik geen geautomatiseerde tools om de dienst te scrapen."
+    },
+    "changes": {
+      "heading": "Wijzigingen in deze voorwaarden",
+      "body": "Deze voorwaarden kunnen van tijd tot tijd worden bijgewerkt. De versie die op deze pagina is gepubliceerd, is de versie die van toepassing is op je gebruik van de dienst. Ingrijpende wijzigingen worden, waar redelijkerwijs mogelijk, per e-mail gecommuniceerd naar je geregistreerde adres."
+    },
+    "governingLaw": {
+      "heading": "Toepasselijk recht",
+      "body": "Deze voorwaarden worden beheerst door de wetten van de Bondsrepubliek Duitsland. Verplichte consumentenbeschermingsrechten van je land van verblijf blijven onverminderd van kracht."
+    }
+  }
+}

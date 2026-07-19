@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Schautrack",
+    "loading": "Ładowanie..."
+  },
+  "header": {
+    "tagline": "Liczy się każdy dzień",
+    "toggleMenu": "Przełącz menu"
+  },
+  "nav": {
+    "admin": "Administrator",
+    "dashboard": "Panel",
+    "plan": "Plan",
+    "settings": "Ustawienia",
+    "pendingLinkRequests": "{{n}} oczekujących próśb o połączenie",
+    "logout": "Wyloguj",
+    "login": "Zaloguj",
+    "register": "Zarejestruj"
+  },
+  "footer": {
+    "tagline": "Dzień po dniu",
+    "imprint": "Nota prawna",
+    "privacy": "Prywatność",
+    "terms": "Regulamin",
+    "androidApp": "Pobierz aplikację na Androida",
+    "updateAvailable": "Dostępna aktualizacja — kliknij, aby zobaczyć",
+    "viewOnGithub": "Zobacz na GitHubie"
+  },
+  "errorBoundary": {
+    "title": "Coś poszło nie tak",
+    "unexpectedError": "Wystąpił nieoczekiwany błąd.",
+    "reload": "Odśwież stronę"
+  },
+  "stepUp": {
+    "title": "Potwierdź, że to Ty",
+    "description": "Ta zmiana wymaga ponownego uwierzytelnienia.",
+    "noMethods": "Brak dostępnej metody ponownego uwierzytelnienia. Wyloguj się i zaloguj ponownie, aby wprowadzić tę zmianę, albo najpierw ustaw hasło lub dodaj klucz dostępu.",
+    "usePasskey": "Użyj klucza dostępu",
+    "continueWith": "Kontynuuj z {{provider}}",
+    "or": "lub",
+    "password": "Hasło",
+    "totpLabel": "Kod 2FA",
+    "totpPlaceholder": "6-cyfrowy kod lub kod zapasowy",
+    "continue": "Kontynuuj",
+    "cancel": "Anuluj",
+    "errors": {
+      "stepUpFailed": "Ponowne uwierzytelnienie nie powiodło się",
+      "passkeyFailed": "Ponowne uwierzytelnienie kluczem dostępu nie powiodło się"
+    }
+  },
+  "quantityStepper": {
+    "label": "Ilość",
+    "decrease": "Zmniejsz ilość",
+    "increase": "Zwiększ ilość"
+  },
+  "queryError": {
+    "generic": "Nie udało się załadować tej strony. Spróbuj ponownie.",
+    "offline": "Wygląda na to, że jesteś offline. Sprawdź połączenie i spróbuj ponownie.",
+    "retry": "Ponów"
+  },
+  "toaster": {
+    "dismiss": "Odrzuć"
+  },
+  "errors": {
+    "failedToSave": "Nie udało się zapisać"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} chce się z Tobą połączyć"
+  },
+  "macros": {
+    "protein": "Białko",
+    "carbs": "Węglowodany",
+    "fat": "Tłuszcz",
+    "fiber": "Błonnik",
+    "sugar": "Cukier",
+    "noGoalSet": "Nie ustawiono celu",
+    "goalMet": "Cel osiągnięty",
+    "overTarget": "{{amount}} powyżej celu",
+    "remaining": "{{amount}} pozostało",
+    "over": "{{amount}} powyżej"
+  }
+}

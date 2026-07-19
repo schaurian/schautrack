@@ -1,0 +1,133 @@
+{
+  "hero": {
+    "title": "Suivez votre nutrition, pas la complexité",
+    "subtitle": "Un outil de suivi nutritionnel gratuit, open source et auto-hébergeable qui reste discret. Enregistrez calories et macros, définissez des objectifs, et visualisez votre journée en un coup d'œil. Vos données, votre serveur.",
+    "getStarted": "Commencer",
+    "viewSource": "Voir le code source"
+  },
+  "features": {
+    "simpleLogging": {
+      "title": "Enregistrement simple",
+      "desc": "Enregistrez calories et macros en quelques secondes. Ou scannez un code-barres pour récupérer instantanément les données nutritionnelles."
+    },
+    "aiEstimation": {
+      "title": "Estimation par IA",
+      "desc": "Prenez une photo et laissez l'IA estimer les calories et macros pour vous."
+    },
+    "shareWithFriends": {
+      "title": "Partagez avec vos amis",
+      "desc": "Liez vos comptes avec des amis ou partenaires pour vous responsabiliser mutuellement."
+    },
+    "selfHostable": {
+      "title": "Auto-hébergeable",
+      "desc": "Exécutez votre propre instance. Vos données restent les vôtres."
+    }
+  },
+  "googlePlay": {
+    "alt": "Disponible sur Google Play"
+  },
+  "imprint": {
+    "heading": "Mentions légales",
+    "addressAlt": "Adresse",
+    "emailAlt": "E-mail"
+  },
+  "privacy": {
+    "heading": "Politique de confidentialité",
+    "intro": "Schautrack collecte uniquement les données nécessaires pour fournir le service de suivi des calories et des macros.",
+    "dataWeCollect": {
+      "heading": "Données que nous collectons",
+      "items": {
+        "email": "Adresse e-mail (pour l'authentification et la récupération de compte)",
+        "entries": "Les entrées de calories, macros et poids que vous créez",
+        "notes": "Notes quotidiennes et tâches (si vous les activez)",
+        "preferences": "Fuseau horaire et préférences d'affichage",
+        "authMaterial": "Les éléments d'authentification que vous choisissez de configurer : hachage du mot de passe, secret TOTP, codes de secours, identifiants de clé d'accès"
+      }
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "Schautrack définit un seul cookie de session propriétaire strictement nécessaire (<code>schautrack.sid</code>) pour vous garder connecté. Aucun cookie d'analyse ou tiers n'est utilisé."
+    },
+    "logsSecurity": {
+      "heading": "Journaux et sécurité",
+      "body": "Pour les actions sensibles sur le compte (connexions, changements de mot de passe et d'e-mail, modifications de la 2FA, modifications des clés d'accès, suppression de compte), nous enregistrons l'action, votre adresse IP et votre user agent afin que le titulaire du compte puisse consulter l'activité et que nous puissions détecter les abus. Ces mêmes informations sont conservées brièvement pour limiter le débit des points de terminaison d'authentification."
+    },
+    "accountLinking": {
+      "heading": "Liaison de comptes",
+      "body": "Si vous acceptez une demande de liaison d'un autre utilisateur, celui-ci peut consulter vos entrées de calories, macros, poids, notes et tâches. Il ne peut ni les modifier ni les supprimer. Vous pouvez supprimer la liaison à tout moment depuis les Paramètres."
+    },
+    "subprocessors": {
+      "heading": "Sous-traitants",
+      "intro": "Nous utilisons un petit nombre de services externes pour exploiter Schautrack :",
+      "items": {
+        "aiEstimation": "<strong>Estimation nutritionnelle par IA :</strong> Lorsque vous soumettez une photo d'aliment pour estimation, celle-ci est envoyée au fournisseur d'IA configuré par l'exploitant de cette instance Schautrack — actuellement OpenAI ou Anthropic Claude (tous deux basés aux États-Unis), ou une instance Ollama auto-hébergée. Vous pouvez également configurer votre propre clé API pour l'un de ces fournisseurs dans les Paramètres. Si vous n'utilisez pas cette fonctionnalité, aucune donnée photo n'est partagée avec un fournisseur d'IA.",
+        "barcodeLookups": "<strong>Recherches de codes-barres :</strong> Les numéros de code-barres scannés sont envoyés à <linkOff>Open Food Facts</linkOff> pour récupérer les données nutritionnelles du produit, sous la <linkOdbl>licence Open Database License (ODbL)</linkOdbl>.",
+        "hosting": "<strong>Hébergement :</strong> un hébergeur basé dans l'UE, en Allemagne.",
+        "emailDelivery": "<strong>Envoi d'e-mails :</strong> un fournisseur d'e-mails transactionnels pour la vérification, la réinitialisation de mot de passe et les notifications de changement de compte.",
+        "backups": "<strong>Sauvegardes :</strong> sauvegardes externalisées chiffrées, stockées dans l'UE."
+      }
+    },
+    "internationalTransfers": {
+      "heading": "Transferts internationaux",
+      "body": "Si le fournisseur d'IA configuré est OpenAI ou Anthropic Claude, la soumission d'une photo pour estimation transfère cette image à un destinataire situé aux États-Unis. Ces transferts s'appuient sur les clauses contractuelles types du fournisseur. Vous pouvez éviter ces transferts en n'utilisant pas la fonctionnalité d'estimation par IA, ou en configurant un point de terminaison Ollama auto-hébergé dans les Paramètres."
+    },
+    "retention": {
+      "heading": "Conservation",
+      "items": {
+        "entries": "Les entrées de calories, macros, poids, notes et tâches sont conservées jusqu'à ce que vous les supprimiez ou que vous supprimiez votre compte.",
+        "sessions": "Les sessions authentifiées expirent 30 jours après votre dernière visite ; les sessions anonymes expirent après 15 minutes d'inactivité.",
+        "auditLog": "Les entrées du journal d'audit (actions d'authentification sensibles, avec IP et user agent) sont conservées pendant toute la durée de vie du compte.",
+        "accountDeletion": "Lorsque vous supprimez votre compte, toutes les données associées sont supprimées."
+      }
+    },
+    "dataWeDontCollect": {
+      "heading": "Données que nous ne collectons pas",
+      "items": {
+        "noAnalytics": "Aucun script d'analyse ou de suivi",
+        "noThirdPartyCookies": "Aucun cookie tiers",
+        "noDataSold": "Aucune donnée vendue à des tiers"
+      }
+    },
+    "rights": {
+      "heading": "Vos droits et la suppression des données",
+      "body1": "Vous pouvez supprimer votre compte et toutes les données associées à tout moment depuis les Paramètres. Pour toute autre demande RGPD (accès, rectification, portabilité, opposition), contactez l'adresse indiquée sur la page <linkImprint>Mentions légales</linkImprint>.",
+      "body2": "Si vous résidez dans l'UE/EEE, vous avez également le droit d'introduire une réclamation auprès de votre autorité locale de protection des données. L'autorité compétente pour l'exploitant de cette instance est le <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
+    }
+  },
+  "terms": {
+    "heading": "Conditions d'utilisation",
+    "intro": "En utilisant Schautrack, vous acceptez ces conditions.",
+    "service": {
+      "heading": "Service",
+      "body": "Schautrack fournit des outils de suivi des calories et de la nutrition. Le service est fourni « tel quel », sans garantie."
+    },
+    "notMedicalAdvice": {
+      "heading": "Ceci n'est pas un avis médical",
+      "body": "Les comptages de calories, les estimations de macros à partir de photos et les données nutritionnelles issues des codes-barres sont fournis à titre informatif uniquement et peuvent être inexacts. Schautrack n'est pas un dispositif médical et ne remplace pas un avis médical, diététique ou nutritionnel professionnel. Ne vous en servez pas pour des décisions cliniques ou la gestion d'un problème médical. Vérifiez les informations nutritionnelles sur l'emballage du produit lorsque la précision compte, et consultez un professionnel qualifié pour toute préoccupation médicale ou diététique."
+    },
+    "yourAccount": {
+      "heading": "Votre compte",
+      "body": "Vous êtes responsable du maintien de la sécurité de votre compte et de tous les identifiants que vous choisissez de configurer, y compris votre mot de passe, vos codes d'authentification à deux facteurs, vos codes de secours et vos clés d'accès."
+    },
+    "accountLinking": {
+      "heading": "Liaison de comptes",
+      "body": "Si vous acceptez une demande de liaison d'un autre utilisateur, celui-ci peut consulter vos entrées de calories, macros, poids, notes et tâches. Ne liez votre compte qu'avec des personnes de confiance, et supprimez la liaison depuis les Paramètres si vous ne souhaitez plus partager."
+    },
+    "thirdPartyData": {
+      "heading": "Données de tiers",
+      "body": "Les données nutritionnelles des codes-barres sont fournies par <linkOff>Open Food Facts</linkOff> sous la <linkOdbl>licence Open Database License (ODbL)</linkOdbl>. Ces données proviennent de contributions communautaires et peuvent ne pas toujours être exactes."
+    },
+    "acceptableUse": {
+      "heading": "Utilisation acceptable",
+      "body": "N'abusez pas du service, n'essayez pas d'accéder aux données d'autres utilisateurs, et n'utilisez pas d'outils automatisés pour extraire des données du service."
+    },
+    "changes": {
+      "heading": "Modifications de ces conditions",
+      "body": "Ces conditions peuvent être mises à jour de temps à autre. La version publiée sur cette page est celle qui s'applique à votre utilisation du service. Les changements importants seront communiqués par e-mail à votre adresse enregistrée dans la mesure du raisonnablement possible."
+    },
+    "governingLaw": {
+      "heading": "Droit applicable",
+      "body": "Ces conditions sont régies par les lois de la République fédérale d'Allemagne. Les droits impératifs de protection des consommateurs de votre pays de résidence restent inchangés."
+    }
+  }
+}

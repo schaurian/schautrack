@@ -1,0 +1,262 @@
+{
+  "i18n": { "language": "Taal", "automatic": "Automatisch (browsertaal)" },
+
+  "status": {
+    "saving": "Bezig met opslaan...",
+    "saved": "Opgeslagen"
+  },
+
+  "macro": {
+    "heading": "Voedingsdoelen",
+    "calories": "Calorieën",
+    "goalPlaceholder": "Doel",
+    "modeLimit": "Limiet",
+    "modeTarget": "Streefwaarde",
+    "autoCalculate": "Calorieën automatisch berekenen",
+    "threshold": "Drempel",
+    "unitKcal": "kcal",
+    "unitGram": "g"
+  },
+
+  "preferences": {
+    "heading": "Internationalisering",
+    "weightUnit": {
+      "label": "Gewichtseenheid",
+      "kg": "Kilogram (kg)",
+      "lb": "Pond (lb)"
+    },
+    "timezone": {
+      "label": "Tijdzone"
+    }
+  },
+
+  "todo": {
+    "heading": "Taken",
+    "description": "Beheer je taken op het dashboard.",
+    "toggleFailed": "Bijwerken van instelling mislukt"
+  },
+
+  "note": {
+    "heading": "Dagelijkse notities",
+    "description": "Schrijf op het dashboard een dagelijkse notitie voor elke datum.",
+    "toggleFailed": "Bijwerken van instelling mislukt"
+  },
+
+  "savedFoods": {
+    "heading": "Opgeslagen eten",
+    "description": "Snel-toevoegen-knopjes op het dashboard. {{count}} opgeslagen.",
+    "manage": "Opgeslagen eten beheren"
+  },
+
+  "ai": {
+    "heading": "AI-instellingen",
+    "provider": "Provider",
+    "providerDefault": "Standaard",
+    "modelLabel": "Model (optioneel)",
+    "modelPlaceholder": "bijv. gpt-4o",
+    "apiKeyLabel": "API-sleutel",
+    "apiKeyPlaceholder": "Voer API-sleutel in",
+    "apiKeyMaskedPlaceholder": "••••{{last4}}",
+    "globalKeyNotice": "Er is een globale API-sleutel geconfigureerd. AI-functies werken zonder dat je een eigen sleutel instelt.",
+    "clearAll": "Alles wissen",
+    "keySaved": "API-sleutel opgeslagen",
+    "keySaveFailed": "Opslaan van API-sleutel mislukt",
+    "settingsCleared": "AI-instellingen gewist",
+    "clearFailed": "Wissen van AI-instellingen mislukt"
+  },
+
+  "email": {
+    "heading": "E-mailadres wijzigen",
+    "current": "Huidig: {{email}}",
+    "newEmailLabel": "Nieuw e-mailadres",
+    "submit": "Verificatiecode versturen",
+    "requestFailed": "Aanvragen van e-mailwijziging mislukt."
+  },
+
+  "password": {
+    "heading": "Wachtwoord wijzigen",
+    "newLabel": "Nieuw wachtwoord",
+    "confirmLabel": "Wachtwoord bevestigen",
+    "submit": "Wachtwoord bijwerken",
+    "mismatch": "Nieuwe wachtwoorden komen niet overeen.",
+    "updated": "Wachtwoord bijgewerkt.",
+    "updatedToast": "Wachtwoord bijgewerkt",
+    "failed": "Mislukt."
+  },
+
+  "twofa": {
+    "heading": "Tweefactorauthenticatie",
+    "setupFailed": "Instellen mislukt.",
+    "enabledWithCodes": "2FA ingeschakeld. Bewaar je back-upcodes hieronder.",
+    "enabledSuccess": "2FA succesvol ingeschakeld.",
+    "invalidCode": "Ongeldige code.",
+    "enableFailed": "Inschakelen van 2FA mislukt.",
+    "disabled": "2FA uitgeschakeld.",
+    "disableFailed": "Uitschakelen van 2FA mislukt.",
+    "regenerated": "Nieuwe back-upcodes gegenereerd. Bewaar ze nu.",
+    "regenerateFailed": "Opnieuw genereren van codes mislukt.",
+    "backupCodesTitle": "Back-upcodes",
+    "backupCodesDescription": "Bewaar deze codes op een veilige plek. Elke code kan maar één keer worden gebruikt om in te loggen als je je authenticator kwijtraakt.",
+    "copyAll": "Alles kopiëren",
+    "copied": "Gekopieerd!",
+    "download": "Downloaden",
+    "done": "Klaar",
+    "enabledNotice": "2FA is ingeschakeld voor je account.",
+    "disableButton": "2FA uitschakelen",
+    "regenerating": "Bezig met opnieuw genereren...",
+    "regenerateBackupCodes": "Back-upcodes opnieuw genereren",
+    "scanQr": "Scan deze QR-code met je authenticator-app:",
+    "qrAlt": "2FA QR-code",
+    "copy": "Kopiëren",
+    "verificationCodeLabel": "Verificatiecode",
+    "verificationCodePlaceholder": "Voer 6-cijferige code in",
+    "cancel": "Annuleren",
+    "activate": "Activeren",
+    "setupButton": "2FA instellen"
+  },
+
+  "passkey": {
+    "heading": "Passkeys",
+    "defaultName": "Passkey",
+    "empty": "Geen passkeys geregistreerd. Voeg er een toe om zonder wachtwoord in te loggen.",
+    "usedOn": "Gebruikt op {{date}}",
+    "neverUsed": "Nog nooit gebruikt",
+    "remove": "Verwijderen",
+    "renameTitle": "Klik om te hernoemen",
+    "namePlaceholder": "Naam van passkey (bijv. Telefoon, Laptop)",
+    "add": "Passkey toevoegen",
+    "countUsed": "{{count}} van 10 passkeys gebruikt.",
+    "registered": "Passkey geregistreerd",
+    "registerFailed": "Registreren van passkey mislukt",
+    "removed": "Passkey verwijderd",
+    "removeFailed": "Verwijderen van passkey mislukt",
+    "renameFailed": "Hernoemen mislukt"
+  },
+
+  "oidc": {
+    "heading": "Single Sign-On",
+    "unlink": "Ontkoppelen",
+    "link": "Koppelen",
+    "unlinkConfirm": "{{label}} ontkoppelen?",
+    "accountNotFound": "Account niet gevonden",
+    "unlinked": "{{label}} ontkoppeld",
+    "unlinkFailed": "Ontkoppelen mislukt",
+    "genericError": "Er is iets misgegaan.",
+    "errors": {
+      "oidc_already_linked": "Dat account van de inlogprovider is al gekoppeld aan een andere gebruiker.",
+      "oidc_email_unverified": "Je inlogprovider heeft je e-mailadres niet bevestigd. Verifieer het daar en probeer het opnieuw.",
+      "oidc_link_failed": "Je inlogprovider kon niet worden gekoppeld. Probeer het opnieuw.",
+      "oidc_step_up_mismatch": "Dat inlogaccount is niet gekoppeld aan jouw gebruiker. Log in met het gekoppelde account om te bevestigen."
+    },
+    "success": {
+      "oidc_linked": "Inlogprovider gekoppeld aan je account.",
+      "stepped_up": "Opnieuw geverifieerd. Je kunt je actie nu opnieuw proberen."
+    }
+  },
+
+  "link": {
+    "heading": "Accountkoppelingen",
+    "incoming": "Inkomend",
+    "pending": "In afwachting",
+    "linked": "Gekoppeld",
+    "accept": "Accepteren",
+    "decline": "Afwijzen",
+    "cancel": "Annuleren",
+    "remove": "Verwijderen",
+    "requestLabel": "Koppelen via e-mail",
+    "sendRequest": "Verzoek versturen",
+    "requestFailed": "Versturen van koppelverzoek mislukt",
+    "respondFailed": "Reageren op koppeling mislukt",
+    "removeFailed": "Verwijderen van koppeling mislukt",
+    "labelUpdateFailed": "Bijwerken van label mislukt"
+  },
+
+  "data": {
+    "heading": "Gegevens",
+    "exportLabel": "Exporteren",
+    "exportDescription": "Download al je items als een JSON-back-up.",
+    "exportButton": "JSON exporteren",
+    "importLabel": "Importeren",
+    "importDescription": "Herstellen vanuit een JSON-back-up. Dit vervangt alle bestaande items.",
+    "chooseFile": "Kies een bestand…",
+    "importButton": "Importeren",
+    "importSuccess": "Gegevens succesvol geïmporteerd.",
+    "importFailed": "Importeren mislukt."
+  },
+
+  "confirmImport": {
+    "title": "Alle items vervangen?",
+    "descriptionPrefix": "Het importeren van",
+    "descriptionSuffix": " verwijdert al je bestaande items permanent en vervangt ze door de inhoud van dit bestand. Dit kan niet ongedaan worden gemaakt.",
+    "replaceAll": "Alle items vervangen",
+    "cancel": "Annuleren"
+  },
+
+  "danger": {
+    "heading": "Gevarenzone",
+    "description": "Verwijder je account en alle gegevens permanent.",
+    "deleteAccount": "Account verwijderen"
+  },
+
+  "footer": {
+    "bugReport": "Een bug gespot of mis je een functie?",
+    "openIssue": "Open een issue op GitHub"
+  },
+
+  "admin": {
+    "sections": {
+      "general": { "title": "Algemeen" },
+      "ai": { "title": "AI-functies", "description": "Op foto's gebaseerde calorieschatting. Provider-sleutels die hier zijn ingesteld, zijn de globale fallback wanneer gebruikers geen eigen sleutel hebben." },
+      "oidc": { "title": "OIDC / SSO", "description": "Single sign-on via een OpenID Connect-provider. Stel issuer + client-id + clientgeheim in om te activeren." },
+      "passkeys": { "title": "Passkeys", "description": "WebAuthn-inloggen zonder wachtwoord. Het instellen van RP ID activeert deze functie." },
+      "features": { "title": "Functies" },
+      "smtp": { "title": "SMTP", "description": "Uitgaande e-mail voor wachtwoordreset, e-mailverificatie, enz." },
+      "security": { "title": "Beveiliging" },
+      "legal": { "title": "Juridische pagina's" },
+      "seo": { "title": "SEO / Implementatie" }
+    },
+    "appSettingsHeading": "Applicatie-instellingen",
+    "save": "Opslaan",
+    "deleteUserConfirm": "Deze gebruiker verwijderen?",
+    "deleteUserFailed": "Verwijderen van gebruiker mislukt",
+    "usersHeading": "Gebruikers ({{count}})",
+    "searchPlaceholder": "Zoeken op e-mailadres...",
+    "verified": "Geverifieerd",
+    "unverified": "Niet geverifieerd",
+    "delete": "Verwijderen",
+    "noUsersFound": "Geen gebruikers gevonden",
+    "loadingMore": "Meer laden…",
+    "envBadge": "ENV",
+    "restartRequiredBadge": "🔄 Herstart vereist",
+    "restartRequiredTitle": "Wordt van kracht bij de volgende serverherstart",
+    "dangerousBadge": "⚠ Gevaarlijk",
+    "unsavedBadge": "• niet opgeslagen",
+    "registrationDefault": "(standaard: open)",
+    "registrationOpen": "open — iedereen kan registreren",
+    "registrationInvite": "uitnodiging — vereist een uitnodigingscode",
+    "registrationDisabled": "false — registratie uitgeschakeld",
+    "unset": "(niet ingesteld)",
+    "boolTrue": "true",
+    "boolFalse": "false",
+    "secretStored": "•••••••• (opgeslagen)",
+    "replace": "Vervangen",
+    "secretPlaceholder": "Voer nieuwe waarde in",
+    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
+    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
+    "confirmPhraseGeneric": "CONFIRM",
+    "dangerousPrompt": "Het wijzigen van {{envVar}} heeft onomkeerbare gevolgen:\n\n{{help}}\n\nTyp {{phrase}} om te bevestigen.",
+    "saveCancelled": "Opslaan geannuleerd.",
+    "noChanges": "Geen wijzigingen om op te slaan.",
+    "settingsSaved": "Instellingen opgeslagen.",
+    "saveSettingsFailed": "Opslaan van instellingen mislukt",
+    "inviteCodesHeading": "Uitnodigingscodes",
+    "emailOptionalPlaceholder": "E-mail (optioneel)",
+    "createInvite": "Uitnodiging aanmaken",
+    "createInviteFailed": "Aanmaken van uitnodiging mislukt",
+    "deleteInviteFailed": "Verwijderen van uitnodiging mislukt",
+    "usedBy": "Gebruikt door {{email}}",
+    "copyLink": "Link kopiëren",
+    "copied": "Gekopieerd!",
+    "expiresOn": "verloopt op {{date}}"
+  }
+}
