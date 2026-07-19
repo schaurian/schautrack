@@ -17,6 +17,7 @@
 - Migrations must be **idempotent** (`ADD COLUMN IF NOT EXISTS`, `DO $$ … duplicate_object` for constraints) and wired into `runAllMigrations` in `internal/database/migrations.go`.
 - All new HTTP routes require `middleware.RequireLogin`; mutations also require `session.CsrfProtection`. Use `JSON`/`ErrorJSON` helpers.
 - Calc constants (locked): `KcalPerKg=7700`; activity factors sedentary 1.2 / light 1.375 / moderate 1.55 / active 1.725 / very_active 1.9; calorie floors male 1500 / female 1200 / other 1300 / unknown 1200; healthy rate ≤ 1%/week of current bodyweight.
+- **Test harness reality (binds every task):** Go unit tests run in CI via `go test ./...` with **no database**. Any DB-dependent Go test MUST skip when `TEST_DATABASE_URL` is unset — mirror `internal/database/pool_test.go` (`url := os.Getenv("TEST_DATABASE_URL"); if url == "" { t.Skip(...) }`). Prefer **pure-function unit tests** (no DB) for logic/validation; cover DB round-trips and full-stack flows via **Playwright e2e** (`compose.test.yml`, real postgres) in Task 8. Never add a Go test that requires a live DB to pass unconditionally — it breaks CI.
 - Mifflin–St Jeor constant `c`: male +5, female −161, other −78.
 - Reference values (for tests): 130 kg / 180 cm / age 40 / male / moderate → BMR = 2230, TDEE ≈ 3456; at 0.75 kg/week deficit = 825 → budget ≈ 2631; BMI 130 @ 180 cm ≈ 40.1.
 
@@ -97,9 +98,9 @@ type WeightGoal struct {
 
 - [ ] **Step 5: Extend user scan.** In `internal/middleware/auth.go` `GetUserByID`, add the 4 columns to the SELECT list and 4 pointers to `.Scan(...)` (append `height_cm, birth_year, sex, activity_level` after `notes_enabled`; scan into `&u.HeightCm, &u.BirthYear, &u.Sex, &u.ActivityLevel`).
 
-- [ ] **Step 6: Migration idempotency test.** In `migrations_test.go`, follow the existing test-pool pattern: run `runAllMigrations` twice against the test DB, assert no error, and assert `weight_goals` exists + `users.height_cm` column exists (query `information_schema.columns`).
+- [ ] **Step 6: Migration idempotency test (DB-guarded, skips in CI).** In `migrations_test.go`, add a test that mirrors `pool_test.go`'s skip guard: `url := os.Getenv("TEST_DATABASE_URL"); if url == "" { t.Skip("TEST_DATABASE_URL not set") }`. When set, open a pool, run `runAllMigrations` **twice**, assert no error, and assert via `information_schema.columns`/`information_schema.tables` that `users.height_cm` and table `weight_goals` exist. This test is skipped by CI's `go test ./...` (no DB) — that is expected and correct.
 
-- [ ] **Step 7: Verify.** Run `go build ./...` then `go test ./internal/database/...`. Expected: PASS.
+- [ ] **Step 7: Verify.** Run `go build ./...`, `go vet ./internal/database/`, then `go test ./internal/database/...` (the new test skips without `TEST_DATABASE_URL`; the rest must PASS). Do NOT block on running the DB test locally.
 
 - [ ] **Step 8: Commit.** `git add -A && git commit -m "feat(plan): add body-metric columns and weight_goals table"`
 
@@ -531,14 +532,31 @@ type PlanWarning struct {
   - `UpdateBodyMetrics(ctx, pool, userID int, heightCm *float64, birthYear *int, sex, activity *string) error` — `UPDATE users SET height_cm=$2, birth_year=$3, sex=$4, activity_level=$5 WHERE id=$1`.
   - `GetWeightSeries(ctx, pool, userID int, sinceDate string) ([]service.WeightPoint, error)` — `SELECT entry_date, weight FROM weight_entries WHERE user_id=$1 AND entry_date>=$2 ORDER BY entry_date`.
 
-- [ ] **Step 2: Handler skeleton + GET /plan.** In `internal/handler/plan.go`:
+- [ ] **Step 2: Pure payload assembler + handler skeleton + GET /plan.** Put the *computation* in a **pure, DB-free** function so it is unit-testable (per the Global test-harness constraint) — the handler only gathers data and calls it. In `internal/service/plan_assemble.go`:
+```go
+type PlanInputs struct {
+	CurrentWeight    *float64            // nil if no weight logged
+	HeightCm         *float64
+	BirthYear        *int
+	Sex              *string
+	ActivityLevel    *string
+	Goal             *model.WeightGoal   // nil if none active
+	Series           []WeightPoint
+	CurrentCalGoal   *int
+	Now              time.Time
+}
+// PlanResponse holds the fully-computed payload (JSON tags = spec §5 keys).
+func AssemblePlan(in PlanInputs) PlanResponse
+```
+`AssemblePlan` computes age = `Now.Year() − *BirthYear`; BMI/category/healthyRange when height+weight present; when goal active + metrics complete, derives `rate` (goal.RateKgPerWeek or `RateForDate`), `dir=GoalDirection`, `bmr/tdee`, `RecommendedBudget`, `ETAWeeks`+etaDate, `AdaptivePlanCurve`; `trend` via `TrendAnalysis(series,target,rate,30,Now)`; assembles `warnings` (rate>1%/wk via `RateSharePerWeek`, budgetClamped, target BMI<18.5, gain target BMI≥30); sets the `disclaimer` constant; flags `goalReachedNow` when current crosses target (handler acts on it). No DB, no `time.Now()` inside — `Now` is injected.
+Then `internal/handler/plan.go`:
 ```go
 type PlanHandler struct {
 	Pool   *pgxpool.Pool
 	Broker *sse.Broker
 }
 ```
-`GET /plan` logic: load user via `middleware.GetCurrentUser`; compute age = `time.Now().Year() - *user.BirthYear` (if set); current weight via `service.GetLastWeightEntry(...,"")`; `series` via `GetWeightSeries` (last 180 days); active goal via `GetActiveGoal`. Compute BMI/category/healthyRange if height+weight present. If goal active + metrics complete (height, birthYear, sex, activity all non-nil): derive `rate` (goal.RateKgPerWeek or `RateForDate`), `dir=GoalDirection(current,target)`, `bmr/tdee`, `RecommendedBudget`, `ETAWeeks`+etaDate, `AdaptivePlanCurve`. `trend` via `TrendAnalysis(series, target, rate, 30, now)`. Auto-achieve: if goal active and direction target reached (current<=target for loss / >= for gain), call `MarkGoalAchieved` and reflect status. `currentCalorieGoal`: parse `macro_goals.calories` (fallback `daily_goal`). Assemble `warnings` (rate>1%/wk, budgetClamped, target BMI<18.5, gain target BMI>=30). Include `disclaimer` constant string. Return via `JSON`.
+`GET /plan` gathers inputs (user via `middleware.GetCurrentUser`; current weight via `service.GetLastWeightEntry(...,"")`; `series` via `GetWeightSeries` last 180 days; active goal via `GetActiveGoal`; currentCalGoal from `macro_goals.calories` fallback `daily_goal`), calls `service.AssemblePlan`, and if `goalReachedNow` calls `MarkGoalAchieved` before returning `JSON`.
 
 - [ ] **Step 3: PUT /plan/metrics.** Read JSON `{height_cm, birth_year, sex, activity_level}`; validate (height 50–300, birth_year 1900..currentYear-10, sex/activity in allowed sets — else `ErrorJSON 400`); `UpdateBodyMetrics`; return `{ok:true}`.
 
@@ -559,9 +577,12 @@ r.With(middleware.RequireLogin, session.CsrfProtection).Post("/plan/goal/abandon
 
 - [ ] **Step 7: Expose metrics in Me/Settings.** In `internal/handler/api.go`, add `"heightCm": user.HeightCm, "birthYear": user.BirthYear, "sex": user.Sex, "activityLevel": user.ActivityLevel` to both the `Me` (~L90) and `Settings` (~L156) user maps.
 
-- [ ] **Step 8: Handler tests.** In `plan_test.go`, copy the auth/test-pool setup from `entries_test.go`; cover: (a) `GET /plan` unauth → 401; (b) set metrics then `GET /plan` returns bmr/tdee; (c) `PUT /plan/goal` by rate, then `GET` returns budget + planCurve non-empty; (d) `apply-budget` sets `macro_goals.calories` (assert via DB); (e) second `PUT /plan/goal` abandons the first (only one active).
+- [ ] **Step 8: Tests.** Pure unit tests (no DB, always run in CI):
+  - `internal/service/plan_assemble_test.go`: table-driven `AssemblePlan` cases — (a) metrics complete + rate goal → `computed.budgetKcal≈2631`, non-empty `planCurve`, `bmi/category` set; (b) missing metrics → `computed==nil` but `trend` still computed from series (graceful degradation); (c) aggressive rate → `budgetClamped==true` + a warning; (d) target BMI<18.5 → underweight warning; (e) current already past target → `goalReachedNow==true`.
+  - `internal/handler/plan_test.go`: pure tests for the request-body validation helpers (valid/invalid height, birth_year, sex, activity, pace_mode, rate>0, future date) — mirror `settings_test.go` style.
+  - Optional DB-guarded integration test (skips without `TEST_DATABASE_URL`, per Global constraint) exercising `UpsertActiveGoal` → `GetActiveGoal` and the one-active invariant. Full HTTP round-trip (auth, apply-budget writes `macro_goals.calories`) is covered by e2e in Task 8 — do NOT write a DB-required HTTP test that runs unconditionally.
 
-- [ ] **Step 9: Verify.** `go build ./... && go test ./internal/...` → PASS.
+- [ ] **Step 9: Verify.** `go build ./... && go vet ./... && go test ./...` → PASS (DB-guarded tests skip; everything else green).
 
 - [ ] **Step 10: Commit.** `git commit -am "feat(plan): weight-goal persistence, plan API, routes"`
 
