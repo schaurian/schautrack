@@ -42,6 +42,11 @@ type Config struct {
 	EnableRegistration string
 	UpdateCheckEnabled bool
 
+	// Release source (update check + "Report an Issue" links)
+	UpdateProvider string // "github" | "gitlab"
+	UpdateRepo     string // "owner/repo"
+	UpdateBaseURL  string // optional host override for self-hosted GitHub/GitLab
+
 	// Rate limiting
 	RateLimitAuth   int
 	RateLimitStrict int
@@ -136,6 +141,10 @@ func Load() (*Config, error) {
 		EnableBarcode:      os.Getenv("ENABLE_BARCODE") != "false",
 		EnableRegistration: os.Getenv("ENABLE_REGISTRATION"),
 		UpdateCheckEnabled: os.Getenv("UPDATE_CHECK_ENABLED") != "false",
+
+		UpdateProvider: envOr("UPDATE_PROVIDER", "github"),
+		UpdateRepo:     envOr("UPDATE_REPO", "schaurian/schautrack"),
+		UpdateBaseURL:  os.Getenv("UPDATE_BASE_URL"),
 
 		RateLimitAuth:   rateLimitAuth,
 		RateLimitStrict: rateLimitStrict,

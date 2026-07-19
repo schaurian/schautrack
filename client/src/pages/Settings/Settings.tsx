@@ -24,6 +24,7 @@ import NoteSettings from './NoteSettings';
 import SavedFoodsSettings from './SavedFoodsSettings';
 import PasskeySettings from './PasskeySettings';
 import OIDCSettings from './OIDCSettings';
+import ReportIssueCard from './ReportIssueCard';
 
 export default function Settings() {
   const { isLoading: authLoading } = useRequireAuth();
@@ -270,19 +271,10 @@ export default function Settings() {
             </div>
           </Card>
         </div>
+        <div className="break-inside-avoid">
+          <ReportIssueCard />
+        </div>
       </div>
-
-      <p className="text-center text-xs text-muted-foreground">
-        Spotted a bug or missing a feature?{' '}
-        <a
-          href="https://github.com/schaurian/schautrack/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline"
-        >
-          Open an issue on GitHub
-        </a>
-      </p>
     </div>
   );
 }
