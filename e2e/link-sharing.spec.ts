@@ -74,7 +74,7 @@ test.describe('Granular link sharing', () => {
     // Switch to the owner: click the card (its today dot, or the card itself).
     const cardRoot = card.locator('../..');
     const dot = cardRoot.locator(`button[title="${TODAY}"]`);
-    if (await dot.count()) { await dot.click(); } else { await card.click(); }
+    if (await dot.count()) { await dot.click(); } else { await cardRoot.click(); }
     await page.waitForTimeout(500);
     await expect(page.getByText(TODO_NAME).first()).toBeVisible({ timeout: 8000 });
     await expect(page.getByText(NOTE)).toHaveCount(0, { timeout: 3000 });
