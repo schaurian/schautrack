@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
+import { useLogout } from '@/hooks/useLogout';
 import { useAuthStore } from '@/stores/authStore';
 import { getSettings, importData, exportData } from '@/api/settings';
 import { ApiError } from '@/api/client';
@@ -28,6 +29,8 @@ import ReportIssueCard from './ReportIssueCard';
 
 export default function Settings() {
   const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
+  const doLogout = useLogout();
   const { isLoading: authLoading } = useRequireAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +125,18 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Account row: who is logged in + logout (the shell has no header logout) */}
+      <div className="flex items-center justify-between gap-3 border-b border-divider pb-4">
+        <span className="min-w-0 truncate text-sm text-muted-foreground">{data.user.email}</span>
+        <button
+          type="button"
+          onClick={doLogout}
+          className="shrink-0 cursor-pointer rounded-[10px] border border-border bg-transparent px-3.5 py-2 text-sm text-foreground transition-colors hover:bg-surface-hover"
+        >
+          {tCommon('nav.logout')}
+        </button>
+      </div>
+
       {/* Feedback alerts */}
       {data.linkFeedback && <Alert type={data.linkFeedback.type as 'success' | 'error'} message={data.linkFeedback.message} />}
       {data.passwordFeedback && <Alert type={data.passwordFeedback.type as 'success' | 'error'} message={data.passwordFeedback.message} />}
