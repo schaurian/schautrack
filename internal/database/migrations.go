@@ -118,7 +118,8 @@ func ensureUserPrefsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			ALTER TABLE users
 				ADD COLUMN IF NOT EXISTS timezone TEXT,
 				ADD COLUMN IF NOT EXISTS weight_unit TEXT,
-				ADD COLUMN IF NOT EXISTS timezone_manual BOOLEAN DEFAULT FALSE;
+				ADD COLUMN IF NOT EXISTS timezone_manual BOOLEAN DEFAULT FALSE,
+				ADD COLUMN IF NOT EXISTS language TEXT;
 			ALTER TABLE users
 				ALTER COLUMN weight_unit SET DEFAULT 'kg';
 			UPDATE users SET weight_unit = 'kg' WHERE weight_unit IS NULL`)

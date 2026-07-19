@@ -33,10 +33,31 @@ type SettingsHandler struct {
 }
 
 // Preferences handles POST /settings/preferences
+// supportedLanguages is the allow-list of UI locale codes the client offers.
+// Keep in sync with SUPPORTED_LANGUAGES in client/src/i18n/index.ts.
+var supportedLanguages = map[string]bool{
+	"en": true, "de": true, "es": true, "fr": true,
+	"it": true, "nl": true, "pl": true, "pt": true,
+}
+
+// normalizeLanguage returns a supported locale code, or "" for Automatic
+// (empty, unknown, or region-tagged values collapse to the base language).
+func normalizeLanguage(raw string) string {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	if i := strings.IndexAny(s, "-_"); i >= 0 {
+		s = s[:i]
+	}
+	if s == "" || !supportedLanguages[s] {
+		return ""
+	}
+	return s
+}
+
 func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		WeightUnit string `json:"weight_unit"`
 		Timezone   string `json:"timezone"`
+		Language   string `json:"language"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
@@ -56,14 +77,22 @@ func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Empty/unsupported language means "Automatic" — store NULL so browser
+	// detection stays in charge.
+	lang := normalizeLanguage(body.Language)
+	var langArg any
+	if lang != "" {
+		langArg = lang
+	}
+
 	if tz != "" {
-		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1, timezone = $2, timezone_manual = TRUE WHERE id = $3", unit, tz, user.ID); err != nil {
+		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1, timezone = $2, timezone_manual = TRUE, language = $3 WHERE id = $4", unit, tz, langArg, user.ID); err != nil {
 			slog.Error("failed to update user preferences", "error", err)
 			ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
 			return
 		}
 	} else {
-		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1 WHERE id = $2", unit, user.ID); err != nil {
+		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1, language = $2 WHERE id = $3", unit, langArg, user.ID); err != nil {
 			slog.Error("failed to update user preferences", "error", err)
 			ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
 			return
