@@ -80,6 +80,15 @@ test.describe('Account Linking', () => {
     await page.getByRole('button', { name: 'Accept' }).click();
     await expect(page.getByText('Linked')).toBeVisible({ timeout: 5000 });
 
+    // Sharing is opt-in and defaults off; grant full sharing in both directions
+    // so the subsequent "view linked user data on dashboard" assertion (which
+    // predates granular sharing) still finds the friend's card.
+    psql(`UPDATE account_links
+      SET requester_shares = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb,
+          target_shares    = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb
+      WHERE (requester_id = ${user.id} AND target_id = ${linkUser.id})
+         OR (requester_id = ${linkUser.id} AND target_id = ${user.id})`);
+
     await ctx.close();
   });
 
