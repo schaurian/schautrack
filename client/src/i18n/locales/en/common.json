@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Dashboard",
+    "today": "Today",
     "plan": "Plan",
     "settings": "Settings",
     "pendingLinkRequests": "{{n}} pending link requests",

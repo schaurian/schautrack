@@ -5,6 +5,7 @@
 
 @theme {
   --font-sans: 'Noto Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', 'Noto Sans', system-ui, sans-serif;
 
   --color-background: #070d1a;
   --color-foreground: #e5e7eb;
@@ -39,6 +40,7 @@
 
   --color-surface: rgba(255, 255, 255, 0.03);
   --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-divider: rgba(255, 255, 255, 0.05);
 
   /* Macro colors */
   --color-macro-kcal: #6d8cff;
@@ -66,12 +68,9 @@
     font-size: 15px;
     line-height: 1.5;
     background-image:
-      radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.15), transparent 50%),
-      radial-gradient(circle at 80% 10%, rgba(168, 85, 247, 0.25), transparent 50%),
-      radial-gradient(circle at 60% 80%, rgba(14, 165, 233, 0.12), transparent 45%),
-      radial-gradient(circle at 10% 70%, rgba(168, 85, 247, 0.22), transparent 45%),
-      radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08), transparent 60%),
-      linear-gradient(135deg, #070d1a, #0a1220);
+      radial-gradient(circle at 85% 0%, rgba(168, 85, 247, 0.10), transparent 45%),
+      radial-gradient(circle at 10% 80%, rgba(14, 165, 233, 0.07), transparent 45%),
+      linear-gradient(160deg, #0d1226 0%, #111a35 55%, #0d1430 100%);
     background-attachment: fixed;
     min-height: 100%;
   }
@@ -178,9 +177,26 @@
   * { scrollbar-width: thin; scrollbar-color: var(--color-border) var(--color-background); }
 }
 
+@layer components {
+  /* Soft-depth surface: the app's card language (design direction "C").
+     Gradient fill + soft outer shadow + 1px inner top highlight. */
+  .surface {
+    background: linear-gradient(145deg, #151d3a, #101730);
+    border-radius: 22px;
+    box-shadow:
+      0 10px 28px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+}
+
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* Respect the OS "reduce motion" preference: neutralize persistent animations

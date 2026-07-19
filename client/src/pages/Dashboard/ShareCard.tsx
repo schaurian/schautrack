@@ -61,12 +61,12 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
           onSelect();
         }
       }}
-      className={cn(
-        'rounded-xl border p-4 transition-colors cursor-pointer',
-        isActive ? 'border-primary/40 bg-primary/[0.04]' : 'border-border bg-card hover:border-primary/30'
-      )}
+      className="group cursor-pointer px-1 py-1.5"
     >
-      <div className="mb-2">
+      <div className={cn(
+        'mb-1 inline-flex items-center gap-1.5 border-b-2 pb-0.5 transition-colors',
+        isActive ? 'border-primary' : 'border-transparent group-hover:border-white/15'
+      )}>
         {editing && canEditLabel ? (
           <input
             className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full"
@@ -94,7 +94,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
           </span>
         )}
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(18px,32px))] justify-between gap-x-3 gap-y-5 py-4 px-1">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(18px,32px))] justify-between gap-x-3 gap-y-4 py-2 px-1">
         {view.dailyStats.map((stat) => (
           <DayDot
             key={stat.date}

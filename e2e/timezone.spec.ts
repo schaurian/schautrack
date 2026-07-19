@@ -72,7 +72,9 @@ test.describe('Timezone Handling', () => {
       const page = await ctx.newPage();
       await loginAndGo(page);
 
-      // Navigate to the entry date via 30d range + dot click
+      // Navigate to the entry date via 30d range + dot click (range presets
+      // sit behind the "Nd ▾" toggle since the redesign)
+      await page.locator('button[aria-expanded="false"]').first().click();
       await page.locator('button').filter({ hasText: '30d' }).click();
       const dot = page.locator(`button[aria-label^="${entryDate}"]`).first();
       await expect(dot).toBeVisible({ timeout: 5000 });

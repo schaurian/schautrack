@@ -26,7 +26,7 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
   }
 
   return (
-    <div className="flex flex-col gap-1.5 p-2">
+    <div className="flex flex-col divide-y divide-divider">
       {entries.map((entry) => (
         <EntryRow
           key={entry.id}
@@ -150,11 +150,11 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
 
   return (
     <div className={cn(
-      'rounded-[10px] border border-border bg-white/[0.015] transition-[border-color,background] duration-150 hover:bg-white/[0.04] hover:border-white/10',
-      editing && 'border-[#0ea5e9]/40 shadow-[0_0_0_1px_rgba(14,165,233,0.25),0_8px_22px_rgba(2,18,45,0.4)]',
+      'py-0.5 transition-colors duration-150 hover:bg-white/[0.02]',
+      editing && 'rounded-[10px] bg-[#0ea5e9]/5',
     )}>
       {/* Row 1: Name + Time + Delete */}
-      <div className="flex items-center gap-1.5 px-3 py-2">
+      <div className="flex items-center gap-1.5 px-1 py-2">
         <span className="flex-1 min-w-0 truncate">
           {editing === 'name' ? (
             <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
@@ -199,7 +199,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
 
       {/* Row 2: Macro pills */}
       {hasMacros && (
-        <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
+        <div className="flex flex-wrap gap-1.5 px-1 pb-2">
           {caloriesEnabled && (
             editing === 'amount' ? (
               <MacroPillEditing

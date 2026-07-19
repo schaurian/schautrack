@@ -44,9 +44,8 @@ export function MacroPill({ macroKey, label, value, unit, onClick, canEdit }: Di
       onClick={onClick}
       disabled={!interactive}
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums transition-colors',
-        style.bg, style.border,
-        interactive ? 'cursor-pointer hover:brightness-125' : 'cursor-default',
+        'inline-flex min-h-6 items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-sm tabular-nums transition-colors',
+        interactive ? 'cursor-pointer hover:bg-white/[0.06]' : 'cursor-default',
       )}
     >
       <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', style.label)}>{label}</span>

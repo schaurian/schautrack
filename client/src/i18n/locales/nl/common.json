@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Beheer",
     "dashboard": "Dashboard",
+    "today": "Vandaag",
     "plan": "Plan",
     "settings": "Instellingen",
     "pendingLinkRequests": "{{n}} openstaande koppelverzoeken",

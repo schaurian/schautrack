@@ -72,7 +72,8 @@ test.describe('Admin Panel', () => {
     }
 
     const current = await regSelect.inputValue();
-    const flipped = current === 'true' ? 'false' : 'true';
+    // Options are ''(default)/open/invite/false — 'true' no longer exists.
+    const flipped = current === 'invite' ? 'open' : 'invite';
 
     await regSelect.selectOption(flipped);
 

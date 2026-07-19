@@ -46,7 +46,9 @@ test.describe.serial('Settings', () => {
     await weightSelect.selectOption(newValue);
 
     // If there's a Save button, click it. Otherwise wait for auto-save.
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
+    // exact: true — role-name matching is substring by default, and 'Save'
+    // would otherwise match the "Manage saved foods" button.
+    const saveBtn = page.getByRole('button', { name: 'Save', exact: true }).first();
     if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await saveBtn.click();
     } else {
@@ -92,7 +94,7 @@ test.describe.serial('Settings', () => {
     await goalInput.blur();
 
     // Wait for autosave indicator
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Reload and verify
     await page.reload();
@@ -174,7 +176,7 @@ test.describe.serial('Settings', () => {
     await tzSelect.selectOption(newTz);
 
     // Wait for the "Saved" indicator to appear
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Reload and verify the timezone was persisted
     await page.reload();
@@ -186,7 +188,7 @@ test.describe.serial('Settings', () => {
 
     // Restore original timezone
     await reloadedTzSelect.selectOption(originalTz);
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     await ctx.close();
   });
@@ -200,7 +202,7 @@ test.describe.serial('Settings', () => {
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
 
     // Without any user interaction, "Saved" must not appear within 2 seconds of load
-    await expect(page.getByText('Saved')).not.toBeVisible({ timeout: 2000 });
+    await expect(page.getByText('Saved', { exact: true })).not.toBeVisible({ timeout: 2000 });
 
     await ctx.close();
   });
@@ -224,7 +226,7 @@ test.describe.serial('Settings', () => {
     await goalInput.fill(newGoal);
     await goalInput.blur();
 
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Restore calorie goal
     await goalInput.click({ clickCount: 3 });
@@ -242,11 +244,11 @@ test.describe.serial('Settings', () => {
     const newWeight = originalWeight === 'kg' ? 'lb' : 'kg';
 
     await weightSelect.selectOption(newWeight);
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Restore weight unit
     await weightSelect.selectOption(originalWeight);
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     await ctx.close();
   });

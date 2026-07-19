@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Panel",
+    "today": "Hoy",
     "plan": "Plan",
     "settings": "Ajustes",
     "pendingLinkRequests": "{{n}} solicitudes de vínculo pendientes",

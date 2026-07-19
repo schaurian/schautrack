@@ -67,6 +67,7 @@ test.describe('Linked User Timezone Display', () => {
 
     // Expand to 30d range to ensure April 1 dot is visible (14d default: March 23 – April 6,
     // April 1 is within 14d, but 30d gives more margin)
+    await page.locator('button[aria-expanded="false"]').first().click();
     const thirtyDayBtn = page.locator('button').filter({ hasText: '30d' });
     await thirtyDayBtn.click();
     await page.waitForTimeout(500);

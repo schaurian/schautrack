@@ -29,7 +29,8 @@ test.describe('Mobile Viewport', () => {
     await loginAndGo(page);
 
     await expect(page.getByText('Something went wrong')).not.toBeVisible({ timeout: 3000 });
-    await expect(page.locator('input[placeholder="Breakfast, snack..."]')).toBeVisible();
+    // Entry form lives in the FAB-opened sheet on mobile.
+    await expect(page.getByRole('button', { name: 'Add food' })).toBeVisible();
     await ctx.close();
   });
 
@@ -60,34 +61,31 @@ test.describe('Mobile Viewport', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await page.getByRole('button', { name: 'Add food' }).click();
     const calorieInput = page.locator('input[inputmode="tel"]');
     await expect(calorieInput).toBeVisible({ timeout: 10000 });
     await expect(calorieInput).toHaveAttribute('inputmode', 'tel');
     await ctx.close();
   });
 
-  test('active nav item is visually highlighted', async ({ browser }) => {
+  test('active tab is visually highlighted', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();
     await loginAndGo(page);
 
-    await page.getByRole('button', { name: 'Toggle menu' }).click();
-
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' });
-    await expect(dashboardLink).toBeVisible();
-    await expect(dashboardLink).toHaveClass(/border-\[#0ea5e9\]/);
+    // Bottom tab bar replaced the old hamburger drawer.
+    const todayTab = page.getByRole('link', { name: 'Today' });
+    await expect(todayTab).toBeVisible();
+    await expect(todayTab).toHaveClass(/text-primary/);
 
     await page.getByRole('link', { name: 'Settings' }).click();
     await page.waitForURL(/\/settings/, { timeout: 10000 });
 
-    await page.getByRole('button', { name: 'Toggle menu' }).click();
+    const settingsTab = page.getByRole('link', { name: 'Settings' });
+    await expect(settingsTab).toBeVisible();
+    await expect(settingsTab).toHaveClass(/text-primary/);
 
-    const settingsLink = page.getByRole('link', { name: 'Settings' });
-    await expect(settingsLink).toBeVisible();
-    await expect(settingsLink).toHaveClass(/border-\[#0ea5e9\]/);
-
-    const dashboardLinkInactive = page.getByRole('link', { name: 'Dashboard' });
-    await expect(dashboardLinkInactive).not.toHaveClass(/border-\[#0ea5e9\]/);
+    await expect(page.getByRole('link', { name: 'Today' })).not.toHaveClass(/text-primary/);
     await ctx.close();
   });
 
@@ -97,7 +95,7 @@ test.describe('Mobile Viewport', () => {
     await loginAndGo(page);
 
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('input[placeholder="Breakfast, snack..."]')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: 'Add food' })).toBeVisible({ timeout: 10000 });
 
     const hasHorizontalScroll = await page.evaluate(() => {
       return document.documentElement.scrollWidth > document.documentElement.clientWidth;
@@ -112,6 +110,7 @@ test.describe('Mobile Viewport', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await page.getByRole('button', { name: 'Add food' }).click();
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
 

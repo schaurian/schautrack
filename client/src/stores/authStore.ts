@@ -13,7 +13,7 @@ interface AuthState {
   clearUser: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAdmin: false,
   pendingLinkRequests: 0,
@@ -21,7 +21,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   isInitialized: false,
 
   fetchUser: async () => {
-    set({ isLoading: true });
+    // Only surface the loading state on the initial fetch. Background
+    // refreshes (e.g. Settings' onSave → refresh) must not flip pages into
+    // their loading gate — that unmounts the whole tree and wipes local UI
+    // state (2FA backup codes reveal, in-flight form values).
+    if (!get().user) set({ isLoading: true });
     try {
       const data = await getMe();
       set({ user: data.user, isAdmin: data.isAdmin, pendingLinkRequests: data.pendingLinkRequests || 0, isLoading: false, isInitialized: true });

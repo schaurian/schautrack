@@ -81,7 +81,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const entries = page.locator('.rounded-xl').filter({ hasText: /Entries/ });
+    const entries = page.locator('section').filter({ hasText: /Entries/ }).last();
     await entries.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(entries).toBeVisible({ timeout: 5000 });
     await expect(entries.getByText('E2E test meal')).toBeVisible({ timeout: 5000 });
@@ -100,7 +100,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const weightSection = page.locator('.rounded-xl').filter({ hasText: /Weight/ });
+    const weightSection = page.locator('section').filter({ hasText: /Weight/ }).last();
     await weightSection.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(weightSection).toBeVisible({ timeout: 5000 });
 
@@ -117,7 +117,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const todosSection = page.locator('.rounded-xl').filter({ hasText: /Todos/ }).first();
+    const todosSection = page.locator('section').filter({ hasText: /Todos/ }).last();
     await todosSection.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(todosSection).toBeVisible({ timeout: 5000 });
 
@@ -130,7 +130,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const notesSection = page.locator('.rounded-xl').filter({ hasText: /Notes/ }).first();
+    const notesSection = page.locator('section').filter({ hasText: /Notes/ }).last();
     await notesSection.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(notesSection).toBeVisible({ timeout: 5000 });
 

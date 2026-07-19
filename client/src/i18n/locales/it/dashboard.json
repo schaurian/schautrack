@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Registro",
+    "addFood": "Aggiungi cibo",
     "foodNameAriaLabel": "Nome del cibo",
     "foodNamePlaceholder": "Colazione, spuntino...",
     "qtyLabel": "Qtà",

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { getNote, saveNote } from '@/api/notes';
 import { useToastStore } from '@/stores/toastStore';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 
 interface Props {
   date: string;
@@ -88,16 +89,19 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   if (!data?.enabled) return null;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('notes.sectionTitle')}</h3>
-        <div className="flex items-center gap-2">
-          {saving && <span className="text-xs text-muted-foreground animate-pulse">{t('notes.savingIndicator')}</span>}
-          {!saving && saved && <span className="text-xs text-green-400">{t('notes.savedIndicator')}</span>}
-          {canEdit && <span className={`text-xs ${value.length > 9500 ? 'text-destructive' : 'text-muted-foreground'}`}>{t('notes.charCount', { count: value.length })}</span>}
-        </div>
-      </div>
-      <div className="p-3">
+    <section className="surface p-4">
+      <SectionLabel
+        right={
+          <div className="flex items-center gap-2">
+            {saving && <span className="text-xs text-muted-foreground animate-pulse">{t('notes.savingIndicator')}</span>}
+            {!saving && saved && <span className="text-xs text-green-400">{t('notes.savedIndicator')}</span>}
+            {canEdit && <span className={`text-xs ${value.length > 9500 ? 'text-destructive' : 'text-muted-foreground'}`}>{t('notes.charCount', { count: value.length })}</span>}
+          </div>
+        }
+      >
+        {t('notes.sectionTitle')}
+      </SectionLabel>
+      <div className="px-1 py-1">
         <textarea
           value={value}
           onChange={handleChange}
@@ -110,6 +114,6 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
           className="w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring resize-y min-h-[60px] disabled:opacity-60 disabled:cursor-default"
         />
       </div>
-    </div>
+    </section>
   );
 }

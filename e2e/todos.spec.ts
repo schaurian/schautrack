@@ -120,7 +120,7 @@ test.describe.serial('Todos', () => {
     const editInput = page.locator('input[maxlength="100"]').first();
     await expect(editInput).toBeVisible({ timeout: 5000 });
     await editInput.fill('Renamed Todo');
-    await page.getByRole('button', { name: 'Save' }).first().click();
+    await page.getByRole('button', { name: 'Save', exact: true }).first().click();
 
     // Close manager
     await page.getByRole('button', { name: 'Done' }).last().click();

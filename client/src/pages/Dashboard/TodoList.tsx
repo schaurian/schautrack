@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
 import { useToastStore } from '@/stores/toastStore';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Button } from '@/components/ui/Button';
 import type { Todo, TodoDay } from '@/types';
 
@@ -199,10 +200,9 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
   const total = data.todos.length;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('todos.sectionTitle')}</h3>
-        <div className="flex items-center gap-2">
+    <section className="surface p-4">
+      <SectionLabel
+        right={<div className="flex items-center gap-2">
           {total > 0 && <span className="text-xs text-muted-foreground">{t('todos.progressCount', { completed, total })}</span>}
           {canEdit && (
             <button
@@ -217,15 +217,17 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
               {managing ? t('todos.doneButton') : t('todos.editButton')}
             </button>
           )}
-        </div>
-      </div>
+        </div>}
+      >
+        {t('todos.sectionTitle')}
+      </SectionLabel>
 
       {managing ? (
         <TodoManager onClose={() => setManaging(false)} initialAdd={addOnOpen} onAddShown={() => setAddOnOpen(false)} />
       ) : (
         <>
           {data.todos.length > 0 ? (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-divider">
               {data.todos.map((todo) => {
                 const state = getTodoState(todo, date, todayStr, currentTime);
                 const missedLabel = getMissedLabel(todo.missed_since, date, t);
@@ -241,7 +243,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
                 }[state];
 
                 return (
-                  <li key={todo.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <li key={todo.id} className="flex items-center gap-3 px-1 py-2.5">
                     <div className="flex-1 min-w-0">
                       <span className={`text-sm ${nameClass}`}>
                         {todo.name}
@@ -278,7 +280,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
               })}
             </ul>
           ) : (
-            <div className="px-4 py-3 flex justify-end">
+            <div className="px-1 py-2 flex justify-end">
               <button
                 type="button"
                 onClick={() => { setManaging(true); setAddOnOpen(true); }}
@@ -290,7 +292,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }
 

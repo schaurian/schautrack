@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
+import { useLogout } from '@/hooks/useLogout';
 import { useAuthStore } from '@/stores/authStore';
 import { getSettings, importData, exportData } from '@/api/settings';
 import { ApiError } from '@/api/client';
@@ -28,6 +29,7 @@ import ReportIssueCard from './ReportIssueCard';
 
 export default function Settings() {
   const { t } = useTranslation('settings');
+  const doLogout = useLogout();
   const { isLoading: authLoading } = useRequireAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +124,20 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Account row: who is logged in + logout. Mobile-only — the desktop
+          sidebar already shows both, and a second visible "Logout" would break
+          getByText('Logout') strict-mode selectors in the e2e suite. */}
+      <div className="flex items-center justify-between gap-3 border-b border-divider pb-4 lg:hidden">
+        <span className="min-w-0 truncate text-sm text-muted-foreground">{data.user.email}</span>
+        <button
+          type="button"
+          onClick={doLogout}
+          className="shrink-0 cursor-pointer rounded-[10px] border border-border bg-transparent px-3.5 py-2 text-sm text-foreground transition-colors hover:bg-surface-hover"
+        >
+          {t('account.logout')}
+        </button>
+      </div>
+
       {/* Feedback alerts */}
       {data.linkFeedback && <Alert type={data.linkFeedback.type as 'success' | 'error'} message={data.linkFeedback.message} />}
       {data.passwordFeedback && <Alert type={data.passwordFeedback.type as 'success' | 'error'} message={data.passwordFeedback.message} />}
@@ -129,8 +145,8 @@ export default function Settings() {
       {data.emailFeedback && <Alert type={data.emailFeedback.type as 'success' | 'error'} message={data.emailFeedback.message} />}
       {data.importFeedback && <Alert type={data.importFeedback.type as 'success' | 'error'} message={data.importFeedback.message} />}
 
-      {/* Two columns on desktop, single on mobile. Each column flows independently. */}
-      <div className="columns-1 gap-4 space-y-4 md:columns-2">
+      {/* Single flat column — grouped native-settings style. */}
+      <div className="flex flex-col gap-3">
         <div className="break-inside-avoid">
           <MacroSettings user={data.user} onSave={refresh} />
         </div>

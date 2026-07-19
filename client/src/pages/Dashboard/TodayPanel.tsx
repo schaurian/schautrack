@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { MacroStatus } from '@/types';
 import { MACRO_LABELS, type MacroKey } from '@/lib/macros';
+import { ringProgress, ringColor } from '@/lib/ring';
+import { Ring } from '@/components/ui/Ring';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -18,7 +20,6 @@ interface Props {
 }
 
 const LABEL_COLORS: Record<string, string> = {
-  kcal: 'text-macro-kcal',
   protein: 'text-macro-protein',
   carbs: 'text-macro-carbs',
   fat: 'text-macro-fat',
@@ -26,26 +27,46 @@ const LABEL_COLORS: Record<string, string> = {
   sugar: 'text-macro-sugar',
 };
 
-const BAR_COLORS: Record<string, string> = {
-  kcal: 'bg-macro-kcal',
-  protein: 'bg-macro-protein',
-  carbs: 'bg-macro-carbs',
-  fat: 'bg-macro-fat',
-  fiber: 'bg-macro-fiber',
-  sugar: 'bg-macro-sugar',
-};
-
-function statusClasses(statusClass: string) {
-  if (statusClass === 'macro-stat--success') return { chip: 'bg-success/10 border-success/35', value: 'text-green-300', bar: 'bg-green-500' };
-  if (statusClass === 'macro-stat--warning') return { chip: 'bg-warning/10 border-warning/35', value: 'text-yellow-300', bar: 'bg-amber-500' };
-  if (statusClass === 'macro-stat--danger') return { chip: 'bg-destructive/10 border-destructive/35', value: 'text-red-300', bar: 'bg-red-500' };
-  return { chip: 'bg-surface border-white/6', value: '', bar: '' };
+// One glowing bar per macro — easier to compare against each other than
+// mini-rings; the big calorie ring keeps the single budget number focal.
+function MacroBar({ macroKey, label, value, goal, status }: {
+  macroKey: string;
+  label: string;
+  value: number;
+  goal: number | null;
+  status: MacroStatus;
+}) {
+  const hasGoal = goal != null && goal > 0;
+  const pct = hasGoal ? ringProgress(value, goal) : 0;
+  const color = ringColor(status.statusClass, macroKey);
+  return (
+    <div
+      role="img"
+      aria-label={`${label}: ${value}${hasGoal ? ` / ${goal}` : ''} g`}
+      title={status.statusText || undefined}
+    >
+      <div className="mb-1 flex items-baseline justify-between gap-2 text-[12px] leading-none">
+        <span className={cn('font-display font-bold', LABEL_COLORS[macroKey] || 'text-primary')}>{label}</span>
+        <span className="font-bold tabular-nums text-[#c3ccdd]">
+          {value}
+          <span className="font-normal text-muted-foreground">{hasGoal ? `/${goal}g` : 'g'}</span>
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-black/35">
+        {hasGoal && (
+          <div
+            className="h-full rounded-full transition-[width] duration-700 ease-out"
+            style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}` }}
+          />
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function TodayPanel({
   dailyGoal, todayTotal, caloriesEnabled, calorieStatus,
   enabledMacros, macroGoals, todayMacroTotals, macroStatuses,
-  selectedDate, todayStr,
 }: Props) {
   const { t } = useTranslation('dashboard');
   if (!caloriesEnabled && enabledMacros.length === 0) {
@@ -56,79 +77,37 @@ export default function TodayPanel({
     );
   }
 
-  const itemCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
-  const cols = itemCount <= 3 ? itemCount : Math.ceil(itemCount / 2);
-
+  // Hero card: calorie budget ring on the left, macro bars on the right.
   return (
-    <section className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">{selectedDate === todayStr ? t('dashboard.todayLabel') : selectedDate}</h3>
-      </div>
-      <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-        {caloriesEnabled && (
-          <MacroChip
-            macroKey="kcal"
-            label={t('entries.caloriesLabel')}
-            total={todayTotal}
-            goal={dailyGoal}
-            unit="kcal"
-            status={calorieStatus}
-          />
-        )}
-
-        {enabledMacros.map((key) => {
-          const total = todayMacroTotals[key] || 0;
-          const goal = macroGoals[key] ?? null;
-          const status = macroStatuses[key] || { statusClass: '', statusText: '' };
-          const label = MACRO_LABELS[key as MacroKey]?.label || key;
-
-          return (
-            <MacroChip
+    <section className={cn(
+      'surface flex items-center gap-5 p-5',
+      enabledMacros.length === 0 && 'justify-center',
+    )}>
+      {caloriesEnabled && (
+        <Ring
+          macroKey="kcal"
+          label={t('entries.caloriesLabel')}
+          value={todayTotal}
+          goal={dailyGoal}
+          unit="kcal"
+          status={calorieStatus}
+          size={112}
+        />
+      )}
+      {enabledMacros.length > 0 && (
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {enabledMacros.map((key) => (
+            <MacroBar
               key={key}
               macroKey={key}
-              label={label}
-              total={total}
-              goal={goal}
-              unit="g"
-              status={status}
+              label={MACRO_LABELS[key as MacroKey]?.label || key}
+              value={todayMacroTotals[key] || 0}
+              goal={macroGoals[key] ?? null}
+              status={macroStatuses[key] || { statusClass: '', statusText: '' }}
             />
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function MacroChip({ macroKey, label, total, goal, unit, status }: {
-  macroKey: string;
-  label: string;
-  total: number;
-  goal: number | null;
-  unit: string;
-  status: MacroStatus;
-}) {
-  const pct = goal ? Math.min(Math.round((total / goal) * 100), 100) : null;
-  const sc = statusClasses(status.statusClass);
-  const hasStatus = !!status.statusClass;
-
-  return (
-    <div className={cn('rounded-xl border p-3 transition-colors', sc.chip)}>
-      <div className={cn('text-xs font-bold uppercase tracking-wider mb-1', LABEL_COLORS[macroKey] || 'text-primary')}>
-        {label}
-      </div>
-      <div className={cn('text-xl font-bold tabular-nums leading-tight whitespace-nowrap', hasStatus && sc.value)}>
-        {total}
-        {goal != null && <span className="text-muted-foreground font-normal text-[0.6em]"> / {goal} {unit}</span>}
-      </div>
-      {pct != null && (
-        <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-[width] duration-300', hasStatus ? sc.bar : (BAR_COLORS[macroKey] || 'bg-primary'))}
-            style={{ width: `${pct}%` }}
-          />
+          ))}
         </div>
       )}
-      <div className="mt-2 text-sm text-muted-foreground">{status.statusText}</div>
-    </div>
+    </section>
   );
 }

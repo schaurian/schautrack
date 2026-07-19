@@ -1,4 +1,7 @@
 {
+  "account": {
+    "logout": "Esci"
+  },
   "i18n": {
     "language": "Lingua",
     "automatic": "Automatica (lingua del browser)"

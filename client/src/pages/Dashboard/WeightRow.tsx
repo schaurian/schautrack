@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { WeightEntry } from '@/types';
 import { upsertWeight, deleteWeight } from '@/api/weight';
 import { useToastStore } from '@/stores/toastStore';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 
 interface Props {
   weightEntry: WeightEntry | null;
@@ -79,16 +80,17 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     : 0;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('weight.sectionTitle')}</h3>
-        {!isToday && entry?.entry_date && (
-          <span className="text-sm text-muted-foreground">
+    <section className="surface p-4">
+      <SectionLabel
+        right={!isToday && entry?.entry_date ? (
+          <span className="text-xs text-muted-foreground">
             {entry.entry_date} &middot; {t('weight.daysAgo', { count: daysAgo })}
           </span>
-        )}
-      </div>
-      <div className="flex items-center gap-3 p-4">
+        ) : undefined}
+      >
+        {t('weight.sectionTitle')}
+      </SectionLabel>
+      <div className="flex items-center gap-3 px-1 py-1">
         {canEdit ? (
           <span className="relative flex items-center flex-1">
             <input
@@ -112,22 +114,17 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
             <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
           </span>
         )}
-        {canEdit && (
+        {canEdit && weightEntry && (
           <button
             type="button"
-            className={`ml-auto rounded-md px-4 py-2 text-sm font-semibold border transition-colors ${
-              weightEntry
-                ? 'text-destructive border-destructive/30 bg-destructive/10 hover:bg-destructive/20 cursor-pointer'
-                : 'text-muted-foreground/40 border-border bg-muted/30 cursor-default'
-            }`}
+            className="ml-auto cursor-pointer rounded-md border border-destructive/25 bg-transparent px-3 py-2 text-sm font-semibold text-destructive/90 transition-colors hover:bg-destructive/10"
             onClick={handleDelete}
-            disabled={!weightEntry}
             title={t('weight.deleteEntryTitle')}
           >
             {t('weight.deleteButton')}
           </button>
         )}
       </div>
-    </div>
+    </section>
   );
 }
