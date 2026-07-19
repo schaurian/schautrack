@@ -224,6 +224,14 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/upsert", weightHandler.WeightUpsert)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/{id}/delete", weightHandler.WeightDelete)
 
+	// Plan routes (weight-loss planner)
+	planHandler := &handler.PlanHandler{Pool: pool, Broker: sseBroker}
+	r.With(middleware.RequireLogin).Get("/plan", planHandler.Get)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/plan/metrics", planHandler.UpdateMetrics)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/plan/goal", planHandler.UpsertGoal)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/plan/goal/apply-budget", planHandler.ApplyBudget)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/plan/goal/abandon", planHandler.AbandonGoal)
+
 	// Settings routes
 	settingsHandler := &handler.SettingsHandler{Pool: pool, Broker: sseBroker, AIKeyEncryptSecret: cfg.AIKeyEncryptSecret, TrustProxy: cfg.TrustProxy}
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/preferences", settingsHandler.Preferences)
@@ -324,9 +332,9 @@ func main() {
 
 	// Start server with BaseContext for clean shutdown propagation
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
+		Addr:        ":" + cfg.Port,
+		Handler:     r,
+		ReadTimeout: 15 * time.Second,
 		// Absolute per-response write deadline for slow-loris protection. The
 		// SSE handler clears this deadline for its own connection (via
 		// http.ResponseController) so long-lived streams are not force-closed.
@@ -413,4 +421,3 @@ func spaFallback(clientDir, publicDir string) http.Handler {
 		http.ServeFile(w, r, filepath.Join(clientDir, "index.html"))
 	})
 }
-
