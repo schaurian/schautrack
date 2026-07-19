@@ -233,6 +233,10 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			"userId": user.ID, "email": user.Email, "label": "You", "isSelf": true,
 			"dailyGoal": dailyGoal, "goalThreshold": mu.GoalThreshold,
 			"dailyStats": dailyStats, "todayStr": todayStrTz,
+			"shares": map[string]bool{
+				service.ShareNutrition: true, service.ShareWeight: true,
+				service.ShareTodos: true, service.ShareNotes: true,
+			},
 		},
 	}
 	type linkResult struct {
@@ -259,30 +263,43 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			linkOldest := linkDayOptions[len(linkDayOptions)-1]
 			linkNewest := linkDayOptions[0]
 			linkGoal := service.GetCalorieGoal(lmu)
-			linkTotals, linkMacroAll, err := getTotalsAndMacrosByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
-			if err != nil {
-				// Skip this link's card rather than rendering all-zero
-				// totals as if they were real data.
-				slog.Error("dashboard: failed to load linked user's calorie totals", "error", err, "linkUserId", link.UserID)
+			shares := link.SharesToMe
+
+			// Omit the card entirely if the friend shares nothing with us.
+			if !shares[service.ShareNutrition] && !shares[service.ShareWeight] &&
+				!shares[service.ShareTodos] && !shares[service.ShareNotes] {
 				return
 			}
-			linkEnabledMacros := service.GetEnabledMacros(lmu)
-			linkMacroGoals := service.GetMacroGoals(lmu)
-			linkMacroModes := service.GetMacroModes(lmu)
-			var linkMacroTotals map[string]map[string]int
-			if len(linkEnabledMacros) > 0 {
-				linkMacroTotals = linkMacroAll
-			}
-			stats := buildDailyStats(linkDayOptions, linkTotals, linkGoal, linkEnabledMacros, linkMacroGoals, linkMacroModes, linkMacroTotals, lmu.GoalThreshold)
+
 			label := link.Email
 			if link.Label != nil && strings.TrimSpace(*link.Label) != "" {
 				label = *link.Label
 			}
+
+			// Nutrition dots only when nutrition is shared; otherwise empty.
+			stats := []dailyStat{}
+			if shares[service.ShareNutrition] {
+				linkTotals, linkMacroAll, err := getTotalsAndMacrosByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
+				if err != nil {
+					slog.Error("dashboard: failed to load linked user's calorie totals", "error", err, "linkUserId", link.UserID)
+					return
+				}
+				linkEnabledMacros := service.GetEnabledMacros(lmu)
+				linkMacroGoals := service.GetMacroGoals(lmu)
+				linkMacroModes := service.GetMacroModes(lmu)
+				var linkMacroTotals map[string]map[string]int
+				if len(linkEnabledMacros) > 0 {
+					linkMacroTotals = linkMacroAll
+				}
+				stats = buildDailyStats(linkDayOptions, linkTotals, linkGoal, linkEnabledMacros, linkMacroGoals, linkMacroModes, linkMacroTotals, lmu.GoalThreshold)
+			}
+
 			linkResults[i] = linkResult{index: i, view: map[string]any{
 				"linkId": link.LinkID, "userId": link.UserID, "email": link.Email,
 				"label": label, "isSelf": false,
 				"dailyGoal": linkGoal, "goalThreshold": lmu.GoalThreshold,
 				"dailyStats": stats, "todayStr": linkTodayStr,
+				"shares": shares,
 			}}
 		}(i, link)
 	}
