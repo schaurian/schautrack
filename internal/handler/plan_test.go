@@ -137,6 +137,14 @@ func TestValidateRateKgPerWeek(t *testing.T) {
 	if validateRateKgPerWeek("rate", &neg) {
 		t.Error("negative rate should be invalid in rate mode")
 	}
+	over := 100.0
+	if validateRateKgPerWeek("rate", &over) {
+		t.Error("rate over the NUMERIC(4,2) column max should be invalid in rate mode")
+	}
+	max := 99.0
+	if !validateRateKgPerWeek("rate", &max) {
+		t.Error("rate at the accepted upper bound should be valid in rate mode")
+	}
 }
 
 func TestValidateTargetDate(t *testing.T) {

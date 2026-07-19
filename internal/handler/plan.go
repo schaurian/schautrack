@@ -53,7 +53,10 @@ func validateRateKgPerWeek(paceMode string, rate *float64) bool {
 	if paceMode != "rate" {
 		return true
 	}
-	return rate != nil && *rate > 0
+	// Upper bound keeps the value within the rate_kg_per_week NUMERIC(4,2)
+	// column (max 99.99); without it a rate >= 100 passes validation and then
+	// 500s on INSERT with a numeric overflow instead of a clean 400.
+	return rate != nil && *rate > 0 && *rate <= 99
 }
 
 // validateTargetDate requires a well-formed, strictly-future YYYY-MM-DD date
@@ -163,6 +166,10 @@ func (h *PlanHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	resp := service.AssemblePlan(inputs)
 
+	// Intentional write on a GET: when the latest weight crosses the target we
+	// flip the goal to "achieved" here rather than in a separate endpoint. It's
+	// idempotent and self-scoped (only the caller's own already-reached goal),
+	// so it needs no CSRF; don't "clean this up" by dropping the call.
 	if resp.GoalReachedNow && goal != nil {
 		if err := service.MarkGoalAchieved(r.Context(), h.Pool, goal.ID); err != nil {
 			slog.Error("failed to mark goal achieved", "error", err)

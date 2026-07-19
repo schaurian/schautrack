@@ -65,7 +65,7 @@ export default function MetricsForm({ metrics }: Props) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Birth Year</label>
-              <input className={inputClass} type="number" min="1900" max="2100" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} placeholder="e.g. 1990" />
+              <input className={inputClass} type="number" min="1900" max={new Date().getFullYear() - 10} value={birthYear} onChange={(e) => setBirthYear(e.target.value)} placeholder="e.g. 1990" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sex</label>
