@@ -70,7 +70,7 @@ jobs:
       # explicit client typecheck here in the test job, which every downstream
       # job (compute-version -> create-tag / build-and-push) already depends on.
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
