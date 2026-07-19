@@ -55,7 +55,10 @@
     "toastUpdateLabelFailed": "Aggiornamento dell'etichetta non riuscito",
     "noNutrientsTracked": "Nessun nutriente monitorato.",
     "enableTrackingLink": "Attiva il monitoraggio nelle impostazioni.",
-    "todayLabel": "Oggi"
+    "todayLabel": "Oggi",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Vedi la tua giornata",
+    "viewFriendDayAriaLabel": "Vedi la giornata di {{label}}"
   },
   "dayDot": {
     "status": {

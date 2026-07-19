@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Idioma", "automatic": "Automático (idioma do navegador)" },
-
+  "i18n": {
+    "language": "Idioma",
+    "automatic": "Automático (idioma do navegador)"
+  },
   "status": {
     "saving": "A guardar...",
     "saved": "Guardado"
   },
-
   "macro": {
     "heading": "Objetivos Nutricionais",
     "calories": "Calorias",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internacionalização",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Fuso Horário"
     }
   },
-
   "todo": {
     "heading": "Tarefas",
     "description": "Faça a gestão das suas tarefas no painel.",
     "toggleFailed": "Falha ao atualizar definição"
   },
-
   "note": {
     "heading": "Notas Diárias",
     "description": "Escreva uma nota diária no painel para qualquer data.",
     "toggleFailed": "Falha ao atualizar definição"
   },
-
   "savedFoods": {
     "heading": "Alimentos guardados",
     "description": "Etiquetas de adição rápida no painel. {{count}} guardado(s).",
     "manage": "Gerir alimentos guardados"
   },
-
   "ai": {
     "heading": "Definições de IA",
     "provider": "Fornecedor",
@@ -64,7 +60,6 @@
     "settingsCleared": "Definições de IA limpas",
     "clearFailed": "Falha ao limpar as definições de IA"
   },
-
   "email": {
     "heading": "Alterar Email",
     "current": "Atual: {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Enviar Código de Verificação",
     "requestFailed": "Falha ao solicitar alteração de email."
   },
-
   "password": {
     "heading": "Alterar Palavra-passe",
     "newLabel": "Nova Palavra-passe",
@@ -83,7 +77,6 @@
     "updatedToast": "Palavra-passe atualizada",
     "failed": "Falhou."
   },
-
   "twofa": {
     "heading": "Autenticação de Dois Fatores",
     "setupFailed": "Configuração falhou.",
@@ -114,7 +107,6 @@
     "activate": "Ativar",
     "setupButton": "Configurar 2FA"
   },
-
   "passkey": {
     "heading": "Chaves de Acesso",
     "defaultName": "Chave de Acesso",
@@ -132,7 +124,6 @@
     "removeFailed": "Falha ao remover chave de acesso",
     "renameFailed": "Falha ao renomear"
   },
-
   "oidc": {
     "heading": "Início de Sessão Único",
     "unlink": "Desassociar",
@@ -153,7 +144,6 @@
       "stepped_up": "Reautenticado. Já pode tentar a sua ação novamente."
     }
   },
-
   "link": {
     "heading": "Associações de Conta",
     "incoming": "Recebidos",
@@ -168,9 +158,16 @@
     "requestFailed": "Falha ao enviar pedido de associação",
     "respondFailed": "Falha ao responder à associação",
     "removeFailed": "Falha ao remover associação",
-    "labelUpdateFailed": "Falha ao atualizar etiqueta"
+    "labelUpdateFailed": "Falha ao atualizar etiqueta",
+    "share": {
+      "readOnlyNote": "Partilhas com eles (apenas leitura):",
+      "nutrition": "Nutrição",
+      "weight": "Peso",
+      "todos": "Tarefas",
+      "notes": "Notas Diárias",
+      "updateFailed": "Falha ao atualizar a partilha"
+    }
   },
-
   "data": {
     "heading": "Dados",
     "exportLabel": "Exportar",
@@ -183,7 +180,6 @@
     "importSuccess": "Dados importados com sucesso.",
     "importFailed": "A importação falhou."
   },
-
   "confirmImport": {
     "title": "Substituir todos os registos?",
     "descriptionPrefix": "A importação de",
@@ -191,18 +187,15 @@
     "replaceAll": "Substituir todos os registos",
     "cancel": "Cancelar"
   },
-
   "danger": {
     "heading": "Zona de Perigo",
     "description": "Eliminar permanentemente a sua conta e todos os dados.",
     "deleteAccount": "Eliminar Conta"
   },
-
   "footer": {
     "bugReport": "Encontrou um erro ou uma funcionalidade em falta?",
     "openIssue": "Abra um problema no GitHub"
   },
-
   "reportIssue": {
     "title": "Reportar um Problema",
     "description": "Encontrou um erro ou está a faltar uma funcionalidade? Isto abre um problema pré-preenchido no rastreador do projeto.",
@@ -212,18 +205,39 @@
     "acknowledgement": "Compreendo que estou a utilizar uma versão mais antiga ({{version}}) e que o meu problema pode já ter sido reportado ou corrigido — verifiquei os problemas em aberto e ainda assim quero reportá-lo.",
     "submit": "Reportar um Problema"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "Geral" },
-      "ai": { "title": "Funcionalidades de IA", "description": "Estimativa de calorias baseada em fotografia. As chaves de fornecedor definidas aqui são a alternativa global quando os utilizadores não têm a sua própria." },
-      "oidc": { "title": "OIDC / SSO", "description": "Início de sessão único através de um fornecedor OpenID Connect. Defina issuer + client id + client secret para ativar." },
-      "passkeys": { "title": "Chaves de Acesso", "description": "Início de sessão sem palavra-passe via WebAuthn. Definir o RP ID ativa a funcionalidade." },
-      "features": { "title": "Funcionalidades" },
-      "smtp": { "title": "SMTP", "description": "Correio de saída para reposição de palavra-passe, verificação de email, etc." },
-      "security": { "title": "Segurança" },
-      "legal": { "title": "Páginas Legais" },
-      "seo": { "title": "SEO / Implementação" }
+      "general": {
+        "title": "Geral"
+      },
+      "ai": {
+        "title": "Funcionalidades de IA",
+        "description": "Estimativa de calorias baseada em fotografia. As chaves de fornecedor definidas aqui são a alternativa global quando os utilizadores não têm a sua própria."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Início de sessão único através de um fornecedor OpenID Connect. Defina issuer + client id + client secret para ativar."
+      },
+      "passkeys": {
+        "title": "Chaves de Acesso",
+        "description": "Início de sessão sem palavra-passe via WebAuthn. Definir o RP ID ativa a funcionalidade."
+      },
+      "features": {
+        "title": "Funcionalidades"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Correio de saída para reposição de palavra-passe, verificação de email, etc."
+      },
+      "security": {
+        "title": "Segurança"
+      },
+      "legal": {
+        "title": "Páginas Legais"
+      },
+      "seo": {
+        "title": "SEO / Implementação"
+      }
     },
     "appSettingsHeading": "Definições da Aplicação",
     "save": "Guardar",

@@ -55,7 +55,10 @@
     "toastUpdateLabelFailed": "Échec de la mise à jour du libellé",
     "noNutrientsTracked": "Aucun nutriment suivi.",
     "enableTrackingLink": "Activez le suivi dans les paramètres.",
-    "todayLabel": "Aujourd'hui"
+    "todayLabel": "Aujourd'hui",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Voir votre journée",
+    "viewFriendDayAriaLabel": "Voir la journée de {{label}}"
   },
   "dayDot": {
     "status": {

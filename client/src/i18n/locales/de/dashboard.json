@@ -55,7 +55,10 @@
     "toastUpdateLabelFailed": "Bezeichnung konnte nicht aktualisiert werden",
     "noNutrientsTracked": "Keine Nährwerte getrackt.",
     "enableTrackingLink": "Tracking in den Einstellungen aktivieren.",
-    "todayLabel": "Heute"
+    "todayLabel": "Heute",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Deinen Tag ansehen",
+    "viewFriendDayAriaLabel": "{{label}}s Tag ansehen"
   },
   "dayDot": {
     "status": {

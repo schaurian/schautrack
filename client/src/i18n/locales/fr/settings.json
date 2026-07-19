@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Langue", "automatic": "Automatique (langue du navigateur)" },
-
+  "i18n": {
+    "language": "Langue",
+    "automatic": "Automatique (langue du navigateur)"
+  },
   "status": {
     "saving": "Enregistrement...",
     "saved": "Enregistré"
   },
-
   "macro": {
     "heading": "Objectifs nutritionnels",
     "calories": "Calories",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internationalisation",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Fuseau horaire"
     }
   },
-
   "todo": {
     "heading": "Tâches",
     "description": "Gérez vos tâches sur le tableau de bord.",
     "toggleFailed": "Échec de la mise à jour du paramètre"
   },
-
   "note": {
     "heading": "Notes quotidiennes",
     "description": "Rédigez une note quotidienne sur le tableau de bord pour n'importe quelle date.",
     "toggleFailed": "Échec de la mise à jour du paramètre"
   },
-
   "savedFoods": {
     "heading": "Aliments enregistrés",
     "description": "Puces d'ajout rapide sur le tableau de bord. {{count}} enregistré(s).",
     "manage": "Gérer les aliments enregistrés"
   },
-
   "ai": {
     "heading": "Paramètres IA",
     "provider": "Fournisseur",
@@ -64,7 +60,6 @@
     "settingsCleared": "Paramètres IA effacés",
     "clearFailed": "Échec de l'effacement des paramètres IA"
   },
-
   "email": {
     "heading": "Modifier l'e-mail",
     "current": "Actuel : {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Envoyer le code de vérification",
     "requestFailed": "Échec de la demande de changement d'e-mail."
   },
-
   "password": {
     "heading": "Modifier le mot de passe",
     "newLabel": "Nouveau mot de passe",
@@ -83,7 +77,6 @@
     "updatedToast": "Mot de passe mis à jour",
     "failed": "Échec."
   },
-
   "twofa": {
     "heading": "Authentification à deux facteurs",
     "setupFailed": "Échec de la configuration.",
@@ -114,7 +107,6 @@
     "activate": "Activer",
     "setupButton": "Configurer la 2FA"
   },
-
   "passkey": {
     "heading": "Clés d'accès",
     "defaultName": "Clé d'accès",
@@ -132,7 +124,6 @@
     "removeFailed": "Échec du retrait de la clé d'accès",
     "renameFailed": "Échec du renommage"
   },
-
   "oidc": {
     "heading": "Authentification unique",
     "unlink": "Dissocier",
@@ -153,7 +144,6 @@
       "stepped_up": "Ré-authentifié. Vous pouvez maintenant réessayer votre action."
     }
   },
-
   "link": {
     "heading": "Liaisons de compte",
     "incoming": "Reçues",
@@ -168,9 +158,16 @@
     "requestFailed": "Échec de l'envoi de la demande de liaison",
     "respondFailed": "Échec de la réponse à la demande de liaison",
     "removeFailed": "Échec de la suppression de la liaison",
-    "labelUpdateFailed": "Échec de la mise à jour du libellé"
+    "labelUpdateFailed": "Échec de la mise à jour du libellé",
+    "share": {
+      "readOnlyNote": "Vous partagez avec eux (lecture seule) :",
+      "nutrition": "Nutrition",
+      "weight": "Poids",
+      "todos": "Tâches",
+      "notes": "Notes quotidiennes",
+      "updateFailed": "Échec de la mise à jour du partage"
+    }
   },
-
   "data": {
     "heading": "Données",
     "exportLabel": "Exporter",
@@ -183,7 +180,6 @@
     "importSuccess": "Données importées avec succès.",
     "importFailed": "Échec de l'importation."
   },
-
   "confirmImport": {
     "title": "Remplacer toutes les entrées ?",
     "descriptionPrefix": "L'importation de",
@@ -191,18 +187,15 @@
     "replaceAll": "Remplacer toutes les entrées",
     "cancel": "Annuler"
   },
-
   "danger": {
     "heading": "Zone de danger",
     "description": "Supprimez définitivement votre compte et toutes vos données.",
     "deleteAccount": "Supprimer le compte"
   },
-
   "footer": {
     "bugReport": "Vous avez repéré un bug ou une fonctionnalité manquante ?",
     "openIssue": "Ouvrir un ticket sur GitHub"
   },
-
   "reportIssue": {
     "title": "Signaler un problème",
     "description": "Vous avez trouvé un bug ou il manque une fonctionnalité ? Cela ouvre un ticket pré-rempli sur le suivi de projet.",
@@ -212,18 +205,39 @@
     "acknowledgement": "Je comprends que j'utilise une version plus ancienne ({{version}}) et que mon problème a peut-être déjà été signalé ou corrigé — j'ai consulté les tickets ouverts et je souhaite quand même le signaler.",
     "submit": "Signaler un problème"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "Général" },
-      "ai": { "title": "Fonctionnalités IA", "description": "Estimation calorique à partir de photos. Les clés de fournisseur définies ici servent de solution de repli globale lorsque les utilisateurs n'ont pas la leur." },
-      "oidc": { "title": "OIDC / SSO", "description": "Authentification unique via un fournisseur OpenID Connect. Définissez l'émetteur, l'ID client et le secret client pour l'activer." },
-      "passkeys": { "title": "Clés d'accès", "description": "Connexion sans mot de passe via WebAuthn. Définir l'ID RP active la fonctionnalité." },
-      "features": { "title": "Fonctionnalités" },
-      "smtp": { "title": "SMTP", "description": "Courrier sortant pour la réinitialisation du mot de passe, la vérification de l'e-mail, etc." },
-      "security": { "title": "Sécurité" },
-      "legal": { "title": "Pages légales" },
-      "seo": { "title": "SEO / Déploiement" }
+      "general": {
+        "title": "Général"
+      },
+      "ai": {
+        "title": "Fonctionnalités IA",
+        "description": "Estimation calorique à partir de photos. Les clés de fournisseur définies ici servent de solution de repli globale lorsque les utilisateurs n'ont pas la leur."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Authentification unique via un fournisseur OpenID Connect. Définissez l'émetteur, l'ID client et le secret client pour l'activer."
+      },
+      "passkeys": {
+        "title": "Clés d'accès",
+        "description": "Connexion sans mot de passe via WebAuthn. Définir l'ID RP active la fonctionnalité."
+      },
+      "features": {
+        "title": "Fonctionnalités"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Courrier sortant pour la réinitialisation du mot de passe, la vérification de l'e-mail, etc."
+      },
+      "security": {
+        "title": "Sécurité"
+      },
+      "legal": {
+        "title": "Pages légales"
+      },
+      "seo": {
+        "title": "SEO / Déploiement"
+      }
     },
     "appSettingsHeading": "Paramètres de l'application",
     "save": "Enregistrer",

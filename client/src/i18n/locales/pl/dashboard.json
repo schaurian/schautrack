@@ -57,7 +57,10 @@
     "toastUpdateLabelFailed": "Nie udało się zaktualizować etykiety",
     "noNutrientsTracked": "Brak śledzonych składników odżywczych.",
     "enableTrackingLink": "Włącz śledzenie w ustawieniach.",
-    "todayLabel": "Dzisiaj"
+    "todayLabel": "Dzisiaj",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Zobacz swój dzień",
+    "viewFriendDayAriaLabel": "Zobacz dzień: {{label}}"
   },
   "dayDot": {
     "status": {

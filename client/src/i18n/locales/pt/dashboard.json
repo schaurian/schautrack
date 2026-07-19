@@ -55,7 +55,10 @@
     "toastUpdateLabelFailed": "Falha ao atualizar etiqueta",
     "noNutrientsTracked": "Nenhum nutriente registado.",
     "enableTrackingLink": "Ative o registo nas definições.",
-    "todayLabel": "Hoje"
+    "todayLabel": "Hoje",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Ver o teu dia",
+    "viewFriendDayAriaLabel": "Ver o dia de {{label}}"
   },
   "dayDot": {
     "status": {

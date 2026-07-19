@@ -158,7 +158,15 @@
     "requestFailed": "Verknüpfungsanfrage konnte nicht gesendet werden",
     "respondFailed": "Antwort auf Verknüpfung fehlgeschlagen",
     "removeFailed": "Verknüpfung konnte nicht entfernt werden",
-    "labelUpdateFailed": "Bezeichnung konnte nicht aktualisiert werden"
+    "labelUpdateFailed": "Bezeichnung konnte nicht aktualisiert werden",
+    "share": {
+      "readOnlyNote": "Du teilst mit ihnen (schreibgeschützt):",
+      "nutrition": "Ernährung",
+      "weight": "Gewicht",
+      "todos": "Todos",
+      "notes": "Tägliche Notizen",
+      "updateFailed": "Freigabe konnte nicht aktualisiert werden"
+    }
   },
   "data": {
     "heading": "Daten",

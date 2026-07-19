@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LinkRequest, AcceptedLink, LinkShares } from '@/types';
 import { requestLink, respondToLink, removeLink, updateLinkLabel, setLinkShares } from '@/api/links';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function LinkSettings({ incomingRequests, outgoingRequests, acceptedLinks, availableSlots, onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
@@ -27,7 +29,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       setEmail('');
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to send link request');
+      addToast('error', err instanceof Error ? err.message : t('link.requestFailed'));
     }
     setLoading(false);
   };
@@ -37,7 +39,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       await respondToLink(linkId, action);
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to respond to link');
+      addToast('error', err instanceof Error ? err.message : t('link.respondFailed'));
     }
   };
 
@@ -46,22 +48,22 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       await removeLink(linkId);
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to remove link');
+      addToast('error', err instanceof Error ? err.message : t('link.removeFailed'));
     }
   };
 
   return (
     <Card>
-      <h3 className="text-base font-semibold mb-4">Account Links</h3>
+      <h3 className="text-base font-semibold mb-4">{t('link.heading')}</h3>
 
       {incomingRequests.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Incoming</h4>
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{t('link.incoming')}</h4>
           {incomingRequests.map((req) => (
             <div key={req.id} className="flex items-center gap-2 mb-2 text-sm">
               <span className="flex-1">{req.email}</span>
-              <Button size="sm" onClick={() => handleRespond(req.id, 'accept')}>Accept</Button>
-              <Button size="sm" variant="ghost" onClick={() => handleRespond(req.id, 'decline')}>Decline</Button>
+              <Button size="sm" onClick={() => handleRespond(req.id, 'accept')}>{t('link.accept')}</Button>
+              <Button size="sm" variant="ghost" onClick={() => handleRespond(req.id, 'decline')}>{t('link.decline')}</Button>
             </div>
           ))}
         </div>
@@ -69,11 +71,11 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
 
       {outgoingRequests.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Pending</h4>
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{t('link.pending')}</h4>
           {outgoingRequests.map((req) => (
             <div key={req.id} className="flex items-center gap-2 mb-2 text-sm">
               <span className="flex-1">{req.email}</span>
-              <Button size="sm" variant="ghost" onClick={() => handleRemove(req.id)}>Cancel</Button>
+              <Button size="sm" variant="ghost" onClick={() => handleRemove(req.id)}>{t('link.cancel')}</Button>
             </div>
           ))}
         </div>
@@ -81,7 +83,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
 
       {acceptedLinks.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Linked</h4>
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{t('link.linked')}</h4>
           {acceptedLinks.map((link) => (
             <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} onUpdate={onUpdate} />
           ))}
@@ -90,9 +92,9 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
 
       {availableSlots > 0 && (
         <form onSubmit={handleRequest} className="flex flex-col gap-2">
-          <Input label="Link by email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input label={t('link.requestLabel')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <div className="border-t border-border pt-3 mt-1">
-            <Button type="submit" className="w-full" loading={loading}>Send Request</Button>
+            <Button type="submit" className="w-full" loading={loading}>{t('link.sendRequest')}</Button>
           </div>
         </form>
       )}
@@ -101,6 +103,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
 }
 
 function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: () => void; onUpdate: () => void }) {
+  const { t } = useTranslation('settings');
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(link.label || '');
   const [shares, setShares] = useState<LinkShares>(link.shares);
@@ -113,7 +116,7 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
       // revert to the stale server copy on the next render.
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to update label');
+      addToast('error', err instanceof Error ? err.message : t('link.labelUpdateFailed'));
     }
     setEditing(false);
   };
@@ -126,15 +129,15 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
       setShares(res.shares);
     } catch (err) {
       setShares(shares); // revert
-      addToast('error', err instanceof Error ? err.message : 'Failed to update sharing');
+      addToast('error', err instanceof Error ? err.message : t('link.share.updateFailed'));
     }
   };
 
   const CATS: { key: keyof LinkShares; label: string }[] = [
-    { key: 'nutrition', label: 'Nutrition' },
-    { key: 'weight', label: 'Weight' },
-    { key: 'todos', label: 'Todos' },
-    { key: 'notes', label: 'Daily notes' },
+    { key: 'nutrition', label: t('link.share.nutrition') },
+    { key: 'weight', label: t('link.share.weight') },
+    { key: 'todos', label: t('link.share.todos') },
+    { key: 'notes', label: t('link.share.notes') },
   ];
 
   return (
@@ -154,9 +157,9 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
             {link.label || link.email}
           </button>
         )}
-        <Button size="sm" variant="destructive" onClick={onRemove}>Remove</Button>
+        <Button size="sm" variant="destructive" onClick={onRemove}>{t('link.remove')}</Button>
       </div>
-      <div className="text-xs text-muted-foreground mb-1">You share with them (read-only):</div>
+      <div className="text-xs text-muted-foreground mb-1">{t('link.share.readOnlyNote')}</div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {CATS.map(({ key, label: catLabel }) => (
           <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer">

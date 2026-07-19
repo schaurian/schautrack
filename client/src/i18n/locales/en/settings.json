@@ -168,7 +168,15 @@
     "requestFailed": "Failed to send link request",
     "respondFailed": "Failed to respond to link",
     "removeFailed": "Failed to remove link",
-    "labelUpdateFailed": "Failed to update label"
+    "labelUpdateFailed": "Failed to update label",
+    "share": {
+      "readOnlyNote": "You share with them (read-only):",
+      "nutrition": "Nutrition",
+      "weight": "Weight",
+      "todos": "Todos",
+      "notes": "Daily notes",
+      "updateFailed": "Failed to update sharing"
+    }
   },
 
   "data": {

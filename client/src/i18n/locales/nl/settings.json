@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Taal", "automatic": "Automatisch (browsertaal)" },
-
+  "i18n": {
+    "language": "Taal",
+    "automatic": "Automatisch (browsertaal)"
+  },
   "status": {
     "saving": "Bezig met opslaan...",
     "saved": "Opgeslagen"
   },
-
   "macro": {
     "heading": "Voedingsdoelen",
     "calories": "Calorieën",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internationalisering",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Tijdzone"
     }
   },
-
   "todo": {
     "heading": "Taken",
     "description": "Beheer je taken op het dashboard.",
     "toggleFailed": "Bijwerken van instelling mislukt"
   },
-
   "note": {
     "heading": "Dagelijkse notities",
     "description": "Schrijf op het dashboard een dagelijkse notitie voor elke datum.",
     "toggleFailed": "Bijwerken van instelling mislukt"
   },
-
   "savedFoods": {
     "heading": "Opgeslagen eten",
     "description": "Snel-toevoegen-knopjes op het dashboard. {{count}} opgeslagen.",
     "manage": "Opgeslagen eten beheren"
   },
-
   "ai": {
     "heading": "AI-instellingen",
     "provider": "Provider",
@@ -64,7 +60,6 @@
     "settingsCleared": "AI-instellingen gewist",
     "clearFailed": "Wissen van AI-instellingen mislukt"
   },
-
   "email": {
     "heading": "E-mailadres wijzigen",
     "current": "Huidig: {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Verificatiecode versturen",
     "requestFailed": "Aanvragen van e-mailwijziging mislukt."
   },
-
   "password": {
     "heading": "Wachtwoord wijzigen",
     "newLabel": "Nieuw wachtwoord",
@@ -83,7 +77,6 @@
     "updatedToast": "Wachtwoord bijgewerkt",
     "failed": "Mislukt."
   },
-
   "twofa": {
     "heading": "Tweefactorauthenticatie",
     "setupFailed": "Instellen mislukt.",
@@ -114,7 +107,6 @@
     "activate": "Activeren",
     "setupButton": "2FA instellen"
   },
-
   "passkey": {
     "heading": "Passkeys",
     "defaultName": "Passkey",
@@ -132,7 +124,6 @@
     "removeFailed": "Verwijderen van passkey mislukt",
     "renameFailed": "Hernoemen mislukt"
   },
-
   "oidc": {
     "heading": "Single Sign-On",
     "unlink": "Ontkoppelen",
@@ -153,7 +144,6 @@
       "stepped_up": "Opnieuw geverifieerd. Je kunt je actie nu opnieuw proberen."
     }
   },
-
   "link": {
     "heading": "Accountkoppelingen",
     "incoming": "Inkomend",
@@ -168,9 +158,16 @@
     "requestFailed": "Versturen van koppelverzoek mislukt",
     "respondFailed": "Reageren op koppeling mislukt",
     "removeFailed": "Verwijderen van koppeling mislukt",
-    "labelUpdateFailed": "Bijwerken van label mislukt"
+    "labelUpdateFailed": "Bijwerken van label mislukt",
+    "share": {
+      "readOnlyNote": "Je deelt met hen (alleen-lezen):",
+      "nutrition": "Voeding",
+      "weight": "Gewicht",
+      "todos": "Taken",
+      "notes": "Dagelijkse notities",
+      "updateFailed": "Bijwerken van delen mislukt"
+    }
   },
-
   "data": {
     "heading": "Gegevens",
     "exportLabel": "Exporteren",
@@ -183,7 +180,6 @@
     "importSuccess": "Gegevens succesvol geïmporteerd.",
     "importFailed": "Importeren mislukt."
   },
-
   "confirmImport": {
     "title": "Alle items vervangen?",
     "descriptionPrefix": "Het importeren van",
@@ -191,18 +187,15 @@
     "replaceAll": "Alle items vervangen",
     "cancel": "Annuleren"
   },
-
   "danger": {
     "heading": "Gevarenzone",
     "description": "Verwijder je account en alle gegevens permanent.",
     "deleteAccount": "Account verwijderen"
   },
-
   "footer": {
     "bugReport": "Een bug gespot of mis je een functie?",
     "openIssue": "Open een issue op GitHub"
   },
-
   "reportIssue": {
     "title": "Een probleem melden",
     "description": "Heb je een bug gespot of mis je een functie? Dit opent een vooraf ingevuld issue op de projecttracker.",
@@ -212,18 +205,39 @@
     "acknowledgement": "Ik begrijp dat ik een oudere versie gebruik ({{version}}) en dat mijn probleem mogelijk al is gemeld of opgelost — ik heb de openstaande issues bekeken en wil het toch melden.",
     "submit": "Een probleem melden"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "Algemeen" },
-      "ai": { "title": "AI-functies", "description": "Op foto's gebaseerde calorieschatting. Provider-sleutels die hier zijn ingesteld, zijn de globale fallback wanneer gebruikers geen eigen sleutel hebben." },
-      "oidc": { "title": "OIDC / SSO", "description": "Single sign-on via een OpenID Connect-provider. Stel issuer + client-id + clientgeheim in om te activeren." },
-      "passkeys": { "title": "Passkeys", "description": "WebAuthn-inloggen zonder wachtwoord. Het instellen van RP ID activeert deze functie." },
-      "features": { "title": "Functies" },
-      "smtp": { "title": "SMTP", "description": "Uitgaande e-mail voor wachtwoordreset, e-mailverificatie, enz." },
-      "security": { "title": "Beveiliging" },
-      "legal": { "title": "Juridische pagina's" },
-      "seo": { "title": "SEO / Implementatie" }
+      "general": {
+        "title": "Algemeen"
+      },
+      "ai": {
+        "title": "AI-functies",
+        "description": "Op foto's gebaseerde calorieschatting. Provider-sleutels die hier zijn ingesteld, zijn de globale fallback wanneer gebruikers geen eigen sleutel hebben."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Single sign-on via een OpenID Connect-provider. Stel issuer + client-id + clientgeheim in om te activeren."
+      },
+      "passkeys": {
+        "title": "Passkeys",
+        "description": "WebAuthn-inloggen zonder wachtwoord. Het instellen van RP ID activeert deze functie."
+      },
+      "features": {
+        "title": "Functies"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Uitgaande e-mail voor wachtwoordreset, e-mailverificatie, enz."
+      },
+      "security": {
+        "title": "Beveiliging"
+      },
+      "legal": {
+        "title": "Juridische pagina's"
+      },
+      "seo": {
+        "title": "SEO / Implementatie"
+      }
     },
     "appSettingsHeading": "Applicatie-instellingen",
     "save": "Opslaan",

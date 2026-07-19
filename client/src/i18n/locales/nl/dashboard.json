@@ -55,7 +55,10 @@
     "toastUpdateLabelFailed": "Bijwerken van label mislukt",
     "noNutrientsTracked": "Geen voedingsstoffen bijgehouden.",
     "enableTrackingLink": "Schakel bijhouden in bij instellingen.",
-    "todayLabel": "Vandaag"
+    "todayLabel": "Vandaag",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Bekijk je dag",
+    "viewFriendDayAriaLabel": "Bekijk de dag van {{label}}"
   },
   "dayDot": {
     "status": {

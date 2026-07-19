@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Język", "automatic": "Automatycznie (język przeglądarki)" },
-
+  "i18n": {
+    "language": "Język",
+    "automatic": "Automatycznie (język przeglądarki)"
+  },
   "status": {
     "saving": "Zapisywanie...",
     "saved": "Zapisano"
   },
-
   "macro": {
     "heading": "Cele żywieniowe",
     "calories": "Kalorie",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internacjonalizacja",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Strefa czasowa"
     }
   },
-
   "todo": {
     "heading": "Zadania",
     "description": "Zarządzaj swoimi zadaniami na panelu.",
     "toggleFailed": "Nie udało się zaktualizować ustawienia"
   },
-
   "note": {
     "heading": "Notatki dzienne",
     "description": "Pisz codzienną notatkę na panelu dla dowolnej daty.",
     "toggleFailed": "Nie udało się zaktualizować ustawienia"
   },
-
   "savedFoods": {
     "heading": "Zapisane produkty",
     "description": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
     "manage": "Zarządzaj zapisanymi produktami"
   },
-
   "ai": {
     "heading": "Ustawienia AI",
     "provider": "Dostawca",
@@ -64,7 +60,6 @@
     "settingsCleared": "Ustawienia AI wyczyszczone",
     "clearFailed": "Nie udało się wyczyścić ustawień AI"
   },
-
   "email": {
     "heading": "Zmień e-mail",
     "current": "Aktualny: {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Wyślij kod weryfikacyjny",
     "requestFailed": "Nie udało się zażądać zmiany e-mail."
   },
-
   "password": {
     "heading": "Zmień hasło",
     "newLabel": "Nowe hasło",
@@ -83,7 +77,6 @@
     "updatedToast": "Hasło zaktualizowane",
     "failed": "Niepowodzenie."
   },
-
   "twofa": {
     "heading": "Uwierzytelnianie dwuskładnikowe",
     "setupFailed": "Konfiguracja nie powiodła się.",
@@ -114,7 +107,6 @@
     "activate": "Aktywuj",
     "setupButton": "Skonfiguruj 2FA"
   },
-
   "passkey": {
     "heading": "Klucze dostępu",
     "defaultName": "Klucz dostępu",
@@ -132,7 +124,6 @@
     "removeFailed": "Nie udało się usunąć klucza dostępu",
     "renameFailed": "Nie udało się zmienić nazwy"
   },
-
   "oidc": {
     "heading": "Logowanie jednokrotne",
     "unlink": "Odłącz",
@@ -153,7 +144,6 @@
       "stepped_up": "Ponownie uwierzytelniono. Możesz teraz spróbować wykonać akcję jeszcze raz."
     }
   },
-
   "link": {
     "heading": "Połączenia kont",
     "incoming": "Przychodzące",
@@ -168,9 +158,16 @@
     "requestFailed": "Nie udało się wysłać prośby o połączenie",
     "respondFailed": "Nie udało się odpowiedzieć na prośbę o połączenie",
     "removeFailed": "Nie udało się usunąć połączenia",
-    "labelUpdateFailed": "Nie udało się zaktualizować etykiety"
+    "labelUpdateFailed": "Nie udało się zaktualizować etykiety",
+    "share": {
+      "readOnlyNote": "Udostępniasz im (tylko do odczytu):",
+      "nutrition": "Odżywianie",
+      "weight": "Waga",
+      "todos": "Zadania",
+      "notes": "Notatki dzienne",
+      "updateFailed": "Nie udało się zaktualizować udostępniania"
+    }
   },
-
   "data": {
     "heading": "Dane",
     "exportLabel": "Eksport",
@@ -183,7 +180,6 @@
     "importSuccess": "Dane zaimportowane pomyślnie.",
     "importFailed": "Import nie powiódł się."
   },
-
   "confirmImport": {
     "title": "Zastąpić wszystkie wpisy?",
     "descriptionPrefix": "Import",
@@ -191,18 +187,15 @@
     "replaceAll": "Zastąp wszystkie wpisy",
     "cancel": "Anuluj"
   },
-
   "danger": {
     "heading": "Strefa zagrożenia",
     "description": "Trwale usuń swoje konto i wszystkie dane.",
     "deleteAccount": "Usuń konto"
   },
-
   "footer": {
     "bugReport": "Znalazłeś błąd lub brakuje funkcji?",
     "openIssue": "Zgłoś sprawę na GitHubie"
   },
-
   "reportIssue": {
     "title": "Zgłoś problem",
     "description": "Znalazłeś błąd lub brakuje Ci funkcji? To otworzy wstępnie wypełnione zgłoszenie w systemie śledzenia projektu.",
@@ -212,18 +205,39 @@
     "acknowledgement": "Rozumiem, że korzystam ze starszej wersji ({{version}}) i mój problem mógł już zostać zgłoszony lub naprawiony — mimo sprawdzenia otwartych zgłoszeń nadal chcę go zgłosić.",
     "submit": "Zgłoś problem"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "Ogólne" },
-      "ai": { "title": "Funkcje AI", "description": "Szacowanie kalorii na podstawie zdjęć. Klucze dostawców ustawione tutaj są globalną wartością zapasową, gdy użytkownicy nie mają własnego klucza." },
-      "oidc": { "title": "OIDC / SSO", "description": "Logowanie jednokrotne przez dostawcę OpenID Connect. Ustaw issuer + client id + client secret, aby włączyć." },
-      "passkeys": { "title": "Klucze dostępu", "description": "Logowanie bez hasła przez WebAuthn. Ustawienie RP ID włącza tę funkcję." },
-      "features": { "title": "Funkcje" },
-      "smtp": { "title": "SMTP", "description": "Poczta wychodząca do resetowania hasła, weryfikacji e-mail itp." },
-      "security": { "title": "Bezpieczeństwo" },
-      "legal": { "title": "Strony prawne" },
-      "seo": { "title": "SEO / Wdrożenie" }
+      "general": {
+        "title": "Ogólne"
+      },
+      "ai": {
+        "title": "Funkcje AI",
+        "description": "Szacowanie kalorii na podstawie zdjęć. Klucze dostawców ustawione tutaj są globalną wartością zapasową, gdy użytkownicy nie mają własnego klucza."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Logowanie jednokrotne przez dostawcę OpenID Connect. Ustaw issuer + client id + client secret, aby włączyć."
+      },
+      "passkeys": {
+        "title": "Klucze dostępu",
+        "description": "Logowanie bez hasła przez WebAuthn. Ustawienie RP ID włącza tę funkcję."
+      },
+      "features": {
+        "title": "Funkcje"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Poczta wychodząca do resetowania hasła, weryfikacji e-mail itp."
+      },
+      "security": {
+        "title": "Bezpieczeństwo"
+      },
+      "legal": {
+        "title": "Strony prawne"
+      },
+      "seo": {
+        "title": "SEO / Wdrożenie"
+      }
     },
     "appSettingsHeading": "Ustawienia aplikacji",
     "save": "Zapisz",

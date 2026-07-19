@@ -55,7 +55,10 @@
     "toastUpdateLabelFailed": "Error al actualizar la etiqueta",
     "noNutrientsTracked": "No se está registrando ningún nutriente.",
     "enableTrackingLink": "Activa el seguimiento en ajustes.",
-    "todayLabel": "Hoy"
+    "todayLabel": "Hoy",
+    "entriesDateAndLabel": "{{date}} — {{label}}",
+    "viewOwnDayAriaLabel": "Ver tu día",
+    "viewFriendDayAriaLabel": "Ver el día de {{label}}"
   },
   "dayDot": {
     "status": {

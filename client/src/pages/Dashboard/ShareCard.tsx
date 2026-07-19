@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { SharedView } from '@/types';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { updateLinkLabel } from '@/api/links';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Props) {
+  const { t } = useTranslation('dashboard');
   const { selectedDate, currentUserId } = useDashboardStore();
   const queryClient = useQueryClient();
   const isActive = currentUserId === view.userId;
@@ -31,7 +33,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
         await updateLinkLabel(view.linkId, trimmed);
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       } catch (err) {
-        useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to update label');
+        useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('dashboard.toastUpdateLabelFailed'));
       }
     } else {
       setLabel(view.label);
@@ -49,7 +51,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
       role="button"
       tabIndex={0}
       aria-pressed={isActive}
-      aria-label={view.isSelf ? 'View your day' : `View ${view.label}'s day`}
+      aria-label={view.isSelf ? t('dashboard.viewOwnDayAriaLabel') : t('dashboard.viewFriendDayAriaLabel', { label: view.label })}
       onClick={onSelect}
       onKeyDown={(e) => {
         // Only self-trigger when the card itself is focused, so Enter/Escape
@@ -81,8 +83,8 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
             type="button"
             className="bg-transparent border border-transparent p-0 text-sm font-medium text-foreground text-left cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-            aria-label={`Edit label for ${view.label}`}
-            title="Click to edit label"
+            aria-label={t('dashboard.editLabelAriaLabel', { label: view.label })}
+            title={t('dashboard.clickToEditLabelTitle')}
           >
             {view.label}
           </button>

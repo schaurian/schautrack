@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Idioma", "automatic": "Automático (idioma del navegador)" },
-
+  "i18n": {
+    "language": "Idioma",
+    "automatic": "Automático (idioma del navegador)"
+  },
   "status": {
     "saving": "Guardando...",
     "saved": "Guardado"
   },
-
   "macro": {
     "heading": "Objetivos nutricionales",
     "calories": "Calorías",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internacionalización",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Zona horaria"
     }
   },
-
   "todo": {
     "heading": "Tareas",
     "description": "Gestiona tus tareas en el panel.",
     "toggleFailed": "Error al actualizar la configuración"
   },
-
   "note": {
     "heading": "Notas diarias",
     "description": "Escribe una nota diaria en el panel para cualquier fecha.",
     "toggleFailed": "Error al actualizar la configuración"
   },
-
   "savedFoods": {
     "heading": "Alimentos guardados",
     "description": "Etiquetas de acceso rápido en el panel. {{count}} guardados.",
     "manage": "Gestionar alimentos guardados"
   },
-
   "ai": {
     "heading": "Configuración de IA",
     "provider": "Proveedor",
@@ -64,7 +60,6 @@
     "settingsCleared": "Configuración de IA borrada",
     "clearFailed": "Error al borrar la configuración de IA"
   },
-
   "email": {
     "heading": "Cambiar correo electrónico",
     "current": "Actual: {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Enviar código de verificación",
     "requestFailed": "Error al solicitar el cambio de correo electrónico."
   },
-
   "password": {
     "heading": "Cambiar contraseña",
     "newLabel": "Nueva contraseña",
@@ -83,7 +77,6 @@
     "updatedToast": "Contraseña actualizada",
     "failed": "Error."
   },
-
   "twofa": {
     "heading": "Autenticación de dos factores",
     "setupFailed": "Error en la configuración.",
@@ -114,7 +107,6 @@
     "activate": "Activar",
     "setupButton": "Configurar 2FA"
   },
-
   "passkey": {
     "heading": "Claves de acceso",
     "defaultName": "Clave de acceso",
@@ -132,7 +124,6 @@
     "removeFailed": "Error al eliminar la clave de acceso",
     "renameFailed": "Error al renombrar"
   },
-
   "oidc": {
     "heading": "Inicio de sesión único",
     "unlink": "Desvincular",
@@ -153,7 +144,6 @@
       "stepped_up": "Reautenticado. Ya puedes volver a intentar tu acción."
     }
   },
-
   "link": {
     "heading": "Vínculos de cuenta",
     "incoming": "Recibidas",
@@ -168,9 +158,16 @@
     "requestFailed": "Error al enviar la solicitud de vínculo",
     "respondFailed": "Error al responder al vínculo",
     "removeFailed": "Error al quitar el vínculo",
-    "labelUpdateFailed": "Error al actualizar la etiqueta"
+    "labelUpdateFailed": "Error al actualizar la etiqueta",
+    "share": {
+      "readOnlyNote": "Compartes con ellos (solo lectura):",
+      "nutrition": "Nutrición",
+      "weight": "Peso",
+      "todos": "Tareas",
+      "notes": "Notas diarias",
+      "updateFailed": "No se pudo actualizar el uso compartido"
+    }
   },
-
   "data": {
     "heading": "Datos",
     "exportLabel": "Exportar",
@@ -183,7 +180,6 @@
     "importSuccess": "Datos importados correctamente.",
     "importFailed": "Error al importar."
   },
-
   "confirmImport": {
     "title": "¿Reemplazar todas las entradas?",
     "descriptionPrefix": "La importación de",
@@ -191,18 +187,15 @@
     "replaceAll": "Reemplazar todas las entradas",
     "cancel": "Cancelar"
   },
-
   "danger": {
     "heading": "Zona de peligro",
     "description": "Elimina permanentemente tu cuenta y todos tus datos.",
     "deleteAccount": "Eliminar cuenta"
   },
-
   "footer": {
     "bugReport": "¿Encontraste un error o echas en falta alguna función?",
     "openIssue": "Abre una incidencia en GitHub"
   },
-
   "reportIssue": {
     "title": "Informar de una incidencia",
     "description": "¿Encontraste un error o echas en falta alguna función? Esto abre una incidencia prerellenada en el rastreador de incidencias del proyecto.",
@@ -212,18 +205,39 @@
     "acknowledgement": "Entiendo que estoy usando una versión anterior ({{version}}) y que mi incidencia ya podría estar reportada o solucionada — he revisado las incidencias abiertas y aun así quiero reportarla.",
     "submit": "Informar de una incidencia"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "General" },
-      "ai": { "title": "Funciones de IA", "description": "Estimación de calorías a partir de fotos. Las claves de proveedor configuradas aquí son el respaldo global cuando los usuarios no tienen la suya propia." },
-      "oidc": { "title": "OIDC / SSO", "description": "Inicio de sesión único a través de un proveedor OpenID Connect. Configura el emisor, el ID de cliente y el secreto de cliente para activarlo." },
-      "passkeys": { "title": "Claves de acceso", "description": "Inicio de sesión sin contraseña mediante WebAuthn. Configurar el RP ID activa esta función." },
-      "features": { "title": "Funciones" },
-      "smtp": { "title": "SMTP", "description": "Correo saliente para restablecimiento de contraseña, verificación de correo electrónico, etc." },
-      "security": { "title": "Seguridad" },
-      "legal": { "title": "Páginas legales" },
-      "seo": { "title": "SEO / Despliegue" }
+      "general": {
+        "title": "General"
+      },
+      "ai": {
+        "title": "Funciones de IA",
+        "description": "Estimación de calorías a partir de fotos. Las claves de proveedor configuradas aquí son el respaldo global cuando los usuarios no tienen la suya propia."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Inicio de sesión único a través de un proveedor OpenID Connect. Configura el emisor, el ID de cliente y el secreto de cliente para activarlo."
+      },
+      "passkeys": {
+        "title": "Claves de acceso",
+        "description": "Inicio de sesión sin contraseña mediante WebAuthn. Configurar el RP ID activa esta función."
+      },
+      "features": {
+        "title": "Funciones"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Correo saliente para restablecimiento de contraseña, verificación de correo electrónico, etc."
+      },
+      "security": {
+        "title": "Seguridad"
+      },
+      "legal": {
+        "title": "Páginas legales"
+      },
+      "seo": {
+        "title": "SEO / Despliegue"
+      }
     },
     "appSettingsHeading": "Configuración de la aplicación",
     "save": "Guardar",

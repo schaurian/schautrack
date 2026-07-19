@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Lingua", "automatic": "Automatica (lingua del browser)" },
-
+  "i18n": {
+    "language": "Lingua",
+    "automatic": "Automatica (lingua del browser)"
+  },
   "status": {
     "saving": "Salvataggio...",
     "saved": "Salvato"
   },
-
   "macro": {
     "heading": "Obiettivi nutrizionali",
     "calories": "Calorie",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internazionalizzazione",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Fuso orario"
     }
   },
-
   "todo": {
     "heading": "Cose da fare",
     "description": "Gestisci le tue attività nella dashboard.",
     "toggleFailed": "Aggiornamento dell'impostazione non riuscito"
   },
-
   "note": {
     "heading": "Note giornaliere",
     "description": "Scrivi una nota giornaliera nella dashboard per qualsiasi data.",
     "toggleFailed": "Aggiornamento dell'impostazione non riuscito"
   },
-
   "savedFoods": {
     "heading": "Cibi salvati",
     "description": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
     "manage": "Gestisci cibi salvati"
   },
-
   "ai": {
     "heading": "Impostazioni AI",
     "provider": "Provider",
@@ -64,7 +60,6 @@
     "settingsCleared": "Impostazioni AI cancellate",
     "clearFailed": "Cancellazione delle impostazioni AI non riuscita"
   },
-
   "email": {
     "heading": "Cambia email",
     "current": "Attuale: {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Invia codice di verifica",
     "requestFailed": "Richiesta di cambio email non riuscita."
   },
-
   "password": {
     "heading": "Cambia password",
     "newLabel": "Nuova password",
@@ -83,7 +77,6 @@
     "updatedToast": "Password aggiornata",
     "failed": "Non riuscito."
   },
-
   "twofa": {
     "heading": "Autenticazione a due fattori",
     "setupFailed": "Configurazione non riuscita.",
@@ -114,7 +107,6 @@
     "activate": "Attiva",
     "setupButton": "Configura 2FA"
   },
-
   "passkey": {
     "heading": "Passkey",
     "defaultName": "Passkey",
@@ -132,7 +124,6 @@
     "removeFailed": "Rimozione della passkey non riuscita",
     "renameFailed": "Rinomina non riuscita"
   },
-
   "oidc": {
     "heading": "Single Sign-On",
     "unlink": "Scollega",
@@ -153,7 +144,6 @@
       "stepped_up": "Ri-autenticato. Ora puoi riprovare la tua azione."
     }
   },
-
   "link": {
     "heading": "Collegamenti account",
     "incoming": "In arrivo",
@@ -168,9 +158,16 @@
     "requestFailed": "Invio della richiesta di collegamento non riuscito",
     "respondFailed": "Risposta al collegamento non riuscita",
     "removeFailed": "Rimozione del collegamento non riuscita",
-    "labelUpdateFailed": "Aggiornamento dell'etichetta non riuscito"
+    "labelUpdateFailed": "Aggiornamento dell'etichetta non riuscito",
+    "share": {
+      "readOnlyNote": "Condividi con loro (sola lettura):",
+      "nutrition": "Nutrizione",
+      "weight": "Peso",
+      "todos": "Cose da fare",
+      "notes": "Note giornaliere",
+      "updateFailed": "Impossibile aggiornare la condivisione"
+    }
   },
-
   "data": {
     "heading": "Dati",
     "exportLabel": "Esporta",
@@ -183,7 +180,6 @@
     "importSuccess": "Dati importati con successo.",
     "importFailed": "Importazione non riuscita."
   },
-
   "confirmImport": {
     "title": "Sostituire tutte le voci?",
     "descriptionPrefix": "L'importazione di",
@@ -191,18 +187,15 @@
     "replaceAll": "Sostituisci tutte le voci",
     "cancel": "Annulla"
   },
-
   "danger": {
     "heading": "Zona pericolosa",
     "description": "Elimina permanentemente il tuo account e tutti i dati.",
     "deleteAccount": "Elimina account"
   },
-
   "footer": {
     "bugReport": "Hai trovato un bug o manca una funzione?",
     "openIssue": "Apri una segnalazione su GitHub"
   },
-
   "reportIssue": {
     "title": "Segnala un problema",
     "description": "Hai trovato un bug o manca una funzionalità? Questo apre una segnalazione precompilata sul tracker del progetto.",
@@ -212,18 +205,39 @@
     "acknowledgement": "Capisco di stare usando una versione meno recente ({{version}}) e che il mio problema potrebbe essere già stato segnalato o risolto — ho controllato le segnalazioni aperte e voglio comunque segnalarlo.",
     "submit": "Segnala un problema"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "Generale" },
-      "ai": { "title": "Funzioni AI", "description": "Stima delle calorie basata su foto. Le chiavi provider impostate qui sono il fallback globale quando gli utenti non hanno una propria chiave." },
-      "oidc": { "title": "OIDC / SSO", "description": "Single sign-on tramite un provider OpenID Connect. Imposta issuer + client id + client secret per attivarlo." },
-      "passkeys": { "title": "Passkey", "description": "Accesso senza password WebAuthn. Impostare l'RP ID attiva la funzione." },
-      "features": { "title": "Funzioni" },
-      "smtp": { "title": "SMTP", "description": "Posta in uscita per reset password, verifica email, ecc." },
-      "security": { "title": "Sicurezza" },
-      "legal": { "title": "Pagine legali" },
-      "seo": { "title": "SEO / Distribuzione" }
+      "general": {
+        "title": "Generale"
+      },
+      "ai": {
+        "title": "Funzioni AI",
+        "description": "Stima delle calorie basata su foto. Le chiavi provider impostate qui sono il fallback globale quando gli utenti non hanno una propria chiave."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Single sign-on tramite un provider OpenID Connect. Imposta issuer + client id + client secret per attivarlo."
+      },
+      "passkeys": {
+        "title": "Passkey",
+        "description": "Accesso senza password WebAuthn. Impostare l'RP ID attiva la funzione."
+      },
+      "features": {
+        "title": "Funzioni"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Posta in uscita per reset password, verifica email, ecc."
+      },
+      "security": {
+        "title": "Sicurezza"
+      },
+      "legal": {
+        "title": "Pagine legali"
+      },
+      "seo": {
+        "title": "SEO / Distribuzione"
+      }
     },
     "appSettingsHeading": "Impostazioni applicazione",
     "save": "Salva",
