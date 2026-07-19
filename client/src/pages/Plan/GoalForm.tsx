@@ -82,7 +82,7 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
         {paceMode === 'rate' ? (
           <div className="flex flex-col gap-1.5 max-w-xs">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{weightUnit}/week</label>
-            <input className={inputClass} type="number" step="0.05" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 0.5" />
+            <input className={inputClass} type="number" step="0.05" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 0.5" />
           </div>
         ) : (
           <div className="flex flex-col gap-1.5 max-w-xs">
@@ -97,8 +97,8 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
 
         {warnings.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            {warnings.map((w) => (
-              <p key={w.code} className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-yellow-300">
+            {warnings.map((w, i) => (
+              <p key={`${w.code}-${i}`} className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-yellow-300">
                 {w.message}
               </p>
             ))}

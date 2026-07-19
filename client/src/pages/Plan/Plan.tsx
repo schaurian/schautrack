@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import MetricsForm from './MetricsForm';
 import GoalForm from './GoalForm';
+import PlanChart from './PlanChart';
 
 const BMI_CATEGORY_LABELS: Record<string, string> = {
   underweight: 'Underweight',
@@ -81,6 +82,7 @@ export default function Plan() {
   if (!data.goal && !data.metrics.complete) budgetHelpText = 'Set a goal and complete your details above to see a recommended budget.';
   else if (!data.goal) budgetHelpText = 'Set a goal above to see a recommended budget.';
   else if (!data.metrics.complete) budgetHelpText = 'Complete your details above to see a recommended budget.';
+  else budgetHelpText = 'Recommended budget unavailable right now.';
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,11 +161,14 @@ export default function Plan() {
         )}
       </Card>
 
-      {/* Chart placeholder */}
-      <div className="rounded-xl border-2 border-dashed border-border bg-card/50 overflow-hidden p-8 flex items-center justify-center min-h-[200px]">
-        {/* PlanChart mounted in Task 6 */}
-        <span className="text-sm text-muted-foreground">Weight trend chart coming soon</span>
-      </div>
+      <PlanChart
+        variant="full"
+        series={data.series}
+        planCurve={data.computed?.planCurve ?? []}
+        targetWeight={data.goal?.target_weight ?? null}
+        healthyRange={data.healthyRange}
+        weightUnit={weightUnit}
+      />
 
       {/* Progress */}
       {data.goal && (

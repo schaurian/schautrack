@@ -61,7 +61,7 @@ export default function MetricsForm({ metrics }: Props) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Height (cm)</label>
-              <input className={inputClass} type="number" min="0" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 175" />
+              <input className={inputClass} type="number" min="0" max="300" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 175" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Birth Year</label>
