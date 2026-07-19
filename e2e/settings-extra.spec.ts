@@ -23,7 +23,7 @@ test.describe.serial('Settings Extra', () => {
     await page.waitForTimeout(3000);
 
     // "Saved" must not be visible without user action
-    await expect(page.getByText('Saved')).not.toBeVisible();
+    await expect(page.getByText('Saved', { exact: true })).not.toBeVisible();
 
     await ctx.close();
   });

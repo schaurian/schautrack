@@ -68,7 +68,8 @@ test.describe('Share Card', () => {
     // "You" text should be in the same area as the dot buttons
     await expect(page.getByText('You', { exact: true })).toBeVisible({ timeout: 15000 });
 
-    // Check timeline range buttons are present (7d, 30d, etc.)
+    // Range presets are behind the "Nd ▾" toggle since the redesign — open it.
+    await page.locator('button[aria-expanded="false"]').first().click();
     const has7d = await page.locator('button').filter({ hasText: '7d' }).isVisible({ timeout: 5000 }).catch(() => false);
     const has30d = await page.locator('button').filter({ hasText: '30d' }).isVisible({ timeout: 5000 }).catch(() => false);
     expect(has7d || has30d).toBe(true);

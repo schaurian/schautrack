@@ -22,12 +22,19 @@ test.describe('Timeline', () => {
     }
   }
 
+  // The redesign collapsed the range presets behind the "Nd ▾" toggle on the
+  // Timeline section label — open it before clicking presets/Custom.
+  async function openRangePicker(page: import('@playwright/test').Page) {
+    await page.locator('button[aria-expanded="false"]').first().click();
+  }
+
   test('range preset buttons switch the timeline', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await loginAndGo(page);
 
     // Click 7d
+    await openRangePicker(page);
     await page.locator('button').filter({ hasText: '7d' }).click();
     await page.waitForTimeout(500);
 
@@ -35,6 +42,7 @@ test.describe('Timeline', () => {
     await expect(page.getByText('You', { exact: true })).toBeVisible();
 
     // Click 30d
+    await openRangePicker(page);
     await page.locator('button').filter({ hasText: '30d' }).click();
     await page.waitForTimeout(500);
 
@@ -68,11 +76,12 @@ test.describe('Timeline', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await openRangePicker(page);
     await page.locator('button').filter({ hasText: 'Custom' }).click();
 
     // Date inputs and Apply button should appear
     const dateInputs = page.locator('input[type="date"]');
-    // At least 3 date inputs (entry form + 2 custom range)
+    // At least 3 date inputs (page-header date + 2 custom range)
     await expect(dateInputs.nth(1)).toBeVisible({ timeout: 3000 });
     await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible();
 
@@ -85,6 +94,7 @@ test.describe('Timeline', () => {
     await loginAndGo(page);
 
     // Use a 30-day range so there are more dots to click
+    await openRangePicker(page);
     await page.locator('button').filter({ hasText: '30d' }).click();
     await page.waitForTimeout(500);
 
@@ -129,10 +139,11 @@ test.describe('Timeline', () => {
     const startStr = fmt(start);
     const endStr = fmt(today);
 
+    await openRangePicker(page);
     await page.locator('button').filter({ hasText: 'Custom' }).click();
 
     // The two custom date inputs appear inside the custom range panel (not the entry form)
-    // Use the 2nd and 3rd date inputs (index 1 and 2); index 0 is the entry form date
+    // Use the 2nd and 3rd date inputs (index 1 and 2); index 0 is the page-header date
     const dateInputs = page.locator('input[type="date"]');
     await expect(dateInputs.nth(1)).toBeVisible({ timeout: 3000 });
 
