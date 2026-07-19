@@ -11,6 +11,7 @@ import SavedFoodsRow from './SavedFoodsRow';
 import Timeline from './Timeline';
 import EntryList from './EntryList';
 import WeightRow from './WeightRow';
+import PlanCard from './PlanCard';
 import TodoList from './TodoList';
 import NoteEditor from './NoteEditor';
 
@@ -178,6 +179,8 @@ export default function Dashboard() {
         canEdit={canEdit}
         selectedDate={selectedDate}
       />
+
+      {canEdit && <PlanCard weightUnit={dashboard.weightUnit} />}
     </div>
   );
 }
