@@ -41,6 +41,13 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
     selectDay(date);
   };
 
+  // Selecting the card (not a specific day) switches to that user, keeping the
+  // current date. This is the only way to reach a friend who shares no
+  // nutrition — their card renders no day-dots to click.
+  const handleSelect = (view: SharedView) => {
+    selectUser(view.userId, view.label, view.isSelf);
+  };
+
   const active = rangePreset || range.preset;
 
   return (
@@ -107,6 +114,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
             view={view}
             todayStr={todayStr}
             onDotClick={(date) => handleDotClick(view, date)}
+            onSelect={() => handleSelect(view)}
           />
         ))}
       </div>

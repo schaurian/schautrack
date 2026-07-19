@@ -11,9 +11,10 @@ interface Props {
   view: SharedView;
   todayStr: string;
   onDotClick: (date: string) => void;
+  onSelect: () => void;
 }
 
-export default function ShareCard({ view, todayStr, onDotClick }: Props) {
+export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Props) {
   const { selectedDate, currentUserId } = useDashboardStore();
   const queryClient = useQueryClient();
   const isActive = currentUserId === view.userId;
@@ -44,15 +45,31 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
   };
 
   return (
-    <div className={cn(
-      'rounded-xl border p-4 transition-colors',
-      isActive ? 'border-primary/40 bg-primary/[0.04]' : 'border-border bg-card'
-    )}>
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isActive}
+      aria-label={view.isSelf ? 'View your day' : `View ${view.label}'s day`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        // Only self-trigger when the card itself is focused, so Enter/Escape
+        // inside the label input (which bubbles up) doesn't also select.
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={cn(
+        'rounded-xl border p-4 transition-colors cursor-pointer',
+        isActive ? 'border-primary/40 bg-primary/[0.04]' : 'border-border bg-card hover:border-primary/30'
+      )}
+    >
       <div className="mb-2">
         {editing && canEditLabel ? (
           <input
             className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full"
             value={label}
+            onClick={(e) => e.stopPropagation()}
             onChange={(e) => setLabel(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
@@ -63,7 +80,7 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
           <button
             type="button"
             className="bg-transparent border border-transparent p-0 text-sm font-medium text-foreground text-left cursor-pointer hover:text-primary transition-colors"
-            onClick={() => setEditing(true)}
+            onClick={(e) => { e.stopPropagation(); setEditing(true); }}
             aria-label={`Edit label for ${view.label}`}
             title="Click to edit label"
           >
