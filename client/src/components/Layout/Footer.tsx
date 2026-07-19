@@ -1,42 +1,12 @@
-import { useState, useEffect } from 'react';
-
-function isOutdated(current: string, latest: string): boolean {
-  const c = current.split('.').map(Number);
-  const l = latest.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((c[i] || 0) < (l[i] || 0)) return true;
-    if ((c[i] || 0) > (l[i] || 0)) return false;
-  }
-  return false;
-}
+import { useVersionInfo } from '@/hooks/useVersionInfo';
 
 export default function Footer() {
-  const [version, setVersion] = useState<string | null>(null);
-  const [outdated, setOutdated] = useState(false);
+  const { current, outdated, repoUrl } = useVersionInfo();
 
-  useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.version) {
-          setVersion(d.version);
-          if (!d.version.startsWith('staging') && d.version !== 'dev') {
-            fetch('/api/latest-version')
-              .then((r) => r.json())
-              .then((rel) => {
-                const latest = rel.latest;
-                if (latest && isOutdated(d.version, latest)) setOutdated(true);
-              })
-              .catch(() => {});
-          }
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const displayVersion = version
-    ? (version.startsWith('staging') || version === 'dev' ? version : `v${version}`)
+  const displayVersion = current
+    ? (current.startsWith('staging') || current === 'dev' ? current : `v${current}`)
     : null;
+  const githubHref = repoUrl ?? 'https://github.com/schaurian/schautrack';
 
   return (
     <footer className="mt-auto px-4 py-4">
@@ -66,7 +36,7 @@ export default function Footer() {
             </svg>
           </a>
           <a
-            href="https://github.com/schaurian/schautrack"
+            href={githubHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground/50 transition-colors hover:text-foreground"
