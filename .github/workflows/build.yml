@@ -88,6 +88,10 @@ jobs:
         run: npm test
         working-directory: client
 
+      - name: Check i18n catalog parity
+        run: npm run i18n:check
+        working-directory: client
+
   compute-version:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: test
