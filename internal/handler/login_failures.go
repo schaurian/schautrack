@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -10,6 +12,22 @@ import (
 // loginCaptchaThreshold is the failed-attempt count (per session, per account
 // email, or per client IP) at which login requires solving a captcha.
 const loginCaptchaThreshold = 3
+
+// loginCaptchaGlobalThreshold applies to the cross-session (email/IP) failure
+// counters only. Overridable via LOGIN_CAPTCHA_GLOBAL_THRESHOLD so test
+// harnesses — where every client shares one IP and some specs fail logins on
+// purpose — can keep the shared-IP counter from captcha-gating unrelated
+// sessions (same spirit as RATE_LIMIT_AUTH=1000 in compose.test.yml). The
+// per-session counter is unaffected, so the captcha flow itself stays
+// testable and production defaults are unchanged.
+var loginCaptchaGlobalThreshold = func() int {
+	if v := os.Getenv("LOGIN_CAPTCHA_GLOBAL_THRESHOLD"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return loginCaptchaThreshold
+}()
 
 // loginFailureWindow is how long server-side failure counters persist. It
 // matches the auth rate limiter's window so both defenses decay together.
@@ -132,12 +150,13 @@ func clearLoginFailures(sess *session.Session, email, ip string) {
 }
 
 // loginCaptchaRequired reports whether a login attempt for this
-// session/email/IP must solve a captcha: any of the three counters reaching
-// loginCaptchaThreshold triggers it.
+// session/email/IP must solve a captcha: the session counter reaching
+// loginCaptchaThreshold, or a cross-session counter reaching
+// loginCaptchaGlobalThreshold (identical by default), triggers it.
 func loginCaptchaRequired(sess *session.Session, email, ip string) bool {
 	if attempts, _ := sess.GetInt("loginFailedAttempts"); attempts >= loginCaptchaThreshold {
 		return true
 	}
-	return loginFailures.Count("email:"+email) >= loginCaptchaThreshold ||
-		loginFailures.Count("ip:"+ip) >= loginCaptchaThreshold
+	return loginFailures.Count("email:"+email) >= loginCaptchaGlobalThreshold ||
+		loginFailures.Count("ip:"+ip) >= loginCaptchaGlobalThreshold
 }
