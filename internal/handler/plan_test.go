@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"schautrack/internal/model"
 )
@@ -141,25 +140,28 @@ func TestValidateRateKgPerWeek(t *testing.T) {
 }
 
 func TestValidateTargetDate(t *testing.T) {
-	now := time.Date(2026, 7, 19, 0, 0, 0, 0, time.UTC)
+	// todayStr stands in for the tz-aware "today" the caller computes via
+	// service.FormatDateInTz — validateTargetDate itself takes a plain date
+	// string so it stays pure/testable without a timezone dependency.
+	todayStr := "2026-07-19"
 	future, past, today, malformed := "2026-08-01", "2026-07-01", "2026-07-19", "not-a-date"
 
-	if !validateTargetDate("rate", nil, now) {
+	if !validateTargetDate("rate", nil, todayStr) {
 		t.Error("target_date is not required in rate mode")
 	}
-	if !validateTargetDate("date", &future, now) {
+	if !validateTargetDate("date", &future, todayStr) {
 		t.Error("future date should be valid in date mode")
 	}
-	if validateTargetDate("date", nil, now) {
+	if validateTargetDate("date", nil, todayStr) {
 		t.Error("nil date should be invalid in date mode")
 	}
-	if validateTargetDate("date", &past, now) {
+	if validateTargetDate("date", &past, todayStr) {
 		t.Error("past date should be invalid in date mode")
 	}
-	if validateTargetDate("date", &today, now) {
+	if validateTargetDate("date", &today, todayStr) {
 		t.Error("today should be invalid — target date must be strictly in the future")
 	}
-	if validateTargetDate("date", &malformed, now) {
+	if validateTargetDate("date", &malformed, todayStr) {
 		t.Error("malformed date should be invalid")
 	}
 }

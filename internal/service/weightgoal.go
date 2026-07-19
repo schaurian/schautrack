@@ -88,9 +88,16 @@ func MarkGoalAchieved(ctx context.Context, pool *pgxpool.Pool, goalID int) error
 }
 
 // UpdateBodyMetrics writes the user's body-profile fields used by the planner.
+// Each field is nil-safe/partial-update-friendly via COALESCE: a nil argument
+// leaves the existing column value untouched instead of clobbering it to NULL.
 func UpdateBodyMetrics(ctx context.Context, pool *pgxpool.Pool, userID int, heightCm *float64, birthYear *int, sex, activity *string) error {
 	_, err := pool.Exec(ctx,
-		"UPDATE users SET height_cm = $2, birth_year = $3, sex = $4, activity_level = $5 WHERE id = $1",
+		`UPDATE users SET
+			height_cm = COALESCE($2, height_cm),
+			birth_year = COALESCE($3, birth_year),
+			sex = COALESCE($4, sex),
+			activity_level = COALESCE($5, activity_level)
+		WHERE id = $1`,
 		userID, heightCm, birthYear, sex, activity)
 	return err
 }

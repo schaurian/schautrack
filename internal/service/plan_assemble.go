@@ -145,7 +145,12 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 			(dir == DirGain && *in.CurrentWeight >= goal.TargetWeight)
 	}
 
-	if !out.Metrics.Complete {
+	// A goal's rate can be non-finite (+Inf from RateForDate when a date-mode
+	// goal's target_date collapses onto start_date, e.g. across a timezone
+	// boundary) or <=0 (goalRate's "cannot be determined" sentinel). Either
+	// way we can't safely derive BMR/TDEE/budget/ETA from it, so omit
+	// Computed rather than let a non-finite value reach encoding/json.
+	if !out.Metrics.Complete || math.IsInf(rate, 0) || math.IsNaN(rate) || rate <= 0 {
 		return out
 	}
 

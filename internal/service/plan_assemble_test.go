@@ -13,17 +13,24 @@ func TestAssemblePlan(t *testing.T) {
 	now := time.Date(2026, 7, 19, 0, 0, 0, 0, time.UTC)
 
 	t.Run("metrics complete plus rate goal computes full plan", func(t *testing.T) {
-		birthYear := now.Year() - 30
+		// Uses the design doc's literal worked example (130kg/180cm/age40/
+		// male/moderate, 0.75 kg/week) — see
+		// docs/superpowers/specs/2026-07-19-weight-loss-planner-design.md —
+		// so the assertions below are an INDEPENDENT numeric reference
+		// (BMR=2230, TDEE≈3456.5, deficit(0.75)=825 → budget≈2631.5, BMI≈40.1)
+		// rather than a call into the same BMR/TDEE/RecommendedBudget
+		// functions AssemblePlan itself wires together.
+		birthYear := now.Year() - 40
 		sex := "male"
 		activity := "moderate"
 		goal := &model.WeightGoal{
 			ID: 1, UserID: 1,
-			StartWeight: 105, StartDate: "2026-07-01",
-			TargetWeight: 90, PaceMode: "rate", RateKgPerWeek: f64(0.5),
+			StartWeight: 130, StartDate: "2026-07-01",
+			TargetWeight: 80, PaceMode: "rate", RateKgPerWeek: f64(0.75),
 			Status: "active",
 		}
 		in := PlanInputs{
-			CurrentWeight: f64(105), HeightCm: f64(185), BirthYear: &birthYear,
+			CurrentWeight: f64(130), HeightCm: f64(180), BirthYear: &birthYear,
 			Sex: &sex, ActivityLevel: &activity, Goal: goal, Now: now,
 		}
 		out := AssemblePlan(in)
@@ -35,16 +42,11 @@ func TestAssemblePlan(t *testing.T) {
 			t.Fatal("expected a computed plan, got nil")
 		}
 
-		// Cross-check against the same Task-2 pure functions AssemblePlan is
-		// supposed to wire together, rather than hardcoding a magic constant.
-		wantBMR := BMR(SexMale, 105, 185, 30)
-		wantTDEE := TDEE(wantBMR, ActivityModerate)
-		wantBudget, wantClamped := RecommendedBudget(wantTDEE, 0.5, DirLoss, CalorieFloor(SexMale))
-		if out.Computed.BudgetKcal != wantBudget {
-			t.Errorf("budgetKcal = %d, want %d (~2631 per the illustrative example)", out.Computed.BudgetKcal, wantBudget)
+		if out.Computed.BudgetKcal < 2630 || out.Computed.BudgetKcal > 2633 {
+			t.Errorf("budgetKcal = %d, want 2630..2633 per the design doc's worked example", out.Computed.BudgetKcal)
 		}
-		if out.Computed.BudgetClamped != wantClamped {
-			t.Errorf("budgetClamped = %v, want %v", out.Computed.BudgetClamped, wantClamped)
+		if out.Computed.BudgetClamped {
+			t.Error("expected budget not to be clamped at this TDEE/rate")
 		}
 		if len(out.Computed.PlanCurve) < 2 {
 			t.Errorf("expected a non-empty planCurve, got %d points", len(out.Computed.PlanCurve))
@@ -55,9 +57,49 @@ func TestAssemblePlan(t *testing.T) {
 		if out.BMI == nil || out.BMICategory == nil || out.HealthyRange == nil {
 			t.Fatal("expected bmi/bmiCategory/healthyRange to be set")
 		}
-		wantBMI := round1(BMI(105, 185))
-		if !almost(*out.BMI, wantBMI, 0.01) {
-			t.Errorf("bmi = %v, want %v", *out.BMI, wantBMI)
+		if !almost(*out.BMI, 40.1, 0.1) {
+			t.Errorf("bmi = %v, want ~40.1 per the design doc's worked example", *out.BMI)
+		}
+	})
+
+	t.Run("no logged current weight falls back to goal start weight for BMR baseline", func(t *testing.T) {
+		// CurrentWeight is nil (no weight entry logged, even though metrics
+		// are complete), so AssemblePlan must derive BMR/TDEE/budget from
+		// goal.StartWeight — the baseWeight fallback at plan_assemble.go's
+		// baseWeight logic. StartWeight (97.3) is distinct from every other
+		// weight used in this file so a wiring bug (e.g. defaulting to 0, or
+		// silently reusing another case's weight) would be caught.
+		birthYear := now.Year() - 35
+		sex := "female"
+		activity := "active"
+		goal := &model.WeightGoal{
+			ID: 6, UserID: 1,
+			StartWeight: 97.3, StartDate: "2026-07-01",
+			TargetWeight: 75, PaceMode: "rate", RateKgPerWeek: f64(0.4),
+			Status: "active",
+		}
+		in := PlanInputs{
+			CurrentWeight: nil, HeightCm: f64(170), BirthYear: &birthYear,
+			Sex: &sex, ActivityLevel: &activity, Goal: goal, Now: now,
+		}
+		out := AssemblePlan(in)
+
+		if !out.Metrics.Complete {
+			t.Fatal("expected metrics.complete = true")
+		}
+		if out.Computed == nil {
+			t.Fatal("expected a computed plan, got nil")
+		}
+
+		wantBMR := round1(BMR(SexFemale, goal.StartWeight, 170, 35))
+		if !almost(out.Computed.BMR, wantBMR, 0.01) {
+			t.Errorf("bmr = %v, want %v (must derive from goal.StartWeight, not a missing CurrentWeight)", out.Computed.BMR, wantBMR)
+		}
+		if out.CurrentWeight != nil {
+			t.Errorf("expected currentWeight to stay nil, got %v", *out.CurrentWeight)
+		}
+		if out.BMI != nil {
+			t.Error("expected bmi to be nil without a logged current weight")
 		}
 	})
 

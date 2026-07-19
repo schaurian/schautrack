@@ -57,16 +57,20 @@ func validateRateKgPerWeek(paceMode string, rate *float64) bool {
 }
 
 // validateTargetDate requires a well-formed, strictly-future YYYY-MM-DD date
-// when paceMode is "date"; it's a no-op for other pace modes. now is injected
-// so the check is pure/testable.
-func validateTargetDate(paceMode string, dateStr *string, now time.Time) bool {
+// when paceMode is "date"; it's a no-op for other pace modes. todayStr is
+// injected (rather than computed here from a raw UTC clock) so the caller can
+// pass the same timezone-aware "today" used to derive the goal's start_date —
+// otherwise a target_date equal to the user's local "today" but after UTC
+// midnight would pass this check yet equal start_date, sending a zero-length
+// window into RateForDate.
+func validateTargetDate(paceMode string, dateStr *string, todayStr string) bool {
 	if paceMode != "date" {
 		return true
 	}
 	if dateStr == nil || !dateRe.MatchString(*dateStr) {
 		return false
 	}
-	return *dateStr > now.Format("2006-01-02")
+	return *dateStr > todayStr
 }
 
 // currentCalorieGoal reads the user's effective calorie target: macro_goals.calories,
@@ -188,14 +192,16 @@ func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
+	user := middleware.GetCurrentUser(r)
+	tz := getUserTimezone(r, user)
+	startDate := service.FormatDateInTz(now, tz)
+
 	if !validateTargetWeight(body.TargetWeight) || !validatePaceMode(body.PaceMode) ||
 		!validateRateKgPerWeek(body.PaceMode, body.RateKgPerWeek) ||
-		!validateTargetDate(body.PaceMode, body.TargetDate, now) {
+		!validateTargetDate(body.PaceMode, body.TargetDate, startDate) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid goal.")
 		return
 	}
-
-	user := middleware.GetCurrentUser(r)
 
 	lastWeight, err := service.GetLastWeightEntry(r.Context(), h.Pool, user.ID, "")
 	if err != nil {
@@ -206,9 +212,6 @@ func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "Log a weight entry before setting a goal.")
 		return
 	}
-
-	tz := getUserTimezone(r, user)
-	startDate := service.FormatDateInTz(now, tz)
 
 	goal := &model.WeightGoal{
 		UserID:        user.ID,
