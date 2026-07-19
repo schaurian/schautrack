@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import Quagga from '@ericblade/quagga2';
 import { lookupBarcode } from '@/api/barcode';
@@ -25,6 +26,7 @@ interface ProductData {
 }
 
 export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMacros }: Props) {
+  const { t } = useTranslation('dashboard');
   const [phase, setPhase] = useState<Phase>('scanning');
   const [mode, setMode] = useState<Mode>('camera');
   const [barcode, setBarcode] = useState('');
@@ -67,12 +69,12 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     try {
       const res = await lookupBarcode(code);
       if (!res.ok) {
-        setErrorMsg(res.error || 'Product not found.');
+        setErrorMsg(res.error || t('barcodeScan.errorProductNotFound'));
         setPhase('error');
         return;
       }
       if (res.caloriesPer100g == null) {
-        setErrorMsg(res.note || 'No calorie data available.');
+        setErrorMsg(res.note || t('barcodeScan.errorNoCalorieData'));
         setProduct(null);
         setPhase('error');
         return;
@@ -88,10 +90,10 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
       setGrams(String(p.servingQuantity || 100));
       setPhase('result');
     } catch {
-      setErrorMsg('Lookup failed. Please try again.');
+      setErrorMsg(t('barcodeScan.errorLookupFailed'));
       setPhase('error');
     }
-  }, [stopScanner]);
+  }, [stopScanner, t]);
 
   const startScanner = useCallback(() => {
     if (!scannerRef.current || quaggaRunning.current) return;
@@ -190,7 +192,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
         if (code && /^\d{8,13}$/.test(code)) {
           doLookup(code);
         } else {
-          setErrorMsg('No barcode found in image. Try a clearer photo.');
+          setErrorMsg(t('barcodeScan.errorNoBarcodeInImage'));
         }
       }
     );
@@ -205,7 +207,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     if (/^\d{8,13}$/.test(code)) {
       doLookup(code);
     } else {
-      setErrorMsg('Enter a valid barcode (8-13 digits).');
+      setErrorMsg(t('barcodeScan.errorInvalidBarcode'));
     }
   };
 
@@ -257,8 +259,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
         <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 sm:bg-transparent shrink-0 z-10">
-            <Dialog.Title className="text-sm font-semibold text-foreground">Scan Barcode</Dialog.Title>
-            <Dialog.Close aria-label="Close" className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
+            <Dialog.Title className="text-sm font-semibold text-foreground">{t('barcodeScan.modalTitle')}</Dialog.Title>
+            <Dialog.Close aria-label={t('dashboard.closeAriaLabel')} className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18" /><path d="M6 6l12 12" />
               </svg>
@@ -281,7 +283,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                     )}
                     onClick={() => handleModeSwitch(m)}
                   >
-                    {m === 'camera' ? 'Camera' : m === 'upload' ? 'Upload' : 'Manual'}
+                    {m === 'camera' ? t('dashboard.cameraTab') : m === 'upload' ? t('dashboard.uploadTab') : t('barcodeScan.manualTab')}
                   </button>
                 ))}
               </div>
@@ -305,21 +307,21 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                             <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                             <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                           </div>
-                          <span className="text-xs text-muted-foreground">Starting camera...</span>
+                          <span className="text-xs text-muted-foreground">{t('barcodeScan.startingCamera')}</span>
                         </div>
                       )}
                       {scannerReady && <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-primary/60 z-10 pointer-events-none" />}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
-                      <p className="text-sm">Camera not available.</p>
+                      <p className="text-sm">{t('barcodeScan.cameraNotAvailable')}</p>
                     </div>
                   )
                 )}
 
                 {mode === 'upload' && (
                   <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
-                    <p className="text-sm">Upload a photo of a barcode</p>
+                    <p className="text-sm">{t('barcodeScan.uploadPhotoText')}</p>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -337,12 +339,12 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                       className="flex-1 rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
                       value={manualCode}
                       onChange={(e) => { setManualCode(e.target.value); setErrorMsg(''); }}
-                      placeholder="Enter barcode number"
+                      placeholder={t('barcodeScan.enterBarcodePlaceholder')}
                       inputMode="numeric"
                       maxLength={13}
                       autoFocus
                     />
-                    <Button type="submit" size="sm">Look up</Button>
+                    <Button type="submit" size="sm">{t('barcodeScan.lookUpButton')}</Button>
                   </form>
                 )}
 
@@ -359,7 +361,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                   <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                   <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 </div>
-                <span className="text-sm font-medium text-muted-foreground animate-pulse">Looking up {barcode}...</span>
+                <span className="text-sm font-medium text-muted-foreground animate-pulse">{t('barcodeScan.lookingUpText', { barcode })}</span>
               </div>
             )}
 
@@ -371,8 +373,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                     <div className="text-base font-semibold text-foreground text-center">{product.name}</div>
                   )}
                   <div className="text-xs text-muted-foreground">
-                    {product.caloriesPer100g} cal per 100g
-                    {product.servingSize && ` · serving: ${product.servingSize}`}
+                    {t('barcodeScan.calPer100g', { value: product.caloriesPer100g })}
+                    {product.servingSize && t('barcodeScan.servingSizeSuffix', { size: product.servingSize })}
                   </div>
                 </div>
 
@@ -429,8 +431,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                 </div>
 
                 <div className="flex gap-2 justify-center">
-                  <Button size="sm" onClick={handleAddEntry}>Add Entry</Button>
-                  <Button size="sm" variant="ghost" onClick={handleRetry}>Scan Another</Button>
+                  <Button size="sm" onClick={handleAddEntry}>{t('barcodeScan.addEntryButton')}</Button>
+                  <Button size="sm" variant="ghost" onClick={handleRetry}>{t('barcodeScan.scanAnotherButton')}</Button>
                 </div>
               </>
             )}
@@ -438,9 +440,9 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
             {/* Attribution */}
             {(phase === 'result' || phase === 'scanning') && (
               <div className="text-center text-[10px] text-muted-foreground">
-                Barcode data is sent to and provided by{' '}
+                {t('barcodeScan.attributionPrefix')}{' '}
                 <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline hover:text-muted-foreground">
-                  Open Food Facts
+                  {t('barcodeScan.attributionLinkText')}
                 </a>
                 {' '}&middot; ODbL
               </div>
@@ -453,8 +455,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                   <div className="text-sm text-destructive">{errorMsg}</div>
                 </div>
                 <div className="flex gap-2 justify-center">
-                  <Button size="sm" onClick={handleRetry}>Try Again</Button>
-                  <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+                  <Button size="sm" onClick={handleRetry}>{t('barcodeScan.tryAgainButton')}</Button>
+                  <Button size="sm" variant="ghost" onClick={onClose}>{t('dashboard.closeButton')}</Button>
                 </div>
               </>
             )}

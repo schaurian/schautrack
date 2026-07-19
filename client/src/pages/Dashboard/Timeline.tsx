@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SharedView } from '@/types';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import ShareCard from './ShareCard';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function Timeline({ sharedViews, range, todayStr }: Props) {
+  const { t } = useTranslation('dashboard');
   const { rangePreset, setRange, selectDay, selectUser } = useDashboardStore();
   const [showCustom, setShowCustom] = useState(false);
   const [customStart, setCustomStart] = useState(range.start);
@@ -46,7 +48,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">Timeline</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('dashboard.timelineTitle')}</h3>
       </div>
       {/* Range selector */}
       <div className="flex flex-wrap gap-1.5 mx-4 mt-4 mb-4">
@@ -62,7 +64,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
             )}
             onClick={() => handlePreset(days)}
           >
-            {days}d
+            {t('dashboard.rangeDays', { count: days })}
           </button>
         ))}
         <button
@@ -75,7 +77,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
           )}
           onClick={() => setShowCustom(!showCustom)}
         >
-          Custom
+          {t('dashboard.customRangeButton')}
         </button>
       </div>
 
@@ -88,14 +90,14 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
           />
-          <span className="text-xs text-muted-foreground font-medium">to</span>
+          <span className="text-xs text-muted-foreground font-medium">{t('dashboard.customRangeTo')}</span>
           <input
             type="date"
             className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
           />
-          <Button size="sm" onClick={handleCustomApply}>Apply</Button>
+          <Button size="sm" onClick={handleCustomApply}>{t('dashboard.customRangeApply')}</Button>
         </div>
       )}
 

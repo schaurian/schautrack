@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoods, trackSavedFood, deleteSavedFood, createSavedFood, updateSavedFood } from '@/api/savedFoods';
@@ -21,6 +22,7 @@ interface Props {
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring';
 
 export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props) {
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
   const user = useAuthStore((s) => s.user);
@@ -81,7 +83,7 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
       cancelDraft();
       invalidate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to save');
+      addToast('error', err instanceof Error ? err.message : t('savedFoods.toastSaveFailed'));
     }
   };
 
@@ -101,9 +103,9 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
         <Dialog.Overlay className="fixed inset-0 z-[150] bg-background/80 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-[150] w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border-2 border-border bg-card overflow-hidden focus:outline-none">
         <div className="flex items-center justify-between px-4 py-3 border-b-2 border-border">
-          <Dialog.Title className="text-base font-semibold">Saved foods</Dialog.Title>
+          <Dialog.Title className="text-base font-semibold">{t('savedFoods.modalTitle')}</Dialog.Title>
           <Dialog.Close
-            aria-label="Close"
+            aria-label={t('dashboard.closeAriaLabel')}
             className="text-muted-foreground hover:text-foreground bg-transparent border-0 text-2xl leading-none cursor-pointer"
           >
             &times;
@@ -113,13 +115,13 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
         <div className="px-4 py-3 border-b border-border flex items-center gap-2">
           <input
             type="text"
-            placeholder="Search…"
+            placeholder={t('savedFoods.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={inputClass}
           />
           {!creating && (
-            <Button size="sm" variant="default" onClick={() => setCreating(true)}>+ New</Button>
+            <Button size="sm" variant="default" onClick={() => setCreating(true)}>{t('savedFoods.newButton')}</Button>
           )}
         </div>
 
@@ -135,10 +137,10 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
                   onChange={(e) => setDraftName(e.target.value)}
                   onBlur={commitDraft}
                   onKeyDown={handleDraftKey}
-                  placeholder="Name your saved food, then click pills to add values…"
+                  placeholder={t('savedFoods.draftNamePlaceholder')}
                   maxLength={80}
                 />
-                <Button size="sm" variant="ghost" onClick={cancelDraft}>Cancel</Button>
+                <Button size="sm" variant="ghost" onClick={cancelDraft}>{t('savedFoods.cancelButton')}</Button>
               </div>
             </div>
           )}
@@ -149,7 +151,7 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
             </div>
           ) : filtered.length === 0 && !creating ? (
             <p className="text-center text-sm text-muted-foreground py-8">
-              {search ? 'No matches.' : 'No saved foods yet. Use the "Save" button on the entry form, or hit "+ New".'}
+              {search ? t('savedFoods.noMatches') : t('savedFoods.emptyState')}
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">
@@ -185,6 +187,7 @@ interface RowProps {
 type EditField = 'name' | 'emoji' | 'amount' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar' | null;
 
 function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onChange }: RowProps) {
+  const { t } = useTranslation('dashboard');
   const addToast = useToastStore((s) => s.addToast);
   const [editing, setEditing] = useState<EditField>(null);
   const [editValue, setEditValue] = useState('');
@@ -202,7 +205,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
     if (field === 'name') {
       const v = raw.trim();
       if (!v) {
-        addToast('error', 'Name is required');
+        addToast('error', t('savedFoods.toastNameRequired'));
         setEditing(null);
         return;
       }
@@ -219,7 +222,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
       await updateSavedFood(food.id, payload);
       onChange();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to update');
+      addToast('error', err instanceof Error ? err.message : t('savedFoods.toastUpdateFailed'));
     }
     setEditing(null);
   };
@@ -253,19 +256,19 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
     try {
       await deleteSavedFood(food.id);
       onChange();
-      addToast('success', `Deleted ${food.name}`, {
-        label: 'Undo',
+      addToast('success', t('savedFoods.toastDeleted', { name: food.name }), {
+        label: t('savedFoods.undoLabel'),
         onClick: async () => {
           try {
             await createSavedFood(snapshot);
             onChange();
           } catch (err) {
-            addToast('error', err instanceof Error ? err.message : 'Restore failed');
+            addToast('error', err instanceof Error ? err.message : t('savedFoods.toastRestoreFailed'));
           }
         },
       });
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to delete');
+      addToast('error', err instanceof Error ? err.message : t('savedFoods.toastDeleteFailed'));
     }
     setBusy(false);
   };
@@ -274,20 +277,20 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
     setBusy(true);
     try {
       const res = await trackSavedFood(food.id, selectedDate);
-      addToast('success', `Tracked ${food.name}`, {
-        label: 'Undo',
+      addToast('success', t('savedFoods.toastTracked', { count: 1, name: food.name }), {
+        label: t('savedFoods.undoLabel'),
         onClick: async () => {
           try {
             await deleteEntry(res.entry.id);
             onChange();
           } catch (err) {
-            addToast('error', err instanceof Error ? err.message : 'Undo failed');
+            addToast('error', err instanceof Error ? err.message : t('savedFoods.toastUndoFailed'));
           }
         },
       });
       onChange();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to track');
+      addToast('error', err instanceof Error ? err.message : t('savedFoods.toastTrackFailed'));
     }
     setBusy(false);
   };
@@ -317,7 +320,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
             type="button"
             className="size-7 flex items-center justify-center rounded-md border border-transparent text-lg leading-none shrink-0 bg-transparent cursor-pointer hover:border-border hover:bg-white/[0.04]"
             onClick={() => beginEdit('emoji', food.emoji)}
-            title="Change emoji"
+            title={t('savedFoods.changeEmojiTitle')}
           >
             {food.emoji}
           </button>
@@ -351,7 +354,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
         )}
 
         {selectedDate && (
-          <Button size="sm" variant="default" onClick={handleTrack} disabled={busy}>Track</Button>
+          <Button size="sm" variant="default" onClick={handleTrack} disabled={busy}>{t('savedFoods.trackButton')}</Button>
         )}
 
         <button
@@ -359,8 +362,8 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
           className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
           onClick={handleDelete}
           disabled={busy}
-          aria-label="Delete saved food"
-          title="Delete"
+          aria-label={t('savedFoods.deleteSavedFoodAriaLabel')}
+          title={t('entries.deleteTitle')}
         >
           <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6L6 18" /><path d="M6 6l12 12" />
@@ -375,7 +378,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
             editing === 'amount' ? (
               <MacroPillEditing
                 macroKey="kcal"
-                label="Calories"
+                label={t('entries.caloriesLabel')}
                 unit="kcal"
                 editValue={editValue}
                 onChange={setEditValue}
@@ -386,7 +389,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
             ) : (
               <MacroPill
                 macroKey="kcal"
-                label="Calories"
+                label={t('entries.caloriesLabel')}
                 value={food.amount ?? null}
                 unit="kcal"
                 onClick={() => beginEdit('amount', food.amount)}

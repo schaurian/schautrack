@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoods, trackSavedFood } from '@/api/savedFoods';
 import { deleteEntry } from '@/api/entries';
@@ -18,6 +19,7 @@ const MOBILE_CHIPS = 6;
 const LONG_PRESS_MS = 450;
 
 export default function SavedFoodsRow({ selectedDate }: Props) {
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,9 +43,9 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
       queryClient.invalidateQueries({ queryKey: ['day-entries'] });
       queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
       const entryId = res.entry.id;
-      const label = quantity > 1 ? `Tracked ${quantity}× ${food.name}` : `Tracked ${food.name}`;
+      const label = t('savedFoods.toastTracked', { count: quantity, name: food.name });
       addToast('success', label, {
-        label: 'Undo',
+        label: t('savedFoods.undoLabel'),
         onClick: async () => {
           try {
             await deleteEntry(entryId);
@@ -51,12 +53,12 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
             queryClient.invalidateQueries({ queryKey: ['day-entries'] });
             queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
           } catch (err) {
-            addToast('error', err instanceof Error ? err.message : 'Undo failed');
+            addToast('error', err instanceof Error ? err.message : t('savedFoods.toastUndoFailed'));
           }
         },
       });
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to track');
+      addToast('error', err instanceof Error ? err.message : t('savedFoods.toastTrackFailed'));
     }
     setTracking(null);
   };
@@ -65,9 +67,9 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
     <>
       <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
         <div className="px-4 py-2 border-b-2 border-border flex items-center justify-between">
-          <h3 className="text-sm font-medium text-muted-foreground">Quick add</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{t('savedFoods.sectionTitle')}</h3>
           <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
-            Manage
+            {t('savedFoods.manageButton')}
           </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 p-3">
@@ -103,7 +105,7 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
               className="rounded-full border border-dashed border-border bg-transparent text-muted-foreground px-3 py-1 text-sm hover:text-foreground hover:border-ring cursor-pointer transition-colors"
               onClick={() => setModalOpen(true)}
             >
-              + more
+              {t('savedFoods.moreButton')}
             </button>
           )}
         </div>
@@ -128,6 +130,7 @@ interface ChipProps {
 }
 
 function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCloseQuantity }: ChipProps) {
+  const { t } = useTranslation('dashboard');
   const longPressTimerRef = useRef<number | null>(null);
   const longPressFiredRef = useRef(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -139,7 +142,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
   for (const [key, val] of Object.entries(food.macros)) {
     if (val != null) parts.push(`${val}g ${key}`);
   }
-  const tooltip = `Tap to log ${food.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''} · Hold or Shift+Enter for quantity`;
+  const tooltip = `${t('savedFoods.chipTooltipBase', { name: food.name })}${parts.length > 0 ? t('savedFoods.chipTooltipDetails', { details: parts.join(' · ') }) : ''}${t('savedFoods.chipTooltipHint')}`;
 
   // Reset the picker quantity each time it opens so consecutive uses
   // don't carry over the previous selection.
@@ -252,7 +255,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
         <div
           ref={popoverRef}
           role="dialog"
-          aria-label={`Choose quantity for ${food.name}`}
+          aria-label={t('savedFoods.chooseQuantityAriaLabel', { name: food.name })}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.stopPropagation();
@@ -268,7 +271,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
               variant="ghost"
               onClick={closeAndRestoreFocus}
             >
-              Cancel
+              {t('savedFoods.cancelButton')}
             </Button>
             <Button
               size="sm"
@@ -278,7 +281,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
               }}
               loading={loading}
             >
-              Log {pickerQty}×
+              {t('savedFoods.logQuantityButton', { count: pickerQty })}
             </Button>
           </div>
         </div>

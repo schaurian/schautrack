@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { MacroStatus } from '@/types';
 import { MACRO_LABELS, type MacroKey } from '@/lib/macros';
 import { cn } from '@/lib/utils';
@@ -46,10 +47,11 @@ export default function TodayPanel({
   enabledMacros, macroGoals, todayMacroTotals, macroStatuses,
   selectedDate, todayStr,
 }: Props) {
+  const { t } = useTranslation('dashboard');
   if (!caloriesEnabled && enabledMacros.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-6">
-        No nutrients tracked. <a href="/settings">Enable tracking in settings.</a>
+        {t('dashboard.noNutrientsTracked')} <a href="/settings">{t('dashboard.enableTrackingLink')}</a>
       </p>
     );
   }
@@ -60,13 +62,13 @@ export default function TodayPanel({
   return (
     <section className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">{selectedDate === todayStr ? 'Today' : selectedDate}</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{selectedDate === todayStr ? t('dashboard.todayLabel') : selectedDate}</h3>
       </div>
       <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {caloriesEnabled && (
           <MacroChip
             macroKey="kcal"
-            label="Calories"
+            label={t('entries.caloriesLabel')}
             total={todayTotal}
             goal={dailyGoal}
             unit="kcal"

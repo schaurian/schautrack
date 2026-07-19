@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import i18n from '@/i18n';
 
 interface DashboardState {
   selectedDate: string;
@@ -23,7 +24,7 @@ const initialState = (): Pick<DashboardState, 'selectedDate' | 'currentUserId' |
   // still overrides this after the first dashboard fetch.
   selectedDate: new Date().toLocaleDateString('en-CA'),
   currentUserId: null,
-  currentLabel: 'You',
+  currentLabel: i18n.t('store.you', { ns: 'dashboard' }),
   canEdit: true,
   rangePreset: 14,
   rangeStart: '',

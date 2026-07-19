@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -16,15 +17,15 @@ const STATUS_COLORS: Record<string, string> = {
   none: 'bg-white/[0.03]',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  under: 'under goal',
-  over: 'over goal',
-  over_threshold: 'well over goal',
-  zero: 'no entries',
-  none: 'no entries',
-};
-
 export default function DayDot({ date, status, isToday, isSelected, onClick }: Props) {
+  const { t } = useTranslation('dashboard');
+  const statusLabels: Record<string, string> = {
+    under: t('dayDot.status.under'),
+    over: t('dayDot.status.over'),
+    over_threshold: t('dayDot.status.overThreshold'),
+    zero: t('dayDot.status.zero'),
+    none: t('dayDot.status.none'),
+  };
   return (
     <button
       type="button"
@@ -37,7 +38,7 @@ export default function DayDot({ date, status, isToday, isSelected, onClick }: P
       )}
       onClick={onClick}
       title={date}
-      aria-label={`${date}: ${STATUS_LABELS[status] || 'no entries'}`}
+      aria-label={`${date}: ${statusLabels[status] || t('dayDot.status.none')}`}
     />
   );
 }

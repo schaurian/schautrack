@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { WeightEntry } from '@/types';
 import { upsertWeight, deleteWeight } from '@/api/weight';
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, canEdit, selectedDate }: Props) {
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
@@ -30,9 +32,9 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     try {
       await upsertWeight({ date: selectedDate, weight: num });
       queryClient.invalidateQueries({ queryKey: ['weight'] });
-      addToast('success', 'Weight tracked');
+      addToast('success', t('weight.toastTracked'));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to save weight');
+      addToast('error', err instanceof Error ? err.message : t('weight.toastSaveFailed'));
     }
     setLoading(false);
   };
@@ -44,7 +46,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
       await deleteWeight(weightEntry.id);
       queryClient.invalidateQueries({ queryKey: ['weight'] });
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to delete weight');
+      addToast('error', err instanceof Error ? err.message : t('weight.toastDeleteFailed'));
     }
     setLoading(false);
   };
@@ -79,10 +81,10 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">Weight</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('weight.sectionTitle')}</h3>
         {!isToday && entry?.entry_date && (
           <span className="text-sm text-muted-foreground">
-            {entry.entry_date} &middot; {daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`}
+            {entry.entry_date} &middot; {t('weight.daysAgo', { count: daysAgo })}
           </span>
         )}
       </div>
@@ -100,7 +102,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
               onBlur={handleBlur}
               placeholder="0.0"
               disabled={loading}
-              aria-label={`Weight in ${weightUnit}`}
+              aria-label={t('weight.weightInUnitAriaLabel', { unit: weightUnit })}
             />
             <span className="absolute right-3 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">{weightUnit}</span>
           </span>
@@ -120,9 +122,9 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
             }`}
             onClick={handleDelete}
             disabled={!weightEntry}
-            title="Delete weight entry"
+            title={t('weight.deleteEntryTitle')}
           >
-            Delete
+            {t('weight.deleteButton')}
           </button>
         )}
       </div>

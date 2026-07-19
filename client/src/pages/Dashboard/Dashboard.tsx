@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getDashboard, getDayEntries } from '@/api/entries';
@@ -17,6 +18,7 @@ import TodoList from './TodoList';
 import NoteEditor from './NoteEditor';
 
 export default function Dashboard() {
+  const { t } = useTranslation('dashboard');
   const { user, isLoading: authLoading } = useRequireAuth();
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
 
@@ -35,10 +37,10 @@ export default function Dashboard() {
   // Set self as current user on first load
   useEffect(() => {
     if (dashboard && !currentUserId) {
-      selectUser(dashboard.user.id, 'You', true);
+      selectUser(dashboard.user.id, t('store.you'), true);
       selectDay(dashboard.selectedDate);
     }
-  }, [dashboard, currentUserId, selectUser, selectDay]);
+  }, [dashboard, currentUserId, selectUser, selectDay, t]);
 
   const effectiveUserId = currentUserId || dashboard?.user.id;
 
@@ -165,7 +167,7 @@ export default function Dashboard() {
 
       <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
         <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-          <h3 className="text-sm font-medium text-muted-foreground">Entries</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{t('dashboard.entriesSectionTitle')}</h3>
           <span className="text-sm text-muted-foreground">{selectedDate} &mdash; {currentLabel}</span>
         </div>
 

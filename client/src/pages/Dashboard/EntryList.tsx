@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Entry } from '@/types';
 import { updateEntry, deleteEntry, createEntry } from '@/api/entries';
 import { saveEntryAsFood } from '@/api/savedFoods';
@@ -17,10 +18,11 @@ interface Props {
 }
 
 export default function EntryList({ entries, canEdit, enabledMacros, caloriesEnabled, autoCalcCalories }: Props) {
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
 
   if (entries.length === 0) {
-    return <p className="text-center text-sm text-muted-foreground py-4">No entries for this day.</p>;
+    return <p className="text-center text-sm text-muted-foreground py-4">{t('entries.emptyList')}</p>;
   }
 
   return (
@@ -58,6 +60,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   onUpdate: () => void;
   onSaveAsFood: () => void;
 }) {
+  const { t } = useTranslation('dashboard');
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingFood, setSavingFood] = useState(false);
@@ -69,9 +72,9 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     try {
       await saveEntryAsFood(entry.id);
       onSaveAsFood();
-      addToast('success', `Saved "${entry.name || 'entry'}" as quick-add`);
+      addToast('success', t('entries.toastSavedAsQuickAdd', { name: entry.name || t('entries.unnamedEntryFallback') }));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to save');
+      addToast('error', err instanceof Error ? err.message : t('entries.toastSaveFailed'));
     }
     setSavingFood(false);
   };
@@ -98,7 +101,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
       await updateEntry(entry.id, data);
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to update entry');
+      addToast('error', err instanceof Error ? err.message : t('entries.toastUpdateFailed'));
     }
     setEditing(null);
   };
@@ -122,19 +125,19 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     try {
       await deleteEntry(entry.id);
       onUpdate();
-      addToast('success', 'Entry deleted', {
-        label: 'Undo',
+      addToast('success', t('entries.toastDeleted'), {
+        label: t('entries.undoLabel'),
         onClick: async () => {
           try {
             await createEntry(snapshot);
             onUpdate();
           } catch (err) {
-            addToast('error', err instanceof Error ? err.message : 'Restore failed');
+            addToast('error', err instanceof Error ? err.message : t('entries.toastRestoreFailed'));
           }
         },
       });
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to delete entry');
+      addToast('error', err instanceof Error ? err.message : t('entries.toastDeleteFailed'));
     }
   };
 
@@ -173,8 +176,8 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             className="size-7 flex items-center justify-center rounded-[10px] border border-border text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
             onClick={handleSaveAsFood}
             disabled={savingFood}
-            aria-label="Save as quick-add"
-            title="Save as quick-add"
+            aria-label={t('entries.saveAsQuickAddLabel')}
+            title={t('entries.saveAsQuickAddLabel')}
           >
             {savingFood ? (
               <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -186,7 +189,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
           </button>
         )}
         {canEdit && (
-          <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} aria-label="Delete entry" title="Delete">
+          <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} aria-label={t('entries.deleteEntryAriaLabel')} title={t('entries.deleteTitle')}>
             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18" /><path d="M6 6l12 12" />
             </svg>
@@ -201,7 +204,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             editing === 'amount' ? (
               <MacroPillEditing
                 macroKey="kcal"
-                label="Calories"
+                label={t('entries.caloriesLabel')}
                 unit="kcal"
                 editValue={editValue}
                 onChange={setEditValue}
@@ -212,7 +215,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             ) : (
               <MacroPill
                 macroKey="kcal"
-                label="Calories"
+                label={t('entries.caloriesLabel')}
                 value={entry.amount || null}
                 unit="kcal"
                 onClick={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)}

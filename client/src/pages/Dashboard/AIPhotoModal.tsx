@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { estimateCalories } from '@/api/ai';
 import { ApiError } from '@/api/client';
@@ -68,6 +69,7 @@ function captureFrame(video: HTMLVideoElement): string {
 }
 
 export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros: _enabledMacros, providerName }: Props) {
+  const { t } = useTranslation('dashboard');
   const [mode, setMode] = useState<Mode>('camera');
   const [phase, setPhase] = useState<Phase>('capture');
   const [imageData, setImageData] = useState<string | null>(null);
@@ -110,10 +112,10 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
       }
     } catch {
       if (session !== cameraSessionRef.current) return;
-      setErrorMsg('Could not access camera. Try uploading instead.');
+      setErrorMsg(t('aiPhoto.errorCameraAccess'));
       setMode('upload');
     }
-  }, [stopCamera]);
+  }, [stopCamera, t]);
 
   useEffect(() => {
     if (isOpen && mode === 'camera' && phase === 'capture' && !imageData) {
@@ -152,7 +154,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
       const data = await resizeImage(file);
       setImageData(data);
     } catch {
-      setErrorMsg('Failed to process image.');
+      setErrorMsg(t('aiPhoto.errorProcessImage'));
     }
   };
 
@@ -171,11 +173,11 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
         });
         return;
       } else {
-        setErrorMsg(res.error || 'Estimation failed.');
+        setErrorMsg(res.error || t('aiPhoto.errorEstimationFailed'));
         setPhase('error');
       }
     } catch (err) {
-      setErrorMsg(err instanceof ApiError ? err.message : 'Estimation failed. Please try again.');
+      setErrorMsg(err instanceof ApiError ? err.message : t('aiPhoto.errorEstimationFailedRetry'));
       setPhase('error');
     }
   };
@@ -202,8 +204,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
         <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 sm:bg-transparent shrink-0 z-10">
-            <Dialog.Title className="text-sm font-semibold text-foreground">AI Calorie Estimate</Dialog.Title>
-            <Dialog.Close aria-label="Close" className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
+            <Dialog.Title className="text-sm font-semibold text-foreground">{t('aiPhoto.modalTitle')}</Dialog.Title>
+            <Dialog.Close aria-label={t('dashboard.closeAriaLabel')} className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18" /><path d="M6 6l12 12" />
               </svg>
@@ -224,7 +226,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                   )}
                   onClick={() => handleModeSwitch('camera')}
                 >
-                  Camera
+                  {t('dashboard.cameraTab')}
                 </button>
                 <button
                   type="button"
@@ -236,7 +238,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                   )}
                   onClick={() => handleModeSwitch('upload')}
                 >
-                  Upload
+                  {t('dashboard.uploadTab')}
                 </button>
               </div>
             )}
@@ -253,7 +255,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                             <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                             <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                           </div>
-                          <span className="text-xs text-muted-foreground">Starting camera...</span>
+                          <span className="text-xs text-muted-foreground">{t('aiPhoto.startingCamera')}</span>
                         </div>
                       )}
                       <video ref={videoRef} autoPlay playsInline muted onPlaying={() => setCameraReady(true)} className={cameraReady ? '' : 'opacity-0'} />
@@ -261,13 +263,13 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                         type="button"
                         className="absolute bottom-3 left-1/2 -translate-x-1/2 size-12 rounded-full border-4 border-white bg-white/20 hover:bg-white/40 cursor-pointer transition-colors"
                         onClick={handleCapture}
-                        aria-label="Capture photo"
+                        aria-label={t('aiPhoto.capturePhotoAriaLabel')}
                       />
                     </>
                   )}
                   {mode === 'upload' && !imageData && (
                     <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
-                      <p className="text-sm">Select an image of your food</p>
+                      <p className="text-sm">{t('aiPhoto.selectImageText')}</p>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -279,19 +281,19 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                   )}
                   {imageData && (
                     <>
-                      <img src={imageData} alt="Food preview" className="!object-contain !h-full" />
+                      <img src={imageData} alt={t('aiPhoto.foodPreviewAlt')} className="!object-contain !h-full" />
                       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-gradient-to-t from-black/80 to-transparent pt-8">
                         <input
                           type="text"
                           className="rounded-md border border-input bg-black/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring backdrop-blur-sm"
                           value={context}
                           onChange={(e) => setContext(e.target.value)}
-                          placeholder="Describe the food (optional)"
+                          placeholder={t('aiPhoto.contextPlaceholder')}
                           maxLength={200}
                         />
                         <div className="flex gap-2 justify-between">
-                          <Button variant="ghost" onClick={handleRetry}>Retake</Button>
-                          <Button onClick={handleEstimate}>Estimate</Button>
+                          <Button variant="ghost" onClick={handleRetry}>{t('aiPhoto.retakeButton')}</Button>
+                          <Button onClick={handleEstimate}>{t('aiPhoto.estimateButton')}</Button>
                         </div>
                       </div>
                     </>
@@ -307,7 +309,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                   <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
                   <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 </div>
-                <span className="text-sm font-medium text-muted-foreground animate-pulse">Analyzing food...</span>
+                <span className="text-sm font-medium text-muted-foreground animate-pulse">{t('aiPhoto.analyzingText')}</span>
               </div>
             )}
 
@@ -316,8 +318,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
               <>
                 <div className="text-center text-sm text-destructive py-4">{errorMsg}</div>
                 <div className="flex gap-2 justify-center">
-                  <Button size="sm" onClick={handleRetry}>Retry</Button>
-                  <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+                  <Button size="sm" onClick={handleRetry}>{t('aiPhoto.retryButton')}</Button>
+                  <Button size="sm" variant="ghost" onClick={onClose}>{t('dashboard.closeButton')}</Button>
                 </div>
               </>
             )}
@@ -329,7 +331,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
 
             {providerName && (
               <div className="text-center text-[10px] text-muted-foreground">
-                Your photo will be sent to {providerName} for analysis
+                {t('aiPhoto.sentToProviderNotice', { provider: providerName })}
               </div>
             )}
           </div>

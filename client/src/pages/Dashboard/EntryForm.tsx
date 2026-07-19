@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
@@ -30,6 +31,7 @@ interface Props {
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50';
 
 export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, aiProviderName, barcodeEnabled, onSubmit }: Props) {
+  const { t } = useTranslation('dashboard');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [macros, setMacros] = useState<Record<string, string>>({});
@@ -87,7 +89,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     if (amount && !autoCalcCalories) {
       const parsed = parseAmount(amount, { maxAbs: 100000 });
       if (!parsed.ok) {
-        addToast('error', 'Invalid calorie amount');
+        addToast('error', t('entries.toastInvalidCalorieAmount'));
         setLoading(false);
         return;
       }
@@ -97,7 +99,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
       if (macros[key]) {
         const parsed = Number(macros[key]);
         if (!Number.isFinite(parsed)) {
-          addToast('error', `Invalid value for ${key}`);
+          addToast('error', t('entries.toastInvalidMacroValue', { macro: key }));
           setLoading(false);
           return;
         }
@@ -113,9 +115,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
       setMacros({});
       setQuantity(1);
       onSubmit();
-      addToast('success', 'Entry tracked');
+      addToast('success', t('entries.toastTracked'));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to track entry');
+      addToast('error', err instanceof Error ? err.message : t('entries.toastTrackFailed'));
     }
     setLoading(false);
   };
@@ -162,9 +164,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
       }
       await createSavedFood(payload);
       queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
-      addToast('success', `Saved "${name.trim()}"`);
+      addToast('success', t('entries.toastSavedFood', { name: name.trim() }));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to save food');
+      addToast('error', err instanceof Error ? err.message : t('entries.toastSaveFoodFailed'));
     }
     setSavingFood(false);
   };
@@ -172,7 +174,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">Log</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('entries.logSectionTitle')}</h3>
       </div>
       <form onSubmit={handleSubmit} className="p-4">
         {/* Food name + Quantity */}
@@ -181,8 +183,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             <input
               className={inputClass}
               type="text"
-              aria-label="Food name"
-              placeholder="Breakfast, snack..."
+              aria-label={t('entries.foodNameAriaLabel')}
+              placeholder={t('entries.foodNamePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setName((n) => n.trim())}
@@ -190,7 +192,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('entries.qtyLabel')}</label>
             <QuantityStepper value={quantity} onChange={setQuantity} />
           </div>
         </div>
@@ -198,7 +200,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         {/* Calories */}
         {caloriesEnabled && (
           <div className="mb-3 flex flex-col gap-1">
-            <label htmlFor="entry-calories" className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
+            <label htmlFor="entry-calories" className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">{t('entries.caloriesLabel')}</label>
             <input
               id="entry-calories"
               className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
@@ -250,7 +252,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         {/* Multiplier preview */}
         {showQtyPreview && (
           <div className="mb-3 text-xs text-muted-foreground tabular-nums">
-            {quantity}× macros
+            {t('entries.qtyMacrosPreview', { count: quantity })}
           </div>
         )}
 
@@ -258,7 +260,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="date"
-            aria-label="Entry date"
+            aria-label={t('entries.entryDateAriaLabel')}
             className="rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -271,8 +273,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
                 onClick={() => setAiModalOpen(true)}
                 disabled={!!aiDisabled}
-                aria-label="Estimate calories with AI"
-                title={aiDisabled ? 'Daily AI limit reached' : 'Estimate with AI'}
+                aria-label={t('entries.estimateAiAriaLabel')}
+                title={aiDisabled ? t('entries.aiLimitReachedTitle') : t('entries.estimateAiTitle')}
               >
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
@@ -289,8 +291,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 type="button"
                 className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
                 onClick={() => setBarcodeModalOpen(true)}
-                aria-label="Scan barcode"
-                title="Scan barcode"
+                aria-label={t('entries.scanBarcodeLabel')}
+                title={t('entries.scanBarcodeLabel')}
               >
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 5v-2h4" /><path d="M17 3h4v2" /><path d="M21 19v2h-4" /><path d="M7 21h-4v-2" />
@@ -304,8 +306,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
               className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
               onClick={handleSaveAsFood}
               disabled={!canSaveAsFood || savingFood}
-              aria-label="Save as quick-add"
-              title={canSaveAsFood ? 'Save as template for quick-add' : 'Add a name and values first'}
+              aria-label={t('entries.saveAsQuickAddLabel')}
+              title={canSaveAsFood ? t('entries.saveAsTemplateTitle') : t('entries.addNameAndValuesFirstTitle')}
             >
               {savingFood ? (
                 <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -327,7 +329,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                   : 'bg-muted text-muted-foreground border border-border'
               }`}
             >
-              Track
+              {t('entries.trackButton')}
             </Button>
           </div>
         </div>

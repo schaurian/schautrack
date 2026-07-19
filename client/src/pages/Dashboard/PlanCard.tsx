@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { getPlan } from '@/api/plan';
 import { cn } from '@/lib/utils';
 import PlanChart from '../Plan/PlanChart';
@@ -8,19 +9,20 @@ interface Props {
   weightUnit: string;
 }
 
-// Small local mapping — mirrors the status→label/color approach in Plan.tsx
-// (not exported there, so duplicated here rather than reaching across pages).
-const TREND_STATUS: Record<string, { label: string; classes: string }> = {
-  ahead: { label: 'Ahead', classes: 'bg-success/10 border-success/35 text-green-300' },
-  on_track: { label: 'On track', classes: 'bg-success/10 border-success/35 text-green-300' },
-  behind: { label: 'Behind', classes: 'bg-warning/10 border-warning/35 text-yellow-300' },
-  stalled: { label: 'Stalled', classes: 'bg-warning/10 border-warning/35 text-yellow-300' },
-  wrong_direction: { label: 'Wrong direction', classes: 'bg-destructive/10 border-destructive/35 text-red-300' },
-  insufficient_data: { label: 'Not enough data', classes: 'bg-surface border-white/6 text-muted-foreground' },
-};
-
 export default function PlanCard({ weightUnit }: Props) {
+  const { t } = useTranslation('dashboard');
   const { data } = useQuery({ queryKey: ['plan'], queryFn: getPlan });
+
+  // Small local mapping — mirrors the status→label/color approach in Plan.tsx
+  // (not exported there, so duplicated here rather than reaching across pages).
+  const TREND_STATUS: Record<string, { label: string; classes: string }> = {
+    ahead: { label: t('plan.card.trend.ahead'), classes: 'bg-success/10 border-success/35 text-green-300' },
+    on_track: { label: t('plan.card.trend.onTrack'), classes: 'bg-success/10 border-success/35 text-green-300' },
+    behind: { label: t('plan.card.trend.behind'), classes: 'bg-warning/10 border-warning/35 text-yellow-300' },
+    stalled: { label: t('plan.card.trend.stalled'), classes: 'bg-warning/10 border-warning/35 text-yellow-300' },
+    wrong_direction: { label: t('plan.card.trend.wrongDirection'), classes: 'bg-destructive/10 border-destructive/35 text-red-300' },
+    insufficient_data: { label: t('plan.card.trend.insufficientData'), classes: 'bg-surface border-white/6 text-muted-foreground' },
+  };
 
   if (!data?.goal || data.goal.status !== 'active') return null;
 
@@ -43,7 +45,7 @@ export default function PlanCard({ weightUnit }: Props) {
       className="block rounded-xl border-2 border-border bg-card overflow-hidden no-underline text-foreground transition-colors hover:border-primary/40"
     >
       <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">Weight Goal</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('plan.card.title')}</h3>
         {trend && (
           <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', trend.classes)}>
             {trend.label}
@@ -64,7 +66,7 @@ export default function PlanCard({ weightUnit }: Props) {
         {progressPct != null && (
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>{progressPct.toFixed(0)}% to goal</span>
+              <span>{t('plan.percentToGoal', { percent: progressPct.toFixed(0) })}</span>
             </div>
             <div className="h-2 rounded-full bg-white/10 overflow-hidden">
               <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${progressPct}%` }} />

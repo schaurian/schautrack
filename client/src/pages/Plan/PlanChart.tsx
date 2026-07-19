@@ -1,6 +1,8 @@
 import { useId, useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SeriesPoint, CurvePoint, HealthyRange } from '@/types';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
 
 export interface PlanChartProps {
   series: SeriesPoint[];
@@ -49,7 +51,7 @@ function evenTicks(min: number, max: number, count: number): number[] {
   return Array.from({ length: count }, (_, i) => min + step * i);
 }
 
-const fmtTickDate = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const fmtTickDate = (ts: number) => formatDate(ts, undefined, { month: 'short', day: 'numeric' });
 const fmtWeight = (w: number) => (Number.isInteger(w) ? String(w) : w.toFixed(1));
 
 function LegendItem({ swatch, label }: { swatch: ReactNode; label: string }) {
@@ -70,6 +72,7 @@ export default function PlanChart({
   variant = 'full',
   className,
 }: PlanChartProps) {
+  const { t } = useTranslation('dashboard');
   const titleId = useId();
   const isSpark = variant === 'spark';
   const size = isSpark ? SPARK_SIZE : FULL_SIZE;
@@ -130,13 +133,13 @@ export default function PlanChart({
   }, [series, planCurve, targetWeight, healthyRange, isSpark, size]);
 
   const chartTitle = isSpark
-    ? `Weight trend sparkline${targetWeight != null ? `, target ${fmtWeight(targetWeight)} ${weightUnit}` : ''}`
-    : `Weight progress chart: logged weight${planCurve.length ? ' with the adaptive plan curve' : ''}${
-        targetWeight != null ? ` and a target of ${fmtWeight(targetWeight)} ${weightUnit}` : ''
-      }, in ${weightUnit}`;
+    ? `${t('plan.chart.sparkTitle')}${targetWeight != null ? t('plan.chart.sparkTitleTarget', { value: fmtWeight(targetWeight), unit: weightUnit }) : ''}`
+    : `${t('plan.chart.fullTitleBase')}${planCurve.length ? t('plan.chart.fullTitlePlanCurveSuffix') : ''}${
+        targetWeight != null ? t('plan.chart.fullTitleTargetSuffix', { value: fmtWeight(targetWeight), unit: weightUnit }) : ''
+      }${t('plan.chart.fullTitleInUnitSuffix', { unit: weightUnit })}`;
 
   if (!layout) {
-    const message = 'Log more weigh-ins to see your trend';
+    const message = t('plan.chart.noDataMessage');
     if (isSpark) {
       return (
         <div
@@ -150,7 +153,7 @@ export default function PlanChart({
     return (
       <div className={cn('rounded-xl border-2 border-border bg-card overflow-hidden', className)}>
         <div className="px-4 py-3 border-b-2 border-border">
-          <h3 className="text-sm font-medium text-muted-foreground">Weight Trend</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{t('plan.chart.title')}</h3>
         </div>
         <div className="p-8 flex items-center justify-center min-h-[200px]">
           <span className="text-sm text-muted-foreground text-center">{message}</span>
@@ -264,16 +267,16 @@ export default function PlanChart({
   return (
     <div className={cn('rounded-xl border-2 border-border bg-card overflow-hidden', className)}>
       <div className="px-4 py-3 border-b-2 border-border flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">Weight Trend</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('plan.chart.title')}</h3>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <LegendItem swatch={<span className="inline-block h-0.5 w-3 rounded-full bg-primary" />} label="Actual" />
+          <LegendItem swatch={<span className="inline-block h-0.5 w-3 rounded-full bg-primary" />} label={t('plan.chart.legendActual')} />
           {planCurve.length > 0 && (
-            <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dashed border-macro-fat" />} label="Plan" />
+            <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dashed border-macro-fat" />} label={t('plan.chart.legendPlan')} />
           )}
           {targetWeight != null && (
-            <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dashed border-muted-foreground/70" />} label="Target" />
+            <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dashed border-muted-foreground/70" />} label={t('plan.chart.legendTarget')} />
           )}
-          {healthyRange && <LegendItem swatch={<span className="inline-block h-2.5 w-3 rounded-sm bg-success/20" />} label="Healthy range" />}
+          {healthyRange && <LegendItem swatch={<span className="inline-block h-2.5 w-3 rounded-sm bg-success/20" />} label={t('plan.chart.legendHealthyRange')} />}
         </div>
       </div>
       <div className="p-4 overflow-x-auto">{svg}</div>

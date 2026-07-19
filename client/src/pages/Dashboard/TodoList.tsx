@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
 import { useToastStore } from '@/stores/toastStore';
 import { Button } from '@/components/ui/Button';
 import type { Todo, TodoDay } from '@/types';
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+function getDayLabels(t: TFunction): string[] {
+  return DAY_KEYS.map((k) => t(`todos.days.${k}`));
+}
 
 function formatTimeDigits(digits: string): string {
   if (digits.length <= 2) return digits;
@@ -20,6 +26,7 @@ function toTimeValue(digits: string): string {
 }
 
 function TimeInput({ value, onChange, onClear }: { value: string; onChange: (v: string) => void; onClear: () => void }) {
+  const { t } = useTranslation('dashboard');
   // value is HH:MM or '', digits is raw digits only
   const digits = value.replace(':', '');
 
@@ -46,7 +53,7 @@ function TimeInput({ value, onChange, onClear }: { value: string; onChange: (v: 
       />
       <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">🕑</span>
       {value && (
-        <Button type="button" size="sm" variant="ghost" onClick={onClear}>Clear</Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onClear}>{t('todos.clearButton')}</Button>
       )}
     </span>
   );
@@ -79,17 +86,19 @@ function getTodoState(todo: TodoDay, viewDate: string, todayStr: string, current
   return todo.time_of_day <= currentTime ? 'overdue' : 'upcoming';
 }
 
-function getMissedLabel(missedSince: string | undefined, viewDate: string): string | null {
+function getMissedLabel(missedSince: string | undefined, viewDate: string, t: TFunction): string | null {
   if (!missedSince) return null;
   const missed = new Date(missedSince + 'T12:00:00');
   const view = new Date(viewDate + 'T12:00:00');
   const diffDays = Math.round((view.getTime() - missed.getTime()) / 86400000);
   if (diffDays <= 0) return null;
-  if (diffDays === 1) return 'Yesterday';
-  return `${diffDays}d`;
+  if (diffDays === 1) return t('todos.missedYesterday');
+  return t('todos.missedDaysAgo', { count: diffDays });
 }
 
 function ScheduleEditor({ schedule, onChange }: { schedule: Todo['schedule']; onChange: (s: Todo['schedule']) => void }) {
+  const { t } = useTranslation('dashboard');
+  const dayLabels = getDayLabels(t);
   const isDaily = schedule.type === 'daily';
   const days = schedule.type === 'weekdays' ? schedule.days : [];
 
@@ -98,16 +107,16 @@ function ScheduleEditor({ schedule, onChange }: { schedule: Todo['schedule']; on
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
           <input type="radio" checked={isDaily} onChange={() => onChange({ type: 'daily' })} className="accent-primary" />
-          Daily
+          {t('todos.dailyOption')}
         </label>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
           <input type="radio" checked={!isDaily} onChange={() => onChange({ type: 'weekdays', days: days.length > 0 ? days : [1, 2, 3, 4, 5] })} className="accent-primary" />
-          Specific days
+          {t('todos.specificDaysOption')}
         </label>
       </div>
       {!isDaily && (
         <div className="flex gap-1 flex-wrap">
-          {DAY_LABELS.map((label, i) => {
+          {dayLabels.map((label, i) => {
             const day = i + 1;
             const active = days.includes(day);
             return (
@@ -132,12 +141,14 @@ function ScheduleEditor({ schedule, onChange }: { schedule: Todo['schedule']; on
   );
 }
 
-function formatSchedule(schedule: Todo['schedule']) {
-  if (schedule.type === 'daily') return 'Daily';
-  return schedule.days.map((d) => DAY_LABELS[d - 1]).join(', ');
+function formatSchedule(schedule: Todo['schedule'], t: TFunction) {
+  if (schedule.type === 'daily') return t('todos.dailyOption');
+  const dayLabels = getDayLabels(t);
+  return schedule.days.map((d) => dayLabels[d - 1]).join(', ');
 }
 
 export default function TodoList({ date, userId, canEdit, timezone }: Props) {
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState(false);
   const [addOnOpen, setAddOnOpen] = useState(false);
@@ -190,9 +201,9 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">Todos</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('todos.sectionTitle')}</h3>
         <div className="flex items-center gap-2">
-          {total > 0 && <span className="text-xs text-muted-foreground">{completed}/{total}</span>}
+          {total > 0 && <span className="text-xs text-muted-foreground">{t('todos.progressCount', { completed, total })}</span>}
           {canEdit && (
             <button
               type="button"
@@ -203,7 +214,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
                   : 'border-border bg-muted/30 text-muted-foreground hover:border-ring hover:text-foreground'
               }`}
             >
-              {managing ? 'Done' : 'Edit'}
+              {managing ? t('todos.doneButton') : t('todos.editButton')}
             </button>
           )}
         </div>
@@ -217,7 +228,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
             <ul className="divide-y divide-border">
               {data.todos.map((todo) => {
                 const state = getTodoState(todo, date, todayStr, currentTime);
-                const missedLabel = getMissedLabel(todo.missed_since, date);
+                const missedLabel = getMissedLabel(todo.missed_since, date, t);
                 const nameClass = {
                   completed: 'text-green-400 line-through',
                   overdue: 'text-red-400',
@@ -246,14 +257,14 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
                         <span className="text-xs text-muted-foreground">{todo.time_of_day}</span>
                       )}
                       {todo.streak > 1 && (
-                        <span className="text-xs text-primary font-medium">{todo.streak}d</span>
+                        <span className="text-xs text-primary font-medium">{t('todos.streakDays', { count: todo.streak })}</span>
                       )}
                       <button
                         type="button"
                         onClick={() => handleToggle(todo)}
                         disabled={!canEdit}
                         className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${checkboxClass} ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
-                        aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
+                        aria-label={todo.completed ? t('todos.uncheckAriaLabel', { name: todo.name }) : t('todos.checkAriaLabel', { name: todo.name })}
                       >
                         {todo.completed && (
                           <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -273,7 +284,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
                 onClick={() => { setManaging(true); setAddOnOpen(true); }}
                 className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer"
               >
-                Add a todo
+                {t('todos.addTodoButton')}
               </button>
             </div>
           )}
@@ -284,6 +295,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
 }
 
 function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void; initialAdd?: boolean; onAddShown?: () => void }) {
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
   const { data } = useQuery({ queryKey: ['todos'], queryFn: getTodos });
@@ -320,7 +332,7 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
       setShowAddForm(false);
       refresh();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to create todo');
+      addToast('error', err instanceof Error ? err.message : t('todos.toastCreateFailed'));
     }
     setCreating(false);
   };
@@ -340,7 +352,7 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
       setEditingId(null);
       refresh();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to update todo');
+      addToast('error', err instanceof Error ? err.message : t('todos.toastUpdateFailed'));
     }
     setSaving(false);
   };
@@ -350,7 +362,7 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
       await deleteTodo(id);
       refresh();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to delete todo');
+      addToast('error', err instanceof Error ? err.message : t('todos.toastDeleteFailed'));
     }
   };
 
@@ -370,8 +382,8 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                     <TimeInput value={editTime} onChange={setEditTime} onClear={() => setEditTime('')} />
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
-                    <Button type="button" size="sm" onClick={() => handleUpdate(todo.id)} disabled={saving} loading={saving}>Save</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(null)}>{t('todos.cancelButton')}</Button>
+                    <Button type="button" size="sm" onClick={() => handleUpdate(todo.id)} disabled={saving} loading={saving}>{t('todos.saveButton')}</Button>
                   </div>
                 </div>
               ) : (
@@ -380,12 +392,12 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                     <div className="text-sm text-foreground truncate">{todo.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {todo.time_of_day && <span>{todo.time_of_day} &middot; </span>}
-                      {formatSchedule(todo.schedule)}
+                      {formatSchedule(todo.schedule, t)}
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <Button type="button" size="sm" variant="outline" onClick={() => startEdit(todo)}>Edit</Button>
-                    <Button type="button" size="sm" variant="destructive" onClick={() => handleDelete(todo.id)}>Remove</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => startEdit(todo)}>{t('todos.editButton')}</Button>
+                    <Button type="button" size="sm" variant="destructive" onClick={() => handleDelete(todo.id)}>{t('todos.removeButton')}</Button>
                   </div>
                 </div>
               )}
@@ -397,20 +409,20 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
       <div className="p-3 border-t border-border">
         {showAddForm ? (
           <form onSubmit={handleCreate} className="flex flex-col gap-2">
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Todo name" className={inputClass} maxLength={100} autoFocus />
+            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('todos.namePlaceholder')} className={inputClass} maxLength={100} autoFocus />
             <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
             <div className="flex items-center gap-2">
               <TimeInput value={newTime} onChange={setNewTime} onClear={() => setNewTime('')} />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!newName.trim() || creating} loading={creating}>Add</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>{t('todos.cancelButton')}</Button>
+              <Button type="submit" size="sm" disabled={!newName.trim() || creating} loading={creating}>{t('todos.addButton')}</Button>
             </div>
           </form>
         ) : (
           <div className="flex items-center justify-between">
-            <Button type="button" size="sm" variant="ghost" onClick={onClose}>Done</Button>
-            <Button type="button" size="sm" onClick={() => setShowAddForm(true)}>Add todo</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={onClose}>{t('todos.doneButton')}</Button>
+            <Button type="button" size="sm" onClick={() => setShowAddForm(true)}>{t('todos.addTodoManagerButton')}</Button>
           </div>
         )}
       </div>
