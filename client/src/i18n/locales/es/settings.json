@@ -1,4 +1,7 @@
 {
+  "account": {
+    "logout": "Cerrar sesión"
+  },
   "i18n": {
     "language": "Idioma",
     "automatic": "Automático (idioma del navegador)"

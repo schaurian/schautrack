@@ -1,4 +1,7 @@
 {
+  "account": {
+    "logout": "Déconnexion"
+  },
   "i18n": {
     "language": "Langue",
     "automatic": "Automatique (langue du navigateur)"
