@@ -275,6 +275,7 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/link/respond", linksHandler.LinkRespond)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/link/remove", linksHandler.LinkRemove)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/links/{id}/label", linksHandler.LinkLabel)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/links/{id}/shares", linksHandler.SetShares)
 
 	// SSE endpoint
 	r.With(middleware.RequireLogin).Get("/events/entries", func(w http.ResponseWriter, r *http.Request) {
