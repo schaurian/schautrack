@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Registro",
+    "addFood": "Añadir comida",
     "foodNameAriaLabel": "Nombre del alimento",
     "foodNamePlaceholder": "Desayuno, merienda...",
     "qtyLabel": "Cant.",

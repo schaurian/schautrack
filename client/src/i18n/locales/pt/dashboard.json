@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Registo",
+    "addFood": "Adicionar alimento",
     "foodNameAriaLabel": "Nome da comida",
     "foodNamePlaceholder": "Pequeno-almoço, lanche...",
     "qtyLabel": "Qtd",

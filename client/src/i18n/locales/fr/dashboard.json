@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Journal",
+    "addFood": "Ajouter un aliment",
     "foodNameAriaLabel": "Nom de l'aliment",
     "foodNamePlaceholder": "Petit-déjeuner, collation...",
     "qtyLabel": "Qté",

@@ -1,12 +1,16 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
+import { useIsDesktop } from '@/hooks/useMediaQuery';
 import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
 import { QueryError } from '@/components/ui/QueryError';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Sheet } from '@/components/ui/Sheet';
+import { Fab } from '@/components/ui/Fab';
 import TodayPanel from './TodayPanel';
 import EntryForm from './EntryForm';
 import SavedFoodsRow from './SavedFoodsRow';
@@ -21,6 +25,8 @@ export default function Dashboard() {
   const { t } = useTranslation('dashboard');
   const { user, isLoading: authLoading } = useRequireAuth();
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
+  const isDesktop = useIsDesktop();
+  const [addOpen, setAddOpen] = useState(false);
 
   // Fetch dashboard data
   const { data: dashboard, isLoading, isError, error, isFetching, refetch } = useQuery({
@@ -109,6 +115,19 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-2">
+      <header className="flex items-baseline justify-between px-1 pt-1">
+        <h2 className="text-[22px] font-extrabold tracking-tight">
+          {selectedDate === dashboard.todayStr ? t('dashboard.todayLabel') : selectedDate}
+        </h2>
+        <input
+          type="date"
+          aria-label={t('entries.entryDateAriaLabel')}
+          className="rounded-md border border-input bg-muted/50 px-2 py-1 text-sm text-foreground outline-none focus:border-ring"
+          value={selectedDate}
+          onChange={(e) => e.target.value && selectDay(e.target.value)}
+        />
+      </header>
+
       {showCat('nutrition') && (
         <TodayPanel
           dailyGoal={dashboard.dailyGoal}
@@ -125,8 +144,9 @@ export default function Dashboard() {
         />
       )}
 
-      {canEdit && (
-        <>
+      {canEdit && (isDesktop ? (
+        <section>
+          <SectionLabel>{t('entries.logSectionTitle')}</SectionLabel>
           <SavedFoodsRow selectedDate={selectedDate} />
           <EntryForm
             selectedDate={selectedDate}
@@ -145,8 +165,26 @@ export default function Dashboard() {
               // the user's other tabs/devices (and linked users) in sync.
             }}
           />
+        </section>
+      ) : (
+        <>
+          <Fab aria-label={t('entries.addFood')} onClick={() => setAddOpen(true)} />
+          <Sheet open={addOpen} onClose={() => setAddOpen(false)} title={t('entries.addFood')}>
+            <SavedFoodsRow selectedDate={selectedDate} />
+            <EntryForm
+              selectedDate={selectedDate}
+              caloriesEnabled={dashboard.caloriesEnabled}
+              autoCalcCalories={dashboard.autoCalcCalories}
+              enabledMacros={dashboard.enabledMacros}
+              hasAiEnabled={dashboard.hasAiEnabled}
+              aiUsage={dashboard.aiUsage}
+              aiProviderName={dashboard.aiProviderName}
+              barcodeEnabled={dashboard.barcodeEnabled}
+              onSubmit={() => setAddOpen(false)}
+            />
+          </Sheet>
         </>
-      )}
+      ))}
 
       <Timeline
         sharedViews={dashboard.sharedViews}
