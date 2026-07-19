@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestRetrySchemaInitReturnsLastError is a regression guard for the fail-fast
@@ -103,5 +105,36 @@ func TestRunAllMigrationsIdempotentBodyProfileAndWeightGoals(t *testing.T) {
 	}
 	if !tableExists {
 		t.Error("expected weight_goals table to exist")
+	}
+}
+
+func TestAccountLinksShareColumns(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	defer pool.Close()
+
+	// Running twice must be clean (idempotent).
+	if err := ensureAccountLinksSchema(ctx, pool); err != nil {
+		t.Fatalf("first run: %v", err)
+	}
+	if err := ensureAccountLinksSchema(ctx, pool); err != nil {
+		t.Fatalf("second run: %v", err)
+	}
+
+	for _, col := range []string{"requester_shares", "target_shares"} {
+		var exists bool
+		err := pool.QueryRow(ctx, `
+			SELECT EXISTS (SELECT 1 FROM information_schema.columns
+			WHERE table_name='account_links' AND column_name=$1 AND data_type='jsonb')`, col).Scan(&exists)
+		if err != nil || !exists {
+			t.Fatalf("column %s missing (err=%v)", col, err)
+		}
 	}
 }
