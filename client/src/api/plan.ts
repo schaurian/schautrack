@@ -14,6 +14,10 @@ export function updateMetrics(m: BodyMetrics) {
   });
 }
 
+export function clearMetrics() {
+  return api<{ ok: boolean }>('/api/plan/metrics/clear', { method: 'POST' });
+}
+
 export function upsertGoal(g: {
   target_weight: number;
   pace_mode: 'rate' | 'date';

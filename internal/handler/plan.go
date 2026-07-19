@@ -215,6 +215,19 @@ func (h *PlanHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	OkJSON(w)
 }
 
+// ClearMetrics handles POST /api/plan/metrics/clear. It erases all body
+// metrics — the consent-withdrawal path for that data (UpdateMetrics
+// intentionally preserves omitted fields, so it cannot delete anything).
+func (h *PlanHandler) ClearMetrics(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetCurrentUser(r)
+	if err := service.ClearBodyMetrics(r.Context(), h.Pool, user.ID); err != nil {
+		slog.Error("failed to clear body metrics", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not clear metrics.")
+		return
+	}
+	OkJSON(w)
+}
+
 // UpsertGoal handles PUT /plan/goal
 func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 	var body struct {

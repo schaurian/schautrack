@@ -85,3 +85,71 @@ func TestRegisterCredentials_ClosedMode_RejectsRegistration(t *testing.T) {
 		t.Errorf("closed mode must not offer an invite path, got %v", resp)
 	}
 }
+
+// The consent gate rejects before any DB access (nil Pool must never be
+// touched), so these run without a database.
+
+func TestRegisterCredentials_LegalEnabled_RequiresConsent(t *testing.T) {
+	t.Setenv("ENABLE_LEGAL", "true")
+	h := &AuthHandler{
+		Pool:     nil, // must not be touched — consent rejection happens first
+		Cfg:      &config.Config{EnableRegistration: "open"},
+		Settings: database.NewSettingsCache(nil),
+	}
+
+	// Missing both flags, then each flag alone: all rejected with 400.
+	bodies := []string{
+		`{"step":"credentials","email":"a@example.com","password":"longenoughpassword"}`,
+		`{"step":"credentials","email":"a@example.com","password":"longenoughpassword","legal_accepted":true}`,
+		`{"step":"credentials","email":"a@example.com","password":"longenoughpassword","health_consent":true}`,
+	}
+	for _, body := range bodies {
+		r := newRequestWithSession("POST", "/api/auth/register", body)
+		w := httptest.NewRecorder()
+		h.Register(w, r)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("body %s: status = %d, want %d", body, w.Code, http.StatusBadRequest)
+		}
+	}
+}
+
+func TestRegisterCredentials_LegalEnabled_ConsentPassesToNextGate(t *testing.T) {
+	t.Setenv("ENABLE_LEGAL", "true")
+	// invite mode: with both consent flags set, the request must clear the
+	// consent gate and reach the invite gate (403 requireInviteCode), proving
+	// consent does not block a compliant registration.
+	h := &AuthHandler{
+		Pool:     nil,
+		Cfg:      &config.Config{EnableRegistration: "invite"},
+		Settings: database.NewSettingsCache(nil),
+	}
+	body := `{"step":"credentials","email":"a@example.com","password":"longenoughpassword","legal_accepted":true,"health_consent":true}`
+	r := newRequestWithSession("POST", "/api/auth/register", body)
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d (invite gate)", w.Code, http.StatusForbidden)
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if req, _ := resp["requireInviteCode"].(bool); !req {
+		t.Errorf("expected requireInviteCode=true after consent gate passed, got %v", resp)
+	}
+}
+
+func TestRegisterCredentials_LegalDisabled_NoConsentNeeded(t *testing.T) {
+	// ENABLE_LEGAL unset: flags are ignored and the flow proceeds to the next
+	// gate (invite mode → 403) exactly as before the consent feature.
+	h := &AuthHandler{
+		Pool:     nil,
+		Cfg:      &config.Config{EnableRegistration: "invite"},
+		Settings: database.NewSettingsCache(nil),
+	}
+	body := `{"step":"credentials","email":"a@example.com","password":"longenoughpassword"}`
+	r := newRequestWithSession("POST", "/api/auth/register", body)
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d (invite gate, no consent gate)", w.Code, http.StatusForbidden)
+	}
+}

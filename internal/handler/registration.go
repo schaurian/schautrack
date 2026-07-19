@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"schautrack/internal/config"
@@ -30,6 +31,16 @@ func registrationMode(value string) string {
 	default:
 		return regModeOpen
 	}
+}
+
+// legalPagesEnabled reports whether this instance publishes legal pages
+// (Terms/Privacy/Imprint) via the enable_legal setting (env var → DB).
+// When true, registration additionally requires terms acceptance and explicit
+// Art. 9(2)(a) GDPR health-data consent; self-hosted instances without legal
+// pages are unaffected.
+func legalPagesEnabled(ctx context.Context, settings *database.SettingsCache) bool {
+	result := settings.GetEffectiveSetting(ctx, "enable_legal", os.Getenv("ENABLE_LEGAL"))
+	return result.Value != nil && *result.Value == "true"
 }
 
 // effectiveRegistrationMode resolves the active registration mode from the

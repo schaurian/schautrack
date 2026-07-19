@@ -242,6 +242,7 @@ func main() {
 	planHandler := &handler.PlanHandler{Pool: pool, Broker: sseBroker}
 	r.With(middleware.RequireLogin).Get("/api/plan", planHandler.Get)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/api/plan/metrics", planHandler.UpdateMetrics)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/metrics/clear", planHandler.ClearMetrics)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/api/plan/goal", planHandler.UpsertGoal)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/goal/apply-budget", planHandler.ApplyBudget)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/goal/abandon", planHandler.AbandonGoal)

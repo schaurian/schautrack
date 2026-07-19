@@ -25,6 +25,11 @@ export default function Register() {
   const [requireInvite, setRequireInvite] = useState(false);
   const [registrationDisabled, setRegistrationDisabled] = useState(false);
   const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
+  // Instances with legal pages (ENABLE_LEGAL) require terms acceptance and a
+  // separate explicit health-data consent (Art. 9(2)(a) GDPR) to register.
+  const [legalEnabled, setLegalEnabled] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [healthConsent, setHealthConsent] = useState(false);
   const navigate = useNavigate();
   const { fetchUser } = useAuthStore();
 
@@ -32,6 +37,7 @@ export default function Register() {
     getRegistrationInfo().then((info) => {
       if (!info.registrationEnabled) setRegistrationDisabled(true);
       else if (info.inviteRequired) setRequireInvite(true);
+      if (info.legalEnabled) setLegalEnabled(true);
     }).catch(() => {});
     getAuthInfo().then(setAuthInfo).catch(() => {});
   }, []);
@@ -52,6 +58,8 @@ export default function Register() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         captcha: step === 'captcha' ? captcha : undefined,
         invite_code: step === 'credentials' ? inviteCode : undefined,
+        legal_accepted: step === 'credentials' && legalEnabled ? legalAccepted : undefined,
+        health_consent: step === 'credentials' && legalEnabled ? healthConsent : undefined,
       });
       if (result.requireInviteCode) { setRequireInvite(true); setLoading(false); return; }
       if (result.requireCaptcha && result.captchaSvg) { setCaptchaSvg(result.captchaSvg); setCaptchaQuestion(result.captchaQuestion || ''); setStep('captcha'); setCaptcha(''); setLoading(false); return; }
@@ -126,6 +134,40 @@ export default function Register() {
               {requireInvite && (
                 <Input label="Invite Code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required placeholder="Enter your invite code" />
               )}
+              {legalEnabled && (
+                <div className="flex flex-col gap-3 text-sm">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={legalAccepted}
+                      onChange={(e) => setLegalAccepted(e.target.checked)}
+                      className="mt-1"
+                      aria-label="Accept the Terms of Service and Privacy Policy"
+                    />
+                    <span className="text-muted-foreground">
+                      I accept the{' '}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline">Terms of Service</a>
+                      {' '}and have read the{' '}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline">Privacy Policy</a>.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={healthConsent}
+                      onChange={(e) => setHealthConsent(e.target.checked)}
+                      className="mt-1"
+                      aria-label="Consent to health data processing"
+                    />
+                    <span className="text-muted-foreground">
+                      I explicitly consent to the processing of the health data I enter (such as weight,
+                      body metrics, weight goals, and nutrition intake) so Schautrack can provide its
+                      tracking and planning features (Art. 9(2)(a) GDPR). I can withdraw this consent at
+                      any time by deleting the data or my account.
+                    </span>
+                  </label>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex flex-col gap-2">
@@ -140,7 +182,7 @@ export default function Register() {
               <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}
-          <Button type="submit" loading={loading} disabled={step === 'credentials' && (!email || !password || !confirmPassword || password !== confirmPassword)}>{step === 'credentials' ? 'Continue' : 'Create Account'}</Button>
+          <Button type="submit" loading={loading} disabled={step === 'credentials' && (!email || !password || !confirmPassword || password !== confirmPassword || (legalEnabled && (!legalAccepted || !healthConsent)))}>{step === 'credentials' ? 'Continue' : 'Create Account'}</Button>
         </form>
         <div className="mt-6 text-sm">
           <Link to="/login">Already have an account?</Link>

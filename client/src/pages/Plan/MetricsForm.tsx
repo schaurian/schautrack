@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { PlanMetrics } from '@/types';
-import { updateMetrics } from '@/api/plan';
+import { updateMetrics, clearMetrics } from '@/api/plan';
 import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -48,6 +48,25 @@ export default function MetricsForm({ metrics }: Props) {
     setSaving(false);
   };
 
+  // Consent-withdrawal path: saves preserve omitted fields, so this dedicated
+  // action is the only way to actually erase body metrics short of account
+  // deletion (promised in the privacy policy — keep it working).
+  const handleClear = async () => {
+    setSaving(true);
+    try {
+      await clearMetrics();
+      setHeight('');
+      setBirthYear('');
+      setSex('');
+      setActivityLevel('');
+      queryClient.invalidateQueries({ queryKey: ['plan'] });
+      addToast('success', 'Details cleared');
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to clear details');
+    }
+    setSaving(false);
+  };
+
   return (
     <Card>
       <button type="button" className="flex w-full items-center justify-between cursor-pointer" onClick={() => setOpen(!open)}>
@@ -86,7 +105,12 @@ export default function MetricsForm({ metrics }: Props) {
               </select>
             </div>
           </div>
-          <div className="flex justify-end">
+          <p className="text-xs text-muted-foreground">
+            Optional health data, processed only on this server to compute your plan, based on your consent
+            (Art.&nbsp;9(2)(a) GDPR). Remove it anytime with Clear or by deleting your account.
+          </p>
+          <div className="flex justify-between">
+            <Button onClick={handleClear} loading={saving} size="sm" variant="ghost" disabled={metrics.heightCm == null && metrics.birthYear == null && metrics.sex == null && metrics.activityLevel == null}>Clear</Button>
             <Button onClick={handleSave} loading={saving} size="sm">Save Details</Button>
           </div>
         </div>

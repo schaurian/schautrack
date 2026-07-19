@@ -114,6 +114,19 @@ func UpdateBodyMetrics(ctx context.Context, pool *pgxpool.Pool, userID int, heig
 	return err
 }
 
+// ClearBodyMetrics erases all body-profile fields. This is the withdrawal
+// path for the Art. 9(2)(a) GDPR health-data consent covering body metrics:
+// UpdateBodyMetrics deliberately COALESCEs nils away (partial updates), so
+// without this dedicated call a user could never actually delete the data
+// short of deleting the whole account (Art. 7(3): withdrawing consent must be
+// as easy as giving it).
+func ClearBodyMetrics(ctx context.Context, pool *pgxpool.Pool, userID int) error {
+	_, err := pool.Exec(ctx,
+		`UPDATE users SET height_cm = NULL, birth_year = NULL, sex = NULL, activity_level = NULL WHERE id = $1`,
+		userID)
+	return err
+}
+
 // GetWeightSeries returns the user's logged weight entries on or after sinceDate, ordered ascending.
 func GetWeightSeries(ctx context.Context, pool *pgxpool.Pool, userID int, sinceDate string) ([]WeightPoint, error) {
 	rows, err := pool.Query(ctx,
