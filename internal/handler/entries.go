@@ -277,7 +277,10 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Nutrition dots only when nutrition is shared; otherwise empty.
+			// The calorie goal + threshold are nutrition data too — leave them
+			// null unless nutrition is shared, so the payload doesn't leak them.
 			stats := []dailyStat{}
+			var dailyGoalOut, goalThresholdOut any
 			if shares[service.ShareNutrition] {
 				linkTotals, linkMacroAll, err := getTotalsAndMacrosByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
 				if err != nil {
@@ -292,12 +295,14 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 					linkMacroTotals = linkMacroAll
 				}
 				stats = buildDailyStats(linkDayOptions, linkTotals, linkGoal, linkEnabledMacros, linkMacroGoals, linkMacroModes, linkMacroTotals, lmu.GoalThreshold)
+				dailyGoalOut = linkGoal
+				goalThresholdOut = lmu.GoalThreshold
 			}
 
 			linkResults[i] = linkResult{index: i, view: map[string]any{
 				"linkId": link.LinkID, "userId": link.UserID, "email": link.Email,
 				"label": label, "isSelf": false,
-				"dailyGoal": linkGoal, "goalThreshold": lmu.GoalThreshold,
+				"dailyGoal": dailyGoalOut, "goalThreshold": goalThresholdOut,
 				"dailyStats": stats, "todayStr": linkTodayStr,
 				"shares": shares,
 			}}
