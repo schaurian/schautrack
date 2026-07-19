@@ -64,9 +64,10 @@ Order top-to-bottom: date header → rings → timeline → meals → weight →
   amber / danger red); metrics without goals render a neutral full track with the
   value. Up to 4 rings in one row; 5–6 wrap to a second row (grid, centered). The
   "no nutrients tracked" empty state keeps its settings link.
-- **Timeline:** dot grid becomes edge-to-edge (no card). The "You / <friend>" view
-  switcher becomes small chips above the dots; the range preset picker collapses into
-  a compact "N days ▾" popover on the section label row. DayDot behavior (select day,
+- **Timeline:** dot grid becomes edge-to-edge (no card). Per-user sections stay
+  (ShareCard flattened to a label row + dots — keeps selection, label editing, and
+  the link-sharing e2e surface intact); the range preset picker collapses into a
+  compact "N days ▾" popover on the section label row. DayDot behavior (select day,
   today ring, status colors) is unchanged.
 - **Meals (EntryList):** flat rows with hairline dividers — name + time on the first
   line, compact colored macro values (`180 kcal · P5 · C22 · F9` style) on the second.
@@ -88,12 +89,14 @@ Order top-to-bottom: date header → rings → timeline → meals → weight →
     **Sheet** containing the full form: name, qty, kcal (auto-calc aware), enabled
     macros, date, AI photo, barcode scan, saved-foods chip row. Track submits, closes
     the sheet, toasts.
-  - **Desktop:** inline one-line quick-add (name input + camera/barcode/Track) that
-    expands to the full field set on focus/expand toggle.
+  - **Desktop:** the full form stays inline (flat, de-boxed). (Originally a
+    collapse-on-focus quick-add; kept fully visible to avoid churning the 8
+    entry-form e2e specs and to save a click.)
 - SavedFoodsRow chips move inside the sheet on mobile; on desktop they stay under the
   quick-add row.
-- AIPhotoModal, BarcodeScanModal, SavedFoodsModal render as sheets on mobile,
-  centered dialogs on desktop (same component, presentation switched by breakpoint).
+- AIPhotoModal, BarcodeScanModal, SavedFoodsModal keep their current overlay
+  presentation for now; converting them to the Sheet primitive is a follow-up
+  once the shell has landed.
 
 ### Plan
 - GoalForm/MetricsForm card stack → flat labeled sections in the centered column;
