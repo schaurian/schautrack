@@ -1,4 +1,5 @@
 import { api } from './client';
+import type { LinkShares } from '@/types';
 
 export function requestLink(email: string) {
   return api<{ ok: boolean; error?: string }>('/settings/link/request', {
@@ -25,5 +26,12 @@ export function updateLinkLabel(linkId: number, label: string) {
   return api<{ ok: boolean }>(`/links/${linkId}/label`, {
     method: 'POST',
     body: JSON.stringify({ label }),
+  });
+}
+
+export function setLinkShares(linkId: number, shares: LinkShares) {
+  return api<{ ok: boolean; shares: LinkShares }>(`/links/${linkId}/shares`, {
+    method: 'POST',
+    body: JSON.stringify(shares),
   });
 }
