@@ -203,6 +203,16 @@
     "openIssue": "Open an issue on GitHub"
   },
 
+  "reportIssue": {
+    "title": "Report an Issue",
+    "description": "Found a bug or missing a feature? This opens a pre-filled issue on the project tracker.",
+    "yourVersion": "Your version: ",
+    "latestAvailable": " — v{{latest}} is available",
+    "olderVersion": "You're on an older version. Please <issues>browse the open issues</issues> first — your issue may already be reported or fixed.",
+    "acknowledgement": "I understand I'm on an older version ({{version}}) and my issue may already be reported or fixed — I've checked the open issues and still want to report it.",
+    "submit": "Report an Issue"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "General" },

@@ -208,7 +208,11 @@
         "moderate": "Moderat (3-5 Tage/Woche)",
         "active": "Aktiv (6-7 Tage/Woche)",
         "veryActive": "Sehr aktiv (körperliche Arbeit oder 2×/Tag)"
-      }
+      },
+      "consentNotice": "Optionale Gesundheitsdaten, die nur auf diesem Server verarbeitet werden, um deinen Plan zu berechnen, basierend auf deiner Einwilligung (Art. 9(2)(a) GDPR). Entferne sie jederzeit mit \"Leeren\" oder durch Löschen deines Kontos.",
+      "clearButton": "Leeren",
+      "toastCleared": "Angaben gelöscht",
+      "toastClearFailed": "Angaben konnten nicht gelöscht werden"
     },
     "chart": {
       "title": "Gewichtsverlauf",

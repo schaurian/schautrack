@@ -203,6 +203,16 @@
     "openIssue": "Abra um problema no GitHub"
   },
 
+  "reportIssue": {
+    "title": "Reportar um Problema",
+    "description": "Encontrou um erro ou está a faltar uma funcionalidade? Isto abre um problema pré-preenchido no rastreador do projeto.",
+    "yourVersion": "A sua versão: ",
+    "latestAvailable": " — está disponível a v{{latest}}",
+    "olderVersion": "Está a utilizar uma versão mais antiga. Por favor, <issues>consulte primeiro os problemas em aberto</issues> — o seu problema pode já ter sido reportado ou corrigido.",
+    "acknowledgement": "Compreendo que estou a utilizar uma versão mais antiga ({{version}}) e que o meu problema pode já ter sido reportado ou corrigido — verifiquei os problemas em aberto e ainda assim quero reportá-lo.",
+    "submit": "Reportar um Problema"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "Geral" },

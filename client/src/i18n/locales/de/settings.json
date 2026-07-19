@@ -1,11 +1,12 @@
 {
-  "i18n": { "language": "Sprache", "automatic": "Automatisch (Browsersprache)" },
-
+  "i18n": {
+    "language": "Sprache",
+    "automatic": "Automatisch (Browsersprache)"
+  },
   "status": {
     "saving": "Speichert...",
     "saved": "Gespeichert"
   },
-
   "macro": {
     "heading": "Ernährungsziele",
     "calories": "Kalorien",
@@ -17,7 +18,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internationalisierung",
     "weightUnit": {
@@ -29,25 +29,21 @@
       "label": "Zeitzone"
     }
   },
-
   "todo": {
     "heading": "Todos",
     "description": "Verwalte deine Todos im Dashboard.",
     "toggleFailed": "Einstellung konnte nicht aktualisiert werden"
   },
-
   "note": {
     "heading": "Tägliche Notizen",
     "description": "Schreibe im Dashboard eine tägliche Notiz für ein beliebiges Datum.",
     "toggleFailed": "Einstellung konnte nicht aktualisiert werden"
   },
-
   "savedFoods": {
     "heading": "Gespeicherte Lebensmittel",
     "description": "Schnellzugriff-Chips im Dashboard. {{count}} gespeichert.",
     "manage": "Gespeicherte Lebensmittel verwalten"
   },
-
   "ai": {
     "heading": "KI-Einstellungen",
     "provider": "Anbieter",
@@ -64,7 +60,6 @@
     "settingsCleared": "KI-Einstellungen gelöscht",
     "clearFailed": "KI-Einstellungen konnten nicht gelöscht werden"
   },
-
   "email": {
     "heading": "E-Mail ändern",
     "current": "Aktuell: {{email}}",
@@ -72,7 +67,6 @@
     "submit": "Bestätigungscode senden",
     "requestFailed": "E-Mail-Änderung konnte nicht angefordert werden."
   },
-
   "password": {
     "heading": "Passwort ändern",
     "newLabel": "Neues Passwort",
@@ -83,7 +77,6 @@
     "updatedToast": "Passwort aktualisiert",
     "failed": "Fehlgeschlagen."
   },
-
   "twofa": {
     "heading": "Zwei-Faktor-Authentifizierung",
     "setupFailed": "Einrichtung fehlgeschlagen.",
@@ -114,7 +107,6 @@
     "activate": "Aktivieren",
     "setupButton": "2FA einrichten"
   },
-
   "passkey": {
     "heading": "Passkeys",
     "defaultName": "Passkey",
@@ -132,7 +124,6 @@
     "removeFailed": "Passkey konnte nicht entfernt werden",
     "renameFailed": "Umbenennen fehlgeschlagen"
   },
-
   "oidc": {
     "heading": "Single Sign-On",
     "unlink": "Verknüpfung aufheben",
@@ -153,7 +144,6 @@
       "stepped_up": "Erneut authentifiziert. Du kannst deine Aktion jetzt erneut versuchen."
     }
   },
-
   "link": {
     "heading": "Kontoverknüpfungen",
     "incoming": "Eingehend",
@@ -170,7 +160,6 @@
     "removeFailed": "Verknüpfung konnte nicht entfernt werden",
     "labelUpdateFailed": "Bezeichnung konnte nicht aktualisiert werden"
   },
-
   "data": {
     "heading": "Daten",
     "exportLabel": "Export",
@@ -183,7 +172,6 @@
     "importSuccess": "Daten erfolgreich importiert.",
     "importFailed": "Import fehlgeschlagen."
   },
-
   "confirmImport": {
     "title": "Alle Einträge ersetzen?",
     "descriptionPrefix": "Der Import von",
@@ -191,29 +179,48 @@
     "replaceAll": "Alle Einträge ersetzen",
     "cancel": "Abbrechen"
   },
-
   "danger": {
     "heading": "Gefahrenzone",
     "description": "Lösche dauerhaft dein Konto und alle Daten.",
     "deleteAccount": "Konto löschen"
   },
-
   "footer": {
     "bugReport": "Einen Fehler entdeckt oder ein Feature vermisst?",
     "openIssue": "Ein Issue auf GitHub erstellen"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "Allgemein" },
-      "ai": { "title": "KI-Funktionen", "description": "Fotobasierte Kalorienschätzung. Hier festgelegte Provider-Schlüssel dienen als globaler Fallback, wenn Nutzer keinen eigenen Schlüssel haben." },
-      "oidc": { "title": "OIDC / SSO", "description": "Single Sign-On über einen OpenID-Connect-Provider. Zum Aktivieren Issuer, Client-ID und Client-Secret festlegen." },
-      "passkeys": { "title": "Passkeys", "description": "Passwortlose Anmeldung per WebAuthn. Das Festlegen der RP-ID aktiviert die Funktion." },
-      "features": { "title": "Funktionen" },
-      "smtp": { "title": "SMTP", "description": "Ausgehende E-Mails für Passwort-Reset, E-Mail-Bestätigung usw." },
-      "security": { "title": "Sicherheit" },
-      "legal": { "title": "Rechtliche Seiten" },
-      "seo": { "title": "SEO / Deployment" }
+      "general": {
+        "title": "Allgemein"
+      },
+      "ai": {
+        "title": "KI-Funktionen",
+        "description": "Fotobasierte Kalorienschätzung. Hier festgelegte Provider-Schlüssel dienen als globaler Fallback, wenn Nutzer keinen eigenen Schlüssel haben."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Single Sign-On über einen OpenID-Connect-Provider. Zum Aktivieren Issuer, Client-ID und Client-Secret festlegen."
+      },
+      "passkeys": {
+        "title": "Passkeys",
+        "description": "Passwortlose Anmeldung per WebAuthn. Das Festlegen der RP-ID aktiviert die Funktion."
+      },
+      "features": {
+        "title": "Funktionen"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Ausgehende E-Mails für Passwort-Reset, E-Mail-Bestätigung usw."
+      },
+      "security": {
+        "title": "Sicherheit"
+      },
+      "legal": {
+        "title": "Rechtliche Seiten"
+      },
+      "seo": {
+        "title": "SEO / Deployment"
+      }
     },
     "appSettingsHeading": "Anwendungseinstellungen",
     "save": "Speichern",
@@ -258,5 +265,14 @@
     "copyLink": "Link kopieren",
     "copied": "Kopiert!",
     "expiresOn": "läuft ab am {{date}}"
+  },
+  "reportIssue": {
+    "title": "Ein Issue melden",
+    "description": "Einen Fehler entdeckt oder ein Feature vermisst? Dies öffnet ein vorausgefülltes Issue im Projekt-Tracker.",
+    "yourVersion": "Deine Version: ",
+    "latestAvailable": " — v{{latest}} ist verfügbar",
+    "olderVersion": "Du verwendest eine ältere Version. Bitte <issues>durchsuche zuerst die offenen Issues</issues> — dein Problem wurde möglicherweise bereits gemeldet oder behoben.",
+    "acknowledgement": "Mir ist bewusst, dass ich eine ältere Version ({{version}}) verwende und mein Problem möglicherweise bereits gemeldet oder behoben ist — ich habe die offenen Issues geprüft und möchte es trotzdem melden.",
+    "submit": "Issue melden"
   }
 }

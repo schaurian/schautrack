@@ -29,11 +29,29 @@
   "imprint": {
     "heading": "Mentions légales",
     "addressAlt": "Adresse",
-    "emailAlt": "E-mail"
+    "emailAlt": "E-mail",
+    "ddgNotice": {
+      "heading": "Informations en vertu du § 5 DDG",
+      "addressAlt": "Adresse postale de l'exploitant",
+      "emailAlt": "Adresse e-mail de l'exploitant"
+    },
+    "responsibleForContent": {
+      "heading": "Responsable du contenu en vertu du § 18 (2) MStV",
+      "addressAlt": "Nom et adresse postale de la personne responsable du contenu"
+    },
+    "disputeResolution": {
+      "heading": "Règlement des litiges de consommation",
+      "body": "Nous ne sommes ni disposés ni tenus de participer à une procédure de règlement des litiges devant une commission d'arbitrage de consommation (§ 36 VSBG)."
+    }
   },
   "privacy": {
     "heading": "Politique de confidentialité",
-    "intro": "Schautrack collecte uniquement les données nécessaires pour fournir le service de suivi des calories et des macros.",
+    "lastUpdated": "Dernière mise à jour : 19 juillet 2026",
+    "intro": "Schautrack collecte uniquement les données nécessaires pour fournir le service de suivi des calories, de la nutrition et du poids.",
+    "controller": {
+      "heading": "Responsable du traitement",
+      "body": "Le responsable du traitement des données pour cette instance de Schautrack est l'exploitant identifié sur la page <linkImprint>Mentions légales</linkImprint>. Vous pouvez contacter le responsable du traitement à l'adresse indiquée sur cette page."
+    },
     "dataWeCollect": {
       "heading": "Données que nous collectons",
       "items": {
@@ -41,16 +59,30 @@
         "entries": "Les entrées de calories, macros et poids que vous créez",
         "notes": "Notes quotidiennes et tâches (si vous les activez)",
         "preferences": "Fuseau horaire et préférences d'affichage",
-        "authMaterial": "Les éléments d'authentification que vous choisissez de configurer : hachage du mot de passe, secret TOTP, codes de secours, identifiants de clé d'accès"
+        "authMaterial": "Les éléments d'authentification que vous choisissez de configurer : hachage du mot de passe, secret TOTP, codes de secours, identifiants de clé d'accès",
+        "bodyMetrics": "Les mensurations corporelles que vous fournissez éventuellement pour le planificateur de poids — taille, année de naissance, sexe et niveau d'activité — ainsi que tout objectif de poids que vous définissez"
       }
     },
     "cookies": {
       "heading": "Cookies",
       "body": "Schautrack définit un seul cookie de session propriétaire strictement nécessaire (<code>schautrack.sid</code>) pour vous garder connecté. Aucun cookie d'analyse ou tiers n'est utilisé."
     },
+    "healthData": {
+      "heading": "Données de santé",
+      "body1": "Vos entrées de poids, vos mensurations corporelles, vos objectifs de poids et vos apports nutritionnels constituent des données concernant la santé au sens de l'Art. 9 GDPR. Schautrack les traite exclusivement pour fournir les fonctionnalités que vous utilisez : l'enregistrement, les statistiques, ainsi que les calculs de budget calorique et de calendrier du planificateur de poids. Ces calculs (métabolisme de base, dépense énergétique, budget calorique) s'exécutent entièrement sur ce serveur — vos données de santé ne sont partagées avec aucun tiers et ne sont utilisées à des fins publicitaires ni à aucune autre fin.",
+      "body2": "Base légale : votre consentement explicite (Art. 9(2)(a) GDPR), donné lors de l'inscription. Vous pouvez retirer ce consentement à tout moment — aussi facilement que vous l'avez donné — en supprimant les entrées concernées ou l'intégralité de votre compte dans les Paramètres (Art. 7(3) GDPR). Le retrait n'affecte pas la licéité du traitement effectué avant ce retrait. Sans ce consentement, les fonctionnalités de suivi ne peuvent pas être fournies."
+    },
+    "legalBases": {
+      "heading": "Bases légales",
+      "items": {
+        "accountService": "<strong>Données de compte et de service</strong> (e-mail, préférences, éléments d'authentification) : exécution du contrat, Art. 6(1)(b) GDPR.",
+        "healthRelated": "<strong>Données relatives à la santé</strong> (poids, mensurations corporelles, objectifs, apports nutritionnels) : votre consentement explicite, Art. 9(2)(a) GDPR (voir ci-dessus).",
+        "securityLogs": "<strong>Journaux de sécurité et limitation de débit</strong> (adresse IP, user agent lors d'actions sensibles sur le compte) : notre intérêt légitime à sécuriser le service et à prévenir les abus, Art. 6(1)(f) GDPR."
+      }
+    },
     "logsSecurity": {
       "heading": "Journaux et sécurité",
-      "body": "Pour les actions sensibles sur le compte (connexions, changements de mot de passe et d'e-mail, modifications de la 2FA, modifications des clés d'accès, suppression de compte), nous enregistrons l'action, votre adresse IP et votre user agent afin que le titulaire du compte puisse consulter l'activité et que nous puissions détecter les abus. Ces mêmes informations sont conservées brièvement pour limiter le débit des points de terminaison d'authentification."
+      "body": "Pour les actions sensibles sur le compte (connexions, changements de mot de passe et d'e-mail, modifications de la 2FA, modifications des clés d'accès, suppression de compte), nous enregistrons l'action, votre adresse IP et votre user agent afin que le titulaire du compte puisse consulter l'activité et que nous puissions détecter les abus. Ces mêmes informations sont conservées brièvement pour limiter le débit des points de terminaison d'authentification. Le CAPTCHA affiché lors de l'inscription est généré par ce serveur lui-même — aucun service de CAPTCHA tiers n'est utilisé."
     },
     "accountLinking": {
       "heading": "Liaison de comptes",
@@ -60,7 +92,7 @@
       "heading": "Sous-traitants",
       "intro": "Nous utilisons un petit nombre de services externes pour exploiter Schautrack :",
       "items": {
-        "aiEstimation": "<strong>Estimation nutritionnelle par IA :</strong> Lorsque vous soumettez une photo d'aliment pour estimation, celle-ci est envoyée au fournisseur d'IA configuré par l'exploitant de cette instance Schautrack — actuellement OpenAI ou Anthropic Claude (tous deux basés aux États-Unis), ou une instance Ollama auto-hébergée. Vous pouvez également configurer votre propre clé API pour l'un de ces fournisseurs dans les Paramètres. Si vous n'utilisez pas cette fonctionnalité, aucune donnée photo n'est partagée avec un fournisseur d'IA.",
+        "aiEstimation": "<strong>Estimation nutritionnelle par IA :</strong> Lorsque vous soumettez une photo d'aliment pour estimation, celle-ci est envoyée au fournisseur d'IA configuré par l'exploitant de cette instance Schautrack — actuellement OpenAI ou Anthropic Claude (tous deux basés aux États-Unis), ou une instance Ollama auto-hébergée. Vous pouvez également configurer votre propre clé API pour l'un de ces fournisseurs dans les Paramètres. Si vous n'utilisez pas cette fonctionnalité, aucune donnée photo n'est partagée avec un fournisseur d'IA. Vos mensurations corporelles, vos entrées de poids et vos objectifs de poids ne sont jamais envoyés aux fournisseurs d'IA.",
         "barcodeLookups": "<strong>Recherches de codes-barres :</strong> Les numéros de code-barres scannés sont envoyés à <linkOff>Open Food Facts</linkOff> pour récupérer les données nutritionnelles du produit, sous la <linkOdbl>licence Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hébergement :</strong> un hébergeur basé dans l'UE, en Allemagne.",
         "emailDelivery": "<strong>Envoi d'e-mails :</strong> un fournisseur d'e-mails transactionnels pour la vérification, la réinitialisation de mot de passe et les notifications de changement de compte.",
@@ -74,7 +106,8 @@
     "retention": {
       "heading": "Conservation",
       "items": {
-        "entries": "Les entrées de calories, macros, poids, notes et tâches sont conservées jusqu'à ce que vous les supprimiez ou que vous supprimiez votre compte.",
+        "entries": "Les entrées de calories, macros, poids, notes et tâches, ainsi que les mensurations corporelles et les objectifs de poids, sont conservées jusqu'à ce que vous les supprimiez ou que vous supprimiez votre compte.",
+        "consentRecord": "La date et l'heure auxquelles vous avez accepté les Conditions et consenti au traitement des données de santé sont enregistrées avec votre compte comme preuve de consentement (Art. 7(1) GDPR).",
         "sessions": "Les sessions authentifiées expirent 30 jours après votre dernière visite ; les sessions anonymes expirent après 15 minutes d'inactivité.",
         "auditLog": "Les entrées du journal d'audit (actions d'authentification sensibles, avec IP et user agent) sont conservées pendant toute la durée de vie du compte.",
         "accountDeletion": "Lorsque vous supprimez votre compte, toutes les données associées sont supprimées."
@@ -90,20 +123,25 @@
     },
     "rights": {
       "heading": "Vos droits et la suppression des données",
-      "body1": "Vous pouvez supprimer votre compte et toutes les données associées à tout moment depuis les Paramètres. Pour toute autre demande RGPD (accès, rectification, portabilité, opposition), contactez l'adresse indiquée sur la page <linkImprint>Mentions légales</linkImprint>.",
+      "body1": "Vous pouvez exporter toutes vos données à tout moment depuis les Paramètres (portabilité des données, Art. 20 GDPR), et vous pouvez supprimer votre compte ainsi que toutes les données associées à tout moment depuis les Paramètres. Pour toute autre demande RGPD (accès, rectification, effacement, limitation, opposition), contactez l'adresse indiquée sur la page <linkImprint>Mentions légales</linkImprint>.",
       "body2": "Si vous résidez dans l'UE/EEE, vous avez également le droit d'introduire une réclamation auprès de votre autorité locale de protection des données. L'autorité compétente pour l'exploitant de cette instance est le <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
     }
   },
   "terms": {
     "heading": "Conditions d'utilisation",
+    "lastUpdated": "Dernière mise à jour : 19 juillet 2026",
     "intro": "En utilisant Schautrack, vous acceptez ces conditions.",
     "service": {
       "heading": "Service",
-      "body": "Schautrack fournit des outils de suivi des calories et de la nutrition. Le service est fourni « tel quel », sans garantie."
+      "body": "Schautrack fournit des outils de suivi des calories, de la nutrition et du poids, y compris un planificateur de poids optionnel qui estime un budget calorique quotidien et un calendrier à partir des informations que vous fournissez. Le service est proposé gratuitement."
+    },
+    "eligibility": {
+      "heading": "Éligibilité",
+      "body": "Vous devez avoir au moins 16 ans pour utiliser Schautrack. Ce seuil découle de l'âge de consentement numérique applicable au consentement relatif aux données de santé sur lequel repose le service (Art. 8 GDPR tel que transposé en Allemagne)."
     },
     "notMedicalAdvice": {
       "heading": "Ceci n'est pas un avis médical",
-      "body": "Les comptages de calories, les estimations de macros à partir de photos et les données nutritionnelles issues des codes-barres sont fournis à titre informatif uniquement et peuvent être inexacts. Schautrack n'est pas un dispositif médical et ne remplace pas un avis médical, diététique ou nutritionnel professionnel. Ne vous en servez pas pour des décisions cliniques ou la gestion d'un problème médical. Vérifiez les informations nutritionnelles sur l'emballage du produit lorsque la précision compte, et consultez un professionnel qualifié pour toute préoccupation médicale ou diététique."
+      "body": "Les comptages de calories, les estimations de macros à partir de photos, les données nutritionnelles issues des codes-barres et les calculs du planificateur de poids — y compris les budgets caloriques, les valeurs d'IMC et les calendriers prévisionnels — sont des estimations fondées sur des formules et fournies à titre informatif uniquement. Elles peuvent être inexactes. Schautrack n'est pas un dispositif médical et ne remplace pas un avis médical, diététique ou nutritionnel professionnel. Il n'est pas adapté à la gestion des troubles alimentaires ni d'aucune affection médicale. Consultez un professionnel qualifié avant de commencer un programme de perte ou de prise de poids, et vérifiez les informations nutritionnelles sur l'emballage du produit lorsque la précision est importante."
     },
     "yourAccount": {
       "heading": "Votre compte",
@@ -128,6 +166,18 @@
     "governingLaw": {
       "heading": "Droit applicable",
       "body": "Ces conditions sont régies par les lois de la République fédérale d'Allemagne. Les droits impératifs de protection des consommateurs de votre pays de résidence restent inchangés."
+    },
+    "availability": {
+      "heading": "Disponibilité",
+      "body": "Schautrack est fourni gratuitement et sans garantie de disponibilité. Nous pouvons modifier ou interrompre le service ; si nous l'interrompons, nous vous en informerons par e-mail avec un préavis raisonnable afin que vous puissiez exporter vos données depuis les Paramètres."
+    },
+    "termination": {
+      "heading": "Résiliation",
+      "body": "Vous pouvez cesser d'utiliser Schautrack et supprimer votre compte, y compris toutes les données associées, à tout moment depuis les Paramètres. Nous pouvons suspendre ou résilier les comptes qui enfreignent ces conditions ou qui abusent du service ; dans la mesure du raisonnable, nous vous en informerons au préalable par e-mail et vous donnerons la possibilité d'exporter vos données."
+    },
+    "liability": {
+      "heading": "Responsabilité",
+      "body": "Nous sommes responsables sans limitation des dommages causés intentionnellement ou par négligence grave, des atteintes à la vie, au corps ou à la santé, ainsi qu'en vertu de la loi allemande sur la responsabilité du fait des produits (Produkthaftungsgesetz). En cas de négligence légère, nous ne sommes responsables qu'en cas de manquement à des obligations contractuelles essentielles (obligations dont l'exécution conditionne la bonne exécution du contrat et sur le respect desquelles vous pouvez régulièrement compter), dans la limite du dommage typique et prévisible pour ce type de contrat au moment de sa conclusion. Toute autre responsabilité est exclue. Cela ne modifie pas la charge de la preuve à votre détriment."
     }
   }
 }

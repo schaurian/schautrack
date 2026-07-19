@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { getSettings, importData, exportData } from '@/api/settings';
@@ -11,7 +12,6 @@ import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { QueryError } from '@/components/ui/QueryError';
-import { OIDC_SETTINGS_ERRORS, OIDC_SETTINGS_SUCCESS } from '@/lib/oidcMessages';
 import MacroSettings from './MacroSettings';
 import PreferencesSettings from './PreferencesSettings';
 import PasswordSettings from './PasswordSettings';
@@ -27,6 +27,7 @@ import OIDCSettings from './OIDCSettings';
 import ReportIssueCard from './ReportIssueCard';
 
 export default function Settings() {
+  const { t } = useTranslation('settings');
   const { isLoading: authLoading } = useRequireAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,11 +46,11 @@ export default function Settings() {
     const successCode = searchParams.get('success');
     if (!errorCode && !successCode) return;
     if (errorCode) {
-      const msg = OIDC_SETTINGS_ERRORS[errorCode] ?? 'Something went wrong.';
+      const msg = t('oidc.errors.' + errorCode, { defaultValue: t('oidc.genericError') });
       addToast('error', msg);
     }
     if (successCode) {
-      const msg = OIDC_SETTINGS_SUCCESS[successCode];
+      const msg = t('oidc.success.' + successCode, { defaultValue: '' });
       if (msg) addToast('success', msg);
     }
     const next = new URLSearchParams(searchParams);
@@ -93,15 +94,15 @@ export default function Settings() {
     try {
       const result = await importData(file);
       if (result.ok) {
-        setImportMessage({ type: 'success', text: result.message || 'Data imported successfully.' });
+        setImportMessage({ type: 'success', text: result.message || t('data.importSuccess') });
         refresh();
       } else {
-        setImportMessage({ type: 'error', text: result.error || 'Import failed.' });
+        setImportMessage({ type: 'error', text: result.error || t('data.importFailed') });
       }
     } catch (err) {
       setImportMessage({
         type: 'error',
-        text: err instanceof ApiError ? err.message : 'Import failed.',
+        text: err instanceof ApiError ? err.message : t('data.importFailed'),
       });
     }
     setImportLoading(false);
@@ -178,23 +179,23 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <Card>
-            <h3 className="text-sm font-semibold mb-4">Data</h3>
+            <h3 className="text-sm font-semibold mb-4">{t('data.heading')}</h3>
             <div className="flex flex-col gap-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Export</p>
-                <p className="text-xs text-muted-foreground mb-3">Download all your entries as a JSON backup.</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('data.exportLabel')}</p>
+                <p className="text-xs text-muted-foreground mb-3">{t('data.exportDescription')}</p>
                 <Button
                   variant="outline"
                   className="w-full"
                   onClick={handleExport}
                   loading={exportLoading}
                 >
-                  Export JSON
+                  {t('data.exportButton')}
                 </Button>
               </div>
               <div className="border-t border-border pt-4">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Import</p>
-                <p className="text-xs text-muted-foreground mb-3">Restore from a JSON backup. This replaces all existing entries.</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('data.importLabel')}</p>
+                <p className="text-xs text-muted-foreground mb-3">{t('data.importDescription')}</p>
                 {importMessage && <Alert type={importMessage.type} message={importMessage.text} className="mb-3" />}
                 <input
                   ref={fileInputRef}
@@ -208,7 +209,7 @@ export default function Settings() {
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full rounded-[10px] border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground hover:border-ring hover:text-foreground transition-colors cursor-pointer mb-3 text-left truncate"
                 >
-                  {selectedFileName ?? 'Choose a file…'}
+                  {selectedFileName ?? t('data.chooseFile')}
                 </button>
                 <Button
                   variant="destructive"
@@ -217,7 +218,7 @@ export default function Settings() {
                   loading={importLoading}
                   disabled={!selectedFileName}
                 >
-                  Import
+                  {t('data.importButton')}
                 </Button>
               </div>
             </div>
@@ -235,9 +236,9 @@ export default function Settings() {
             <Dialog.Content
               className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-card p-6 text-card-foreground shadow-lg focus:outline-none"
             >
-              <Dialog.Title className="text-base font-semibold mb-1 text-destructive">Replace all entries?</Dialog.Title>
+              <Dialog.Title className="text-base font-semibold mb-1 text-destructive">{t('confirmImport.title')}</Dialog.Title>
               <Dialog.Description className="text-sm text-muted-foreground mb-4">
-                Importing{selectedFileName ? <> <span className="font-medium text-foreground">{selectedFileName}</span></> : ''} will permanently delete all of your existing entries and replace them with the contents of this file. This cannot be undone.
+                {t('confirmImport.descriptionPrefix')}{selectedFileName ? <> <span className="font-medium text-foreground">{selectedFileName}</span></> : ''} {t('confirmImport.descriptionSuffix')}
               </Dialog.Description>
               <div className="flex flex-col gap-2">
                 <Button
@@ -246,7 +247,7 @@ export default function Settings() {
                   onClick={handleImport}
                   loading={importLoading}
                 >
-                  Replace all entries
+                  {t('confirmImport.replaceAll')}
                 </Button>
                 <Dialog.Close asChild>
                   <Button
@@ -255,7 +256,7 @@ export default function Settings() {
                     size="sm"
                     className="w-full border border-border hover:border-foreground/40"
                   >
-                    Cancel
+                    {t('confirmImport.cancel')}
                   </Button>
                 </Dialog.Close>
               </div>
@@ -264,10 +265,10 @@ export default function Settings() {
         </Dialog.Root>
         <div className="break-inside-avoid">
           <Card>
-            <h3 className="text-sm font-semibold mb-2 text-destructive">Danger Zone</h3>
-            <p className="text-xs text-muted-foreground mb-3">Permanently delete your account and all data.</p>
+            <h3 className="text-sm font-semibold mb-2 text-destructive">{t('danger.heading')}</h3>
+            <p className="text-xs text-muted-foreground mb-3">{t('danger.description')}</p>
             <div className="border-t border-border pt-3 mt-1">
-              <a href="/delete"><Button variant="destructive" className="w-full">Delete Account</Button></a>
+              <a href="/delete"><Button variant="destructive" className="w-full">{t('danger.deleteAccount')}</Button></a>
             </div>
           </Card>
         </div>

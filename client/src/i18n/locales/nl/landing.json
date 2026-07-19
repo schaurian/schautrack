@@ -29,19 +29,51 @@
   "imprint": {
     "heading": "Colofon",
     "addressAlt": "Adres",
-    "emailAlt": "E-mail"
+    "emailAlt": "E-mail",
+    "ddgNotice": {
+      "heading": "Informatie conform § 5 DDG",
+      "addressAlt": "Postadres van de exploitant",
+      "emailAlt": "E-mailadres van de exploitant"
+    },
+    "responsibleForContent": {
+      "heading": "Verantwoordelijk voor de inhoud conform § 18 (2) MStV",
+      "addressAlt": "Naam en postadres van de verantwoordelijke voor de inhoud"
+    },
+    "disputeResolution": {
+      "heading": "Consumentengeschillenbeslechting",
+      "body": "Wij zijn niet bereid en niet verplicht om deel te nemen aan geschillenbeslechtingsprocedures voor een consumentenarbitragecommissie (§ 36 VSBG)."
+    }
   },
   "privacy": {
     "heading": "Privacybeleid",
-    "intro": "Schautrack verzamelt alleen de gegevens die nodig zijn om de calorie- en macrotrackingdienst te leveren.",
+    "lastUpdated": "Laatst bijgewerkt: 19 juli 2026",
+    "intro": "Schautrack verzamelt alleen de gegevens die nodig zijn om de calorie-, voedings- en gewichtstrackingdienst te leveren.",
+    "controller": {
+      "heading": "Verwerkingsverantwoordelijke",
+      "body": "De verwerkingsverantwoordelijke voor deze Schautrack-instantie is de exploitant die wordt vermeld op de pagina <linkImprint>Colofon</linkImprint>. Je kunt de verwerkingsverantwoordelijke bereiken via het daar vermelde contactadres."
+    },
     "dataWeCollect": {
       "heading": "Gegevens die we verzamelen",
       "items": {
         "email": "E-mailadres (voor authenticatie en accountherstel)",
         "entries": "Calorie-, macro- en gewichtsitems die je aanmaakt",
+        "bodyMetrics": "Lichaamsmaten die je optioneel opgeeft voor de gewichtsplanner — lengte, geboortejaar, geslacht en activiteitsniveau — en eventuele gewichtsdoelen die je instelt",
         "notes": "Dagelijkse notities en taken (als je deze inschakelt)",
         "preferences": "Tijdzone- en weergavevoorkeuren",
         "authMaterial": "Authenticatiegegevens die je zelf instelt: wachtwoordhash, TOTP-geheim, back-upcodes, passkey-gegevens"
+      }
+    },
+    "healthData": {
+      "heading": "Gezondheidsgegevens",
+      "body1": "Je gewichtsitems, lichaamsmaten, gewichtsdoelen en voedingsinname zijn gegevens over gezondheid onder Art. 9 GDPR. Schautrack verwerkt deze uitsluitend om de functies te bieden die je gebruikt: bijhouden, statistieken en de berekeningen van caloriebudget en tijdlijn van de gewichtsplanner. Deze berekeningen (basaal metabolisme, energieverbruik, caloriebudget) draaien volledig op deze server — je gezondheidsgegevens worden niet gedeeld met derden en niet gebruikt voor advertenties of enig ander doel.",
+      "body2": "Rechtsgrondslag: je uitdrukkelijke toestemming (Art. 9(2)(a) GDPR), gegeven bij registratie. Je kunt deze toestemming op elk moment intrekken — net zo eenvoudig als je haar hebt gegeven — door de betreffende items of je hele account te verwijderen in Instellingen (Art. 7(3) GDPR). Intrekking heeft geen invloed op de rechtmatigheid van de verwerking die plaatsvond vóór de intrekking. Zonder deze toestemming kunnen de trackingfuncties niet worden geleverd."
+    },
+    "legalBases": {
+      "heading": "Rechtsgrondslagen",
+      "items": {
+        "accountService": "<strong>Account- en servicegegevens</strong> (e-mail, voorkeuren, authenticatiegegevens): uitvoering van de overeenkomst, Art. 6(1)(b) GDPR.",
+        "healthRelated": "<strong>Gezondheidsgerelateerde gegevens</strong> (gewicht, lichaamsmaten, doelen, voedingsinname): je uitdrukkelijke toestemming, Art. 9(2)(a) GDPR (zie hierboven).",
+        "securityLogs": "<strong>Beveiligingslogs en rate limiting</strong> (IP-adres, user agent bij gevoelige accountacties): ons gerechtvaardigd belang bij het beveiligen van de dienst en het voorkomen van misbruik, Art. 6(1)(f) GDPR."
       }
     },
     "cookies": {
@@ -50,7 +82,7 @@
     },
     "logsSecurity": {
       "heading": "Logs & beveiliging",
-      "body": "Voor gevoelige accountacties (inloggen, wachtwoord- en e-mailwijzigingen, 2FA-wijzigingen, passkey-wijzigingen, accountverwijdering) registreren we de actie, je IP-adres en je user agent, zodat de accounteigenaar activiteit kan controleren en we misbruik kunnen detecteren. Dezelfde informatie wordt kort bewaard om authenticatie-endpoints te limiteren."
+      "body": "Voor gevoelige accountacties (inloggen, wachtwoord- en e-mailwijzigingen, 2FA-wijzigingen, passkey-wijzigingen, accountverwijdering) registreren we de actie, je IP-adres en je user agent, zodat de accounteigenaar activiteit kan controleren en we misbruik kunnen detecteren. Dezelfde informatie wordt kort bewaard om authenticatie-endpoints te limiteren. De CAPTCHA die bij registratie wordt getoond, wordt door deze server zelf gegenereerd — er is geen CAPTCHA-dienst van derden bij betrokken."
     },
     "accountLinking": {
       "heading": "Accountkoppeling",
@@ -60,7 +92,7 @@
       "heading": "Subverwerkers",
       "intro": "We gebruiken een klein aantal externe diensten om Schautrack te laten draaien:",
       "items": {
-        "aiEstimation": "<strong>AI-voedingsschatting:</strong> Wanneer je een foto van eten indient voor een schatting, wordt de foto verstuurd naar de AI-provider die is geconfigureerd door de beheerder van deze Schautrack-instantie — momenteel OpenAI of Anthropic Claude (beide gevestigd in de Verenigde Staten), of een zelf gehoste Ollama-instantie. Je kunt in Instellingen ook je eigen API-sleutel voor elk van deze providers configureren. Als je deze functie niet gebruikt, wordt er geen fotodata gedeeld met een AI-provider.",
+        "aiEstimation": "<strong>AI-voedingsschatting:</strong> Wanneer je een foto van eten indient voor een schatting, wordt de foto verstuurd naar de AI-provider die is geconfigureerd door de beheerder van deze Schautrack-instantie — momenteel OpenAI of Anthropic Claude (beide gevestigd in de Verenigde Staten), of een zelf gehoste Ollama-instantie. Je kunt in Instellingen ook je eigen API-sleutel voor elk van deze providers configureren. Als je deze functie niet gebruikt, wordt er geen fotodata gedeeld met een AI-provider. Je lichaamsmaten, gewichtsitems en gewichtsdoelen worden nooit naar AI-providers gestuurd.",
         "barcodeLookups": "<strong>Barcode-opzoekingen:</strong> Gescande barcodenummers worden verstuurd naar <linkOff>Open Food Facts</linkOff> om productvoedingsgegevens op te halen, onder de <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> een in de EU gevestigde hostingprovider in Duitsland.",
         "emailDelivery": "<strong>E-mailbezorging:</strong> een transactionele e-mailprovider voor verificatie, wachtwoordreset en meldingen over accountwijzigingen.",
@@ -74,9 +106,10 @@
     "retention": {
       "heading": "Bewaartermijn",
       "items": {
-        "entries": "Calorie-, macro-, gewichts-, notitie- en taakitems worden bewaard totdat je ze verwijdert of je account verwijdert.",
+        "entries": "Calorie-, macro-, gewichts-, notitie- en taakitems, lichaamsmaten en gewichtsdoelen worden bewaard totdat je ze verwijdert of je account verwijdert.",
         "sessions": "Geauthenticeerde sessies verlopen 30 dagen na je laatste bezoek; anonieme sessies verlopen na 15 minuten inactiviteit.",
         "auditLog": "Auditlogitems (gevoelige authenticatieacties, met IP en user agent) worden bewaard voor de levensduur van het account.",
+        "consentRecord": "De datum en tijd waarop je de Voorwaarden hebt geaccepteerd en toestemming hebt gegeven voor de verwerking van gezondheidsgegevens, worden bij je account opgeslagen als bewijs van toestemming (Art. 7(1) GDPR).",
         "accountDeletion": "Wanneer je je account verwijdert, worden alle bijbehorende gegevens verwijderd."
       }
     },
@@ -90,20 +123,25 @@
     },
     "rights": {
       "heading": "Jouw rechten & gegevensverwijdering",
-      "body1": "Je kunt je account en alle bijbehorende gegevens op elk moment verwijderen via Instellingen. Voor andere AVG-verzoeken (inzage, rectificatie, overdraagbaarheid, bezwaar) neem je contact op met het adres dat vermeld staat op de pagina <linkImprint>Colofon</linkImprint>.",
+      "body1": "Je kunt op elk moment al je gegevens exporteren via Instellingen (gegevensoverdraagbaarheid, Art. 20 GDPR), en je kunt op elk moment je account en alle bijbehorende gegevens verwijderen via Instellingen. Voor andere AVG-verzoeken (inzage, rectificatie, verwijdering, beperking, bezwaar) neem je contact op met het adres dat vermeld staat op de pagina <linkImprint>Colofon</linkImprint>.",
       "body2": "Als je in de EU/EER woont, heb je ook het recht om een klacht in te dienen bij je lokale toezichthoudende autoriteit voor gegevensbescherming. De bevoegde autoriteit voor de beheerder van deze instantie is de <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
     }
   },
   "terms": {
     "heading": "Servicevoorwaarden",
+    "lastUpdated": "Laatst bijgewerkt: 19 juli 2026",
     "intro": "Door Schautrack te gebruiken, ga je akkoord met deze voorwaarden.",
     "service": {
       "heading": "Dienst",
-      "body": "Schautrack biedt tools voor het bijhouden van calorieën en voeding. De dienst wordt geleverd \"zoals deze is\", zonder garantie."
+      "body": "Schautrack biedt tools voor het bijhouden van calorieën, voeding en gewicht, waaronder een optionele gewichtsplanner die op basis van de informatie die je opgeeft een dagelijks caloriebudget en tijdlijn inschat. De dienst wordt gratis aangeboden."
+    },
+    "eligibility": {
+      "heading": "Geschiktheid",
+      "body": "Je moet minstens 16 jaar oud zijn om Schautrack te gebruiken. Deze leeftijdsgrens vloeit voort uit de leeftijd voor digitale toestemming die van toepassing is op de toestemming voor gezondheidsgegevens waarop de dienst is gebaseerd (Art. 8 GDPR zoals geïmplementeerd in Duitsland)."
     },
     "notMedicalAdvice": {
       "heading": "Geen medisch advies",
-      "body": "Calorietellingen, macroschattingen op basis van foto's en voedingsgegevens van barcodes zijn uitsluitend informatief en kunnen onnauwkeurig zijn. Schautrack is geen medisch hulpmiddel en is geen vervanging voor professioneel medisch, diëtistisch of voedingsadvies. Vertrouw er niet op voor klinische beslissingen of het beheer van een medische aandoening. Controleer de voedingsinformatie op de verpakking wanneer nauwkeurigheid belangrijk is, en raadpleeg een gekwalificeerde professional voor medische of voedingsgerelateerde vragen."
+      "body": "Calorietellingen, macroschattingen op basis van foto's, voedingsgegevens van barcodes en de berekeningen van de gewichtsplanner — waaronder caloriebudgetten, BMI-waarden en verwachte tijdlijnen — zijn op formules gebaseerde schattingen en uitsluitend informatief. Ze kunnen onnauwkeurig zijn. Schautrack is geen medisch hulpmiddel en is geen vervanging voor professioneel medisch, diëtistisch of voedingsadvies. Het is niet geschikt voor het beheren van eetstoornissen of enige medische aandoening. Raadpleeg een gekwalificeerde professional voordat je een afval- of aankomprogramma begint, en controleer de voedingsinformatie op de verpakking wanneer nauwkeurigheid belangrijk is."
     },
     "yourAccount": {
       "heading": "Jouw account",
@@ -120,6 +158,18 @@
     "acceptableUse": {
       "heading": "Toegestaan gebruik",
       "body": "Misbruik de dienst niet, probeer geen toegang te krijgen tot gegevens van andere gebruikers en gebruik geen geautomatiseerde tools om de dienst te scrapen."
+    },
+    "availability": {
+      "heading": "Beschikbaarheid",
+      "body": "Schautrack wordt gratis aangeboden en zonder garantie op beschikbaarheid. We kunnen de dienst wijzigen of stopzetten; als we deze stopzetten, geven we redelijk van tevoren bericht per e-mail, zodat je je gegevens kunt exporteren via Instellingen."
+    },
+    "termination": {
+      "heading": "Beëindiging",
+      "body": "Je kunt op elk moment stoppen met het gebruik van Schautrack en je account, inclusief alle bijbehorende gegevens, verwijderen via Instellingen. We kunnen accounts opschorten of beëindigen die deze voorwaarden schenden of de dienst misbruiken; waar redelijk stellen we je vooraf per e-mail op de hoogte en geven we je de gelegenheid om je gegevens te exporteren."
+    },
+    "liability": {
+      "heading": "Aansprakelijkheid",
+      "body": "Wij zijn onbeperkt aansprakelijk voor schade veroorzaakt door opzet of grove nalatigheid, voor letsel aan leven, lichaam of gezondheid, en op grond van de Duitse Wet Productaansprakelijkheid. Bij lichte nalatigheid zijn wij alleen aansprakelijk voor schending van essentiële contractuele verplichtingen (verplichtingen waarvan de nakoming de correcte uitvoering van de overeenkomst pas mogelijk maakt en op de nakoming waarvan je gewoonlijk mag vertrouwen), beperkt tot de schade die typisch is voor dit soort overeenkomst en voorzienbaar was bij het sluiten ervan. Verdere aansprakelijkheid is uitgesloten. Dit verschuift de bewijslast niet in jouw nadeel."
     },
     "changes": {
       "heading": "Wijzigingen in deze voorwaarden",

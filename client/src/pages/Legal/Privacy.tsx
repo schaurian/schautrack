@@ -1,143 +1,148 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 
 export default function Privacy() {
+  const { t } = useTranslation('landing');
+
   return (
     <div className="mx-auto max-w-2xl py-12">
       <Card>
-        <h1 className="mb-2 text-2xl font-semibold">Privacy Policy</h1>
-        <p className="mb-6 text-xs text-muted-foreground">Last updated: 19 July 2026</p>
+        <h1 className="mb-2 text-2xl font-semibold">{t('privacy.heading')}</h1>
+        <p className="mb-6 text-xs text-muted-foreground">{t('privacy.lastUpdated')}</p>
         <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
-          <p>Schautrack collects only the data necessary to provide the calorie, nutrition, and weight tracking service.</p>
+          <p>{t('privacy.intro')}</p>
 
-          <h3 className="font-semibold text-foreground">Controller</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.controller.heading')}</h3>
           <p>
-            The data controller responsible for this Schautrack instance is the operator identified on the{' '}
-            <a href="/imprint" className="text-primary underline">Imprint</a> page. You can reach the controller at the
-            contact address given there.
+            <Trans
+              t={t}
+              i18nKey="privacy.controller.body"
+              components={{ linkImprint: <a href="/imprint" className="text-primary underline" /> }}
+            />
           </p>
 
-          <h3 className="font-semibold text-foreground">Data We Collect</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.dataWeCollect.heading')}</h3>
           <ul className="list-disc pl-6">
-            <li>Email address (for authentication and account recovery)</li>
-            <li>Calorie, macro, and weight entries you create</li>
-            <li>
-              Body metrics you optionally provide for the weight planner &mdash; height, birth year, sex, and activity
-              level &mdash; and any weight goals you set
-            </li>
-            <li>Daily notes and todos (if you enable them)</li>
-            <li>Timezone and display preferences</li>
-            <li>Authentication material you choose to set up: password hash, TOTP secret, backup codes, passkey credentials</li>
+            <li>{t('privacy.dataWeCollect.items.email')}</li>
+            <li>{t('privacy.dataWeCollect.items.entries')}</li>
+            <li>{t('privacy.dataWeCollect.items.bodyMetrics')}</li>
+            <li>{t('privacy.dataWeCollect.items.notes')}</li>
+            <li>{t('privacy.dataWeCollect.items.preferences')}</li>
+            <li>{t('privacy.dataWeCollect.items.authMaterial')}</li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">Health Data</h3>
-          <p>
-            Your weight entries, body metrics, weight goals, and nutrition intake are data concerning health under
-            Art.&nbsp;9 GDPR. Schautrack processes them exclusively to provide the features you use: logging, statistics,
-            and the weight planner&apos;s calorie-budget and timeline calculations. These calculations (basal metabolic
-            rate, energy expenditure, calorie budget) run entirely on this server &mdash; your health data is not shared
-            with any third party and is not used for advertising or any other purpose.
-          </p>
-          <p>
-            Legal basis: your explicit consent (Art.&nbsp;9(2)(a) GDPR), given at registration. You can withdraw this
-            consent at any time &mdash; as easily as you gave it &mdash; by deleting the relevant entries or your entire
-            account in Settings (Art.&nbsp;7(3) GDPR). Withdrawal does not affect the lawfulness of processing that took
-            place before the withdrawal. Without this consent the tracking features cannot be provided.
-          </p>
+          <h3 className="font-semibold text-foreground">{t('privacy.healthData.heading')}</h3>
+          <p>{t('privacy.healthData.body1')}</p>
+          <p>{t('privacy.healthData.body2')}</p>
 
-          <h3 className="font-semibold text-foreground">Legal Bases</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.legalBases.heading')}</h3>
           <ul className="list-disc pl-6">
             <li>
-              <strong>Account and service data</strong> (email, preferences, authentication material): performance of the
-              contract, Art.&nbsp;6(1)(b) GDPR.
+              <Trans t={t} i18nKey="privacy.legalBases.items.accountService" components={{ strong: <strong /> }} />
             </li>
             <li>
-              <strong>Health-related data</strong> (weight, body metrics, goals, nutrition intake): your explicit
-              consent, Art.&nbsp;9(2)(a) GDPR (see above).
+              <Trans t={t} i18nKey="privacy.legalBases.items.healthRelated" components={{ strong: <strong /> }} />
             </li>
             <li>
-              <strong>Security logs and rate limiting</strong> (IP address, user agent on sensitive account actions): our
-              legitimate interest in securing the service and preventing abuse, Art.&nbsp;6(1)(f) GDPR.
+              <Trans t={t} i18nKey="privacy.legalBases.items.securityLogs" components={{ strong: <strong /> }} />
             </li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">Cookies</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.cookies.heading')}</h3>
           <p>
-            Schautrack sets one strictly necessary first-party session cookie (<code>schautrack.sid</code>) to keep you signed in.
-            No analytics or third-party cookies are used.
+            <Trans t={t} i18nKey="privacy.cookies.body" components={{ code: <code /> }} />
           </p>
 
-          <h3 className="font-semibold text-foreground">Logs &amp; Security</h3>
-          <p>
-            For sensitive account actions (logins, password and email changes, 2FA changes, passkey changes, account deletion)
-            we record the action, your IP address, and your user agent so the account owner can review activity and so we can
-            detect abuse. The same information is held briefly to rate-limit authentication endpoints. The CAPTCHA shown at
-            registration is generated by this server itself &mdash; no third-party CAPTCHA service is involved.
-          </p>
+          <h3 className="font-semibold text-foreground">{t('privacy.logsSecurity.heading')}</h3>
+          <p>{t('privacy.logsSecurity.body')}</p>
 
-          <h3 className="font-semibold text-foreground">Account Linking</h3>
-          <p>
-            If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo
-            entries. They cannot edit or delete them. You can remove the link at any time from Settings.
-          </p>
+          <h3 className="font-semibold text-foreground">{t('privacy.accountLinking.heading')}</h3>
+          <p>{t('privacy.accountLinking.body')}</p>
 
-          <h3 className="font-semibold text-foreground">Sub-processors</h3>
-          <p>We use a small number of external services to operate Schautrack:</p>
+          <h3 className="font-semibold text-foreground">{t('privacy.subprocessors.heading')}</h3>
+          <p>{t('privacy.subprocessors.intro')}</p>
           <ul className="list-disc pl-6">
             <li>
-              <strong>AI nutrition estimation:</strong> When you submit a food photo for estimation, the photo is sent to the
-              AI provider configured by the operator of this Schautrack instance &mdash; currently either OpenAI or Anthropic Claude
-              (both based in the United States), or a self-hosted Ollama instance. You can also configure your own API key
-              for any of these providers in Settings. If you do not use this feature, no photo data is shared with any AI
-              provider. Your body metrics, weight entries, and weight goals are never sent to AI providers.
+              <Trans t={t} i18nKey="privacy.subprocessors.items.aiEstimation" components={{ strong: <strong /> }} />
             </li>
             <li>
-              <strong>Barcode lookups:</strong> Scanned barcode numbers are sent to{' '}
-              <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="text-primary underline">Open Food Facts</a>
-              {' '}to retrieve product nutrition data, under the{' '}
-              <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Open Database License (ODbL)</a>.
+              <Trans
+                t={t}
+                i18nKey="privacy.subprocessors.items.barcodeLookups"
+                components={{
+                  strong: <strong />,
+                  linkOff: (
+                    <a
+                      href="https://world.openfoodfacts.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline"
+                    />
+                  ),
+                  linkOdbl: (
+                    <a
+                      href="https://opendatacommons.org/licenses/odbl/1-0/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline"
+                    />
+                  ),
+                }}
+              />
             </li>
-            <li><strong>Hosting:</strong> an EU-based hosting provider in Germany.</li>
-            <li><strong>Email delivery:</strong> a transactional email provider for verification, password reset, and account-change notifications.</li>
-            <li><strong>Backups:</strong> encrypted offsite backups stored in the EU.</li>
+            <li>
+              <Trans t={t} i18nKey="privacy.subprocessors.items.hosting" components={{ strong: <strong /> }} />
+            </li>
+            <li>
+              <Trans t={t} i18nKey="privacy.subprocessors.items.emailDelivery" components={{ strong: <strong /> }} />
+            </li>
+            <li>
+              <Trans t={t} i18nKey="privacy.subprocessors.items.backups" components={{ strong: <strong /> }} />
+            </li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">International Transfers</h3>
-          <p>
-            If the configured AI provider is OpenAI or Anthropic Claude, submitting a photo for estimation transfers that
-            image to a recipient in the United States. Such transfers rely on the provider&apos;s Standard Contractual Clauses.
-            You can avoid these transfers by not using the AI estimation feature, or by configuring a self-hosted Ollama
-            endpoint in Settings.
-          </p>
+          <h3 className="font-semibold text-foreground">{t('privacy.internationalTransfers.heading')}</h3>
+          <p>{t('privacy.internationalTransfers.body')}</p>
 
-          <h3 className="font-semibold text-foreground">Retention</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.retention.heading')}</h3>
           <ul className="list-disc pl-6">
-            <li>Calorie, macro, weight, note, and todo entries, body metrics, and weight goals are retained until you delete them or delete your account.</li>
-            <li>Authenticated sessions expire 30 days after your last visit; anonymous sessions expire after 15 minutes of inactivity.</li>
-            <li>Audit log entries (sensitive auth actions, with IP and user agent) are retained for the lifetime of the account.</li>
-            <li>The date and time you accepted the Terms and consented to health-data processing are stored with your account as proof of consent (Art.&nbsp;7(1) GDPR).</li>
-            <li>When you delete your account, all associated data is removed.</li>
+            <li>{t('privacy.retention.items.entries')}</li>
+            <li>{t('privacy.retention.items.sessions')}</li>
+            <li>{t('privacy.retention.items.auditLog')}</li>
+            <li>{t('privacy.retention.items.consentRecord')}</li>
+            <li>{t('privacy.retention.items.accountDeletion')}</li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">Data We Don&apos;t Collect</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.dataWeDontCollect.heading')}</h3>
           <ul className="list-disc pl-6">
-            <li>No analytics or tracking scripts</li>
-            <li>No third-party cookies</li>
-            <li>No data sold to third parties</li>
+            <li>{t('privacy.dataWeDontCollect.items.noAnalytics')}</li>
+            <li>{t('privacy.dataWeDontCollect.items.noThirdPartyCookies')}</li>
+            <li>{t('privacy.dataWeDontCollect.items.noDataSold')}</li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">Your Rights &amp; Data Deletion</h3>
+          <h3 className="font-semibold text-foreground">{t('privacy.rights.heading')}</h3>
           <p>
-            You can export all of your data at any time from Settings (data portability, Art.&nbsp;20 GDPR), and you can
-            delete your account and all associated data at any time from Settings. For other GDPR requests (access,
-            rectification, erasure, restriction, objection), contact the address listed on the{' '}
-            <a href="/imprint" className="text-primary underline">Imprint</a> page.
+            <Trans
+              t={t}
+              i18nKey="privacy.rights.body1"
+              components={{ linkImprint: <a href="/imprint" className="text-primary underline" /> }}
+            />
           </p>
           <p>
-            If you reside in the EU/EEA, you also have the right to lodge a complaint with your local data-protection
-            supervisory authority. The competent authority for the operator of this instance is the{' '}
-            <a href="https://www.lda.bayern.de/" target="_blank" rel="noopener noreferrer" className="text-primary underline">
-              Bayerisches Landesamt f&uuml;r Datenschutzaufsicht (BayLDA)
-            </a>.
+            <Trans
+              t={t}
+              i18nKey="privacy.rights.body2"
+              components={{
+                linkBayLDA: (
+                  <a
+                    href="https://www.lda.bayern.de/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       </Card>

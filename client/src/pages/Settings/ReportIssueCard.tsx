@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useVersionInfo } from '@/hooks/useVersionInfo';
@@ -20,6 +21,7 @@ function buildIssueBody(version: string | null): string {
 }
 
 export default function ReportIssueCard() {
+  const { t } = useTranslation('settings');
   const { current, latest, outdated, issuesUrl, newIssueUrlTemplate, loading } = useVersionInfo();
   const [acknowledged, setAcknowledged] = useState(false);
 
@@ -44,19 +46,19 @@ export default function ReportIssueCard() {
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-2">Report an Issue</h3>
+      <h3 className="text-sm font-semibold mb-2">{t('reportIssue.title')}</h3>
       <p className="text-xs text-muted-foreground mb-3">
-        Found a bug or missing a feature? This opens a pre-filled issue on the project tracker.
+        {t('reportIssue.description')}
       </p>
 
       {displayVersion && (
         <p className="text-xs mb-3">
-          <span className="text-muted-foreground">Your version: </span>
+          <span className="text-muted-foreground">{t('reportIssue.yourVersion')}</span>
           <span className={outdated ? 'font-medium text-destructive' : 'text-foreground'}>
             {displayVersion}
           </span>
           {outdated && latest && (
-            <span className="text-muted-foreground"> — v{latest} is available</span>
+            <span className="text-muted-foreground">{t('reportIssue.latestAvailable', { latest })}</span>
           )}
         </p>
       )}
@@ -64,20 +66,22 @@ export default function ReportIssueCard() {
       {outdated && (
         <div className="mb-3 rounded-[10px] border border-destructive/30 bg-destructive/5 p-3">
           <p className="text-xs text-muted-foreground mb-2">
-            You're on an older version. Please{' '}
-            {issuesUrl ? (
-              <a
-                href={issuesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                browse the open issues
-              </a>
-            ) : (
-              'browse the open issues'
-            )}{' '}
-            first — your issue may already be reported or fixed.
+            <Trans
+              t={t}
+              i18nKey="reportIssue.olderVersion"
+              components={{
+                issues: issuesUrl ? (
+                  <a
+                    href={issuesUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  />
+                ) : (
+                  <span />
+                ),
+              }}
+            />
           </p>
           <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
             <input
@@ -87,15 +91,14 @@ export default function ReportIssueCard() {
               onChange={(e) => setAcknowledged(e.target.checked)}
             />
             <span>
-              I understand I'm on an older version ({displayVersion}) and my issue may already be
-              reported or fixed — I've checked the open issues and still want to report it.
+              <Trans t={t} i18nKey="reportIssue.acknowledgement" values={{ version: displayVersion }} />
             </span>
           </label>
         </div>
       )}
 
       <Button variant="outline" className="w-full" onClick={handleReport} disabled={!allowed}>
-        Report an Issue
+        {t('reportIssue.submit')}
       </Button>
     </Card>
   );

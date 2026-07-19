@@ -199,9 +199,13 @@
       "sexFemale": "Vrouw",
       "sexOther": "Anders",
       "activityLevelLabel": "Activiteitsniveau",
+      "consentNotice": "Optionele gezondheidsgegevens, alleen op deze server verwerkt om je plan te berekenen, op basis van je toestemming (Art. 9(2)(a) GDPR). Verwijder ze op elk moment met Wissen of door je account te verwijderen.",
+      "clearButton": "Wissen",
       "saveButton": "Gegevens opslaan",
       "toastSaved": "Gegevens opgeslagen",
       "toastSaveFailed": "Opslaan van gegevens mislukt",
+      "toastCleared": "Gegevens gewist",
+      "toastClearFailed": "Wissen van gegevens mislukt",
       "activity": {
         "sedentary": "Zittend (weinig of geen beweging)",
         "light": "Licht (1-3 dagen/week)",

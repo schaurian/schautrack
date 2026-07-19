@@ -203,6 +203,16 @@
     "openIssue": "Abre una incidencia en GitHub"
   },
 
+  "reportIssue": {
+    "title": "Informar de una incidencia",
+    "description": "¿Encontraste un error o echas en falta alguna función? Esto abre una incidencia prerellenada en el rastreador de incidencias del proyecto.",
+    "yourVersion": "Tu versión: ",
+    "latestAvailable": " — hay disponible la v{{latest}}",
+    "olderVersion": "Estás usando una versión anterior. <issues>Consulta las incidencias abiertas</issues> primero — es posible que tu incidencia ya esté reportada o solucionada.",
+    "acknowledgement": "Entiendo que estoy usando una versión anterior ({{version}}) y que mi incidencia ya podría estar reportada o solucionada — he revisado las incidencias abiertas y aun así quiero reportarla.",
+    "submit": "Informar de una incidencia"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "General" },

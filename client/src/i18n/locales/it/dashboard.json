@@ -199,9 +199,13 @@
       "sexFemale": "Femmina",
       "sexOther": "Altro",
       "activityLevelLabel": "Livello di attività",
+      "consentNotice": "Dati sanitari facoltativi, elaborati solo su questo server per calcolare il tuo piano, in base al tuo consenso (Art. 9(2)(a) GDPR). Rimuovili in qualsiasi momento con Cancella o eliminando il tuo account.",
       "saveButton": "Salva dati",
+      "clearButton": "Cancella",
       "toastSaved": "Dati salvati",
       "toastSaveFailed": "Salvataggio dei dati non riuscito",
+      "toastCleared": "Dati cancellati",
+      "toastClearFailed": "Cancellazione dei dati non riuscita",
       "activity": {
         "sedentary": "Sedentario (poco o nessun esercizio)",
         "light": "Leggero (1-3 giorni/settimana)",

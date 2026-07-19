@@ -199,9 +199,13 @@
       "sexFemale": "Female",
       "sexOther": "Other",
       "activityLevelLabel": "Activity Level",
+      "consentNotice": "Optional health data, processed only on this server to compute your plan, based on your consent (Art. 9(2)(a) GDPR). Remove it anytime with Clear or by deleting your account.",
+      "clearButton": "Clear",
       "saveButton": "Save Details",
       "toastSaved": "Details saved",
       "toastSaveFailed": "Failed to save details",
+      "toastCleared": "Details cleared",
+      "toastClearFailed": "Failed to clear details",
       "activity": {
         "sedentary": "Sedentary (little or no exercise)",
         "light": "Light (1-3 days/week)",

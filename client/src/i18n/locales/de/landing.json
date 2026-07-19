@@ -29,11 +29,24 @@
   "imprint": {
     "heading": "Impressum",
     "addressAlt": "Adresse",
-    "emailAlt": "E-Mail"
+    "emailAlt": "E-Mail",
+    "ddgNotice": {
+      "heading": "Angaben gemäß § 5 DDG",
+      "addressAlt": "Postanschrift des Betreibers",
+      "emailAlt": "E-Mail-Adresse des Betreibers"
+    },
+    "responsibleForContent": {
+      "heading": "Verantwortlich für den Inhalt gemäß § 18 (2) MStV",
+      "addressAlt": "Name und Postanschrift der inhaltlich verantwortlichen Person"
+    },
+    "disputeResolution": {
+      "heading": "Verbraucherstreitbeilegung",
+      "body": "Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG)."
+    }
   },
   "privacy": {
     "heading": "Datenschutzerklärung",
-    "intro": "Schautrack erhebt nur die Daten, die für die Bereitstellung des Kalorien- und Makro-Tracking-Dienstes notwendig sind.",
+    "intro": "Schautrack erhebt nur die Daten, die für die Bereitstellung des Kalorien-, Ernährungs- und Gewichts-Tracking-Dienstes notwendig sind.",
     "dataWeCollect": {
       "heading": "Welche Daten wir erheben",
       "items": {
@@ -41,7 +54,8 @@
         "entries": "Von dir erstellte Kalorien-, Makro- und Gewichtseinträge",
         "notes": "Tägliche Notizen und Todos (falls aktiviert)",
         "preferences": "Zeitzone und Anzeigeeinstellungen",
-        "authMaterial": "Von dir eingerichtetes Authentifizierungsmaterial: Passwort-Hash, TOTP-Secret, Backup-Codes, Passkey-Anmeldedaten"
+        "authMaterial": "Von dir eingerichtetes Authentifizierungsmaterial: Passwort-Hash, TOTP-Secret, Backup-Codes, Passkey-Anmeldedaten",
+        "bodyMetrics": "Körpermaße, die du optional für den Gewichtsplaner angibst — Größe, Geburtsjahr, Geschlecht und Aktivitätslevel — sowie eventuell von dir festgelegte Gewichtsziele"
       }
     },
     "cookies": {
@@ -50,7 +64,7 @@
     },
     "logsSecurity": {
       "heading": "Protokolle & Sicherheit",
-      "body": "Bei sicherheitsrelevanten Kontoaktionen (Anmeldungen, Passwort- und E-Mail-Änderungen, 2FA-Änderungen, Passkey-Änderungen, Kontolöschung) erfassen wir die Aktion, deine IP-Adresse und deinen User-Agent, damit der Kontoinhaber die Aktivität überprüfen kann und wir Missbrauch erkennen können. Dieselben Informationen werden kurzzeitig aufbewahrt, um Authentifizierungs-Endpunkte ratenzubegrenzen."
+      "body": "Bei sicherheitsrelevanten Kontoaktionen (Anmeldungen, Passwort- und E-Mail-Änderungen, 2FA-Änderungen, Passkey-Änderungen, Kontolöschung) erfassen wir die Aktion, deine IP-Adresse und deinen User-Agent, damit der Kontoinhaber die Aktivität überprüfen kann und wir Missbrauch erkennen können. Dieselben Informationen werden kurzzeitig aufbewahrt, um Authentifizierungs-Endpunkte ratenzubegrenzen. Das bei der Registrierung angezeigte Captcha wird von diesem Server selbst generiert — es ist kein Captcha-Dienst eines Drittanbieters beteiligt."
     },
     "accountLinking": {
       "heading": "Kontoverknüpfung",
@@ -60,7 +74,7 @@
       "heading": "Unterauftragsverarbeiter",
       "intro": "Wir nutzen einige wenige externe Dienste zum Betrieb von Schautrack:",
       "items": {
-        "aiEstimation": "<strong>KI-Nährwertschätzung:</strong> Wenn du ein Foto deines Essens zur Schätzung einreichst, wird das Foto an den vom Betreiber dieser Schautrack-Instanz konfigurierten KI-Anbieter gesendet — derzeit entweder OpenAI oder Anthropic Claude (beide mit Sitz in den USA) oder eine selbst gehostete Ollama-Instanz. Du kannst in den Einstellungen auch einen eigenen API-Schlüssel für jeden dieser Anbieter konfigurieren. Wenn du diese Funktion nicht nutzt, werden keine Fotodaten mit einem KI-Anbieter geteilt.",
+        "aiEstimation": "<strong>KI-Nährwertschätzung:</strong> Wenn du ein Foto deines Essens zur Schätzung einreichst, wird das Foto an den vom Betreiber dieser Schautrack-Instanz konfigurierten KI-Anbieter gesendet — derzeit entweder OpenAI oder Anthropic Claude (beide mit Sitz in den USA) oder eine selbst gehostete Ollama-Instanz. Du kannst in den Einstellungen auch einen eigenen API-Schlüssel für jeden dieser Anbieter konfigurieren. Wenn du diese Funktion nicht nutzt, werden keine Fotodaten mit einem KI-Anbieter geteilt. Deine Körpermaße, Gewichtseinträge und Gewichtsziele werden niemals an KI-Anbieter gesendet.",
         "barcodeLookups": "<strong>Barcode-Abfragen:</strong> Gescannte Barcode-Nummern werden an <linkOff>Open Food Facts</linkOff> gesendet, um Nährwertdaten zum Produkt abzurufen, gemäß der <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> ein EU-Hosting-Anbieter mit Sitz in Deutschland.",
         "emailDelivery": "<strong>E-Mail-Versand:</strong> ein Anbieter für transaktionale E-Mails für Bestätigungen, Passwort-Resets und Benachrichtigungen bei Kontoänderungen.",
@@ -74,10 +88,11 @@
     "retention": {
       "heading": "Aufbewahrung",
       "items": {
-        "entries": "Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge werden aufbewahrt, bis du sie löschst oder dein Konto löschst.",
+        "entries": "Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge, Körpermaße und Gewichtsziele werden aufbewahrt, bis du sie löschst oder dein Konto löschst.",
         "sessions": "Authentifizierte Sitzungen laufen 30 Tage nach deinem letzten Besuch ab; anonyme Sitzungen laufen nach 15 Minuten Inaktivität ab.",
         "auditLog": "Audit-Log-Einträge (sicherheitsrelevante Authentifizierungsaktionen mit IP-Adresse und User-Agent) werden für die Dauer des Kontos aufbewahrt.",
-        "accountDeletion": "Wenn du dein Konto löschst, werden alle zugehörigen Daten entfernt."
+        "accountDeletion": "Wenn du dein Konto löschst, werden alle zugehörigen Daten entfernt.",
+        "consentRecord": "Datum und Uhrzeit deiner Zustimmung zu den Nutzungsbedingungen und deiner Einwilligung in die Verarbeitung von Gesundheitsdaten werden als Nachweis der Einwilligung bei deinem Konto gespeichert (Art. 7(1) GDPR)."
       }
     },
     "dataWeDontCollect": {
@@ -90,8 +105,26 @@
     },
     "rights": {
       "heading": "Deine Rechte & Datenlöschung",
-      "body1": "Du kannst dein Konto und alle zugehörigen Daten jederzeit in den Einstellungen löschen. Für weitere DSGVO-Anfragen (Auskunft, Berichtigung, Übertragbarkeit, Widerspruch) wende dich an die auf der <linkImprint>Impressum</linkImprint>-Seite genannte Adresse.",
+      "body1": "Du kannst jederzeit in den Einstellungen alle deine Daten exportieren (Datenübertragbarkeit, Art. 20 GDPR) und dein Konto sowie alle zugehörigen Daten jederzeit in den Einstellungen löschen. Für weitere DSGVO-Anfragen (Auskunft, Berichtigung, Löschung, Einschränkung, Widerspruch) wende dich an die auf der <linkImprint>Impressum</linkImprint>-Seite genannte Adresse.",
       "body2": "Wenn du in der EU/im EWR wohnst, hast du außerdem das Recht, eine Beschwerde bei deiner örtlichen Datenschutzaufsichtsbehörde einzureichen. Die zuständige Behörde für den Betreiber dieser Instanz ist das <linkBayLDA>Bayerische Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
+    },
+    "lastUpdated": "Zuletzt aktualisiert: 19. Juli 2026",
+    "controller": {
+      "heading": "Verantwortlicher",
+      "body": "Verantwortlicher für die Datenverarbeitung dieser Schautrack-Instanz ist der auf der <linkImprint>Impressum</linkImprint>-Seite genannte Betreiber. Du erreichst den Verantwortlichen unter der dort angegebenen Kontaktadresse."
+    },
+    "healthData": {
+      "heading": "Gesundheitsdaten",
+      "body1": "Deine Gewichtseinträge, Körpermaße, Gewichtsziele und Ernährungsangaben sind Gesundheitsdaten im Sinne von Art. 9 GDPR. Schautrack verarbeitet sie ausschließlich, um die von dir genutzten Funktionen bereitzustellen: Erfassung, Statistiken sowie die Berechnungen des Gewichtsplaners für Kalorienbudget und Zeitplan. Diese Berechnungen (Grundumsatz, Energieverbrauch, Kalorienbudget) laufen vollständig auf diesem Server — deine Gesundheitsdaten werden mit keinem Dritten geteilt und nicht für Werbung oder andere Zwecke verwendet.",
+      "body2": "Rechtsgrundlage: deine ausdrückliche Einwilligung (Art. 9(2)(a) GDPR), die du bei der Registrierung erteilst. Du kannst diese Einwilligung jederzeit widerrufen — ebenso einfach, wie du sie erteilt hast —, indem du die entsprechenden Einträge oder dein gesamtes Konto in den Einstellungen löschst (Art. 7(3) GDPR). Der Widerruf berührt nicht die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung. Ohne diese Einwilligung können die Tracking-Funktionen nicht bereitgestellt werden."
+    },
+    "legalBases": {
+      "heading": "Rechtsgrundlagen",
+      "items": {
+        "accountService": "<strong>Konto- und Dienstdaten</strong> (E-Mail, Einstellungen, Authentifizierungsmaterial): Vertragserfüllung, Art. 6(1)(b) GDPR.",
+        "healthRelated": "<strong>Gesundheitsbezogene Daten</strong> (Gewicht, Körpermaße, Ziele, Ernährungsangaben): deine ausdrückliche Einwilligung, Art. 9(2)(a) GDPR (siehe oben).",
+        "securityLogs": "<strong>Sicherheitsprotokolle und Ratenbegrenzung</strong> (IP-Adresse, User-Agent bei sicherheitsrelevanten Kontoaktionen): unser berechtigtes Interesse an der Absicherung des Dienstes und der Missbrauchsprävention, Art. 6(1)(f) GDPR."
+      }
     }
   },
   "terms": {
@@ -99,11 +132,11 @@
     "intro": "Durch die Nutzung von Schautrack stimmst du diesen Bedingungen zu.",
     "service": {
       "heading": "Dienst",
-      "body": "Schautrack stellt Werkzeuge zum Tracken von Kalorien und Ernährung bereit. Der Dienst wird \"wie besehen\" ohne Gewährleistung bereitgestellt."
+      "body": "Schautrack bietet Werkzeuge zum Tracken von Kalorien, Ernährung und Gewicht, einschließlich eines optionalen Gewichtsplaners, der anhand deiner Angaben ein tägliches Kalorienbudget und einen Zeitplan schätzt. Der Dienst wird kostenlos angeboten."
     },
     "notMedicalAdvice": {
       "heading": "Kein medizinischer Rat",
-      "body": "Kalorienangaben, aus Fotos geschätzte Makrowerte und Barcode-Nährwertdaten dienen nur zur Information und können ungenau sein. Schautrack ist kein Medizinprodukt und kein Ersatz für professionelle medizinische, diätetische oder ernährungswissenschaftliche Beratung. Verlasse dich nicht darauf für klinische Entscheidungen oder die Behandlung einer Erkrankung. Überprüfe die Nährwertangaben auf der Produktverpackung, wenn Genauigkeit wichtig ist, und wende dich bei medizinischen oder ernährungsbezogenen Anliegen an eine qualifizierte Fachperson."
+      "body": "Kalorienangaben, aus Fotos geschätzte Makrowerte, Barcode-Nährwertdaten sowie die Berechnungen des Gewichtsplaners — einschließlich Kalorienbudgets, BMI-Werten und prognostizierten Zeitplänen — sind formelbasierte Schätzungen und dienen nur zur Information. Sie können ungenau sein. Schautrack ist kein Medizinprodukt und kein Ersatz für professionelle medizinische, diätetische oder ernährungswissenschaftliche Beratung. Es ist nicht geeignet zur Behandlung von Essstörungen oder anderen Erkrankungen. Wende dich an eine qualifizierte Fachperson, bevor du ein Programm zur Gewichtsabnahme oder -zunahme beginnst, und überprüfe die Nährwertangaben auf der Produktverpackung, wenn Genauigkeit wichtig ist."
     },
     "yourAccount": {
       "heading": "Dein Konto",
@@ -128,6 +161,23 @@
     "governingLaw": {
       "heading": "Anwendbares Recht",
       "body": "Diese Bedingungen unterliegen dem Recht der Bundesrepublik Deutschland. Zwingende verbraucherschutzrechtliche Vorschriften deines Wohnsitzlandes bleiben unberührt."
+    },
+    "lastUpdated": "Zuletzt aktualisiert: 19. Juli 2026",
+    "eligibility": {
+      "heading": "Nutzungsvoraussetzungen",
+      "body": "Du musst mindestens 16 Jahre alt sein, um Schautrack zu nutzen. Diese Altersgrenze ergibt sich aus dem digitalen Einwilligungsalter, das für die vom Dienst vorausgesetzte Einwilligung in die Verarbeitung von Gesundheitsdaten gilt (Art. 8 GDPR in der in Deutschland umgesetzten Fassung)."
+    },
+    "availability": {
+      "heading": "Verfügbarkeit",
+      "body": "Schautrack wird kostenlos und ohne Verfügbarkeitsgarantie bereitgestellt. Wir können den Dienst ändern oder einstellen; falls wir ihn einstellen, informieren wir dich mit angemessenem Vorlauf per E-Mail, damit du deine Daten in den Einstellungen exportieren kannst."
+    },
+    "termination": {
+      "heading": "Kündigung",
+      "body": "Du kannst die Nutzung von Schautrack jederzeit beenden und dein Konto einschließlich aller zugehörigen Daten in den Einstellungen löschen. Wir können Konten sperren oder kündigen, die gegen diese Bedingungen verstoßen oder den Dienst missbrauchen; soweit zumutbar, benachrichtigen wir dich vorab per E-Mail und geben dir die Möglichkeit, deine Daten zu exportieren."
+    },
+    "liability": {
+      "heading": "Haftung",
+      "body": "Wir haften unbeschränkt für Schäden aus Vorsatz oder grober Fahrlässigkeit, für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit sowie nach dem Produkthaftungsgesetz. Bei leichter Fahrlässigkeit haften wir nur für die Verletzung wesentlicher Vertragspflichten (Pflichten, deren Erfüllung die ordnungsgemäße Durchführung des Vertrags überhaupt erst ermöglicht und auf deren Einhaltung du regelmäßig vertrauen darfst), begrenzt auf den vertragstypischen, bei Vertragsschluss vorhersehbaren Schaden. Eine weitergehende Haftung ist ausgeschlossen. Eine Umkehr der Beweislast zu deinem Nachteil ist hiermit nicht verbunden."
     }
   }
 }

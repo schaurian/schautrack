@@ -29,19 +29,51 @@
   "imprint": {
     "heading": "Note legali",
     "addressAlt": "Indirizzo",
-    "emailAlt": "Email"
+    "emailAlt": "Email",
+    "ddgNotice": {
+      "heading": "Informazioni ai sensi del § 5 DDG",
+      "addressAlt": "Indirizzo postale del gestore",
+      "emailAlt": "Indirizzo email del gestore"
+    },
+    "responsibleForContent": {
+      "heading": "Responsabile del contenuto ai sensi del § 18 (2) MStV",
+      "addressAlt": "Nome e indirizzo postale del responsabile del contenuto"
+    },
+    "disputeResolution": {
+      "heading": "Risoluzione delle controversie dei consumatori",
+      "body": "Non siamo disposti né obbligati a partecipare a procedure di risoluzione delle controversie dinanzi a un organismo di conciliazione dei consumatori (§ 36 VSBG)."
+    }
   },
   "privacy": {
     "heading": "Informativa sulla privacy",
-    "intro": "Schautrack raccoglie solo i dati necessari a fornire il servizio di monitoraggio di calorie e macro.",
+    "lastUpdated": "Ultimo aggiornamento: 19 luglio 2026",
+    "intro": "Schautrack raccoglie solo i dati necessari a fornire il servizio di monitoraggio di calorie, nutrizione e peso.",
+    "controller": {
+      "heading": "Titolare del trattamento",
+      "body": "Il titolare del trattamento dei dati responsabile per questa istanza di Schautrack è il gestore indicato nella pagina delle <linkImprint>Note legali</linkImprint>. Puoi contattare il titolare all'indirizzo di contatto indicato lì."
+    },
     "dataWeCollect": {
       "heading": "Dati che raccogliamo",
       "items": {
         "email": "Indirizzo email (per l'autenticazione e il recupero dell'account)",
         "entries": "Voci di calorie, macro e peso che crei",
+        "bodyMetrics": "Dati corporei che fornisci facoltativamente per il pianificatore del peso — altezza, anno di nascita, sesso e livello di attività — ed eventuali obiettivi di peso che imposti",
         "notes": "Note giornaliere e cose da fare (se le attivi)",
         "preferences": "Fuso orario e preferenze di visualizzazione",
         "authMaterial": "Materiale di autenticazione che scegli di configurare: hash della password, secret TOTP, codici di backup, credenziali passkey"
+      }
+    },
+    "healthData": {
+      "heading": "Dati sanitari",
+      "body1": "Le tue voci di peso, i dati corporei, gli obiettivi di peso e l'apporto nutrizionale sono dati relativi alla salute ai sensi dell'Art. 9 GDPR. Schautrack li elabora esclusivamente per fornire le funzioni che utilizzi: registrazione, statistiche e i calcoli del budget calorico e della cronologia del pianificatore del peso. Questi calcoli (metabolismo basale, dispendio energetico, budget calorico) vengono eseguiti interamente su questo server — i tuoi dati sanitari non vengono condivisi con terzi e non vengono utilizzati per pubblicità o per qualsiasi altro scopo.",
+      "body2": "Base giuridica: il tuo consenso esplicito (Art. 9(2)(a) GDPR), fornito al momento della registrazione. Puoi revocare questo consenso in qualsiasi momento — con la stessa facilità con cui lo hai dato — eliminando le voci pertinenti o l'intero account nelle Impostazioni (Art. 7(3) GDPR). La revoca non pregiudica la liceità del trattamento effettuato prima della revoca stessa. Senza questo consenso le funzioni di monitoraggio non possono essere fornite."
+    },
+    "legalBases": {
+      "heading": "Basi giuridiche",
+      "items": {
+        "accountService": "<strong>Dati dell'account e del servizio</strong> (email, preferenze, materiale di autenticazione): esecuzione del contratto, Art. 6(1)(b) GDPR.",
+        "healthRelated": "<strong>Dati relativi alla salute</strong> (peso, dati corporei, obiettivi, apporto nutrizionale): il tuo consenso esplicito, Art. 9(2)(a) GDPR (vedi sopra).",
+        "securityLogs": "<strong>Log di sicurezza e limitazione della frequenza delle richieste</strong> (indirizzo IP, user agent per le azioni sensibili sull'account): il nostro legittimo interesse a proteggere il servizio e prevenire abusi, Art. 6(1)(f) GDPR."
       }
     },
     "cookies": {
@@ -50,7 +82,7 @@
     },
     "logsSecurity": {
       "heading": "Log e sicurezza",
-      "body": "Per le azioni sensibili sull'account (accessi, cambi di password ed email, modifiche 2FA, modifiche passkey, eliminazione dell'account) registriamo l'azione, il tuo indirizzo IP e il tuo user agent, in modo che il titolare dell'account possa rivedere l'attività e noi possiamo rilevare abusi. Le stesse informazioni vengono conservate brevemente per limitare la frequenza delle richieste agli endpoint di autenticazione."
+      "body": "Per le azioni sensibili sull'account (accessi, cambi di password ed email, modifiche 2FA, modifiche passkey, eliminazione dell'account) registriamo l'azione, il tuo indirizzo IP e il tuo user agent, in modo che il titolare dell'account possa rivedere l'attività e noi possiamo rilevare abusi. Le stesse informazioni vengono conservate brevemente per limitare la frequenza delle richieste agli endpoint di autenticazione. Il CAPTCHA mostrato in fase di registrazione è generato direttamente da questo server — non è coinvolto alcun servizio CAPTCHA di terze parti."
     },
     "accountLinking": {
       "heading": "Collegamento account",
@@ -60,7 +92,7 @@
       "heading": "Sub-responsabili del trattamento",
       "intro": "Utilizziamo un piccolo numero di servizi esterni per gestire Schautrack:",
       "items": {
-        "aiEstimation": "<strong>Stima nutrizionale con AI:</strong> Quando invii una foto di un cibo per la stima, la foto viene inviata al provider AI configurato dal gestore di questa istanza di Schautrack — attualmente OpenAI o Anthropic Claude (entrambi con sede negli Stati Uniti), oppure un'istanza Ollama self-hosted. Puoi anche configurare una tua chiave API per uno di questi provider nelle Impostazioni. Se non utilizzi questa funzione, nessun dato fotografico viene condiviso con alcun provider AI.",
+        "aiEstimation": "<strong>Stima nutrizionale con AI:</strong> Quando invii una foto di un cibo per la stima, la foto viene inviata al provider AI configurato dal gestore di questa istanza di Schautrack — attualmente OpenAI o Anthropic Claude (entrambi con sede negli Stati Uniti), oppure un'istanza Ollama self-hosted. Puoi anche configurare una tua chiave API per uno di questi provider nelle Impostazioni. Se non utilizzi questa funzione, nessun dato fotografico viene condiviso con alcun provider AI. I tuoi dati corporei, le voci di peso e gli obiettivi di peso non vengono mai inviati ai provider AI.",
         "barcodeLookups": "<strong>Ricerche codice a barre:</strong> I numeri dei codici a barre scansionati vengono inviati a <linkOff>Open Food Facts</linkOff> per recuperare i dati nutrizionali del prodotto, secondo la <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> un provider di hosting con sede nell'UE, in Germania.",
         "emailDelivery": "<strong>Invio email:</strong> un provider di email transazionali per verifica, reset password e notifiche di modifica account.",
@@ -74,7 +106,8 @@
     "retention": {
       "heading": "Conservazione",
       "items": {
-        "entries": "Le voci di calorie, macro, peso, note e cose da fare vengono conservate fino a quando non le elimini o elimini il tuo account.",
+        "entries": "Le voci di calorie, macro, peso, note e cose da fare, i dati corporei e gli obiettivi di peso vengono conservati fino a quando non li elimini o elimini il tuo account.",
+        "consentRecord": "La data e l'ora in cui hai accettato i Termini e acconsentito al trattamento dei dati sanitari vengono memorizzate con il tuo account come prova del consenso (Art. 7(1) GDPR).",
         "sessions": "Le sessioni autenticate scadono 30 giorni dopo l'ultima visita; le sessioni anonime scadono dopo 15 minuti di inattività.",
         "auditLog": "Le voci del registro di controllo (azioni di autenticazione sensibili, con IP e user agent) vengono conservate per tutta la durata dell'account.",
         "accountDeletion": "Quando elimini il tuo account, tutti i dati associati vengono rimossi."
@@ -90,20 +123,25 @@
     },
     "rights": {
       "heading": "I tuoi diritti e la cancellazione dei dati",
-      "body1": "Puoi eliminare il tuo account e tutti i dati associati in qualsiasi momento dalle Impostazioni. Per altre richieste GDPR (accesso, rettifica, portabilità, opposizione), contatta l'indirizzo indicato nella pagina delle <linkImprint>Note legali</linkImprint>.",
+      "body1": "Puoi esportare tutti i tuoi dati in qualsiasi momento dalle Impostazioni (portabilità dei dati, Art. 20 GDPR), e puoi eliminare il tuo account e tutti i dati associati in qualsiasi momento dalle Impostazioni. Per altre richieste GDPR (accesso, rettifica, cancellazione, limitazione, opposizione), contatta l'indirizzo indicato nella pagina delle <linkImprint>Note legali</linkImprint>.",
       "body2": "Se risiedi nell'UE/SEE, hai anche il diritto di presentare un reclamo alla tua autorità di controllo locale per la protezione dei dati. L'autorità competente per il gestore di questa istanza è il <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
     }
   },
   "terms": {
     "heading": "Termini di servizio",
+    "lastUpdated": "Ultimo aggiornamento: 19 luglio 2026",
     "intro": "Utilizzando Schautrack, accetti questi termini.",
     "service": {
       "heading": "Servizio",
-      "body": "Schautrack fornisce strumenti di monitoraggio di calorie e nutrizione. Il servizio è fornito \"così com'è\" senza garanzie."
+      "body": "Schautrack fornisce strumenti di monitoraggio di calorie, nutrizione e peso, incluso un pianificatore del peso facoltativo che stima un budget calorico giornaliero e una cronologia in base alle informazioni che fornisci. Il servizio è offerto gratuitamente."
+    },
+    "eligibility": {
+      "heading": "Idoneità",
+      "body": "Per usare Schautrack devi avere almeno 16 anni. Questa soglia deriva dall'età del consenso digitale applicabile al consenso al trattamento dei dati sanitari su cui si basa il servizio (Art. 8 GDPR, come recepito in Germania)."
     },
     "notMedicalAdvice": {
       "heading": "Non è un consiglio medico",
-      "body": "I conteggi delle calorie, le stime delle macro dalle foto e i dati nutrizionali dei codici a barre sono solo a scopo informativo e potrebbero non essere accurati. Schautrack non è un dispositivo medico e non sostituisce una consulenza medica, dietetica o nutrizionale professionale. Non fare affidamento su di esso per decisioni cliniche o per la gestione di qualsiasi condizione medica. Verifica le informazioni nutrizionali sulla confezione del prodotto quando la precisione è importante, e consulta un professionista qualificato per questioni mediche o dietetiche."
+      "body": "I conteggi delle calorie, le stime delle macro dalle foto, i dati nutrizionali dei codici a barre e i calcoli del pianificatore del peso — inclusi budget calorici, valori IMC e cronologie previste — sono stime basate su formule e hanno solo scopo informativo. Potrebbero non essere accurati. Schautrack non è un dispositivo medico e non sostituisce una consulenza medica, dietetica o nutrizionale professionale. Non è adatto alla gestione di disturbi alimentari o di qualsiasi condizione medica. Consulta un professionista qualificato prima di iniziare un programma di perdita o aumento di peso, e verifica le informazioni nutrizionali sulla confezione del prodotto quando la precisione è importante."
     },
     "yourAccount": {
       "heading": "Il tuo account",
@@ -120,6 +158,18 @@
     "acceptableUse": {
       "heading": "Uso accettabile",
       "body": "Non abusare del servizio, non tentare di accedere ai dati di altri utenti e non usare strumenti automatizzati per estrarre dati dal servizio."
+    },
+    "availability": {
+      "heading": "Disponibilità",
+      "body": "Schautrack viene fornito gratuitamente e senza garanzia di disponibilità. Potremmo modificare o interrompere il servizio; se lo interrompiamo, forniremo un preavviso ragionevole via email in modo che tu possa esportare i tuoi dati dalle Impostazioni."
+    },
+    "termination": {
+      "heading": "Cessazione",
+      "body": "Puoi smettere di usare Schautrack ed eliminare il tuo account, inclusi tutti i dati associati, in qualsiasi momento dalle Impostazioni. Potremmo sospendere o cessare account che violano questi termini o abusano del servizio; ove ragionevole, ti avviseremo preventivamente via email e ti daremo l'opportunità di esportare i tuoi dati."
+    },
+    "liability": {
+      "heading": "Responsabilità",
+      "body": "Siamo responsabili senza limitazioni per i danni causati da dolo o colpa grave, per lesioni alla vita, al corpo o alla salute, e ai sensi della legge tedesca sulla responsabilità per danno da prodotti difettosi (Produkthaftungsgesetz). Per colpa lieve, siamo responsabili solo per la violazione di obblighi contrattuali essenziali (obblighi il cui adempimento rende possibile la corretta esecuzione del contratto e sul cui adempimento puoi fare regolarmente affidamento), limitatamente al danno tipico per questo tipo di contratto e prevedibile al momento della sua conclusione. È esclusa ogni ulteriore responsabilità. Ciò non comporta un'inversione dell'onere della prova a tuo svantaggio."
     },
     "changes": {
       "heading": "Modifiche a questi termini",

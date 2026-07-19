@@ -29,19 +29,51 @@
   "imprint": {
     "heading": "Nota prawna",
     "addressAlt": "Adres",
-    "emailAlt": "E-mail"
+    "emailAlt": "E-mail",
+    "ddgNotice": {
+      "heading": "Informacje zgodnie z § 5 DDG",
+      "addressAlt": "Adres pocztowy operatora",
+      "emailAlt": "Adres e-mail operatora"
+    },
+    "responsibleForContent": {
+      "heading": "Odpowiedzialny za treść zgodnie z § 18 (2) MStV",
+      "addressAlt": "Imię i nazwisko oraz adres pocztowy osoby odpowiedzialnej za treść"
+    },
+    "disputeResolution": {
+      "heading": "Rozstrzyganie sporów konsumenckich",
+      "body": "Nie jesteśmy skłonni ani zobowiązani do udziału w postępowaniu w sprawie rozstrzygania sporów przed konsumenckim sądem polubownym (§ 36 VSBG)."
+    }
   },
   "privacy": {
     "heading": "Polityka prywatności",
-    "intro": "Schautrack zbiera wyłącznie dane niezbędne do świadczenia usługi śledzenia kalorii i makroskładników.",
+    "lastUpdated": "Ostatnia aktualizacja: 19 lipca 2026",
+    "intro": "Schautrack zbiera wyłącznie dane niezbędne do świadczenia usługi śledzenia kalorii, odżywiania i wagi.",
+    "controller": {
+      "heading": "Administrator danych",
+      "body": "Administratorem danych odpowiedzialnym za tę instancję Schautrack jest operator wskazany na stronie <linkImprint>Nota prawna</linkImprint>. Możesz skontaktować się z administratorem pod adresem podanym na tej stronie."
+    },
     "dataWeCollect": {
       "heading": "Dane, które zbieramy",
       "items": {
         "email": "Adres e-mail (do uwierzytelniania i odzyskiwania konta)",
         "entries": "Wpisy kalorii, makroskładników i wagi, które tworzysz",
+        "bodyMetrics": "Dane biometryczne, które opcjonalnie podajesz dla planera wagi — wzrost, rok urodzenia, płeć i poziom aktywności — oraz ustawione przez Ciebie cele wagowe",
         "notes": "Codzienne notatki i zadania (jeśli je włączysz)",
         "preferences": "Strefa czasowa i preferencje wyświetlania",
         "authMaterial": "Materiał uwierzytelniający, który zdecydujesz się skonfigurować: hash hasła, sekret TOTP, kody zapasowe, dane uwierzytelniające klucza dostępu"
+      }
+    },
+    "healthData": {
+      "heading": "Dane dotyczące zdrowia",
+      "body1": "Twoje wpisy wagi, dane biometryczne, cele wagowe i spożycie składników odżywczych stanowią dane dotyczące zdrowia w rozumieniu Art. 9 GDPR. Schautrack przetwarza je wyłącznie w celu udostępniania funkcji, z których korzystasz: rejestrowania wpisów, statystyk oraz obliczeń budżetu kalorycznego i harmonogramu w planerze wagi. Te obliczenia (podstawowa przemiana materii, wydatek energetyczny, budżet kaloryczny) są wykonywane w całości na tym serwerze — Twoje dane dotyczące zdrowia nie są udostępniane żadnej stronie trzeciej ani wykorzystywane do celów reklamowych lub jakichkolwiek innych.",
+      "body2": "Podstawa prawna: Twoja wyraźna zgoda (Art. 9(2)(a) GDPR), wyrażona podczas rejestracji. Możesz wycofać tę zgodę w dowolnym momencie — równie łatwo, jak jej udzielono — usuwając odpowiednie wpisy lub całe swoje konto w Ustawieniach (Art. 7(3) GDPR). Wycofanie zgody nie wpływa na zgodność z prawem przetwarzania dokonanego przed jej wycofaniem. Bez tej zgody funkcje śledzenia nie mogą być udostępniane."
+    },
+    "legalBases": {
+      "heading": "Podstawy prawne",
+      "items": {
+        "accountService": "<strong>Dane konta i usługi</strong> (e-mail, preferencje, materiał uwierzytelniający): wykonanie umowy, Art. 6(1)(b) GDPR.",
+        "healthRelated": "<strong>Dane dotyczące zdrowia</strong> (waga, dane biometryczne, cele, spożycie składników odżywczych): Twoja wyraźna zgoda, Art. 9(2)(a) GDPR (patrz wyżej).",
+        "securityLogs": "<strong>Dzienniki bezpieczeństwa i ograniczanie liczby żądań</strong> (adres IP, user agent przy istotnych działaniach na koncie): nasz prawnie uzasadniony interes w zabezpieczaniu usługi i zapobieganiu nadużyciom, Art. 6(1)(f) GDPR."
       }
     },
     "cookies": {
@@ -50,7 +82,7 @@
     },
     "logsSecurity": {
       "heading": "Dzienniki i bezpieczeństwo",
-      "body": "W przypadku istotnych działań na koncie (logowania, zmiany hasła i e-mail, zmiany 2FA, zmiany kluczy dostępu, usunięcie konta) rejestrujemy wykonaną akcję, Twój adres IP oraz Twój user agent, aby właściciel konta mógł przeglądać aktywność i abyśmy mogli wykrywać nadużycia. Te same informacje są krótko przechowywane w celu ograniczenia liczby żądań do endpointów uwierzytelniania."
+      "body": "W przypadku istotnych działań na koncie (logowania, zmiany hasła i e-mail, zmiany 2FA, zmiany kluczy dostępu, usunięcie konta) rejestrujemy wykonaną akcję, Twój adres IP oraz Twój user agent, aby właściciel konta mógł przeglądać aktywność i abyśmy mogli wykrywać nadużycia. Te same informacje są krótko przechowywane w celu ograniczenia liczby żądań do endpointów uwierzytelniania. Captcha wyświetlana podczas rejestracji jest generowana przez sam ten serwer — nie jest zaangażowana żadna usługa captcha strony trzeciej."
     },
     "accountLinking": {
       "heading": "Łączenie kont",
@@ -60,7 +92,7 @@
       "heading": "Podwykonawcy",
       "intro": "Korzystamy z niewielkiej liczby usług zewnętrznych do prowadzenia Schautrack:",
       "items": {
-        "aiEstimation": "<strong>Szacowanie odżywcze AI:</strong> Gdy przesyłasz zdjęcie jedzenia do oszacowania, zdjęcie jest wysyłane do dostawcy AI skonfigurowanego przez operatora tej instancji Schautrack — obecnie OpenAI, Anthropic Claude (oba z siedzibą w Stanach Zjednoczonych) lub samodzielnie hostowana instancja Ollama. Możesz też skonfigurować własny klucz API dla dowolnego z tych dostawców w Ustawieniach. Jeśli nie korzystasz z tej funkcji, żadne dane zdjęć nie są udostępniane żadnemu dostawcy AI.",
+        "aiEstimation": "<strong>Szacowanie odżywcze AI:</strong> Gdy przesyłasz zdjęcie jedzenia do oszacowania, zdjęcie jest wysyłane do dostawcy AI skonfigurowanego przez operatora tej instancji Schautrack — obecnie OpenAI, Anthropic Claude (oba z siedzibą w Stanach Zjednoczonych) lub samodzielnie hostowana instancja Ollama. Możesz też skonfigurować własny klucz API dla dowolnego z tych dostawców w Ustawieniach. Jeśli nie korzystasz z tej funkcji, żadne dane zdjęć nie są udostępniane żadnemu dostawcy AI. Twoje dane biometryczne, wpisy wagi i cele wagowe nigdy nie są wysyłane do dostawców AI.",
         "barcodeLookups": "<strong>Wyszukiwanie kodów kreskowych:</strong> Zeskanowane numery kodów kreskowych są wysyłane do <linkOff>Open Food Facts</linkOff> w celu pobrania danych odżywczych produktu, na podstawie <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> dostawca hostingu z siedzibą w UE, w Niemczech.",
         "emailDelivery": "<strong>Dostarczanie e-maili:</strong> dostawca transakcyjnej poczty e-mail do weryfikacji, resetowania hasła i powiadomień o zmianach na koncie.",
@@ -74,9 +106,10 @@
     "retention": {
       "heading": "Okres przechowywania",
       "items": {
-        "entries": "Wpisy kalorii, makroskładników, wagi, notatek i zadań są przechowywane do momentu ich usunięcia lub usunięcia konta.",
+        "entries": "Wpisy kalorii, makroskładników, wagi, notatek i zadań, dane biometryczne oraz cele wagowe są przechowywane do momentu ich usunięcia lub usunięcia konta.",
         "sessions": "Uwierzytelnione sesje wygasają 30 dni po ostatniej wizycie; anonimowe sesje wygasają po 15 minutach bezczynności.",
         "auditLog": "Wpisy dziennika audytu (istotne działania uwierzytelniania, z adresem IP i user agentem) są przechowywane przez cały czas istnienia konta.",
+        "consentRecord": "Data i godzina zaakceptowania Regulaminu oraz wyrażenia zgody na przetwarzanie danych dotyczących zdrowia są przechowywane wraz z Twoim kontem jako dowód wyrażenia zgody (Art. 7(1) GDPR).",
         "accountDeletion": "Gdy usuwasz swoje konto, wszystkie powiązane dane są usuwane."
       }
     },
@@ -90,20 +123,25 @@
     },
     "rights": {
       "heading": "Twoje prawa i usuwanie danych",
-      "body1": "Możesz usunąć swoje konto i wszystkie powiązane dane w dowolnym momencie w Ustawieniach. W sprawie innych żądań RODO (dostęp, sprostowanie, przenoszenie, sprzeciw) skontaktuj się pod adresem podanym na stronie <linkImprint>Nota prawna</linkImprint>.",
+      "body1": "W dowolnym momencie możesz wyeksportować wszystkie swoje dane w Ustawieniach (przenoszenie danych, Art. 20 GDPR), a także usunąć swoje konto i wszystkie powiązane dane w dowolnym momencie w Ustawieniach. W sprawie innych żądań RODO (dostęp, sprostowanie, usunięcie, ograniczenie przetwarzania, sprzeciw) skontaktuj się pod adresem podanym na stronie <linkImprint>Nota prawna</linkImprint>.",
       "body2": "Jeśli mieszkasz w UE/EOG, masz również prawo wnieść skargę do lokalnego organu nadzorczego ds. ochrony danych. Właściwym organem dla operatora tej instancji jest <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
     }
   },
   "terms": {
     "heading": "Regulamin",
+    "lastUpdated": "Ostatnia aktualizacja: 19 lipca 2026",
     "intro": "Korzystając z Schautrack, akceptujesz niniejszy regulamin.",
     "service": {
       "heading": "Usługa",
-      "body": "Schautrack udostępnia narzędzia do śledzenia kalorii i odżywiania. Usługa jest świadczona „tak jak jest”, bez żadnych gwarancji."
+      "body": "Schautrack udostępnia narzędzia do śledzenia kalorii, odżywiania i wagi, w tym opcjonalny planer wagi, który na podstawie podanych przez Ciebie informacji szacuje dzienny budżet kaloryczny i harmonogram. Usługa jest oferowana bezpłatnie."
+    },
+    "eligibility": {
+      "heading": "Uprawnienie do korzystania",
+      "body": "Aby korzystać z Schautrack, musisz mieć ukończone 16 lat. Ten próg wynika z wieku cyfrowej zgody mającego zastosowanie do zgody na przetwarzanie danych dotyczących zdrowia, na której opiera się usługa (Art. 8 GDPR w brzmieniu wdrożonym w Niemczech)."
     },
     "notMedicalAdvice": {
       "heading": "To nie jest porada medyczna",
-      "body": "Liczba kalorii, szacunki makroskładników ze zdjęć oraz dane odżywcze z kodów kreskowych mają charakter wyłącznie informacyjny i mogą być niedokładne. Schautrack nie jest wyrobem medycznym i nie zastępuje profesjonalnej porady medycznej, dietetycznej ani żywieniowej. Nie należy polegać na nich przy podejmowaniu decyzji klinicznych ani w zarządzaniu jakimkolwiek stanem chorobowym. Sprawdzaj informacje odżywcze na opakowaniu produktu, gdy dokładność ma znaczenie, i skonsultuj się z wykwalifikowanym specjalistą w sprawach medycznych lub dietetycznych."
+      "body": "Liczba kalorii, szacunki makroskładników ze zdjęć, dane odżywcze z kodów kreskowych oraz obliczenia planera wagi — w tym budżety kaloryczne, wartości BMI i przewidywane harmonogramy — są szacunkami opartymi na wzorach i mają charakter wyłącznie informacyjny. Mogą być niedokładne. Schautrack nie jest wyrobem medycznym i nie zastępuje profesjonalnej porady medycznej, dietetycznej ani żywieniowej. Nie nadaje się do zarządzania zaburzeniami odżywiania ani żadnym stanem chorobowym. Przed rozpoczęciem programu odchudzania lub przybierania na wadze skonsultuj się z wykwalifikowanym specjalistą, a gdy dokładność ma znaczenie, sprawdzaj informacje odżywcze na opakowaniu produktu."
     },
     "yourAccount": {
       "heading": "Twoje konto",
@@ -120,6 +158,18 @@
     "acceptableUse": {
       "heading": "Dopuszczalne użycie",
       "body": "Nie nadużywaj usługi, nie próbuj uzyskać dostępu do danych innych użytkowników ani nie używaj zautomatyzowanych narzędzi do przeszukiwania usługi."
+    },
+    "availability": {
+      "heading": "Dostępność",
+      "body": "Schautrack jest udostępniany bezpłatnie i bez gwarancji dostępności. Możemy modyfikować lub zakończyć świadczenie usługi; w przypadku jej zakończenia powiadomimy o tym z odpowiednim wyprzedzeniem drogą e-mailową, dając Ci możliwość wyeksportowania danych w Ustawieniach."
+    },
+    "termination": {
+      "heading": "Zakończenie",
+      "body": "Możesz w dowolnym momencie przestać korzystać z Schautrack i usunąć swoje konto wraz ze wszystkimi powiązanymi danymi w Ustawieniach. Możemy zawiesić lub zamknąć konta, które naruszają niniejszy regulamin lub nadużywają usługi; tam, gdzie to uzasadnione, powiadomimy Cię wcześniej e-mailem i damy Ci możliwość wyeksportowania danych."
+    },
+    "liability": {
+      "heading": "Odpowiedzialność",
+      "body": "Ponosimy nieograniczoną odpowiedzialność za szkody wyrządzone umyślnie lub w wyniku rażącego niedbalstwa, za szkody na życiu, ciele lub zdrowiu oraz na podstawie niemieckiej ustawy o odpowiedzialności za produkt. Za lekkie niedbalstwo odpowiadamy wyłącznie za naruszenie istotnych zobowiązań umownych (zobowiązań, których wypełnienie w ogóle umożliwia prawidłowe wykonanie umowy i na których wypełnieniu druga strona może zwykle polegać), przy czym odpowiedzialność ta jest ograniczona do szkody typowej dla tego rodzaju umowy i możliwej do przewidzenia w chwili jej zawarcia. Wszelka dalsza odpowiedzialność jest wyłączona. Nie powoduje to przeniesienia ciężaru dowodu na Twoją niekorzyść."
     },
     "changes": {
       "heading": "Zmiany niniejszego regulaminu",

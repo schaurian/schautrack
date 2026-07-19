@@ -203,6 +203,16 @@
     "openIssue": "Ouvrir un ticket sur GitHub"
   },
 
+  "reportIssue": {
+    "title": "Signaler un problème",
+    "description": "Vous avez trouvé un bug ou il manque une fonctionnalité ? Cela ouvre un ticket pré-rempli sur le suivi de projet.",
+    "yourVersion": "Votre version : ",
+    "latestAvailable": " — v{{latest}} est disponible",
+    "olderVersion": "Vous utilisez une version plus ancienne. Veuillez d'abord <issues>consulter les tickets ouverts</issues> — votre problème a peut-être déjà été signalé ou corrigé.",
+    "acknowledgement": "Je comprends que j'utilise une version plus ancienne ({{version}}) et que mon problème a peut-être déjà été signalé ou corrigé — j'ai consulté les tickets ouverts et je souhaite quand même le signaler.",
+    "submit": "Signaler un problème"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "Général" },

@@ -203,6 +203,16 @@
     "openIssue": "Apri una segnalazione su GitHub"
   },
 
+  "reportIssue": {
+    "title": "Segnala un problema",
+    "description": "Hai trovato un bug o manca una funzionalità? Questo apre una segnalazione precompilata sul tracker del progetto.",
+    "yourVersion": "La tua versione: ",
+    "latestAvailable": " — è disponibile la v{{latest}}",
+    "olderVersion": "Stai usando una versione meno recente. Prima di procedere, <issues>consulta le segnalazioni aperte</issues> — il tuo problema potrebbe essere già stato segnalato o risolto.",
+    "acknowledgement": "Capisco di stare usando una versione meno recente ({{version}}) e che il mio problema potrebbe essere già stato segnalato o risolto — ho controllato le segnalazioni aperte e voglio comunque segnalarlo.",
+    "submit": "Segnala un problema"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "Generale" },

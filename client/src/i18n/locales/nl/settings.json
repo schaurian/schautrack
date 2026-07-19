@@ -203,6 +203,16 @@
     "openIssue": "Open een issue op GitHub"
   },
 
+  "reportIssue": {
+    "title": "Een probleem melden",
+    "description": "Heb je een bug gespot of mis je een functie? Dit opent een vooraf ingevuld issue op de projecttracker.",
+    "yourVersion": "Jouw versie: ",
+    "latestAvailable": " — v{{latest}} is beschikbaar",
+    "olderVersion": "Je gebruikt een oudere versie. <issues>Bekijk eerst de openstaande issues</issues> — je probleem is mogelijk al gemeld of opgelost.",
+    "acknowledgement": "Ik begrijp dat ik een oudere versie gebruik ({{version}}) en dat mijn probleem mogelijk al is gemeld of opgelost — ik heb de openstaande issues bekeken en wil het toch melden.",
+    "submit": "Een probleem melden"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "Algemeen" },

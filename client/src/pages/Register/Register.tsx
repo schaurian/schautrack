@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { register, getRegistrationInfo } from '@/api/auth';
 import { getAuthInfo, type AuthInfo } from '@/api/passkeys';
@@ -10,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 
 export default function Register() {
+  const { t } = useTranslation('auth');
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +48,7 @@ export default function Register() {
     e.preventDefault();
     setError('');
     if (step === 'credentials' && password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('register.passwordsDoNotMatch'));
       return;
     }
     setLoading(true);
@@ -72,7 +74,7 @@ export default function Register() {
         if (typeof err.data.captchaQuestion === 'string') setCaptchaQuestion(err.data.captchaQuestion);
         if (err.data.requireInviteCode) setRequireInvite(true);
       } else {
-        setError('Could not register.');
+        setError(t('register.couldNotRegister'));
       }
       setLoading(false);
     }
@@ -82,10 +84,10 @@ export default function Register() {
     return (
       <div className="flex justify-center py-12">
         <Card className="w-full max-w-sm">
-          <h2 className="mb-6 text-xl font-semibold">Create Account</h2>
-          <Alert type="warning" message="Registration is currently disabled." className="mb-4" />
+          <h2 className="mb-6 text-xl font-semibold">{t('register.title')}</h2>
+          <Alert type="warning" message={t('register.registrationDisabled')} className="mb-4" />
           <div className="mt-6 text-sm">
-            <Link to="/login">Already have an account?</Link>
+            <Link to="/login">{t('register.alreadyHaveAccount')}</Link>
           </div>
         </Card>
       </div>
@@ -95,7 +97,7 @@ export default function Register() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-6 text-xl font-semibold">Create Account</h2>
+        <h2 className="mb-6 text-xl font-semibold">{t('register.title')}</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
 
         {step === 'credentials' && authInfo && authInfo.oidc && (
@@ -106,11 +108,11 @@ export default function Register() {
                 <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
               )}
-              Sign up with {authInfo.oidc.label}
+              {t('register.signUpWithProvider', { provider: authInfo.oidc.label })}
             </Button>
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t('register.or')}</span></div>
             </div>
           </div>
         )}
@@ -118,21 +120,21 @@ export default function Register() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {step === 'credentials' ? (
             <>
-              <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-              <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" minLength={10} placeholder="Minimum 10 characters" />
+              <Input label={t('register.emailLabel')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+              <Input label={t('register.passwordLabel')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" minLength={10} placeholder={t('register.passwordPlaceholder')} />
               <Input
-                label="Confirm Password"
+                label={t('register.confirmPasswordLabel')}
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 autoComplete="new-password"
                 onBlur={() => setConfirmTouched(true)}
-                error={confirmTouched && password !== confirmPassword ? 'Passwords do not match.' : undefined}
+                error={confirmTouched && password !== confirmPassword ? t('register.passwordsDoNotMatch') : undefined}
                 className={confirmTouched && password === confirmPassword ? 'border-green-500 focus-visible:ring-green-500' : undefined}
               />
               {requireInvite && (
-                <Input label="Invite Code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required placeholder="Enter your invite code" />
+                <Input label={t('register.inviteCodeLabel')} value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required placeholder={t('register.inviteCodePlaceholder')} />
               )}
               {legalEnabled && (
                 <div className="flex flex-col gap-3 text-sm">
@@ -142,13 +144,17 @@ export default function Register() {
                       checked={legalAccepted}
                       onChange={(e) => setLegalAccepted(e.target.checked)}
                       className="mt-1"
-                      aria-label="Accept the Terms of Service and Privacy Policy"
+                      aria-label={t('register.consent.termsCheckboxAriaLabel')}
                     />
                     <span className="text-muted-foreground">
-                      I accept the{' '}
-                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline">Terms of Service</a>
-                      {' '}and have read the{' '}
-                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline">Privacy Policy</a>.
+                      <Trans
+                        i18nKey="register.consent.termsText"
+                        ns="auth"
+                        components={{
+                          termsLink: <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline" />,
+                          privacyLink: <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline" />,
+                        }}
+                      />
                     </span>
                   </label>
                   <label className="flex items-start gap-2">
@@ -157,13 +163,10 @@ export default function Register() {
                       checked={healthConsent}
                       onChange={(e) => setHealthConsent(e.target.checked)}
                       className="mt-1"
-                      aria-label="Consent to health data processing"
+                      aria-label={t('register.consent.healthCheckboxAriaLabel')}
                     />
                     <span className="text-muted-foreground">
-                      I explicitly consent to the processing of the health data I enter (such as weight,
-                      body metrics, weight goals, and nutrition intake) so Schautrack can provide its
-                      tracking and planning features (Art. 9(2)(a) GDPR). I can withdraw this consent at
-                      any time by deleting the data or my account.
+                      {t('register.consent.healthText')}
                     </span>
                   </label>
                 </div>
@@ -172,20 +175,20 @@ export default function Register() {
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
-                <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
+                <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt={t('register.captchaAltText')} />
               </div>
               {captchaQuestion && (
                 <p className="text-sm text-muted-foreground">
-                  Cannot see the image? Enter the answer to this question instead: {captchaQuestion}
+                  {t('register.captchaFallbackQuestion', { question: captchaQuestion })}
                 </p>
               )}
-              <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
+              <Input label={t('register.captchaLabel')} value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}
-          <Button type="submit" loading={loading} disabled={step === 'credentials' && (!email || !password || !confirmPassword || password !== confirmPassword || (legalEnabled && (!legalAccepted || !healthConsent)))}>{step === 'credentials' ? 'Continue' : 'Create Account'}</Button>
+          <Button type="submit" loading={loading} disabled={step === 'credentials' && (!email || !password || !confirmPassword || password !== confirmPassword || (legalEnabled && (!legalAccepted || !healthConsent)))}>{step === 'credentials' ? t('register.continue') : t('register.submit')}</Button>
         </form>
         <div className="mt-6 text-sm">
-          <Link to="/login">Already have an account?</Link>
+          <Link to="/login">{t('register.alreadyHaveAccount')}</Link>
         </div>
       </Card>
     </div>

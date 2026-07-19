@@ -203,6 +203,16 @@
     "openIssue": "Zgłoś sprawę na GitHubie"
   },
 
+  "reportIssue": {
+    "title": "Zgłoś problem",
+    "description": "Znalazłeś błąd lub brakuje Ci funkcji? To otworzy wstępnie wypełnione zgłoszenie w systemie śledzenia projektu.",
+    "yourVersion": "Twoja wersja: ",
+    "latestAvailable": " — dostępna jest wersja v{{latest}}",
+    "olderVersion": "Używasz starszej wersji. Najpierw <issues>przejrzyj otwarte zgłoszenia</issues> — Twój problem mógł już zostać zgłoszony lub naprawiony.",
+    "acknowledgement": "Rozumiem, że korzystam ze starszej wersji ({{version}}) i mój problem mógł już zostać zgłoszony lub naprawiony — mimo sprawdzenia otwartych zgłoszeń nadal chcę go zgłosić.",
+    "submit": "Zgłoś problem"
+  },
+
   "admin": {
     "sections": {
       "general": { "title": "Ogólne" },

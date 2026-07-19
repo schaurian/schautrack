@@ -185,6 +185,10 @@
       "toastSaveFailed": "Échec de l'enregistrement de l'objectif"
     },
     "metricsForm": {
+      "consentNotice": "Données de santé facultatives, traitées uniquement sur ce serveur pour calculer votre plan, sur la base de votre consentement (Art. 9(2)(a) GDPR). Supprimez-les à tout moment avec Effacer ou en supprimant votre compte.",
+      "clearButton": "Effacer",
+      "toastCleared": "Informations effacées",
+      "toastClearFailed": "Échec de l'effacement des informations",
       "title": "Vos informations",
       "hideLabel": "Masquer",
       "editLabel": "Modifier",
