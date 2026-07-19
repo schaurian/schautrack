@@ -16,6 +16,16 @@ import (
 	"schautrack/internal/session"
 )
 
+// derefLang safely dereferences a user's *string language field, e.g.
+// model.User.Language, returning "" (which renderEmail/normalizeEmailLang
+// treats as "fall back to en") when the pointer is nil.
+func derefLang(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func verifyPassword(hash, password string) (bool, error) {
 	if hash == "" || password == "" {
 		return false, nil
@@ -181,9 +191,10 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 		var userID int
 		var passwordHash string
 		var totpEnabled bool
+		var userLanguage *string
 		err := h.Pool.QueryRow(r.Context(),
-			"SELECT id, password_hash, totp_enabled FROM users WHERE email = $1", emailClean,
-		).Scan(&userID, &passwordHash, &totpEnabled)
+			"SELECT id, password_hash, totp_enabled, language FROM users WHERE email = $1", emailClean,
+		).Scan(&userID, &passwordHash, &totpEnabled, &userLanguage)
 		if err != nil {
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid credentials.")
 			return
@@ -209,7 +220,7 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.Email.Send2FAResetEmail(emailClean, code); err != nil {
+		if err := h.Email.Send2FAResetEmail(emailClean, code, derefLang(userLanguage)); err != nil {
 			// Caller already proved email+password, so surfacing the send
 			// failure reveals nothing about account existence.
 			ErrorJSON(w, http.StatusInternalServerError, "Could not send reset code. Please try again.")

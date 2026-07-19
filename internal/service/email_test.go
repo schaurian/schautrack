@@ -127,16 +127,16 @@ func TestSendEmail_TimesOutOnHungServer(t *testing.T) {
 func TestEmailWrappers_PropagateSendErrors(t *testing.T) {
 	es := NewEmailService(closedPortConfig(t))
 
-	if err := es.SendVerificationEmail("to@example.com", "123456"); err == nil {
+	if err := es.SendVerificationEmail("to@example.com", "123456", "en"); err == nil {
 		t.Error("SendVerificationEmail returned nil on SMTP failure, want error")
 	}
-	if err := es.SendPasswordResetEmail("to@example.com", "123456"); err == nil {
+	if err := es.SendPasswordResetEmail("to@example.com", "123456", "en"); err == nil {
 		t.Error("SendPasswordResetEmail returned nil on SMTP failure, want error")
 	}
-	if err := es.Send2FAResetEmail("to@example.com", "123456"); err == nil {
+	if err := es.Send2FAResetEmail("to@example.com", "123456", "en"); err == nil {
 		t.Error("Send2FAResetEmail returned nil on SMTP failure, want error")
 	}
-	if err := es.SendEmailChangeVerification("to@example.com", "123456"); err == nil {
+	if err := es.SendEmailChangeVerification("to@example.com", "123456", "en"); err == nil {
 		t.Error("SendEmailChangeVerification returned nil on SMTP failure, want error")
 	}
 }

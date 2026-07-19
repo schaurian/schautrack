@@ -129,8 +129,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var passwordHash string
 	var emailVerified bool
 	var totpEnabled bool
-	err := h.Pool.QueryRow(r.Context(), "SELECT id, password_hash, email_verified, totp_enabled FROM users WHERE email = $1", email).
-		Scan(&userID, &passwordHash, &emailVerified, &totpEnabled)
+	var userLanguage *string
+	err := h.Pool.QueryRow(r.Context(), "SELECT id, password_hash, email_verified, totp_enabled, language FROM users WHERE email = $1", email).
+		Scan(&userID, &passwordHash, &emailVerified, &totpEnabled, &userLanguage)
 	if err != nil {
 		// Burn the same argon2id cost as a real password check so unknown
 		// emails aren't distinguishable from wrong passwords by timing.
@@ -166,7 +167,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
 			return
 		}
-		if err := h.Email.SendVerificationEmail(email, code); err != nil {
+		if err := h.Email.SendVerificationEmail(email, code, derefLang(userLanguage)); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
 			return
 		}
@@ -299,10 +300,10 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 	}
 
 	sess.Set("pendingRegistration", map[string]any{
-		"email":      emailClean,
-		"hash":       hash,
-		"timezone":   timezone,
-		"createdAt":  time.Now().Unix(),
+		"email":     emailClean,
+		"hash":      hash,
+		"timezone":  timezone,
+		"createdAt": time.Now().Unix(),
 	})
 
 	c := service.GenerateCaptcha()
@@ -433,7 +434,9 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		// Email send stays outside the transaction — the account exists
 		// either way, and login/resend can retry the verification email.
 		sess.Set("verifyEmail", emailClean)
-		if err := h.Email.SendVerificationEmail(emailClean, verifyCode); err != nil {
+		// No language preference exists yet at registration time (the user
+		// hasn't set one), so pass "" and let it fall back to "en".
+		if err := h.Email.SendVerificationEmail(emailClean, verifyCode, ""); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
 			return
 		}

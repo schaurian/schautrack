@@ -7,8 +7,8 @@ func TestNormalizeLanguage(t *testing.T) {
 		"de":    "de",
 		"EN":    "en",
 		" fr ":  "fr",
-		"":      "", // Automatic
-		"xx":    "", // unsupported -> Automatic
+		"":      "",   // Automatic
+		"xx":    "",   // unsupported -> Automatic
 		"de-DE": "de", // region stripped
 		"pt_BR": "pt", // underscore region stripped
 	}

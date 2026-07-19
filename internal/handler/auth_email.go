@@ -137,7 +137,8 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 
 	var userID int
 	var emailVerified bool
-	err := h.Pool.QueryRow(r.Context(), "SELECT id, email_verified FROM users WHERE email = $1", email).Scan(&userID, &emailVerified)
+	var userLanguage *string
+	err := h.Pool.QueryRow(r.Context(), "SELECT id, email_verified, language FROM users WHERE email = $1", email).Scan(&userID, &emailVerified, &userLanguage)
 	if err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "User not found.")
 		return
@@ -155,7 +156,7 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 		ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email.")
 		return
 	}
-	if err := h.Email.SendVerificationEmail(email, code); err != nil {
+	if err := h.Email.SendVerificationEmail(email, code, derefLang(userLanguage)); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
 		return
 	}
@@ -213,7 +214,7 @@ func (h *AuthHandler) EmailChangeRequest(w http.ResponseWriter, r *http.Request)
 		ErrorJSON(w, http.StatusInternalServerError, "Could not initiate email change.")
 		return
 	}
-	if err := h.Email.SendEmailChangeVerification(newEmail, code); err != nil {
+	if err := h.Email.SendEmailChangeVerification(newEmail, code, derefLang(user.Language)); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
 		return
 	}

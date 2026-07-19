@@ -43,7 +43,8 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	var userID int
 	var userEmail string
-	err := h.Pool.QueryRow(r.Context(), "SELECT id, email FROM users WHERE email = $1", email).Scan(&userID, &userEmail)
+	var userLanguage *string
+	err := h.Pool.QueryRow(r.Context(), "SELECT id, email, language FROM users WHERE email = $1", email).Scan(&userID, &userEmail, &userLanguage)
 	if err == nil {
 		// Delete old unused tokens
 		if _, err := h.Pool.Exec(r.Context(), "DELETE FROM password_reset_tokens WHERE user_id = $1 AND used = FALSE", userID); err != nil {
@@ -54,7 +55,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 			"INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
 			userID, code, time.Now().Add(30*time.Minute)); err != nil {
 			slog.Error("failed to insert password reset token", "error", err)
-		} else if err := h.Email.SendPasswordResetEmail(userEmail, code); err != nil {
+		} else if err := h.Email.SendPasswordResetEmail(userEmail, code, derefLang(userLanguage)); err != nil {
 			// Deliberately NOT surfaced to the client: this endpoint must
 			// stay non-enumerating, and a send-failure response would reveal
 			// that the account exists. Log it and return the generic success.

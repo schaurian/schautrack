@@ -3,17 +3,109 @@ package service
 import (
 	"crypto/rand"
 	"crypto/tls"
+	"embed"
 	"fmt"
+	htmltemplate "html/template"
 	"log"
 	"math/big"
 	"net"
 	"net/smtp"
 	"strconv"
 	"strings"
+	texttemplate "text/template"
 	"time"
 
 	"schautrack/internal/config"
 )
+
+//go:embed emailtemplates
+var emailTemplatesFS embed.FS
+
+// supportedEmailLangs is the allow-list of locales the transactional email
+// templates are translated into. Keep in sync with supportedLanguages in
+// internal/handler/settings.go and SUPPORTED_LANGUAGES in
+// client/src/i18n/index.ts.
+var supportedEmailLangs = map[string]bool{
+	"en": true, "de": true, "es": true, "fr": true,
+	"it": true, "nl": true, "pl": true, "pt": true,
+}
+
+// normalizeEmailLang returns a supported locale code for the given raw
+// language tag (lowercased, region stripped, e.g. "de-DE" -> "de"). Unknown,
+// unsupported, or empty values fall back to "en".
+func normalizeEmailLang(lang string) string {
+	s := strings.ToLower(strings.TrimSpace(lang))
+	if i := strings.IndexAny(s, "-_"); i >= 0 {
+		s = s[:i]
+	}
+	if !supportedEmailLangs[s] {
+		return "en"
+	}
+	return s
+}
+
+// renderedEmail holds the rendered subject/text/HTML for a single templated
+// email, ready to be handed to EmailService.SendEmail.
+type renderedEmail struct {
+	Subject string
+	Text    string
+	HTML    string
+}
+
+// renderEmail renders the named email template (e.g. "verification") for the
+// given language from internal/service/emailtemplates/<lang>/. lang is
+// normalized via normalizeEmailLang, so unsupported/unknown locales silently
+// fall back to "en" rather than erroring. An error is returned only when a
+// template is missing or genuinely fails to parse/execute.
+func renderEmail(name, lang string, data any) (renderedEmail, error) {
+	var out renderedEmail
+	dir := "emailtemplates/" + normalizeEmailLang(lang) + "/"
+
+	subjectSrc, err := emailTemplatesFS.ReadFile(dir + name + ".subject.tmpl")
+	if err != nil {
+		return out, fmt.Errorf("read %s subject template: %w", name, err)
+	}
+	textSrc, err := emailTemplatesFS.ReadFile(dir + name + ".txt.tmpl")
+	if err != nil {
+		return out, fmt.Errorf("read %s text template: %w", name, err)
+	}
+	htmlSrc, err := emailTemplatesFS.ReadFile(dir + name + ".html.tmpl")
+	if err != nil {
+		return out, fmt.Errorf("read %s html template: %w", name, err)
+	}
+
+	subjectTmpl, err := texttemplate.New(name + ".subject").Parse(string(subjectSrc))
+	if err != nil {
+		return out, fmt.Errorf("parse %s subject template: %w", name, err)
+	}
+	var subjectBuf strings.Builder
+	if err := subjectTmpl.Execute(&subjectBuf, data); err != nil {
+		return out, fmt.Errorf("execute %s subject template: %w", name, err)
+	}
+
+	textTmpl, err := texttemplate.New(name + ".txt").Parse(string(textSrc))
+	if err != nil {
+		return out, fmt.Errorf("parse %s text template: %w", name, err)
+	}
+	var textBuf strings.Builder
+	if err := textTmpl.Execute(&textBuf, data); err != nil {
+		return out, fmt.Errorf("execute %s text template: %w", name, err)
+	}
+
+	htmlTmpl, err := htmltemplate.New(name + ".html").Parse(string(htmlSrc))
+	if err != nil {
+		return out, fmt.Errorf("parse %s html template: %w", name, err)
+	}
+	var htmlBuf strings.Builder
+	if err := htmlTmpl.Execute(&htmlBuf, data); err != nil {
+		return out, fmt.Errorf("execute %s html template: %w", name, err)
+	}
+
+	out.Subject = strings.TrimRight(subjectBuf.String(), "\n")
+	out.Text = strings.TrimRight(textBuf.String(), "\n")
+	out.HTML = strings.TrimRight(htmlBuf.String(), "\n")
+	return out, nil
+}
 
 // SMTP timeouts bound the whole send so a hung or slow mail server can never
 // block the synchronous auth handlers (registration / password-reset / 2FA-reset)
@@ -140,32 +232,36 @@ func (es *EmailService) send(from, to string, msg []byte) error {
 	return c.Quit()
 }
 
-func (es *EmailService) SendVerificationEmail(email, code string) error {
-	subject := "Verify Your Email - Schautrack"
-	text := fmt.Sprintf("Your verification code is: %s\n\nThis code expires in 30 minutes.\n\nIf you did not create this account, you can ignore this email.", code)
-	html := fmt.Sprintf(`<p>Your verification code is:</p><h2 style="font-family: monospace; letter-spacing: 4px;">%s</h2><p>This code expires in 30 minutes.</p><p>If you did not create this account, you can ignore this email.</p>`, code)
-	return es.SendEmail(email, subject, text, html)
+func (es *EmailService) SendVerificationEmail(email, code, lang string) error {
+	rendered, err := renderEmail("verification", lang, map[string]any{"Code": code})
+	if err != nil {
+		return fmt.Errorf("render verification email: %w", err)
+	}
+	return es.SendEmail(email, rendered.Subject, rendered.Text, rendered.HTML)
 }
 
-func (es *EmailService) SendEmailChangeVerification(email, code string) error {
-	subject := "Verify Your New Email - Schautrack"
-	text := fmt.Sprintf("Your verification code to confirm your new email address is: %s\n\nThis code expires in 30 minutes.\n\nIf you did not request this email change, you can ignore this email.", code)
-	html := fmt.Sprintf(`<p>Your verification code to confirm your new email address is:</p><h2 style="font-family: monospace; letter-spacing: 4px;">%s</h2><p>This code expires in 30 minutes.</p><p>If you did not request this email change, you can ignore this email.</p>`, code)
-	return es.SendEmail(email, subject, text, html)
+func (es *EmailService) SendEmailChangeVerification(email, code, lang string) error {
+	rendered, err := renderEmail("email_change", lang, map[string]any{"Code": code})
+	if err != nil {
+		return fmt.Errorf("render email change verification email: %w", err)
+	}
+	return es.SendEmail(email, rendered.Subject, rendered.Text, rendered.HTML)
 }
 
-func (es *EmailService) SendPasswordResetEmail(email, code string) error {
-	subject := "Password Reset Code - Schautrack"
-	text := fmt.Sprintf("Your password reset code is: %s\n\nThis code expires in 30 minutes.", code)
-	html := fmt.Sprintf(`<p>Your password reset code is:</p><h2 style="font-family: monospace; letter-spacing: 4px;">%s</h2><p>This code expires in 30 minutes.</p>`, code)
-	return es.SendEmail(email, subject, text, html)
+func (es *EmailService) SendPasswordResetEmail(email, code, lang string) error {
+	rendered, err := renderEmail("password_reset", lang, map[string]any{"Code": code})
+	if err != nil {
+		return fmt.Errorf("render password reset email: %w", err)
+	}
+	return es.SendEmail(email, rendered.Subject, rendered.Text, rendered.HTML)
 }
 
-func (es *EmailService) Send2FAResetEmail(email, code string) error {
-	subject := "2FA Reset Code - Schautrack"
-	text := fmt.Sprintf("Your 2FA reset code is: %s\n\nThis code expires in 15 minutes.\n\nIf you did not request this, someone may have your password. Please change it immediately.", code)
-	html := fmt.Sprintf(`<p>Your 2FA reset code is:</p><h2 style="font-family: monospace; letter-spacing: 4px;">%s</h2><p>This code expires in 15 minutes.</p><p>If you did not request this, someone may have your password. Please change it immediately.</p>`, code)
-	return es.SendEmail(email, subject, text, html)
+func (es *EmailService) Send2FAResetEmail(email, code, lang string) error {
+	rendered, err := renderEmail("twofa_reset", lang, map[string]any{"Code": code})
+	if err != nil {
+		return fmt.Errorf("render 2FA reset email: %w", err)
+	}
+	return es.SendEmail(email, rendered.Subject, rendered.Text, rendered.HTML)
 }
 
 // GenerateResetCode returns a random 6-digit code.
