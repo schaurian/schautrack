@@ -29,7 +29,6 @@ import ReportIssueCard from './ReportIssueCard';
 
 export default function Settings() {
   const { t } = useTranslation('settings');
-  const { t: tCommon } = useTranslation('common');
   const doLogout = useLogout();
   const { isLoading: authLoading } = useRequireAuth();
   const queryClient = useQueryClient();
@@ -133,7 +132,7 @@ export default function Settings() {
           onClick={doLogout}
           className="shrink-0 cursor-pointer rounded-[10px] border border-border bg-transparent px-3.5 py-2 text-sm text-foreground transition-colors hover:bg-surface-hover"
         >
-          {tCommon('nav.logout')}
+          {t('account.logout')}
         </button>
       </div>
 
