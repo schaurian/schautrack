@@ -4,6 +4,7 @@ import type { SharedView } from '@/types';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import ShareCard from './ShareCard';
 import { Button } from '@/components/ui/Button';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 import { cn } from '@/lib/utils';
 
 const RANGE_PRESETS = [7, 14, 30, 60, 120];
@@ -17,6 +18,7 @@ interface Props {
 export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const { t } = useTranslation('dashboard');
   const { rangePreset, setRange, selectDay, selectUser } = useDashboardStore();
+  const [showRanges, setShowRanges] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [customStart, setCustomStart] = useState(range.start);
   const [customEnd, setCustomEnd] = useState(range.end);
@@ -29,6 +31,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
 
   const handlePreset = (days: number) => {
     setShowCustom(false);
+    setShowRanges(false);
     setRange(days, '', '');
   };
 
@@ -53,12 +56,24 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const active = rangePreset || range.preset;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('dashboard.timelineTitle')}</h3>
-      </div>
+    <section>
+      <SectionLabel
+        right={
+          <button
+            type="button"
+            className="cursor-pointer rounded-md border border-transparent bg-transparent px-2 py-1 text-xs font-bold text-primary transition-colors hover:bg-surface-hover"
+            onClick={() => setShowRanges(!showRanges)}
+            aria-expanded={showRanges}
+          >
+            {t('dashboard.rangeDays', { count: range.days })} ▾
+          </button>
+        }
+      >
+        {t('dashboard.timelineTitle')}
+      </SectionLabel>
       {/* Range selector */}
-      <div className="flex flex-wrap gap-1.5 mx-4 mt-4 mb-4">
+      {showRanges && (
+      <div className="flex flex-wrap gap-1.5 px-1 pb-3">
         {RANGE_PRESETS.map((days) => (
           <button
             key={days}
@@ -87,10 +102,11 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
           {t('dashboard.customRangeButton')}
         </button>
       </div>
+      )}
 
       {/* Custom range inputs */}
       {showCustom && (
-        <div className="flex flex-wrap items-center gap-2 mx-4 mb-4 p-3 rounded-md bg-surface border border-border">
+        <div className="flex flex-wrap items-center gap-2 mx-1 mb-3 p-3 rounded-md bg-surface border border-border">
           <input
             type="date"
             className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
@@ -109,7 +125,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
       )}
 
       {/* Share cards */}
-      <div className="flex flex-col gap-3 p-4 pt-0">
+      <div className="flex flex-col gap-2 px-0">
         {sharedViews.map((view) => (
           <ShareCard
             key={view.userId}
@@ -120,6 +136,6 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
           />
         ))}
       </div>
-    </div>
+    </section>
   );
 }
