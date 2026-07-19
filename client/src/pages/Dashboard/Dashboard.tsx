@@ -211,7 +211,7 @@ export default function Dashboard() {
 
       {showCat('nutrition') && (
         <section>
-          <SectionLabel right={<span className="text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>}>
+          <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>}>
             {t('dashboard.entriesSectionTitle')}
           </SectionLabel>
           <EntryList
