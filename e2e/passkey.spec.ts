@@ -89,7 +89,8 @@ test.describe('Passkeys', () => {
       await expect(page.getByText(/passkey registered/i)).toBeVisible({ timeout: 10000 });
 
       // Log out, then sign in with the passkey (no password).
-      await page.getByText('Logout').click();
+      // getByRole respects visibility (skips the hidden mobile logout row).
+      await page.getByRole('button', { name: 'Logout' }).click();
       await page.waitForURL(/\/login|\/$/, { timeout: 10000 });
 
       await page.goto('/login');

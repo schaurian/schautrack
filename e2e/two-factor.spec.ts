@@ -21,7 +21,9 @@ async function loginAs2faUser(page: import('@playwright/test').Page) {
 }
 
 async function logout(page: import('@playwright/test').Page) {
-  await page.getByText('Logout').click();
+  // getByRole respects visibility — avoids matching the hidden mobile-only
+  // logout row on /settings (getByText would strict-mode-fail there).
+  await page.getByRole('button', { name: 'Logout' }).click();
   await page.waitForURL(/\/login|\//, { timeout: 10000 });
 }
 
