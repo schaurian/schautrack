@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { LinkRequest, AcceptedLink } from '@/types';
-import { requestLink, respondToLink, removeLink, updateLinkLabel } from '@/api/links';
+import type { LinkRequest, AcceptedLink, LinkShares } from '@/types';
+import { requestLink, respondToLink, removeLink, updateLinkLabel, setLinkShares } from '@/api/links';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -103,7 +103,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
 function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: () => void; onUpdate: () => void }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(link.label || '');
-
+  const [shares, setShares] = useState<LinkShares>(link.shares);
   const addToast = useToastStore((s) => s.addToast);
 
   const saveLabel = async () => {
@@ -118,23 +118,53 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
     setEditing(false);
   };
 
+  const toggleShare = async (cat: keyof LinkShares) => {
+    const next = { ...shares, [cat]: !shares[cat] };
+    setShares(next); // optimistic
+    try {
+      const res = await setLinkShares(link.linkId, next);
+      setShares(res.shares);
+    } catch (err) {
+      setShares(shares); // revert
+      addToast('error', err instanceof Error ? err.message : 'Failed to update sharing');
+    }
+  };
+
+  const CATS: { key: keyof LinkShares; label: string }[] = [
+    { key: 'nutrition', label: 'Nutrition' },
+    { key: 'weight', label: 'Weight' },
+    { key: 'todos', label: 'Todos' },
+    { key: 'notes', label: 'Daily notes' },
+  ];
+
   return (
-    <div className="flex items-center gap-2 mb-2 text-sm">
-      {editing ? (
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onBlur={saveLabel}
-          onKeyDown={(e) => e.key === 'Enter' && saveLabel()}
-          autoFocus
-          className="flex-1 rounded border border-ring bg-muted/50 px-2 py-0.5 text-sm text-foreground outline-none"
-        />
-      ) : (
-        <button type="button" onClick={() => setEditing(true)} className="flex-1 bg-transparent border-none text-foreground cursor-pointer text-left text-sm">
-          {link.label || link.email}
-        </button>
-      )}
-      <Button size="sm" variant="destructive" onClick={onRemove}>Remove</Button>
+    <div className="mb-3 border-b border-border pb-3 last:border-0">
+      <div className="flex items-center gap-2 mb-2 text-sm">
+        {editing ? (
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onBlur={saveLabel}
+            onKeyDown={(e) => e.key === 'Enter' && saveLabel()}
+            autoFocus
+            className="flex-1 rounded border border-ring bg-muted/50 px-2 py-0.5 text-sm text-foreground outline-none"
+          />
+        ) : (
+          <button type="button" onClick={() => setEditing(true)} className="flex-1 bg-transparent border-none text-foreground cursor-pointer text-left text-sm">
+            {link.label || link.email}
+          </button>
+        )}
+        <Button size="sm" variant="destructive" onClick={onRemove}>Remove</Button>
+      </div>
+      <div className="text-xs text-muted-foreground mb-1">You share with them (read-only):</div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {CATS.map(({ key, label: catLabel }) => (
+          <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+            <input type="checkbox" checked={shares[key]} onChange={() => toggleShare(key)} />
+            {catLabel}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
