@@ -83,7 +83,7 @@ export default function Register() {
   if (registrationDisabled) {
     return (
       <div className="flex justify-center py-12">
-        <Card className="w-full max-w-sm">
+        <Card className="w-full max-w-sm rounded-2xl border border-border bg-card/60 p-6 first:pt-6 last:border">
           <h2 className="mb-6 text-xl font-semibold">{t('register.title')}</h2>
           <Alert type="warning" message={t('register.registrationDisabled')} className="mb-4" />
           <div className="mt-6 text-sm">
@@ -96,7 +96,7 @@ export default function Register() {
 
   return (
     <div className="flex justify-center py-12">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm rounded-2xl border border-border bg-card/60 p-6 first:pt-6 last:border">
         <h2 className="mb-6 text-xl font-semibold">{t('register.title')}</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
 

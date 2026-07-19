@@ -144,8 +144,8 @@ export default function Settings() {
       {data.emailFeedback && <Alert type={data.emailFeedback.type as 'success' | 'error'} message={data.emailFeedback.message} />}
       {data.importFeedback && <Alert type={data.importFeedback.type as 'success' | 'error'} message={data.importFeedback.message} />}
 
-      {/* Two columns on desktop, single on mobile. Each column flows independently. */}
-      <div className="columns-1 gap-4 space-y-4 md:columns-2">
+      {/* Single flat column — grouped native-settings style. */}
+      <div className="flex flex-col">
         <div className="break-inside-avoid">
           <MacroSettings user={data.user} onSave={refresh} />
         </div>

@@ -43,7 +43,7 @@ export default function ResetPassword() {
 
   return (
     <div className="flex justify-center py-12">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm rounded-2xl border border-border bg-card/60 p-6 first:pt-6 last:border">
         <h2 className="mb-6 text-xl font-semibold">{t('resetPassword.title')}</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
