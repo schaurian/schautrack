@@ -7,7 +7,9 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --force",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "i18n:extract": "i18next 'src/**/*.{ts,tsx}' -c i18next-parser.config.js",
+    "i18n:check": "node scripts/i18n-parity.mjs"
   },
   "dependencies": {
     "@ericblade/quagga2": "^1.12.1",
