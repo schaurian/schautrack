@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAdmin } from '@/hooks/useAuth';
 import { getAdminData, saveAdminSettings, deleteUser, createInvite, getInvites, deleteInvite } from '@/api/admin';
 import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/stores/toastStore';
+import { useAutosave } from '@/hooks/useAutosave';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import type { InviteCode } from '@/types';
@@ -144,7 +145,6 @@ function AdminSettingsForm({
   // Secret fields default to absent (we never receive the stored value); a
   // user typing into one populates the draft.
   const [values, setValues] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
 
   // Group settings by section, preserving the canonical order from the server.
   const sections: Record<string, string[]> = {};
@@ -154,12 +154,17 @@ function AdminSettingsForm({
     (sections[s.section] ??= []).push(key);
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Autosave like the rest of the app. Dangerous settings still require the
+  // typed confirmation before they leave the browser — a declined prompt
+  // reverts that field's draft while the rest of the change still saves.
+  const saveFn = useCallback(async (draft: Record<string, string>) => {
+    // Only send settings that aren't env-controlled.
+    const editable = Object.fromEntries(
+      Object.entries(draft).filter(([k]) => settings[k]?.source !== 'env'),
+    );
 
-    // Confirm dangerous changes.
-    const dangerousChanges = Object.keys(values).filter((k) => settings[k]?.dangerous);
-    for (const k of dangerousChanges) {
+    for (const k of Object.keys(editable)) {
+      if (!settings[k]?.dangerous) continue;
       const meta = settings[k];
       const phrase = k === 'passkeys_rp_id' ? t('admin.confirmPhraseInvalidatePasskeys')
         : k === 'ai_key_encryption_secret' ? t('admin.confirmPhraseOrphanAiKeys')
@@ -168,35 +173,35 @@ function AdminSettingsForm({
         t('admin.dangerousPrompt', { envVar: meta.envVar, help: meta.help, phrase }),
       );
       if (typed !== phrase) {
+        delete editable[k];
+        setValues((prev) => {
+          const next = { ...prev };
+          delete next[k];
+          return next;
+        });
         useToastStore.getState().addToast('info', t('admin.saveCancelled'));
-        return;
       }
     }
+    if (Object.keys(editable).length === 0) return;
 
-    setLoading(true);
-    try {
-      // Only send settings that aren't env-controlled.
-      const editable = Object.fromEntries(
-        Object.entries(values).filter(([k]) => settings[k]?.source !== 'env'),
-      );
-      if (Object.keys(editable).length === 0) {
-        useToastStore.getState().addToast('info', t('admin.noChanges'));
-        setLoading(false);
-        return;
-      }
-      await saveAdminSettings(editable);
-      setValues({});
-      onSave();
-      useToastStore.getState().addToast('success', t('admin.settingsSaved'));
-    } catch (err) {
-      useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('admin.saveSettingsFailed'));
-    }
-    setLoading(false);
-  };
+    await saveAdminSettings(editable);
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(editable)) delete next[k];
+      return next;
+    });
+    onSave();
+  }, [settings, onSave, t]);
+
+  const { status } = useAutosave(values, saveFn);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">{t('admin.appSettingsHeading')}</h2>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">{t('admin.appSettingsHeading')}</h2>
+        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">{t('status.saving')}</span>}
+        {status === 'saved' && <span className="text-xs text-green-400">{t('status.saved')}</span>}
+      </div>
       {SECTION_ORDER.map((sectionKey) => {
         const keys = sections[sectionKey];
         if (!keys || keys.length === 0) return null;
@@ -214,10 +219,7 @@ function AdminSettingsForm({
           />
         );
       })}
-      <div className="flex justify-end">
-        <Button type="submit" loading={loading}>{t('admin.save')}</Button>
-      </div>
-    </form>
+    </div>
   );
 }
 
