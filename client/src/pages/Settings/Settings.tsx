@@ -124,8 +124,10 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Account row: who is logged in + logout (the shell has no header logout) */}
-      <div className="flex items-center justify-between gap-3 border-b border-divider pb-4">
+      {/* Account row: who is logged in + logout. Mobile-only — the desktop
+          sidebar already shows both, and a second visible "Logout" would break
+          getByText('Logout') strict-mode selectors in the e2e suite. */}
+      <div className="flex items-center justify-between gap-3 border-b border-divider pb-4 lg:hidden">
         <span className="min-w-0 truncate text-sm text-muted-foreground">{data.user.email}</span>
         <button
           type="button"
