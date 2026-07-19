@@ -16,3 +16,4 @@ blob-report/
 # Go binary
 /server
 
+.superpowers/
