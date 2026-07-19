@@ -8,6 +8,7 @@ import { queryClient } from './main';
 import Toaster from '@/components/ui/Toaster';
 import StepUpModal from '@/components/StepUpModal';
 import AppRouter from './router';
+import i18n, { isSupportedLanguage } from '@/i18n';
 
 export default function App() {
   const { fetchUser, isInitialized, user, clearUser } = useAuthStore();
@@ -32,6 +33,15 @@ export default function App() {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  // Apply the logged-in user's explicit language preference. When it's null
+  // ("Automatic"), leave i18next's browser detection in charge.
+  useEffect(() => {
+    const pref = user?.language;
+    if (pref && isSupportedLanguage(pref) && i18n.language !== pref) {
+      i18n.changeLanguage(pref);
+    }
+  }, [user?.language]);
 
   // Only connect SSE when authenticated
   return (

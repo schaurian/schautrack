@@ -3,6 +3,7 @@ export interface User {
   email: string;
   timezone: string;
   weightUnit: 'kg' | 'lb';
+  language: string | null;
   dailyGoal: number | null;
   totpEnabled: boolean;
   macrosEnabled: Record<string, boolean>;

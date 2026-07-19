@@ -12,7 +12,7 @@ export function saveMacros(data: Record<string, string | boolean | number>) {
   });
 }
 
-export function savePreferences(data: { weight_unit: string; timezone: string }) {
+export function savePreferences(data: { weight_unit: string; timezone: string; language: string }) {
   return api<{ ok: boolean }>('/settings/preferences', {
     method: 'POST',
     body: JSON.stringify(data),
