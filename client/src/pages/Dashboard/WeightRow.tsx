@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { WeightEntry } from '@/types';
 import { upsertWeight, deleteWeight } from '@/api/weight';
 import { useToastStore } from '@/stores/toastStore';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 
 interface Props {
   weightEntry: WeightEntry | null;
@@ -79,16 +80,17 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     : 0;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('weight.sectionTitle')}</h3>
-        {!isToday && entry?.entry_date && (
-          <span className="text-sm text-muted-foreground">
+    <section>
+      <SectionLabel
+        right={!isToday && entry?.entry_date ? (
+          <span className="text-xs text-muted-foreground">
             {entry.entry_date} &middot; {t('weight.daysAgo', { count: daysAgo })}
           </span>
-        )}
-      </div>
-      <div className="flex items-center gap-3 p-4">
+        ) : undefined}
+      >
+        {t('weight.sectionTitle')}
+      </SectionLabel>
+      <div className="flex items-center gap-3 px-1 py-1">
         {canEdit ? (
           <span className="relative flex items-center flex-1">
             <input
@@ -128,6 +130,6 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
           </button>
         )}
       </div>
-    </div>
+    </section>
   );
 }
