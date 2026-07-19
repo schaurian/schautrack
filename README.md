@@ -25,6 +25,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - AI-powered nutrition estimation from food photos (OpenAI, Claude, or Ollama)
 - Barcode scanning via OpenFoodFacts
 - Weight tracking with unit preference (kg/lbs)
+- Weight-loss planner: set a goal weight, get a personalized calorie budget (BMR/TDEE), timeline projection, and progress tracking
 - Daily notes and recurring todos with streak tracking
 - Account linking to share data with friends
 - Two-factor authentication (TOTP) with backup codes
