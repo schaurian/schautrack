@@ -19,6 +19,10 @@ export interface User {
   passkeyCount: number;
   oidcLinked: boolean;
   authMethod: 'password' | 'passkey' | 'oidc' | '';
+  heightCm?: number | null;
+  birthYear?: number | null;
+  sex?: 'male' | 'female' | 'other' | null;
+  activityLevel?: string | null;
 }
 
 export interface Entry {
@@ -186,4 +190,96 @@ export interface InviteCode {
   used_by_email: string | null;
   expires_at: string | null;
   created_at: string;
+}
+
+// --- Weight-loss planner ---
+// NOTE: WeightGoal uses SNAKE_CASE keys (it's a reused domain model, matching
+// the Go model.WeightGoal JSON tags). Everything else on PlanResponse is
+// camelCase, as emitted by the plan handler/assembler.
+
+export interface WeightGoal {
+  id: number;
+  user_id: number;
+  start_weight: number;
+  start_date: string;
+  target_weight: number;
+  pace_mode: 'rate' | 'date';
+  rate_kg_per_week: number | null;
+  target_date: string | null;
+  activity_level: string | null;
+  status: 'active' | 'achieved' | 'abandoned';
+  achieved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanMetrics {
+  heightCm: number | null;
+  birthYear: number | null;
+  sex: string | null;
+  activityLevel: string | null;
+  complete: boolean;
+}
+
+export interface HealthyRange {
+  minKg: number;
+  maxKg: number;
+}
+
+export interface CurvePoint {
+  week: number;
+  weight: number;
+}
+
+export interface PlanComputed {
+  bmr: number;
+  tdee: number;
+  budgetKcal: number;
+  budgetClamped: boolean;
+  rateKgPerWeek: number;
+  etaWeeks: number;
+  etaDate: string | null;
+  planCurve: CurvePoint[];
+}
+
+export interface PlanTrend {
+  slopeKgPerWeek: number;
+  hasData: boolean;
+  projectedWeeks: number;
+  projectedDate: string | null;
+  status: 'ahead' | 'on_track' | 'behind' | 'stalled' | 'wrong_direction' | 'insufficient_data';
+}
+
+export interface SeriesPoint {
+  date: string;
+  weight: number;
+}
+
+export interface PlanWarning {
+  code: string;
+  message: string;
+}
+
+export interface PlanResponse {
+  metrics: PlanMetrics;
+  currentWeight: number | null;
+  bmi: number | null;
+  bmiCategory: string | null;
+  healthyRange: HealthyRange | null;
+  goal: WeightGoal | null;
+  computed: PlanComputed | null;
+  trend: PlanTrend | null;
+  currentCalorieGoal: number | null;
+  series: SeriesPoint[];
+  warnings: PlanWarning[];
+  disclaimer: string;
+}
+
+// Request body for PUT /plan/metrics — snake_case, matches the Go handler's
+// body struct exactly. Partial updates are fine (omitted fields preserved).
+export interface BodyMetrics {
+  height_cm?: number | null;
+  birth_year?: number | null;
+  sex?: 'male' | 'female' | 'other' | null;
+  activity_level?: string | null;
 }
