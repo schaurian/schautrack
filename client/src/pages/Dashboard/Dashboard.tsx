@@ -115,7 +115,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <header className="flex items-center justify-between px-1 pt-1">
         <h2 className="font-display text-[22px] font-bold tracking-tight">
           {selectedDate === dashboard.todayStr ? t('dashboard.todayLabel') : selectedDate}
@@ -156,7 +156,7 @@ export default function Dashboard() {
       )}
 
       {canEdit && (isDesktop ? (
-        <section>
+        <section className="surface p-4">
           <SectionLabel>{t('entries.logSectionTitle')}</SectionLabel>
           <SavedFoodsRow selectedDate={selectedDate} />
           <EntryForm
@@ -221,7 +221,7 @@ export default function Dashboard() {
       )}
 
       {showCat('nutrition') && (
-        <section>
+        <section className="surface p-4">
           <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>}>
             {t('dashboard.entriesSectionTitle')}
           </SectionLabel>

@@ -42,7 +42,7 @@ export function Sheet({ open, onClose, title, children }: {
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[20px] border-t border-white/10 bg-[#101a2c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] outline-none shadow-[0_-16px_60px_rgba(0,0,0,0.55)]',
+          'absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[20px] border-t border-white/10 bg-[#131b36] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] outline-none shadow-[0_-16px_60px_rgba(0,0,0,0.55)]',
           'motion-safe:animate-[sheet-up_0.25s_ease-out]',
           'lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-full lg:max-w-md lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:border lg:pb-4 lg:motion-safe:animate-none',
         )}

@@ -15,7 +15,7 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col border-r border-divider bg-[#0a1120]/60 p-4 lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col border-r border-divider bg-[#0b1124]/70 p-4 lg:flex">
       <Link to="/dashboard" className="mb-6 flex items-center gap-2.5 text-foreground no-underline">
         <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[10px] border border-border bg-card">
           <img src="/logo-128.webp" alt="" width={40} height={40} decoding="async" className="block h-full w-full object-cover" />

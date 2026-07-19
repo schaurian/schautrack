@@ -146,7 +146,7 @@ export default function Settings() {
       {data.importFeedback && <Alert type={data.importFeedback.type as 'success' | 'error'} message={data.importFeedback.message} />}
 
       {/* Single flat column — grouped native-settings style. */}
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-3">
         <div className="break-inside-avoid">
           <MacroSettings user={data.user} onSave={refresh} />
         </div>

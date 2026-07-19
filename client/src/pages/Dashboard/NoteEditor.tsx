@@ -89,7 +89,7 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   if (!data?.enabled) return null;
 
   return (
-    <section>
+    <section className="surface p-4">
       <SectionLabel
         right={
           <div className="flex items-center gap-2">

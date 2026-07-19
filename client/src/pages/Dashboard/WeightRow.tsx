@@ -80,7 +80,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     : 0;
 
   return (
-    <section>
+    <section className="surface p-4">
       <SectionLabel
         right={!isToday && entry?.entry_date ? (
           <span className="text-xs text-muted-foreground">

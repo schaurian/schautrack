@@ -43,7 +43,7 @@ export default function PlanCard({ weightUnit }: Props) {
   return (
     <Link
       to="/plan"
-      className="block rounded-lg no-underline text-foreground transition-colors hover:bg-white/[0.02]"
+      className="surface block p-4 no-underline text-foreground transition-[filter] hover:brightness-110"
     >
       <SectionLabel
         right={trend ? (

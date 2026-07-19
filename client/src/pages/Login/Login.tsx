@@ -132,7 +132,7 @@ export default function Login() {
   if (resetMode === 'request') {
     return (
       <div className="flex justify-center py-12">
-        <Card className="w-full max-w-sm rounded-2xl border border-border bg-card/60 p-6 first:pt-6 last:border">
+        <Card className="w-full max-w-sm">
           <h2 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h2>
           <p className="text-sm text-muted-foreground mb-4">{t('login.reset2faRequestDescription')}</p>
           {error && <Alert type="error" message={error} className="mb-4" />}
@@ -152,7 +152,7 @@ export default function Login() {
   if (resetMode === 'verify') {
     return (
       <div className="flex justify-center py-12">
-        <Card className="w-full max-w-sm rounded-2xl border border-border bg-card/60 p-6 first:pt-6 last:border">
+        <Card className="w-full max-w-sm">
           <h2 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h2>
           <p className="text-sm text-muted-foreground mb-4">{t('login.reset2faVerifyDescription')}</p>
           {error && <Alert type="error" message={error} className="mb-4" />}
@@ -170,7 +170,7 @@ export default function Login() {
 
   return (
     <div className="flex justify-center py-12">
-      <Card className="w-full max-w-sm rounded-2xl border border-border bg-card/60 p-6 first:pt-6 last:border">
+      <Card className="w-full max-w-sm">
         <h2 className="mb-6 text-xl font-semibold">{t('login.title')}</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}

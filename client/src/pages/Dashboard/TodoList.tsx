@@ -200,7 +200,7 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
   const total = data.todos.length;
 
   return (
-    <section>
+    <section className="surface p-4">
       <SectionLabel
         right={<div className="flex items-center gap-2">
           {total > 0 && <span className="text-xs text-muted-foreground">{t('todos.progressCount', { completed, total })}</span>}

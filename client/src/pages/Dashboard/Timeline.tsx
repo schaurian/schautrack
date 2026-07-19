@@ -56,7 +56,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const active = rangePreset || range.preset;
 
   return (
-    <section>
+    <section className="surface p-4">
       <SectionLabel
         right={
           <button
