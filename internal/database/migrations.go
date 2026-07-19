@@ -81,7 +81,9 @@ func ensureAccountLinksSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			ALTER TABLE account_links
 				ADD COLUMN IF NOT EXISTS label TEXT,
 				ADD COLUMN IF NOT EXISTS requester_label TEXT,
-				ADD COLUMN IF NOT EXISTS target_label TEXT;
+				ADD COLUMN IF NOT EXISTS target_label TEXT,
+				ADD COLUMN IF NOT EXISTS requester_shares JSONB NOT NULL DEFAULT '{}'::jsonb,
+				ADD COLUMN IF NOT EXISTS target_shares    JSONB NOT NULL DEFAULT '{}'::jsonb;
 			CREATE UNIQUE INDEX IF NOT EXISTS account_links_pair_idx
 				ON account_links (LEAST(requester_id, target_id), GREATEST(requester_id, target_id));
 			CREATE INDEX IF NOT EXISTS account_links_requester_idx ON account_links (requester_id);

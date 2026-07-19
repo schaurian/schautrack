@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getDashboard, getDayEntries } from '@/api/entries';
@@ -18,7 +17,6 @@ import TodoList from './TodoList';
 import NoteEditor from './NoteEditor';
 
 export default function Dashboard() {
-  const { t } = useTranslation('dashboard');
   const { user, isLoading: authLoading } = useRequireAuth();
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
 
@@ -37,12 +35,16 @@ export default function Dashboard() {
   // Set self as current user on first load
   useEffect(() => {
     if (dashboard && !currentUserId) {
-      selectUser(dashboard.user.id, t('store.you'), true);
+      selectUser(dashboard.user.id, 'You', true);
       selectDay(dashboard.selectedDate);
     }
-  }, [dashboard, currentUserId, selectUser, selectDay, t]);
+  }, [dashboard, currentUserId, selectUser, selectDay]);
 
   const effectiveUserId = currentUserId || dashboard?.user.id;
+  const activeView = dashboard?.sharedViews.find((v) => v.userId === effectiveUserId);
+  // Self-view always shows everything (canEdit); a friend view shows only shared categories.
+  const showCat = (cat: 'nutrition' | 'weight' | 'todos' | 'notes') =>
+    canEdit || !!activeView?.shares?.[cat];
 
   // Fetch entries for selected day
   const { data: dayData } = useQuery({
@@ -105,19 +107,21 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-2">
-      <TodayPanel
-        dailyGoal={dashboard.dailyGoal}
-        todayTotal={selectedTotal}
-        caloriesEnabled={dashboard.caloriesEnabled}
-        calorieStatus={selectedCalorieStatus}
-        enabledMacros={dashboard.enabledMacros}
-        macroGoals={dashboard.macroGoals}
-        todayMacroTotals={selectedMacroTotals}
-        macroStatuses={selectedMacroStatuses}
-        macroModes={dashboard.macroModes}
-        selectedDate={selectedDate}
-        todayStr={dashboard.todayStr}
-      />
+      {showCat('nutrition') && (
+        <TodayPanel
+          dailyGoal={dashboard.dailyGoal}
+          todayTotal={selectedTotal}
+          caloriesEnabled={dashboard.caloriesEnabled}
+          calorieStatus={selectedCalorieStatus}
+          enabledMacros={dashboard.enabledMacros}
+          macroGoals={dashboard.macroGoals}
+          todayMacroTotals={selectedMacroTotals}
+          macroStatuses={selectedMacroStatuses}
+          macroModes={dashboard.macroModes}
+          selectedDate={selectedDate}
+          todayStr={dashboard.todayStr}
+        />
+      )}
 
       {canEdit && (
         <>
@@ -148,7 +152,7 @@ export default function Dashboard() {
         todayStr={dashboard.todayStr}
       />
 
-      {effectiveUserId && selectedDate && (
+      {effectiveUserId && selectedDate && showCat('todos') && (
         <TodoList
           date={selectedDate}
           userId={effectiveUserId}
@@ -157,7 +161,7 @@ export default function Dashboard() {
         />
       )}
 
-      {effectiveUserId && selectedDate && (
+      {effectiveUserId && selectedDate && showCat('notes') && (
         <NoteEditor
           date={selectedDate}
           userId={effectiveUserId}
@@ -165,28 +169,32 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('dashboard.entriesSectionTitle')}</h3>
-          <span className="text-sm text-muted-foreground">{selectedDate} &mdash; {currentLabel}</span>
+      {showCat('nutrition') && (
+        <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+            <h3 className="text-sm font-medium text-muted-foreground">Entries</h3>
+            <span className="text-sm text-muted-foreground">{selectedDate} &mdash; {currentLabel}</span>
+          </div>
+
+          <EntryList
+            entries={dayData?.entries || []}
+            canEdit={canEdit}
+            enabledMacros={dashboard.enabledMacros}
+            caloriesEnabled={dashboard.caloriesEnabled}
+            autoCalcCalories={dashboard.autoCalcCalories}
+          />
         </div>
+      )}
 
-        <EntryList
-          entries={dayData?.entries || []}
+      {showCat('weight') && (
+        <WeightRow
+          weightEntry={weightData?.entry || null}
+          lastWeightEntry={weightData?.lastWeight || null}
+          weightUnit={dashboard.weightUnit}
           canEdit={canEdit}
-          enabledMacros={dashboard.enabledMacros}
-          caloriesEnabled={dashboard.caloriesEnabled}
-          autoCalcCalories={dashboard.autoCalcCalories}
+          selectedDate={selectedDate}
         />
-      </div>
-
-      <WeightRow
-        weightEntry={weightData?.entry || null}
-        lastWeightEntry={weightData?.lastWeight || null}
-        weightUnit={dashboard.weightUnit}
-        canEdit={canEdit}
-        selectedDate={selectedDate}
-      />
+      )}
 
       {canEdit && <PlanCard weightUnit={dashboard.weightUnit} />}
     </div>

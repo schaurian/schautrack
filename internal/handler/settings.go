@@ -897,6 +897,47 @@ func (h *LinksHandler) LinkLabel(w http.ResponseWriter, r *http.Request) {
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "label": respLabel})
 }
 
+// SetShares handles POST /links/{id}/shares — sets what the caller shares with
+// the linked friend (per-category, read-only). Only the caller's own direction
+// is updated; the friend's direction is untouched.
+func (h *LinksHandler) SetShares(w http.ResponseWriter, r *http.Request) {
+	linkID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid link")
+		return
+	}
+
+	var body map[string]bool
+	if err := ReadJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
+		return
+	}
+	shares := service.SanitizeShareMap(body)
+	sharesJSON, _ := json.Marshal(shares)
+
+	user := middleware.GetCurrentUser(r)
+
+	var saved []byte
+	err = h.Pool.QueryRow(r.Context(), `
+		UPDATE account_links
+		SET requester_shares = CASE WHEN requester_id = $3 THEN $1::jsonb ELSE requester_shares END,
+			target_shares    = CASE WHEN target_id    = $3 THEN $1::jsonb ELSE target_shares    END,
+			updated_at = NOW()
+		WHERE id = $2 AND status = 'accepted' AND ($3 = requester_id OR $3 = target_id)
+		RETURNING CASE WHEN requester_id = $3 THEN requester_shares ELSE target_shares END`,
+		sharesJSON, linkID, user.ID).Scan(&saved)
+	if err != nil {
+		ErrorJSON(w, http.StatusNotFound, "Link not found")
+		return
+	}
+
+	var savedMap map[string]bool
+	json.Unmarshal(saved, &savedMap)
+	savedMap = service.SanitizeShareMap(savedMap)
+	h.Broker.BroadcastLinkSharesChange(linkID, user.ID, savedMap)
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "shares": savedMap})
+}
+
 // --- helpers ---
 
 func bodyBool(body map[string]any, key string) bool {

@@ -7,6 +7,37 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Share categories a user can expose to a linked friend. Read-only always.
+const (
+	ShareNutrition = "nutrition"
+	ShareWeight    = "weight"
+	ShareTodos     = "todos"
+	ShareNotes     = "notes"
+)
+
+// ShareCategories is the canonical, ordered set of shareable categories.
+var ShareCategories = []string{ShareNutrition, ShareWeight, ShareTodos, ShareNotes}
+
+// SanitizeShareMap returns a map with exactly the four known keys (unknown keys
+// dropped, missing keys defaulted to false). Storing explicit falses keeps the
+// map self-describing for the settings UI; absent-key-means-off still holds.
+func SanitizeShareMap(raw map[string]bool) map[string]bool {
+	out := make(map[string]bool, len(ShareCategories))
+	for _, c := range ShareCategories {
+		out[c] = raw[c]
+	}
+	return out
+}
+
+// decodeShareMap parses a JSONB share-map (nil/empty ⇒ all off) and normalizes it.
+func decodeShareMap(b []byte) map[string]bool {
+	m := map[string]bool{}
+	if len(b) > 0 {
+		_ = json.Unmarshal(b, &m)
+	}
+	return SanitizeShareMap(m)
+}
+
 type LinkUser struct {
 	LinkID        int             `json:"linkId"`
 	UserID        int             `json:"userId"`
@@ -17,6 +48,11 @@ type LinkUser struct {
 	Timezone      string          `json:"timezone"`
 	GoalThreshold int             `json:"goal_threshold"`
 	MacrosEnabled json.RawMessage `json:"macros_enabled"`
+	// SharesWithThem is what the caller shares toward the linked friend
+	// (serialized into the settings acceptedLinks payload as "shares").
+	SharesWithThem map[string]bool `json:"shares"`
+	// SharesToMe is what the friend shares toward the caller (dashboard only).
+	SharesToMe map[string]bool `json:"-"`
 }
 
 func (lu LinkUser) AsMacroUser() MacroUser {
@@ -86,7 +122,9 @@ func GetAcceptedLinkUsers(ctx context.Context, pool *pgxpool.Pool, userID int) (
 			u.macro_goals AS other_macro_goals,
 			u.timezone AS other_timezone,
 			u.goal_threshold AS other_goal_threshold,
-			u.macros_enabled AS other_macros_enabled
+			u.macros_enabled AS other_macros_enabled,
+			CASE WHEN al.requester_id = $1 THEN al.requester_shares ELSE al.target_shares END AS shares_with_them,
+			CASE WHEN al.requester_id = $1 THEN al.target_shares    ELSE al.requester_shares END AS shares_to_me
 		FROM account_links al
 		JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
 		WHERE al.status = 'accepted' AND ($1 = al.requester_id OR $1 = al.target_id)
@@ -101,10 +139,14 @@ func GetAcceptedLinkUsers(ctx context.Context, pool *pgxpool.Pool, userID int) (
 		var lu LinkUser
 		var timezone *string
 		var macroGoals, macrosEnabled []byte
+		var sharesWithThem, sharesToMe []byte
 		if err := rows.Scan(&lu.LinkID, &lu.Label, &lu.UserID, &lu.Email,
-			&lu.DailyGoal, &macroGoals, &timezone, &lu.GoalThreshold, &macrosEnabled); err != nil {
+			&lu.DailyGoal, &macroGoals, &timezone, &lu.GoalThreshold, &macrosEnabled,
+			&sharesWithThem, &sharesToMe); err != nil {
 			continue
 		}
+		lu.SharesWithThem = decodeShareMap(sharesWithThem)
+		lu.SharesToMe = decodeShareMap(sharesToMe)
 		lu.Timezone = "UTC"
 		if timezone != nil {
 			lu.Timezone = *timezone

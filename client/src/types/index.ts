@@ -51,6 +51,13 @@ export interface DailyStat {
   overThreshold: boolean;
 }
 
+export interface LinkShares {
+  nutrition: boolean;
+  weight: boolean;
+  todos: boolean;
+  notes: boolean;
+}
+
 export interface SharedView {
   linkId?: number;
   userId: number;
@@ -61,6 +68,7 @@ export interface SharedView {
   goalThreshold: number | null;
   dailyStats: DailyStat[];
   todayStr: string;
+  shares: LinkShares;
 }
 
 export interface MacroStatus {
@@ -155,6 +163,7 @@ export interface AcceptedLink {
   macros_enabled: Record<string, boolean>;
   macro_goals: Record<string, number>;
   goal_threshold: number | null;
+  shares: LinkShares;
 }
 
 export interface SettingsData {

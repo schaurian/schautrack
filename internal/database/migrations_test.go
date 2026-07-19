@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestRetrySchemaInitReturnsLastError is a regression guard for the fail-fast
@@ -103,5 +106,50 @@ func TestRunAllMigrationsIdempotentBodyProfileAndWeightGoals(t *testing.T) {
 	}
 	if !tableExists {
 		t.Error("expected weight_goals table to exist")
+	}
+}
+
+func TestAccountLinksShareColumns(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	defer pool.Close()
+
+	// account_links has FKs to users, which only runAllMigrations/ensureBaseSchema
+	// create, so run the full migration set first to get a valid schema to test
+	// against.
+	if err := runAllMigrations(ctx, pool); err != nil {
+		t.Fatalf("runAllMigrations: %v", err)
+	}
+
+	// Running ensureAccountLinksSchema again on top must be clean (idempotent).
+	if err := ensureAccountLinksSchema(ctx, pool); err != nil {
+		t.Fatalf("second run: %v", err)
+	}
+
+	for _, col := range []string{"requester_shares", "target_shares"} {
+		var dataType, isNullable string
+		var columnDefault *string
+		err := pool.QueryRow(ctx, `
+			SELECT data_type, is_nullable, column_default FROM information_schema.columns
+			WHERE table_name='account_links' AND column_name=$1`, col).Scan(&dataType, &isNullable, &columnDefault)
+		if err != nil {
+			t.Fatalf("column %s missing (err=%v)", col, err)
+		}
+		if dataType != "jsonb" {
+			t.Errorf("column %s data_type = %q, want jsonb", col, dataType)
+		}
+		if isNullable != "NO" {
+			t.Errorf("column %s is_nullable = %q, want NO", col, isNullable)
+		}
+		if columnDefault == nil || !strings.Contains(*columnDefault, "'{}'") {
+			t.Errorf("column %s column_default = %v, want it to contain '{}'", col, columnDefault)
+		}
 	}
 }

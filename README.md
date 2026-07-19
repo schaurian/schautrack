@@ -27,7 +27,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Weight tracking with unit preference (kg/lbs)
 - Weight-loss planner: set a goal weight, get a personalized calorie budget (BMR/TDEE), timeline projection, and progress tracking
 - Daily notes and recurring todos with streak tracking
-- Account linking to share data with friends
+- Account linking to share data with friends — granular, opt-in, read-only per category (nutrition, weight, todos, daily notes)
 - Two-factor authentication (TOTP) with backup codes
 - Brute-force protection with CAPTCHA challenges on login, registration, and verification-email resend
 - Invite-only registration mode

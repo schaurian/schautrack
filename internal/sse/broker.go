@@ -134,6 +134,12 @@ func (b *Broker) BroadcastLinkLabelChange(linkID, userID int, label string) {
 	})
 }
 
+func (b *Broker) BroadcastLinkSharesChange(linkID, userID int, shares map[string]bool) {
+	b.SendEvent(userID, "link-shares-change", map[string]any{
+		"linkId": linkID, "shares": shares,
+	})
+}
+
 // ServeHTTP is the SSE endpoint handler.
 func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)

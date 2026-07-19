@@ -233,8 +233,8 @@ func main() {
 	// Entry routes
 	entriesHandler := &handler.EntriesHandler{Pool: pool, Broker: sseBroker, Cfg: cfg, Settings: settingsCache}
 	r.With(middleware.RequireLogin).Get("/api/dashboard", entriesHandler.Dashboard)
-	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/overview", entriesHandler.Overview)
-	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/entries/day", entriesHandler.DayEntries)
+	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareNutrition)).Get("/overview", entriesHandler.Overview)
+	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareNutrition)).Get("/entries/day", entriesHandler.DayEntries)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/entries", entriesHandler.CreateEntry)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/entries/{id}/update", entriesHandler.UpdateEntry)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/entries/{id}/delete", entriesHandler.DeleteEntry)
@@ -244,7 +244,7 @@ func main() {
 
 	// Weight routes
 	weightHandler := &handler.WeightHandler{Pool: pool, Broker: sseBroker}
-	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/weight/day", weightHandler.WeightDay)
+	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareWeight)).Get("/weight/day", weightHandler.WeightDay)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/upsert", weightHandler.WeightUpsert)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/{id}/delete", weightHandler.WeightDelete)
 
@@ -275,6 +275,7 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/link/respond", linksHandler.LinkRespond)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/settings/link/remove", linksHandler.LinkRemove)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/links/{id}/label", linksHandler.LinkLabel)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/links/{id}/shares", linksHandler.SetShares)
 
 	// SSE endpoint
 	r.With(middleware.RequireLogin).Get("/events/entries", func(w http.ResponseWriter, r *http.Request) {
@@ -294,7 +295,7 @@ func main() {
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos", todosHandler.Create)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/{id}/update", todosHandler.Update)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/{id}/delete", todosHandler.Delete)
-	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/api/todos/day", todosHandler.DayTodos)
+	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareTodos)).Get("/api/todos/day", todosHandler.DayTodos)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/{id}/toggle", todosHandler.Toggle)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/todos/reorder", todosHandler.Reorder)
 
@@ -310,7 +311,7 @@ func main() {
 	// Notes routes
 	notesHandler := &handler.NotesHandler{Pool: pool, Broker: sseBroker}
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes/toggle-enabled", notesHandler.ToggleEnabled)
-	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool)).Get("/api/notes/day", notesHandler.Get)
+	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareNotes)).Get("/api/notes/day", notesHandler.Get)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes", notesHandler.Save)
 
 	// AI estimation
