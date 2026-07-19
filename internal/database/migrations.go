@@ -688,6 +688,64 @@ func ensureAuditLogSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureBodyProfileSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			ALTER TABLE users
+				ADD COLUMN IF NOT EXISTS height_cm      NUMERIC(5,1),
+				ADD COLUMN IF NOT EXISTS birth_year     SMALLINT,
+				ADD COLUMN IF NOT EXISTS sex            TEXT,
+				ADD COLUMN IF NOT EXISTS activity_level TEXT`); err != nil {
+			return err
+		}
+		checks := []struct{ name, expr string }{
+			{"users_height_cm_range", "height_cm IS NULL OR (height_cm >= 50 AND height_cm <= 300)"},
+			{"users_birth_year_range", "birth_year IS NULL OR (birth_year >= 1900 AND birth_year <= 2200)"},
+			{"users_sex_valid", "sex IS NULL OR sex IN ('male','female','other')"},
+			{"users_activity_valid", "activity_level IS NULL OR activity_level IN ('sedentary','light','moderate','active','very_active')"},
+		}
+		for _, c := range checks {
+			if _, err := tx.Exec(ctx, fmt.Sprintf(`
+				DO $$ BEGIN
+					ALTER TABLE users ADD CONSTRAINT %s CHECK (%s);
+				EXCEPTION WHEN duplicate_object THEN NULL;
+				END $$`, c.name, c.expr)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func ensureWeightGoalsSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS weight_goals (
+				id               SERIAL PRIMARY KEY,
+				user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				start_weight     NUMERIC(6,2) NOT NULL,
+				start_date       DATE NOT NULL,
+				target_weight    NUMERIC(6,2) NOT NULL,
+				pace_mode        TEXT NOT NULL CHECK (pace_mode IN ('rate','date')),
+				rate_kg_per_week NUMERIC(4,2),
+				target_date      DATE,
+				activity_level   TEXT,
+				status           TEXT NOT NULL DEFAULT 'active'
+					CHECK (status IN ('active','achieved','abandoned')),
+				achieved_at      TIMESTAMPTZ,
+				created_at       TIMESTAMPTZ DEFAULT NOW(),
+				updated_at       TIMESTAMPTZ DEFAULT NOW(),
+				CONSTRAINT weight_goals_positive CHECK (start_weight > 0 AND target_weight > 0)
+			);
+			CREATE UNIQUE INDEX IF NOT EXISTS weight_goals_one_active_idx
+				ON weight_goals (user_id) WHERE status = 'active';
+			CREATE INDEX IF NOT EXISTS weight_goals_user_idx ON weight_goals (user_id)`); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Base tables first (others depend on them)
 	if err := ensureBaseSchema(ctx, pool); err != nil {
@@ -717,6 +775,8 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"passkeys", ensurePasskeysSchema},
 		{"audit_log", ensureAuditLogSchema},
 		{"saved_foods", ensureSavedFoodsSchema},
+		{"body_profile", ensureBodyProfileSchema},
+		{"weight_goals", ensureWeightGoalsSchema},
 	}
 
 	results := make(chan migrationResult, len(migrations))
