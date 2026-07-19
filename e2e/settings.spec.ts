@@ -46,7 +46,9 @@ test.describe.serial('Settings', () => {
     await weightSelect.selectOption(newValue);
 
     // If there's a Save button, click it. Otherwise wait for auto-save.
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
+    // exact: true — role-name matching is substring by default, and 'Save'
+    // would otherwise match the "Manage saved foods" button.
+    const saveBtn = page.getByRole('button', { name: 'Save', exact: true }).first();
     if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await saveBtn.click();
     } else {
