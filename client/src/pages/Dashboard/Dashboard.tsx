@@ -7,6 +7,7 @@ import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
+import { formatDate } from '@/lib/format';
 import { QueryError } from '@/components/ui/QueryError';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
@@ -115,17 +116,27 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-2">
-      <header className="flex items-baseline justify-between px-1 pt-1">
+      <header className="flex items-center justify-between px-1 pt-1">
         <h2 className="text-[22px] font-extrabold tracking-tight">
           {selectedDate === dashboard.todayStr ? t('dashboard.todayLabel') : selectedDate}
         </h2>
-        <input
-          type="date"
-          aria-label={t('entries.entryDateAriaLabel')}
-          className="rounded-md border border-input bg-muted/50 px-2 py-1 text-sm text-foreground outline-none focus:border-ring"
-          value={selectedDate}
-          onChange={(e) => e.target.value && selectDay(e.target.value)}
-        />
+        {/* Ghost date pill: the real (transparent) input sits on top so the
+            native picker, keyboard entry and aria-label keep working. */}
+        <div className="relative inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:border-white/20 hover:text-foreground">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
+          </svg>
+          <span className="tabular-nums">
+            {formatDate(`${selectedDate}T00:00:00`, undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+          </span>
+          <input
+            type="date"
+            aria-label={t('entries.entryDateAriaLabel')}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            value={selectedDate}
+            onChange={(e) => e.target.value && selectDay(e.target.value)}
+          />
+        </div>
       </header>
 
       {showCat('nutrition') && (

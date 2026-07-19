@@ -61,12 +61,12 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
           onSelect();
         }
       }}
-      className={cn(
-        'rounded-lg px-1 py-1.5 transition-colors cursor-pointer',
-        isActive ? 'bg-primary/[0.05]' : 'hover:bg-white/[0.02]'
-      )}
+      className="group cursor-pointer px-1 py-1.5"
     >
-      <div className="mb-1">
+      <div className={cn(
+        'mb-1 inline-flex items-center gap-1.5 border-b-2 pb-0.5 transition-colors',
+        isActive ? 'border-primary' : 'border-transparent group-hover:border-white/15'
+      )}>
         {editing && canEditLabel ? (
           <input
             className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full"

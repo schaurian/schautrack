@@ -31,7 +31,7 @@ export default function TodayPanel({
   }
 
   return (
-    <section className="flex flex-wrap items-start justify-center gap-x-5 gap-y-4 py-2">
+    <section className="flex flex-wrap items-start justify-center gap-x-4 gap-y-4 py-2 sm:gap-x-6">
       {caloriesEnabled && (
         <Ring
           macroKey="kcal"

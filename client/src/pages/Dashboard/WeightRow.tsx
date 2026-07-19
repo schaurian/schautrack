@@ -114,16 +114,11 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
             <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
           </span>
         )}
-        {canEdit && (
+        {canEdit && weightEntry && (
           <button
             type="button"
-            className={`ml-auto rounded-md px-4 py-2 text-sm font-semibold border transition-colors ${
-              weightEntry
-                ? 'text-destructive border-destructive/30 bg-destructive/10 hover:bg-destructive/20 cursor-pointer'
-                : 'text-muted-foreground/40 border-border bg-muted/30 cursor-default'
-            }`}
+            className="ml-auto cursor-pointer rounded-md border border-destructive/25 bg-transparent px-3 py-2 text-sm font-semibold text-destructive/90 transition-colors hover:bg-destructive/10"
             onClick={handleDelete}
-            disabled={!weightEntry}
             title={t('weight.deleteEntryTitle')}
           >
             {t('weight.deleteButton')}

@@ -39,7 +39,7 @@ export default function Layout() {
             <Outlet />
           </Suspense>
         </main>
-        <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] opacity-60 lg:pb-0 lg:opacity-100">
           <Footer />
         </div>
       </div>

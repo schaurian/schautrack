@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
 
-// TodayPanel renders progress rings (components/ui/Ring.tsx). Status maps to the
-// ring's conic-gradient color (lib/ring.ts ringColor):
+// TodayPanel renders SVG progress rings (components/ui/Ring.tsx). Status maps
+// to the progress circle's stroke color (lib/ring.ts ringColor):
 //   macro-stat--success → #22c55e (green)
 //   macro-stat--warning → #f59e0b (amber)
 //   macro-stat--danger  → #ef4444 (red)
-// Each ring: <div role="img" aria-label="<Label>: <value> / <goal> <unit>"> with
-// the gradient on its first inner div's inline style.
+// Each ring: <div role="img" aria-label="<Label>: <value> / <goal> <unit>">
+// containing an <svg> with circle[0]=track and circle[1]=progress (stroke).
 
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
 
@@ -53,9 +53,8 @@ test.describe('Macro Status Colors', () => {
     await expect(proteinRing.getByText('120')).toBeVisible({ timeout: 8000 });
 
     // In target mode, protein=120 >= goal=100 → success → green ring
-    const ringStyle = await proteinRing.locator('div').first().getAttribute('style');
-    expect(ringStyle).toContain('#22c55e');
-    expect(ringStyle).not.toContain('#ef4444');
+    const proteinStroke = await proteinRing.locator('circle').nth(1).getAttribute('stroke');
+    expect(proteinStroke).toBe('#22c55e');
 
     await ctx.close();
   });
@@ -75,8 +74,8 @@ test.describe('Macro Status Colors', () => {
     await expect(kcalRing.getByText('1200')).toBeVisible({ timeout: 8000 });
 
     // In limit mode, calories=1200 > goal=1000 → danger → red ring
-    const ringStyle = await kcalRing.locator('div').first().getAttribute('style');
-    expect(ringStyle).toContain('#ef4444');
+    const kcalStroke = await kcalRing.locator('circle').nth(1).getAttribute('stroke');
+    expect(kcalStroke).toBe('#ef4444');
 
     await ctx.close();
   });

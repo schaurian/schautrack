@@ -22,7 +22,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-[#0a1120]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 flex border-t border-white/[0.06] bg-[#0a1120]/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
       {items.map((item) => (
         <NavLink
           key={item.to}
