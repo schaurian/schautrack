@@ -51,7 +51,7 @@ test.describe('Linked User Timezone Display', () => {
 
     const creatorEmail = creator.email;
     const creatorLabel = page
-      .locator('span.text-sm.font-medium')
+      .locator('.text-sm.font-medium')
       .filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') })
       .first();
 

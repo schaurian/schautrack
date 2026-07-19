@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -74,6 +75,53 @@ func SitemapXml(cfg *config.Config) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/xml")
 		w.Write([]byte(sb.String()))
+	}
+}
+
+// AssetLinks serves GET /.well-known/assetlinks.json — the Digital Asset Links
+// file that binds this domain to the published Android app so Android App Links
+// verification (and TWA validation, if the app is a wrapper) can open https://
+// links to this domain inside the app.
+//
+// The SHA-256 signing-certificate fingerprint(s) are DEPLOYMENT-SPECIFIC and
+// must be supplied via ANDROID_CERT_FINGERPRINTS (comma-separated, e.g. the
+// Play App Signing key and, if used, the upload key). Until at least one
+// fingerprint is configured the endpoint 404s: a statement with an empty or
+// placeholder fingerprint is rejected by Android's verifier anyway, and we never
+// ship a fake value.
+func AssetLinks(cfg *config.Config) http.HandlerFunc {
+	type target struct {
+		Namespace              string   `json:"namespace"`
+		PackageName            string   `json:"package_name"`
+		SHA256CertFingerprints []string `json:"sha256_cert_fingerprints"`
+	}
+	type statement struct {
+		Relation []string `json:"relation"`
+		Target   target   `json:"target"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if cfg.AndroidPackageName == "" || len(cfg.AndroidCertFingerprints) == 0 {
+			http.NotFound(w, r)
+			return
+		}
+
+		body := []statement{{
+			Relation: []string{"delegate_permission/common.handle_all_urls"},
+			Target: target{
+				Namespace:              "android_app",
+				PackageName:            cfg.AndroidPackageName,
+				SHA256CertFingerprints: cfg.AndroidCertFingerprints,
+			},
+		}}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(body); err != nil {
+			http.Error(w, "failed to encode asset links", http.StatusInternalServerError)
+		}
 	}
 }
 

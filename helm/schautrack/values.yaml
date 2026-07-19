@@ -25,13 +25,37 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
+  # Specifies whether a service account should be created
   create: false
+  # Automatically mount the ServiceAccount's API credentials into the pod.
+  # The app does not talk to the Kubernetes API, so this is disabled by default.
+  automount: false
+  # Annotations to add to the service account
   annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template.
   name: ""
 
 podAnnotations: {}
-podSecurityContext: {}
-securityContext: {}
+
+# Pod-level security context for the web pod (applies to init + app containers).
+# The app image runs as the non-root UID 1000 baked in at build time.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security context for the web (and init) containers.
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
 
 service:
   type: ClusterIP
@@ -102,6 +126,14 @@ config:
   robotsIndex: false
   # Base URL for SEO meta tags (leave empty to auto-detect from request)
   baseUrl: ""
+  # Android App Links (Digital Asset Links) — binds the domain to the published
+  # Android app so https:// links open in the app. Served at
+  # /.well-known/assetlinks.json only when androidCertFingerprints is set.
+  androidPackageName: "to.schauer.schautrack"
+  # SHA-256 signing-cert fingerprint(s), comma-separated in UPPER:CO:LON form.
+  # DEPLOYMENT-SPECIFIC — from Play Console → App signing (or keytool -list -v).
+  # Empty = endpoint disabled. Never commit a placeholder/fake value.
+  androidCertFingerprints: ""
 
 # SMTP configuration (for password reset emails)
 # ⚠️  SECURITY WARNING: SMTP credentials are sensitive! 
@@ -140,7 +172,25 @@ postgresql:
     repository: postgres
     tag: "18-alpine"
     pullPolicy: IfNotPresent
-  # Database credentials  
+  # Pod-level security context for the postgres pod.
+  # The postgres alpine image uses UID/GID 70; fsGroup makes the mounted PVC
+  # group-writable so postgres can create/own its PGDATA subdirectory.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    fsGroup: 70
+    seccompProfile:
+      type: RuntimeDefault
+  # Container-level security context for the postgres container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 70
+    capabilities:
+      drop:
+        - ALL
+  # Database credentials
   # ⚠️  SECURITY WARNING: Database passwords are critical secrets!
   # Use existingSecret in production - never commit passwords to Git
   auth:

@@ -2,14 +2,27 @@ import { useToastStore } from '@/stores/toastStore';
 import { cn } from '@/lib/utils';
 
 export default function Toaster() {
-  const { toasts, removeToast } = useToastStore();
-  if (toasts.length === 0) return null;
+  const { toasts, removeToast, pauseToast, resumeToast } = useToastStore();
 
+  // The live-region container is always rendered so screen readers observe it
+  // before toasts are inserted. Non-error toasts inherit polite; error toasts
+  // override to an assertive alert.
   return (
-    <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 max-w-sm">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 max-w-sm"
+    >
       {toasts.map((toast) => (
         <div
           key={toast.id}
+          role={toast.type === 'error' ? 'alert' : undefined}
+          aria-live={toast.type === 'error' ? 'assertive' : undefined}
+          onMouseEnter={() => pauseToast(toast.id)}
+          onMouseLeave={() => resumeToast(toast.id)}
+          onFocus={() => pauseToast(toast.id)}
+          onBlur={() => resumeToast(toast.id)}
           className={cn(
             'flex items-center gap-3 rounded-md border px-4 py-3 text-sm shadow-lg animate-in slide-in-from-right-5 fade-in',
             toast.type === 'success' && 'bg-card border-success/30 text-green-400',
@@ -33,6 +46,7 @@ export default function Toaster() {
           )}
           <button
             type="button"
+            aria-label="Dismiss"
             className="bg-transparent border-0 text-muted-foreground hover:text-foreground cursor-pointer text-lg leading-none p-0"
             onClick={() => removeToast(toast.id)}
           >&times;</button>

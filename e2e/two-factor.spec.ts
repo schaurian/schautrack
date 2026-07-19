@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { psql, generateTOTP, bcryptHash } from './fixtures/helpers';
+import { psql, generateTOTP, bcryptHash, expireStepUpGrace } from './fixtures/helpers';
 import { completeStepUp } from './fixtures/stepup';
 
 test.describe.configure({ mode: 'serial' });
 
 const EMAIL = '2fa@test.com';
 const PASSWORD = '2fa1234test';
+
+let twoFaUserId = '';
 
 let capturedSecret = '';
 let capturedBackupCodes: string[] = [];
@@ -27,10 +29,10 @@ test.describe('Two-Factor Authentication', () => {
   test.beforeAll(() => {
     // Reset 2FA state for the test user before the suite runs
     const hash = bcryptHash(PASSWORD);
-    const id = psql(`SELECT id FROM users WHERE email = '${EMAIL}'`);
-    if (id) {
-      psql(`UPDATE users SET password_hash = '${hash}', totp_enabled = false, totp_secret = NULL WHERE id = ${id}`);
-      psql(`DELETE FROM totp_backup_codes WHERE user_id = ${id}`);
+    twoFaUserId = psql(`SELECT id FROM users WHERE email = '${EMAIL}'`);
+    if (twoFaUserId) {
+      psql(`UPDATE users SET password_hash = '${hash}', totp_enabled = false, totp_secret = NULL WHERE id = ${twoFaUserId}`);
+      psql(`DELETE FROM totp_backup_codes WHERE user_id = ${twoFaUserId}`);
     }
   });
 
@@ -161,8 +163,8 @@ test.describe('Two-Factor Authentication', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // Wait past step-up grace (TTL=10s in test env) so the action is gated.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side (deterministic) so the action is gated.
+    expireStepUpGrace(twoFaUserId);
 
     // Intercept regenerate response — set up before triggering the action so
     // the retry after step-up is captured too.
@@ -212,8 +214,8 @@ test.describe('Two-Factor Authentication', () => {
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    // Wait past step-up grace so the disable is gated.
-    await page.waitForTimeout(12000);
+    // Expire the step-up grace server-side so the disable is gated.
+    expireStepUpGrace(twoFaUserId);
 
     // The 2FA card now just shows the "Disable 2FA" button — re-auth happens
     // in the step-up modal.

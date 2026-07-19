@@ -78,7 +78,13 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cameraReady, setCameraReady] = useState(false);
 
+  // Incremented on every stopCamera so an in-flight getUserMedia (e.g. the
+  // permission prompt is open while the modal closes) knows it went stale
+  // and must release the acquired tracks instead of orphaning a live stream.
+  const cameraSessionRef = useRef(0);
+
   const stopCamera = useCallback(() => {
+    cameraSessionRef.current++;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -87,15 +93,23 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
 
   const startCamera = useCallback(async () => {
     stopCamera();
+    const session = cameraSessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1024 }, height: { ideal: 768 } },
       });
+      if (session !== cameraSessionRef.current) {
+        // Camera was stopped (modal closed / mode switched) while we were
+        // waiting — turn the stream off again immediately.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch {
+      if (session !== cameraSessionRef.current) return;
       setErrorMsg('Could not access camera. Try uploading instead.');
       setMode('upload');
     }
@@ -189,8 +203,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
         <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 sm:bg-transparent shrink-0 z-10">
             <Dialog.Title className="text-sm font-semibold text-foreground">AI Calorie Estimate</Dialog.Title>
-            <Dialog.Close className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <Dialog.Close aria-label="Close" className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18" /><path d="M6 6l12 12" />
               </svg>
             </Dialog.Close>
@@ -314,7 +328,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
             )}
 
             {providerName && (
-              <div className="text-center text-[10px] text-muted-foreground/60">
+              <div className="text-center text-[10px] text-muted-foreground">
                 Your photo will be sent to {providerName} for analysis
               </div>
             )}

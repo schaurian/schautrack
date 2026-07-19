@@ -182,3 +182,21 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Respect the OS "reduce motion" preference: neutralize persistent animations
+   (e.g. the Track button's infinite shimmer) and smooth scrolling for users
+   with vestibular disorders. Kept unlayered with !important so it overrides
+   Tailwind's utility-layer animate-* classes. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

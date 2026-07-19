@@ -131,6 +131,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
   const longPressTimerRef = useRef<number | null>(null);
   const longPressFiredRef = useRef(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [pickerQty, setPickerQty] = useState(2);
 
   const parts: string[] = [];
@@ -138,7 +139,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
   for (const [key, val] of Object.entries(food.macros)) {
     if (val != null) parts.push(`${val}g ${key}`);
   }
-  const tooltip = `Tap to log ${food.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''} · Hold for quantity`;
+  const tooltip = `Tap to log ${food.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''} · Hold or Shift+Enter for quantity`;
 
   // Reset the picker quantity each time it opens so consecutive uses
   // don't carry over the previous selection.
@@ -163,6 +164,13 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
       document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [quantityPickerOpen, onCloseQuantity]);
+
+  // Move focus into the popover when it opens so keyboard users land inside it.
+  useEffect(() => {
+    if (!quantityPickerOpen) return;
+    const first = popoverRef.current?.querySelector<HTMLElement>('button, [tabindex]');
+    first?.focus();
+  }, [quantityPickerOpen]);
 
   const clearLongPressTimer = () => {
     if (longPressTimerRef.current != null) {
@@ -194,6 +202,21 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
     onTrack(1);
   };
 
+  const closeAndRestoreFocus = () => {
+    onCloseQuantity();
+    triggerRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (quantityPickerOpen) return;
+    // Shift+Enter / Shift+Space is the keyboard equivalent of long-press:
+    // open the quantity picker instead of logging a single unit.
+    if (e.shiftKey && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onOpenQuantity();
+    }
+  };
+
   const handleContextMenu = (e: React.MouseEvent) => {
     // Right-click is the desktop equivalent of long-press; open the picker.
     e.preventDefault();
@@ -203,8 +226,10 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
   return (
     <div className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
@@ -228,6 +253,12 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
           ref={popoverRef}
           role="dialog"
           aria-label={`Choose quantity for ${food.name}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              closeAndRestoreFocus();
+            }
+          }}
           className="absolute left-1/2 z-20 mb-2 -translate-x-1/2 bottom-full flex flex-col items-center gap-2 rounded-lg border-2 border-border bg-card p-3 shadow-lg"
         >
           <QuantityStepper value={pickerQty} onChange={setPickerQty} />
@@ -235,7 +266,7 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => onCloseQuantity()}
+              onClick={closeAndRestoreFocus}
             >
               Cancel
             </Button>

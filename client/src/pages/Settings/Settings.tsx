@@ -1,13 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/authStore';
 import { getSettings, importData, exportData } from '@/api/settings';
 import { ApiError } from '@/api/client';
 import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { QueryError } from '@/components/ui/QueryError';
 import { OIDC_SETTINGS_ERRORS, OIDC_SETTINGS_SUCCESS } from '@/lib/oidcMessages';
 import MacroSettings from './MacroSettings';
 import PreferencesSettings from './PreferencesSettings';
@@ -29,6 +32,7 @@ export default function Settings() {
   const [importLoading, setImportLoading] = useState(false);
   const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [confirmImportOpen, setConfirmImportOpen] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const addToast = useToastStore((s) => s.addToast);
@@ -59,10 +63,14 @@ export default function Settings() {
     setImportMessage(null);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ['settings'],
     queryFn: getSettings,
   });
+
+  if (isError && !data) {
+    return <QueryError error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
 
   if (authLoading || isLoading || !data) {
     return <div className="flex items-center justify-center p-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
@@ -70,10 +78,13 @@ export default function Settings() {
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['settings'] });
-    queryClient.invalidateQueries({ queryKey: ['me'] });
+    // The current user lives in the auth store, not a query — re-fetch it
+    // so changes (macros, preferences, …) propagate app-wide.
+    useAuthStore.getState().fetchUser();
   };
 
   const handleImport = async () => {
+    setConfirmImportOpen(false);
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
     setImportLoading(true);
@@ -201,7 +212,7 @@ export default function Settings() {
                 <Button
                   variant="destructive"
                   className="w-full"
-                  onClick={handleImport}
+                  onClick={() => setConfirmImportOpen(true)}
                   loading={importLoading}
                   disabled={!selectedFileName}
                 >
@@ -211,6 +222,45 @@ export default function Settings() {
             </div>
           </Card>
         </div>
+
+        {/* Import is destructive — it wipes every existing entry. Step-up has a
+            grace window, so gating on re-auth alone lets a user who just
+            authenticated for any other setting replace their whole history with
+            one mis-click. Require an explicit in-app confirmation, independent
+            of step-up state. */}
+        <Dialog.Root open={confirmImportOpen} onOpenChange={setConfirmImportOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+            <Dialog.Content
+              className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-card p-6 text-card-foreground shadow-lg focus:outline-none"
+            >
+              <Dialog.Title className="text-base font-semibold mb-1 text-destructive">Replace all entries?</Dialog.Title>
+              <Dialog.Description className="text-sm text-muted-foreground mb-4">
+                Importing{selectedFileName ? <> <span className="font-medium text-foreground">{selectedFileName}</span></> : ''} will permanently delete all of your existing entries and replace them with the contents of this file. This cannot be undone.
+              </Dialog.Description>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleImport}
+                  loading={importLoading}
+                >
+                  Replace all entries
+                </Button>
+                <Dialog.Close asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full border border-border hover:border-foreground/40"
+                  >
+                    Cancel
+                  </Button>
+                </Dialog.Close>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
         <div className="break-inside-avoid">
           <Card>
             <h3 className="text-sm font-semibold mb-2 text-destructive">Danger Zone</h3>

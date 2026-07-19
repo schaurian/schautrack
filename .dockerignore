@@ -1,4 +1,4 @@
-node_modules
+**/node_modules
 .env
 .env.*
 .DS_Store
@@ -11,4 +11,10 @@ CLAUDE.md
 .idea
 .dockerignore
 Dockerfile
-docker-compose.yml
+compose*.yml
+server
+test-results
+playwright-report
+e2e
+helm
+.github

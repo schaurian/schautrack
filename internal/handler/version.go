@@ -25,16 +25,21 @@ type latestVersionCache struct {
 
 var latestVersion latestVersionCache
 
-func LatestVersion() http.HandlerFunc {
+// LatestVersion reports the newest published release so the footer can flag an
+// outdated instance. When enabled is false the handler never contacts GitHub and
+// always reports no update — this is the opt-out for self-hosted/air-gapped
+// deployments that don't want the outbound phone-home (UPDATE_CHECK_ENABLED=false).
+func LatestVersion(enabled bool) http.HandlerFunc {
 	client := &http.Client{Timeout: 5 * time.Second}
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "public, max-age=600")
 
-		tag := latestVersion.lookup(r.Context(), client)
 		var payload any
-		if tag != "" {
-			payload = tag
+		if enabled {
+			if tag := latestVersion.lookup(r.Context(), client); tag != "" {
+				payload = tag
+			}
 		}
 		json.NewEncoder(w).Encode(map[string]any{"latest": payload})
 	}

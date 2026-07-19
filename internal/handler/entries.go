@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 
 	"schautrack/internal/config"
 	"schautrack/internal/database"
@@ -93,14 +95,77 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
-	totalsByDate := getTotalsByDate(r, h.Pool, user.ID, oldest, newest)
-	todayTotal := totalsByDate[todayStr]
 	macroModes := service.GetMacroModes(mu)
 	enabledMacros := service.GetEnabledMacros(mu)
 	macroGoals := service.GetMacroGoals(mu)
+	dailyGoal := service.GetCalorieGoal(mu)
+
+	// Resolve AI availability up front (user key / global settings — no DB round
+	// trip) so the usage lookup can join the concurrent batch below.
+	hasAiEnabled := user.AIKey != nil && *user.AIKey != ""
+	usingGlobalKey := false
+	if !hasAiEnabled {
+		globalKey := h.Settings.GetEffectiveSetting(r.Context(), "ai_key", h.Cfg.AIKey)
+		hasAiEnabled = globalKey.Value != nil && *globalKey.Value != ""
+		if hasAiEnabled {
+			usingGlobalKey = true
+		}
+	}
+
+	// The viewer's own dashboard data is a set of independent reads over the same
+	// user; run them concurrently (the linked-user views below already are). Only
+	// the totals scan is fatal — the rest degrade to empty/zero exactly like the
+	// previous sequential `_`-swallowed calls did.
+	var (
+		totalsByDate    map[string]int
+		macroTotalsAll  map[string]map[string]int
+		entries         []map[string]any
+		acceptedLinks   []service.LinkUser
+		weightEntry     *service.WeightResult
+		lastWeightEntry *service.WeightResult
+		aiUsedToday     int
+	)
+	g, gctx := errgroup.WithContext(r.Context())
+	g.Go(func() error {
+		var err error
+		totalsByDate, macroTotalsAll, err = getTotalsAndMacrosByDate(gctx, h.Pool, user.ID, oldest, newest)
+		return err
+	})
+	g.Go(func() error {
+		entries = getEntriesForDate(r, h.Pool, user.ID, selectedDate, enabledMacros, userTz)
+		return nil
+	})
+	g.Go(func() error {
+		acceptedLinks, _ = service.GetAcceptedLinkUsers(gctx, h.Pool, user.ID)
+		return nil
+	})
+	g.Go(func() error {
+		weightEntry, _ = service.GetWeightEntry(gctx, h.Pool, user.ID, selectedDate)
+		return nil
+	})
+	g.Go(func() error {
+		lastWeightEntry, _ = service.GetLastWeightEntry(gctx, h.Pool, user.ID, selectedDate)
+		return nil
+	})
+	if hasAiEnabled {
+		g.Go(func() error {
+			aiUsedToday, _ = service.GetAIUsageToday(gctx, h.Pool, user.ID)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		slog.Error("dashboard: failed to load calorie totals", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to load entries")
+		return
+	}
+
+	todayTotal := totalsByDate[todayStr]
+	// Only expose macro totals downstream when macros are enabled, preserving the
+	// prior behaviour where macroTotalsByDate stayed nil (so todayMacroTotals and
+	// the JSON payload are identical for macro-disabled users).
 	var macroTotalsByDate map[string]map[string]int
 	if len(enabledMacros) > 0 {
-		macroTotalsByDate, _ = service.GetMacroTotalsByDate(r.Context(), h.Pool, user.ID, oldest, newest)
+		macroTotalsByDate = macroTotalsAll
 	}
 	todayMacroTotals := map[string]int{}
 	if macroTotalsByDate != nil {
@@ -108,7 +173,6 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			todayMacroTotals = t
 		}
 	}
-	dailyGoal := service.GetCalorieGoal(mu)
 
 	dailyStats := buildDailyStats(dayOptions, totalsByDate, dailyGoal, enabledMacros, macroGoals, macroModes, macroTotalsByDate, mu.GoalThreshold)
 
@@ -140,9 +204,6 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		goalDelta = &d
 	}
 
-	// Fetch entries for selected date
-	entries := getEntriesForDate(r, h.Pool, user.ID, selectedDate, enabledMacros, userTz)
-
 	// Macro statuses
 	macroStatuses := map[string]service.MacroStatus{}
 	for _, key := range enabledMacros {
@@ -155,12 +216,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		macroStatuses[key] = service.ComputeMacroStatus(total, goalPtr, macroModes[key], mu.GoalThreshold)
 	}
 
-	// Links
-	acceptedLinks, _ := service.GetAcceptedLinkUsers(r.Context(), h.Pool, user.ID)
-
 	// Weight
-	weightEntry, _ := service.GetWeightEntry(r.Context(), h.Pool, user.ID, selectedDate)
-	lastWeightEntry, _ := service.GetLastWeightEntry(r.Context(), h.Pool, user.ID, selectedDate)
 	var viewWeight any
 	if weightEntry != nil {
 		timeFormatted := service.FormatTimeInTz(weightEntry.UpdatedAt, userTz)
@@ -203,13 +259,19 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			linkOldest := linkDayOptions[len(linkDayOptions)-1]
 			linkNewest := linkDayOptions[0]
 			linkGoal := service.GetCalorieGoal(lmu)
-			linkTotals := getTotalsByDate(r, h.Pool, link.UserID, linkOldest, linkNewest)
+			linkTotals, linkMacroAll, err := getTotalsAndMacrosByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
+			if err != nil {
+				// Skip this link's card rather than rendering all-zero
+				// totals as if they were real data.
+				slog.Error("dashboard: failed to load linked user's calorie totals", "error", err, "linkUserId", link.UserID)
+				return
+			}
 			linkEnabledMacros := service.GetEnabledMacros(lmu)
 			linkMacroGoals := service.GetMacroGoals(lmu)
 			linkMacroModes := service.GetMacroModes(lmu)
 			var linkMacroTotals map[string]map[string]int
 			if len(linkEnabledMacros) > 0 {
-				linkMacroTotals, _ = service.GetMacroTotalsByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
+				linkMacroTotals = linkMacroAll
 			}
 			stats := buildDailyStats(linkDayOptions, linkTotals, linkGoal, linkEnabledMacros, linkMacroGoals, linkMacroModes, linkMacroTotals, lmu.GoalThreshold)
 			label := link.Email
@@ -231,21 +293,11 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// AI status: show button if user has personal key OR global key is available
-	hasAiEnabled := user.AIKey != nil && *user.AIKey != ""
-	usingGlobalKey := false
-	if !hasAiEnabled {
-		globalKey := h.Settings.GetEffectiveSetting(r.Context(), "ai_key", h.Cfg.AIKey)
-		hasAiEnabled = globalKey.Value != nil && *globalKey.Value != ""
-		if hasAiEnabled {
-			usingGlobalKey = true
-		}
-	}
-
-	// Compute AI usage for display
+	// Compute AI usage for display. hasAiEnabled/usingGlobalKey were resolved and
+	// the usage count (aiUsedToday) was fetched in the concurrent batch above.
 	var aiUsage any
 	if hasAiEnabled {
-		usedToday, _ := service.GetAIUsageToday(r.Context(), h.Pool, user.ID)
+		usedToday := aiUsedToday
 		var dailyLimit int
 		if usingGlobalKey {
 			dailyLimitSetting := h.Settings.GetEffectiveSetting(r.Context(), "ai_daily_limit", os.Getenv("AI_DAILY_LIMIT"))
@@ -291,8 +343,8 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			"totpEnabled": user.TOTPEnabled, "macrosEnabled": macrosEnabledAny,
 			"macroGoals": macroGoalsAny, "goalThreshold": mu.GoalThreshold,
 			"preferredAiProvider": user.PreferredAIProvider,
-			"hasAiKey": user.AIKey != nil && *user.AIKey != "",
-			"aiModel": user.AIModel, "aiDailyLimit": user.AIDailyLimit,
+			"hasAiKey":            user.AIKey != nil && *user.AIKey != "",
+			"aiModel":             user.AIModel, "aiDailyLimit": user.AIDailyLimit,
 			"todosEnabled": user.TodosEnabled,
 		},
 		"dailyGoal": dailyGoal, "todayTotal": todayTotal,
@@ -300,10 +352,10 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		"dailyStats": dailyStats, "dayOptions": dayOptions, "selectedDate": selectedDate,
 		"recentEntries": entries, "sharedViews": sharedViews,
 		"weightUnit": user.WeightUnit, "timeZone": userTz, "todayStr": todayStrTz,
-		"range": map[string]any{"start": oldest, "end": newest, "days": len(dayOptions), "preset": nilInt(rangePreset)},
+		"range":       map[string]any{"start": oldest, "end": newest, "days": len(dayOptions), "preset": nilInt(rangePreset)},
 		"weightEntry": viewWeight, "lastWeightEntry": lastWeightEntry,
 		"hasAiEnabled": hasAiEnabled, "aiUsage": aiUsage, "aiProviderName": h.getAIProviderName(r, user),
-		"barcodeEnabled": h.isBarcodeEnabled(r.Context()),
+		"barcodeEnabled":  h.isBarcodeEnabled(r.Context()),
 		"caloriesEnabled": caloriesEnabled, "autoCalcCalories": autoCalcCalories,
 		"enabledMacros": enabledMacros, "macroGoals": macroGoals,
 		"todayMacroTotals": todayMacroTotals, "macroLabels": service.MacroLabels,
@@ -372,7 +424,12 @@ func (h *EntriesHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	todayStrTz := service.FormatDateInTz(time.Now(), targetTz)
 
 	dailyGoal := service.GetCalorieGoal(mu)
-	totalsByDate := getTotalsByDate(r, h.Pool, targetUserID, oldest, newest)
+	totalsByDate, err := getTotalsByDate(r, h.Pool, targetUserID, oldest, newest)
+	if err != nil {
+		slog.Error("overview: failed to load calorie totals", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to load entries")
+		return
+	}
 	todayTotal := totalsByDate[todayStrTz]
 	threshold := mu.GoalThreshold
 	enabledMacros := service.GetEnabledMacros(mu)

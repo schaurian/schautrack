@@ -197,6 +197,10 @@ func GetMacroTotalsByDate(ctx context.Context, pool *pgxpool.Pool, userID int, o
 			"protein": protein, "carbs": carbs, "fat": fat, "fiber": fiber, "sugar": sugar,
 		}
 	}
+	// Propagate mid-iteration errors instead of returning partial totals.
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 

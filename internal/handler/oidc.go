@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -88,6 +89,32 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
+// safeNextPath returns next if it is a safe same-origin path to redirect the
+// user back to, otherwise fallback. It defends against open redirects: values
+// browsers normalise into a different origin — protocol-relative ("//host"),
+// backslash-obfuscated ("/\host", which browsers treat as "//host") and
+// absolute or scheme-bearing URLs — are rejected, as are values containing
+// control characters that could split the Location header.
+func safeNextPath(next, fallback string) string {
+	if next == "" {
+		return fallback
+	}
+	// Browsers treat "\" as "/", so a lone leading "/" followed by "\" becomes
+	// protocol-relative. Reject backslashes and header-splitting control chars.
+	if strings.ContainsAny(next, "\\\x00\r\n\t") {
+		return fallback
+	}
+	// Must be a rooted path and not protocol-relative ("//host").
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		return fallback
+	}
+	// Final guard: no scheme or host component may survive parsing.
+	if u, err := url.Parse(next); err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(u.Path, "/") {
+		return fallback
+	}
+	return next
+}
+
 // StepUpInit handles GET /auth/oidc/step-up — initiates an OIDC redirect
 // whose only purpose is to elevate the existing session for sensitive
 // auth-method changes. After the IdP returns the user, the callback
@@ -114,10 +141,7 @@ func (h *OIDCHandler) StepUpInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	next := r.URL.Query().Get("next")
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		next = "/settings"
-	}
+	next := safeNextPath(r.URL.Query().Get("next"), "/settings")
 
 	sess := session.GetSession(r)
 	sess.Set("oidc_state", state)
@@ -206,11 +230,11 @@ func (h *OIDCHandler) handleStepUp(w http.ResponseWriter, r *http.Request, sess 
 		return
 	}
 
-	next := sess.GetString("oidc_step_up_next")
+	// Re-validate on use as defence in depth; also normalises an empty value
+	// (e.g. a dropped session) to a safe default so the redirect target below
+	// is never a bare "?..." relative to the callback path.
+	next := safeNextPath(sess.GetString("oidc_step_up_next"), "/settings")
 	sess.Delete("oidc_step_up_next")
-	if next == "" {
-		next = "/settings"
-	}
 
 	account, err := service.FindOIDCAccount(r.Context(), h.Pool, provider, subject)
 	if err != nil || account == nil || account.UserID != user.ID {

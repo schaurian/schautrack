@@ -42,9 +42,17 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
   // consecutive identical reads before triggering a lookup.
   const lastCodeRef = useRef<{ code: string; count: number }>({ code: '', count: 0 });
 
+  // Incremented on every stopScanner so an in-flight Quagga.init (camera
+  // permission prompt open while the modal closes) knows it went stale and
+  // must shut the camera down instead of starting the scanner.
+  const scanSessionRef = useRef(0);
+
   const stopScanner = useCallback(() => {
+    scanSessionRef.current++;
+    // Always detach the detection handler — it is registered before init
+    // finishes, so it can exist while quaggaRunning is still false.
+    Quagga.offDetected();
     if (quaggaRunning.current) {
-      Quagga.offDetected();
       Quagga.stop();
       quaggaRunning.current = false;
     }
@@ -87,6 +95,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
   const startScanner = useCallback(() => {
     if (!scannerRef.current || quaggaRunning.current) return;
+    const session = scanSessionRef.current;
 
     Quagga.init(
       {
@@ -105,6 +114,12 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
         locate: true,
       },
       (err: Error | null) => {
+        if (session !== scanSessionRef.current) {
+          // Scanner was stopped (modal closed / mode switched) while init
+          // was acquiring the camera — release it instead of starting.
+          if (!err) Quagga.stop();
+          return;
+        }
         if (err) {
           setCameraAvailable(false);
           return;
@@ -243,8 +258,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
         <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 sm:bg-transparent shrink-0 z-10">
             <Dialog.Title className="text-sm font-semibold text-foreground">Scan Barcode</Dialog.Title>
-            <Dialog.Close className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <Dialog.Close aria-label="Close" className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18" /><path d="M6 6l12 12" />
               </svg>
             </Dialog.Close>
@@ -422,7 +437,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
             {/* Attribution */}
             {(phase === 'result' || phase === 'scanning') && (
-              <div className="text-center text-[10px] text-muted-foreground/60">
+              <div className="text-center text-[10px] text-muted-foreground">
                 Barcode data is sent to and provided by{' '}
                 <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline hover:text-muted-foreground">
                   Open Food Facts

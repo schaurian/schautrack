@@ -54,7 +54,9 @@ services:
       - TZ=UTC
       - PGTZ=UTC
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      # Escape as $$ so the variables expand inside the container (from
+      # env_file), not at compose parse time from the host env / auto-loaded .env.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -63,8 +65,9 @@ services:
       # PostgreSQL 18+ stores data in a version-specific subdirectory; mount the
       # parent so data persists (data lands in /var/lib/postgresql/18/docker).
       # See https://github.com/docker-library/postgres/pull/1259
+      # No init script: the schema is created by the app's startup migrations
+      # (internal/database/migrations.go), same as prod and E2E.
       - db-data:/var/lib/postgresql
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
 volumes:
   db-data:

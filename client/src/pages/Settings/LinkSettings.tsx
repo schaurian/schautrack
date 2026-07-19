@@ -83,7 +83,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
         <div className="mb-4">
           <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Linked</h4>
           {acceptedLinks.map((link) => (
-            <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
+            <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} onUpdate={onUpdate} />
           ))}
         </div>
       )}
@@ -100,7 +100,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
   );
 }
 
-function LinkRow({ link, onRemove }: { link: AcceptedLink; onRemove: () => void }) {
+function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: () => void; onUpdate: () => void }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(link.label || '');
 
@@ -109,6 +109,9 @@ function LinkRow({ link, onRemove }: { link: AcceptedLink; onRemove: () => void 
   const saveLabel = async () => {
     try {
       await updateLinkLabel(link.linkId, label);
+      // Refresh the settings query so the edited label doesn't visually
+      // revert to the stale server copy on the next render.
+      onUpdate();
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to update label');
     }

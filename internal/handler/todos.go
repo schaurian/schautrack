@@ -73,10 +73,7 @@ func (h *TodosHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(fmt.Sprintf("%v", body["name"]))
-	if len(name) > 100 {
-		name = name[:100]
-	}
+	name := truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", body["name"])), 100)
 	if name == "" {
 		ErrorJSON(w, http.StatusBadRequest, "Name is required")
 		return
@@ -142,10 +139,7 @@ func (h *TodosHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idx := 1
 
 	if v, ok := body["name"]; ok {
-		name := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if len(name) > 100 {
-			name = name[:100]
-		}
+		name := truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), 100)
 		if name == "" {
 			ErrorJSON(w, http.StatusBadRequest, "Name is required")
 			return
@@ -320,53 +314,10 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 				datesByTodo[tid] = append(datesByTodo[tid], d)
 			}
 			for _, t := range scheduled {
-				dates := datesByTodo[t.ID]
-				streak := 0
-				start, _ := time.Parse("2006-01-02", dateStr)
-				for i := 0; i < 365; i++ {
-					d := start.AddDate(0, 0, -i).Format("2006-01-02")
-					if !service.IsScheduledForDate(t.Schedule, d) {
-						continue
-					}
-					found := false
-					for _, cd := range dates {
-						if cd == d {
-							found = true
-							break
-						}
-					}
-					if found {
-						streak++
-					} else {
-						break
-					}
-				}
+				streak, ms := service.ComputeStreak(t.Schedule, datesByTodo[t.ID], dateStr)
 				streaks[t.ID] = streak
-
-				// Compute missed_since: walk backwards from the day before dateStr
-				// to find the earliest consecutive missed scheduled day
-				if !completions[t.ID] {
-					earliest := ""
-					for i := 1; i <= 30; i++ {
-						d := start.AddDate(0, 0, -i).Format("2006-01-02")
-						if !service.IsScheduledForDate(t.Schedule, d) {
-							continue
-						}
-						found := false
-						for _, cd := range dates {
-							if cd == d {
-								found = true
-								break
-							}
-						}
-						if found {
-							break
-						}
-						earliest = d
-					}
-					if earliest != "" {
-						missedSince[t.ID] = earliest
-					}
+				if ms != "" {
+					missedSince[t.ID] = ms
 				}
 			}
 		}
@@ -407,7 +358,7 @@ func (h *TodosHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 		tz := getUserTimezone(r, user)
 		dateStr = service.FormatDateInTz(time.Now(), tz)
 	}
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}

@@ -106,10 +106,7 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 
 	if v, ok := body["name"]; ok {
 		out.hasName = true
-		out.name = strings.TrimSpace(fmt.Sprintf("%v", v))
-		if len(out.name) > MaxSavedFoodName {
-			out.name = out.name[:MaxSavedFoodName]
-		}
+		out.name = truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), MaxSavedFoodName)
 		if out.name == "" {
 			return nil, http.StatusBadRequest, "Name is required"
 		}
@@ -123,9 +120,7 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 		if raw == "" || raw == "<nil>" {
 			out.emoji = nil
 		} else {
-			if len(raw) > MaxSavedFoodEmoji {
-				raw = raw[:MaxSavedFoodEmoji]
-			}
+			raw = truncateUTF8(raw, MaxSavedFoodEmoji)
 			out.emoji = &raw
 		}
 	}
@@ -362,17 +357,9 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 	if entryDate == "" {
 		entryDate = service.FormatDateInTz(time.Now(), userTz)
 	}
-	if !dateRe.MatchString(entryDate) {
+	if !isValidDate(entryDate) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
-	}
-
-	qty := body.Quantity
-	if qty < 1 {
-		qty = 1
-	}
-	if qty > 99 {
-		qty = 99
 	}
 
 	tx, err := h.Pool.Begin(r.Context())
@@ -395,36 +382,11 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build entry name. Prefix with emoji if set.
-	entryName := name
-	if emoji != nil && *emoji != "" {
-		entryName = *emoji + " " + name
-	}
-	if len(entryName) > 120 {
-		entryName = entryName[:120]
-	}
-
-	entryAmount := 0
-	if amount != nil {
-		entryAmount = *amount * qty
-	}
-	if entryAmount > MaxEntryCalories || entryAmount < -MaxEntryCalories {
+	te, qty, ok := buildTrackedEntry(name, emoji, amount, protein, carbs, fat, fiber, sugar, body.Quantity)
+	if !ok {
 		ErrorJSON(w, http.StatusBadRequest, "Quantity too high for this entry")
 		return
 	}
-
-	mulPtr := func(p *int) *int {
-		if p == nil {
-			return nil
-		}
-		v := *p * qty
-		return &v
-	}
-	mProtein := mulPtr(protein)
-	mCarbs := mulPtr(carbs)
-	mFat := mulPtr(fat)
-	mFiber := mulPtr(fiber)
-	mSugar := mulPtr(sugar)
 
 	var entryID int
 	var createdAt time.Time
@@ -432,8 +394,8 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, protein_g, carbs_g, fat_g, fiber_g, sugar_g)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at`,
-		user.ID, entryDate, entryAmount, nilString(entryName),
-		mProtein, mCarbs, mFat, mFiber, mSugar,
+		user.ID, entryDate, te.amount, nilString(te.name),
+		te.protein, te.carbs, te.fat, te.fiber, te.sugar,
 	).Scan(&entryID, &createdAt)
 	if err != nil {
 		slog.Error("saved_foods track insert", "error", err)
@@ -457,16 +419,73 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
 	enabled := service.GetEnabledMacros(mu)
-	macros := buildMacroMap(enabled, mProtein, mCarbs, mFat, mFiber, mSugar)
+	macros := buildMacroMap(enabled, te.protein, te.carbs, te.fat, te.fiber, te.sugar)
 
 	JSON(w, http.StatusOK, map[string]any{
 		"ok": true,
 		"entry": map[string]any{
-			"id": entryID, "date": entryDate, "amount": entryAmount,
+			"id": entryID, "date": entryDate, "amount": te.amount,
 			"time": service.FormatTimeInTz(createdAt, userTz),
-			"name": entryName, "macros": macros,
+			"name": te.name, "macros": macros,
 		},
 	})
+}
+
+// trackedEntry holds the calorie_entries column values computed from a saved
+// food when it is tracked qty times.
+type trackedEntry struct {
+	name                              string
+	amount                            int
+	protein, carbs, fat, fiber, sugar *int
+}
+
+// buildTrackedEntry computes the calorie_entries row for tracking a saved food
+// `qty` times. qty is clamped to 1..99. The entry name is the food's name,
+// prefixed with its emoji when set, then truncated to 120 bytes on a rune
+// boundary (so a multi-byte emoji is never split). The amount and each macro
+// are multiplied by the clamped qty; ok is false when the multiplied amount or
+// any macro would violate its column CHECK constraint (which would otherwise
+// surface as a 500 constraint violation on INSERT). The clamped qty is
+// returned so the caller can bump use_count by the same amount.
+func buildTrackedEntry(name string, emoji *string, amount, protein, carbs, fat, fiber, sugar *int, qty int) (trackedEntry, int, bool) {
+	if qty < 1 {
+		qty = 1
+	}
+	if qty > 99 {
+		qty = 99
+	}
+
+	// Build entry name. Prefix with emoji if set.
+	entryName := name
+	if emoji != nil && *emoji != "" {
+		entryName = *emoji + " " + name
+	}
+	entryName = truncateUTF8(entryName, 120)
+
+	entryAmount := 0
+	if amount != nil {
+		entryAmount = *amount * qty
+	}
+	if entryAmount > MaxEntryCalories || entryAmount < -MaxEntryCalories {
+		return trackedEntry{}, qty, false
+	}
+
+	// Multiplied macros must respect the macro column CHECK (0..999) just like
+	// the multiplied calorie amount above.
+	mProtein, okP := multiplyMacro(protein, qty)
+	mCarbs, okC := multiplyMacro(carbs, qty)
+	mFat, okF := multiplyMacro(fat, qty)
+	mFiber, okFi := multiplyMacro(fiber, qty)
+	mSugar, okS := multiplyMacro(sugar, qty)
+	if !okP || !okC || !okF || !okFi || !okS {
+		return trackedEntry{}, qty, false
+	}
+
+	return trackedEntry{
+		name:    entryName,
+		amount:  entryAmount,
+		protein: mProtein, carbs: mCarbs, fat: mFat, fiber: mFiber, sugar: mSugar,
+	}, qty, true
 }
 
 // SaveFromEntry handles POST /api/entries/{id}/save-as-food — Phase 4 helper that
@@ -502,10 +521,7 @@ func (h *SavedFoodsHandler) SaveFromEntry(w http.ResponseWriter, r *http.Request
 	}
 	ReadJSON(r, &body)
 
-	cleanName := strings.TrimSpace(*name)
-	if len(cleanName) > MaxSavedFoodName {
-		cleanName = cleanName[:MaxSavedFoodName]
-	}
+	cleanName := truncateUTF8(strings.TrimSpace(*name), MaxSavedFoodName)
 
 	var count int
 	h.Pool.QueryRow(r.Context(), "SELECT COUNT(*)::int FROM saved_foods WHERE user_id = $1", user.ID).Scan(&count)

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,9 +11,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 )
+
+// execBatch sends a pgx batch on the transaction and returns the first error
+// encountered, draining the batch results before returning so the connection
+// is safe to use (e.g. for rollback) afterwards.
+func execBatch(ctx context.Context, tx pgx.Tx, batch *pgx.Batch) error {
+	br := tx.SendBatch(ctx, batch)
+	var firstErr error
+	for i := 0; i < batch.Len(); i++ {
+		if _, err := br.Exec(); err != nil {
+			firstErr = err
+			break
+		}
+	}
+	if err := br.Close(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
+}
 
 // Export handles POST /settings/export.
 // Returns the user's full data set as a JSON download. Authorization is via
@@ -92,6 +113,14 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 		w.Write(wj)
 		first = false
 	}
+	if err := weights.Err(); err != nil {
+		// The response is already partially written, so we cannot send an
+		// error status. Abort without closing the JSON structure: a
+		// deliberately truncated, invalid file cannot be mistaken for a
+		// complete backup.
+		slog.Error("export aborted: weight row iteration failed", "error", err)
+		return
+	}
 	fmt.Fprint(w, "],\n")
 
 	// Entries
@@ -133,7 +162,172 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 		w.Write(ej)
 		first = false
 	}
+	if err := entries.Err(); err != nil {
+		// See the weights.Err() comment above: leave the JSON truncated so
+		// a partial export is detectably invalid.
+		slog.Error("export aborted: entry row iteration failed", "error", err)
+		return
+	}
 	fmt.Fprint(w, "]\n}")
+}
+
+// importEntry is a single calorie entry that survived import validation and is
+// ready to be inserted into calorie_entries.
+type importEntry struct {
+	date      string
+	amount    int
+	name      *string
+	createdAt *time.Time
+	macros    map[string]*int
+}
+
+// importWeight is a single weight entry that survived import validation.
+type importWeight struct {
+	date   string
+	weight float64
+}
+
+// importData is the fully validated payload extracted from an import file:
+// only rows/settings safe to write survive here. It is produced by
+// parseImportData with no database, request, or user access so the
+// destructive-import parse phase can be unit tested in isolation.
+type importData struct {
+	entries         []importEntry
+	weights         []importWeight
+	goalCandidate   *float64
+	hasUserSettings bool
+}
+
+// isEmpty reports whether the import carries nothing worth writing. Import
+// returns 400 — and, critically, performs no destructive DELETE — when this is
+// true, so a garbage or all-invalid file can never wipe the user's data.
+func (d importData) isEmpty() bool {
+	return len(d.entries) == 0 && len(d.weights) == 0 && !d.hasUserSettings
+}
+
+// parseImportData validates and extracts the importable payload from an
+// already-JSON-decoded import file. It is a pure function (no DB, no request,
+// no user) so the validation that guards the destructive import — the loop
+// that rejects bad dates, zero/oversized amounts, malformed timestamps and
+// out-of-range macros — can be table-tested directly. Invalid rows are
+// silently skipped; entries and weights are each capped at 10,000 rows.
+func parseImportData(parsed map[string]any) importData {
+	// Extract calorie goal from various formats
+	var goalCandidate *float64
+	if userObj, ok := parsed["user"].(map[string]any); ok {
+		if mg, ok := userObj["macro_goals"].(map[string]any); ok {
+			if v, ok := mg["calories"].(float64); ok {
+				goalCandidate = &v
+			}
+		}
+	}
+	if goalCandidate == nil {
+		if v, ok := parsed["daily_goal"].(float64); ok {
+			goalCandidate = &v
+		}
+	}
+	if goalCandidate == nil {
+		if userObj, ok := parsed["user"].(map[string]any); ok {
+			if v, ok := userObj["daily_goal"].(float64); ok {
+				goalCandidate = &v
+			}
+		}
+	}
+
+	// Parse entries
+	var toInsert []importEntry
+	if entries, ok := parsed["entries"].([]any); ok {
+		for _, e := range entries {
+			if len(toInsert) >= 10000 {
+				break
+			}
+			entry, ok := e.(map[string]any)
+			if !ok {
+				continue
+			}
+			dateStr := ""
+			if v, ok := entry["date"].(string); ok {
+				dateStr = v
+			} else if v, ok := entry["entry_date"].(string); ok {
+				dateStr = v
+			}
+			if !isValidDate(dateStr) {
+				continue
+			}
+			amountResult := service.ParseAmount(fmt.Sprintf("%v", entry["amount"]), MaxEntryCalories)
+			if !amountResult.Ok || amountResult.Value == 0 {
+				continue
+			}
+			var name *string
+			if n, ok := entry["name"].(string); ok && n != "" {
+				s := truncateUTF8(n, 120)
+				name = &s
+			} else if n, ok := entry["entry_name"].(string); ok && n != "" {
+				s := truncateUTF8(n, 120)
+				name = &s
+			}
+			var createdAt *time.Time
+			if v, ok := entry["created_at"].(string); ok && v != "" {
+				if t, err := time.Parse(time.RFC3339, v); err == nil {
+					createdAt = &t
+				}
+			}
+			macros := map[string]*int{}
+			for _, key := range service.MacroKeys {
+				field := key + "_g"
+				if v, ok := entry[field]; ok {
+					vStr := fmt.Sprintf("%v", v)
+					if n, err := strconv.Atoi(vStr); err == nil && n >= 0 && n <= MaxEntryMacro {
+						macros[key] = &n
+					}
+				}
+			}
+			toInsert = append(toInsert, importEntry{date: dateStr, amount: amountResult.Value, name: name, createdAt: createdAt, macros: macros})
+		}
+	}
+
+	// Parse weight entries
+	var weightToInsert []importWeight
+	if weights, ok := parsed["weights"].([]any); ok {
+		for _, w := range weights {
+			if len(weightToInsert) >= 10000 {
+				break
+			}
+			wEntry, ok := w.(map[string]any)
+			if !ok {
+				continue
+			}
+			dateStr := ""
+			if v, ok := wEntry["date"].(string); ok {
+				dateStr = v
+			} else if v, ok := wEntry["entry_date"].(string); ok {
+				dateStr = v
+			}
+			if !isValidDate(dateStr) {
+				continue
+			}
+			wr := service.ParseWeight(fmt.Sprintf("%v", wEntry["weight"]))
+			if !wr.Ok {
+				continue
+			}
+			weightToInsert = append(weightToInsert, importWeight{date: dateStr, weight: wr.Value})
+		}
+	}
+
+	// Check user settings
+	hasUserSettings := false
+	if userObj, ok := parsed["user"].(map[string]any); ok {
+		if userObj["macros_enabled"] != nil || userObj["macro_goals"] != nil || goalCandidate != nil || userObj["weight_unit"] != nil || userObj["timezone"] != nil {
+			hasUserSettings = true
+		}
+	}
+
+	return importData{
+		entries:         toInsert,
+		weights:         weightToInsert,
+		goalCandidate:   goalCandidate,
+		hasUserSettings: hasUserSettings,
+	}
 }
 
 // Import handles POST /settings/import
@@ -162,140 +356,21 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := middleware.GetCurrentUser(r)
-	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
+	// Validate and extract the importable payload before touching the
+	// database. The emptiness guard below must run before any DELETE so a
+	// garbage file can never wipe the user's existing data.
+	data := parseImportData(parsed)
+	toInsert := data.entries
+	weightToInsert := data.weights
+	goalCandidate := data.goalCandidate
+	hasUserSettings := data.hasUserSettings
 
-	// Extract calorie goal from various formats
-	var goalCandidate *float64
-	if userObj, ok := parsed["user"].(map[string]any); ok {
-		if mg, ok := userObj["macro_goals"].(map[string]any); ok {
-			if v, ok := mg["calories"].(float64); ok {
-				goalCandidate = &v
-			}
-		}
-	}
-	if goalCandidate == nil {
-		if v, ok := parsed["daily_goal"].(float64); ok {
-			goalCandidate = &v
-		}
-	}
-	if goalCandidate == nil {
-		if userObj, ok := parsed["user"].(map[string]any); ok {
-			if v, ok := userObj["daily_goal"].(float64); ok {
-				goalCandidate = &v
-			}
-		}
-	}
-
-	// Parse entries
-	type importEntry struct {
-		date      string
-		amount    int
-		name      *string
-		createdAt *time.Time
-		macros    map[string]*int
-	}
-	var toInsert []importEntry
-	if entries, ok := parsed["entries"].([]any); ok {
-		for _, e := range entries {
-			if len(toInsert) >= 10000 {
-				break
-			}
-			entry, ok := e.(map[string]any)
-			if !ok {
-				continue
-			}
-			dateStr := ""
-			if v, ok := entry["date"].(string); ok {
-				dateStr = v
-			} else if v, ok := entry["entry_date"].(string); ok {
-				dateStr = v
-			}
-			if !dateRe.MatchString(dateStr) {
-				continue
-			}
-			amountResult := service.ParseAmount(fmt.Sprintf("%v", entry["amount"]), MaxEntryCalories)
-			if !amountResult.Ok || amountResult.Value == 0 {
-				continue
-			}
-			var name *string
-			if n, ok := entry["name"].(string); ok && n != "" {
-				s := n
-				if len(s) > 120 {
-					s = s[:120]
-				}
-				name = &s
-			} else if n, ok := entry["entry_name"].(string); ok && n != "" {
-				s := n
-				if len(s) > 120 {
-					s = s[:120]
-				}
-				name = &s
-			}
-			var createdAt *time.Time
-			if v, ok := entry["created_at"].(string); ok && v != "" {
-				if t, err := time.Parse(time.RFC3339, v); err == nil {
-					createdAt = &t
-				}
-			}
-			macros := map[string]*int{}
-			for _, key := range service.MacroKeys {
-				field := key + "_g"
-				if v, ok := entry[field]; ok {
-					vStr := fmt.Sprintf("%v", v)
-					if n, err := strconv.Atoi(vStr); err == nil && n >= 0 && n <= MaxEntryMacro {
-						macros[key] = &n
-					}
-				}
-			}
-			toInsert = append(toInsert, importEntry{date: dateStr, amount: amountResult.Value, name: name, createdAt: createdAt, macros: macros})
-		}
-	}
-
-	// Parse weight entries
-	type importWeight struct {
-		date   string
-		weight float64
-	}
-	var weightToInsert []importWeight
-	if weights, ok := parsed["weights"].([]any); ok {
-		for _, w := range weights {
-			if len(weightToInsert) >= 10000 {
-				break
-			}
-			wEntry, ok := w.(map[string]any)
-			if !ok {
-				continue
-			}
-			dateStr := ""
-			if v, ok := wEntry["date"].(string); ok {
-				dateStr = v
-			} else if v, ok := wEntry["entry_date"].(string); ok {
-				dateStr = v
-			}
-			if !dateRe.MatchString(dateStr) {
-				continue
-			}
-			wr := service.ParseWeight(fmt.Sprintf("%v", wEntry["weight"]))
-			if !wr.Ok {
-				continue
-			}
-			weightToInsert = append(weightToInsert, importWeight{date: dateStr, weight: wr.Value})
-		}
-	}
-
-	// Check user settings
-	hasUserSettings := false
-	if userObj, ok := parsed["user"].(map[string]any); ok {
-		if userObj["macros_enabled"] != nil || userObj["macro_goals"] != nil || goalCandidate != nil || userObj["weight_unit"] != nil || userObj["timezone"] != nil {
-			hasUserSettings = true
-		}
-	}
-
-	if len(toInsert) == 0 && len(weightToInsert) == 0 && !hasUserSettings {
+	if data.isEmpty() {
 		ErrorJSON(w, http.StatusBadRequest, "No valid entries found in import file.")
 		return
 	}
+
+	user := middleware.GetCurrentUser(r)
 
 	tx, err := h.Pool.Begin(r.Context())
 	if err != nil {
@@ -343,34 +418,53 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Insert entries
-	for _, entry := range toInsert {
-		cols := "user_id, entry_date, amount, entry_name"
-		vals := "$1, $2, $3, $4"
-		args := []any{user.ID, entry.date, entry.amount, entry.name}
-		idx := 5
-		if entry.createdAt != nil {
-			cols += ", created_at"
-			vals += fmt.Sprintf(", $%d", idx)
-			args = append(args, *entry.createdAt)
-			idx++
-		}
-		for _, key := range service.MacroKeys {
-			if v, ok := entry.macros[key]; ok {
-				cols += ", " + key + "_g"
+	// Insert entries. Up to 10,000 rows may be imported, so send the
+	// INSERTs as a pipelined pgx batch on the transaction instead of one
+	// round-trip per row. Per-row values and error semantics are unchanged:
+	// any failed statement aborts the import and rolls back the tx.
+	if len(toInsert) > 0 {
+		batch := &pgx.Batch{}
+		for _, entry := range toInsert {
+			cols := "user_id, entry_date, amount, entry_name"
+			vals := "$1, $2, $3, $4"
+			args := []any{user.ID, entry.date, entry.amount, entry.name}
+			idx := 5
+			if entry.createdAt != nil {
+				cols += ", created_at"
 				vals += fmt.Sprintf(", $%d", idx)
-				args = append(args, v)
+				args = append(args, *entry.createdAt)
 				idx++
 			}
+			for _, key := range service.MacroKeys {
+				if v, ok := entry.macros[key]; ok {
+					cols += ", " + key + "_g"
+					vals += fmt.Sprintf(", $%d", idx)
+					args = append(args, v)
+					idx++
+				}
+			}
+			batch.Queue(fmt.Sprintf("INSERT INTO calorie_entries (%s) VALUES (%s)", cols, vals), args...)
 		}
-		if _, err := tx.Exec(r.Context(), fmt.Sprintf("INSERT INTO calorie_entries (%s) VALUES (%s)", cols, vals), args...); err != nil {
+		if err := execBatch(r.Context(), tx, batch); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Import failed.")
 			return
 		}
 	}
 
-	for _, we := range weightToInsert {
-		if _, err := service.UpsertWeightEntry(r.Context(), tx, user.ID, we.date, we.weight); err != nil {
+	// Weight rows are batched the same way. This inlines the upsert
+	// statement from service.UpsertWeightEntry (minus the unused RETURNING
+	// clause) because a batch queues raw SQL.
+	if len(weightToInsert) > 0 {
+		batch := &pgx.Batch{}
+		for _, we := range weightToInsert {
+			batch.Queue(`
+				INSERT INTO weight_entries (user_id, entry_date, weight)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (user_id, entry_date)
+					DO UPDATE SET weight = EXCLUDED.weight, updated_at = NOW()`,
+				user.ID, we.date, we.weight)
+		}
+		if err := execBatch(r.Context(), tx, batch); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Import failed.")
 			return
 		}
@@ -392,6 +486,5 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		parts = append(parts, "user settings")
 	}
 
-	_ = mu // used for consistency
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Imported %s.", strings.Join(parts, " and "))})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
 
+	"schautrack/internal/clientip"
 	"schautrack/internal/config"
 	"schautrack/internal/database"
 	"schautrack/internal/middleware"
@@ -23,6 +24,12 @@ type AuthHandler struct {
 	Email        *service.EmailService
 	Cfg          *config.Config
 	Settings     *database.SettingsCache
+}
+
+// trustProxy reports whether proxy headers may be trusted for client IP
+// extraction. Nil-safe because handler tests construct AuthHandler without Cfg.
+func (h *AuthHandler) trustProxy() bool {
+	return h.Cfg != nil && h.Cfg.TrustProxy
 }
 
 // Login handles POST /api/auth/login
@@ -59,9 +66,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			verified = verifyAndUseBackupCodeForLogin(r, h.Pool, user.ID, body.Token)
 		}
 		if !verified {
+			// Cap failed 2FA attempts per pending session (mirrors
+			// stepup.go's maxStepUpFailures): the 6-digit TOTP must not be
+			// brute-forceable by replaying the same pending session.
+			if recordLogin2FAFailure(sess) {
+				if err := h.SessionStore.Destroy(w, r, sess); err != nil {
+					slog.Error("failed to destroy session on login 2FA lockout", "error", err)
+				}
+				JSON(w, http.StatusUnauthorized, map[string]any{
+					"error":   "Too many failed attempts. Please log in again.",
+					"lockout": true,
+				})
+				return
+			}
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid 2FA code.")
 			return
 		}
+		sess.Delete("pendingUserId")
+		sess.Delete("login2faFailures")
 		newSess, err := h.SessionStore.Regenerate(r, sess)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Session error.")
@@ -79,18 +101,30 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	email := strings.ToLower(strings.TrimSpace(body.Email))
+	clientAddr := clientip.FromRequest(r, h.trustProxy())
+
 	captchaAnswer := sess.GetString("captchaAnswer")
+	if captchaAnswer == "" && loginCaptchaRequired(sess, email, clientAddr) {
+		// The server-side failure counters (keyed by account email and
+		// client IP) demand a captcha, but this session has none in flight —
+		// e.g. a client dropping its cookies between attempts to keep the
+		// session counter at zero. Issue a challenge instead of processing.
+		c := service.GenerateCaptcha()
+		sess.Set("captchaAnswer", c.Text)
+		JSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Captcha required.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
+		return
+	}
 	if captchaAnswer != "" {
 		if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
 			c := service.GenerateCaptcha()
 			sess.Set("captchaAnswer", c.Text)
-			JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "requireCaptcha": true})
+			JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 			return
 		}
 		sess.Delete("captchaAnswer")
 	}
 
-	email := strings.ToLower(strings.TrimSpace(body.Email))
 	var userID int
 	var passwordHash string
 	var emailVerified bool
@@ -98,17 +132,25 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	err := h.Pool.QueryRow(r.Context(), "SELECT id, password_hash, email_verified, totp_enabled FROM users WHERE email = $1", email).
 		Scan(&userID, &passwordHash, &emailVerified, &totpEnabled)
 	if err != nil {
+		// Burn the same argon2id cost as a real password check so unknown
+		// emails aren't distinguishable from wrong passwords by timing.
+		equalizeLoginTiming(body.Password)
 		recordLoginFailure(sess)
-		replyWithCaptchaIfNeeded(w, sess)
+		recordServerLoginFailure(email, clientAddr)
+		replyWithCaptchaIfNeeded(w, sess, email, clientAddr)
 		return
 	}
 
 	valid, _ := verifyPassword(passwordHash, body.Password)
 	if !valid {
 		recordLoginFailure(sess)
-		replyWithCaptchaIfNeeded(w, sess)
+		recordServerLoginFailure(email, clientAddr)
+		replyWithCaptchaIfNeeded(w, sess, email, clientAddr)
 		return
 	}
+
+	// Correct credentials: clear the failure counters.
+	clearLoginFailures(sess, email, clientAddr)
 
 	// Migrate bcrypt → argon2id
 	if strings.HasPrefix(passwordHash, "$2b$") || strings.HasPrefix(passwordHash, "$2a$") {
@@ -120,9 +162,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if _, err := h.Pool.Exec(r.Context(),
 			"INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
 			userID, code, time.Now().Add(30*time.Minute)); err != nil {
-			slog.Warn("failed to insert verification token during login", "error", err, "user_id", userID)
+			slog.Error("failed to insert verification token during login", "error", err, "user_id", userID)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
+			return
 		}
-		h.Email.SendVerificationEmail(email, code)
+		if err := h.Email.SendVerificationEmail(email, code); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
+			return
+		}
 		sess.Set("verifyEmail", email)
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "requireVerification": true})
 		return
@@ -260,7 +307,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 
 	c := service.GenerateCaptcha()
 	sess.Set("captchaAnswer", c.Text)
-	JSON(w, http.StatusOK, map[string]any{"ok": true, "requireCaptcha": true, "captchaSvg": c.Data})
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "requireCaptcha": true, "captchaSvg": c.Data, "captchaQuestion": c.Question})
 }
 
 func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, sess *session.Session, captcha string) {
@@ -286,7 +333,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 	if !service.VerifyCaptcha(captchaAnswer, captcha) {
 		c := service.GenerateCaptcha()
 		sess.Set("captchaAnswer", c.Text)
-		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data})
+		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question})
 		return
 	}
 	sess.Delete("captchaAnswer")
@@ -319,6 +366,16 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			ErrorJSON(w, http.StatusForbidden, "Registration requires an invite code.")
 			return
 		}
+	}
+
+	// Generate the verification code before opening the transaction so the
+	// token row is created atomically with the user row: if the token INSERT
+	// fails, the whole registration rolls back instead of leaving an
+	// unverified user with no token for CleanExpiredTokens to reap.
+	emailConfigured := h.Email.IsConfigured()
+	var verifyCode string
+	if emailConfigured {
+		verifyCode = service.GenerateResetCode()
 	}
 
 	// Create user and claim invite code atomically in a transaction
@@ -355,6 +412,16 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		sess.Delete("pendingInviteCode")
 	}
 
+	if emailConfigured {
+		if _, err := tx.Exec(r.Context(),
+			"INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
+			userID, verifyCode, time.Now().Add(30*time.Minute)); err != nil {
+			slog.Error("failed to insert verification token during registration", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
+			return
+		}
+	}
+
 	if txErr = tx.Commit(r.Context()); txErr != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
 		return
@@ -362,19 +429,26 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 
 	sess.Delete("pendingRegistration")
 
-	if h.Email.IsConfigured() {
-		code := service.GenerateResetCode()
-		if _, err := h.Pool.Exec(r.Context(),
-			"INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
-			userID, code, time.Now().Add(30*time.Minute)); err != nil {
-			slog.Warn("failed to insert verification token during registration", "error", err, "user_id", userID)
-		}
-		h.Email.SendVerificationEmail(emailClean, code)
+	if emailConfigured {
+		// Email send stays outside the transaction — the account exists
+		// either way, and login/resend can retry the verification email.
 		sess.Set("verifyEmail", emailClean)
+		if err := h.Email.SendVerificationEmail(emailClean, verifyCode); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not send verification email. Please try again.")
+			return
+		}
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "requireVerification": true})
 	} else {
-		sess.SetUserID(userID)
-		sess.Set("auth_method", "password")
+		// Rotate the session ID on privilege elevation (session fixation),
+		// mirroring the login path above.
+		newSess, regenErr := h.SessionStore.Regenerate(r, sess)
+		if regenErr != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
+			return
+		}
+		newSess.SetUserID(userID)
+		newSess.Set("auth_method", "password")
+		session.SetSession(r, newSess)
 		OkJSON(w)
 	}
 }

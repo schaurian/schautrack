@@ -19,6 +19,10 @@ type Config struct {
 	RobotsIndex bool
 	BaseURL     string
 
+	// Android App Links (Digital Asset Links)
+	AndroidPackageName      string
+	AndroidCertFingerprints []string
+
 	// Legal
 	ImprintURL     string
 	ImprintAddress string
@@ -36,6 +40,7 @@ type Config struct {
 	// Features
 	EnableBarcode      bool
 	EnableRegistration string
+	UpdateCheckEnabled bool
 
 	// Rate limiting
 	RateLimitAuth   int
@@ -113,6 +118,9 @@ func Load() (*Config, error) {
 		RobotsIndex: os.Getenv("ROBOTS_INDEX") == "true",
 		BaseURL:     os.Getenv("BASE_URL"),
 
+		AndroidPackageName:      envOr("ANDROID_PACKAGE_NAME", "to.schauer.schautrack"),
+		AndroidCertFingerprints: parseCSV(os.Getenv("ANDROID_CERT_FINGERPRINTS")),
+
 		ImprintURL:     envOr("IMPRINT_URL", "/imprint"),
 		ImprintAddress: os.Getenv("IMPRINT_ADDRESS"),
 		ImprintEmail:   os.Getenv("IMPRINT_EMAIL"),
@@ -127,6 +135,7 @@ func Load() (*Config, error) {
 
 		EnableBarcode:      os.Getenv("ENABLE_BARCODE") != "false",
 		EnableRegistration: os.Getenv("ENABLE_REGISTRATION"),
+		UpdateCheckEnabled: os.Getenv("UPDATE_CHECK_ENABLED") != "false",
 
 		RateLimitAuth:   rateLimitAuth,
 		RateLimitStrict: rateLimitStrict,

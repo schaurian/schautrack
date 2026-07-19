@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alexedwards/argon2id"
@@ -44,6 +45,52 @@ func migratePasswordHash(pool *pgxpool.Pool, userID int, password string) {
 func recordLoginFailure(sess *session.Session) {
 	attempts, _ := sess.GetInt("loginFailedAttempts")
 	sess.Set("loginFailedAttempts", attempts+1)
+}
+
+// maxLogin2FAFailures caps failed TOTP/backup-code attempts during the
+// pending-2FA login step, mirroring stepup.go's maxStepUpFailures. Without a
+// cap, the 6-digit TOTP is brute-forceable through the bypassable IP limiter.
+const maxLogin2FAFailures = 5
+
+// recordLogin2FAFailure increments the pending-login 2FA failure counter and
+// reports whether the cap was reached. When it returns true, the pending
+// login state has been cleared and the caller must destroy the session and
+// reply with a lockout response (mirroring recordStepUpFailure).
+func recordLogin2FAFailure(sess *session.Session) bool {
+	failures, _ := sess.GetInt("login2faFailures")
+	failures++
+	sess.Set("login2faFailures", failures)
+	if failures >= maxLogin2FAFailures {
+		sess.Delete("pendingUserId")
+		sess.Delete("login2faFailures")
+		return true
+	}
+	return false
+}
+
+// dummyPasswordHash lazily precomputes an argon2id hash (same DefaultParams
+// as real user hashes) used to equalize login timing when the email doesn't
+// match any account. Without it, unknown emails return after a cheap DB miss
+// while known emails pay a slow argon2id verify — a measurable
+// user-enumeration timing oracle.
+var dummyPasswordHash = sync.OnceValue(func() string {
+	hash, err := argon2id.CreateHash("schautrack-timing-equalization-dummy", argon2id.DefaultParams)
+	if err != nil {
+		// CreateHash only fails if crypto/rand fails; skip equalization
+		// rather than crashing logins.
+		slog.Error("failed to precompute dummy password hash", "error", err)
+		return ""
+	}
+	return hash
+})
+
+// equalizeLoginTiming burns the same argon2id verification cost as a real
+// password check. Called on the unknown-email login path so its duration is
+// indistinguishable from a wrong password on an existing account.
+func equalizeLoginTiming(password string) {
+	if hash := dummyPasswordHash(); hash != "" {
+		_, _ = argon2id.ComparePasswordAndHash(password, hash)
+	}
 }
 
 func verifyAndUseBackupCodeForLogin(r *http.Request, pool *pgxpool.Pool, userID int, code string) bool {
@@ -90,13 +137,13 @@ func verifyAndMarkBackupCode(r *http.Request, pool *pgxpool.Pool, userID int, co
 	return false
 }
 
-func replyWithCaptchaIfNeeded(w http.ResponseWriter, sess *session.Session) {
-	attempts, _ := sess.GetInt("loginFailedAttempts")
+func replyWithCaptchaIfNeeded(w http.ResponseWriter, sess *session.Session, email, ip string) {
 	resp := map[string]any{"ok": false, "error": "Invalid credentials."}
-	if attempts >= 3 {
+	if loginCaptchaRequired(sess, email, ip) {
 		c := service.GenerateCaptcha()
 		sess.Set("captchaAnswer", c.Text)
 		resp["captchaSvg"] = c.Data
+		resp["captchaQuestion"] = c.Question
 		resp["requireCaptcha"] = true
 	}
 	JSON(w, http.StatusUnauthorized, resp)
@@ -162,7 +209,12 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Email.Send2FAResetEmail(emailClean, code)
+		if err := h.Email.Send2FAResetEmail(emailClean, code); err != nil {
+			// Caller already proved email+password, so surfacing the send
+			// failure reveals nothing about account existence.
+			ErrorJSON(w, http.StatusInternalServerError, "Could not send reset code. Please try again.")
+			return
+		}
 		sess.Set("reset2faUserId", userID)
 		sess.Set("reset2faAttempts", 0)
 		OkJSON(w)
@@ -221,6 +273,14 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not reset 2FA.")
 			return
 		}
+		// Removing 2FA is a credential change: kill every existing session
+		// for the account so a stolen cookie doesn't survive the reset. The
+		// caller is on an anonymous session (login page), which has no
+		// userId and is therefore unaffected.
+		if txErr = invalidateUserSessions(r.Context(), tx, userID, ""); txErr != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not reset 2FA.")
+			return
+		}
 		if txErr = tx.Commit(r.Context()); txErr != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not reset 2FA.")
 			return
@@ -241,5 +301,5 @@ func (h *AuthHandler) Captcha(w http.ResponseWriter, r *http.Request) {
 	c := service.GenerateCaptcha()
 	sess := session.GetSession(r)
 	sess.Set("captchaAnswer", c.Text)
-	JSON(w, http.StatusOK, map[string]any{"svg": c.Data})
+	JSON(w, http.StatusOK, map[string]any{"svg": c.Data, "question": c.Question})
 }

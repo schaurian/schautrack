@@ -126,7 +126,7 @@ test.describe('Account Linking', () => {
     await expect(partnerLabel).toBeVisible({ timeout: 5000 });
 
     const partnerCard = partnerLabel.locator('..').locator('..');
-    const partnerDot = partnerCard.locator('button[title]').first();
+    const partnerDot = partnerCard.locator('button[title*="-"]').first();
     await partnerDot.click();
     await page.waitForTimeout(500);
 

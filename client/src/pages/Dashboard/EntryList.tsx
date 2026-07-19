@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Entry } from '@/types';
-import { updateEntry, deleteEntry } from '@/api/entries';
+import { updateEntry, deleteEntry, createEntry } from '@/api/entries';
 import { saveEntryAsFood } from '@/api/savedFoods';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
@@ -34,8 +34,11 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
           caloriesEnabled={caloriesEnabled}
           autoCalcCalories={autoCalcCalories}
           onUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-            queryClient.invalidateQueries({ queryKey: ['day-entries'] });
+            // Refresh is driven by the entry-change SSE echo (useSSE): the
+            // server broadcasts entry-change to this user's own sessions too,
+            // so invalidating here as well would double-fetch the heavy
+            // /api/dashboard endpoint. Relying solely on the echo also keeps
+            // the user's other tabs/devices (and linked users) in sync.
           }}
           onSaveAsFood={() => {
             queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
@@ -101,10 +104,35 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   };
 
   const handleDelete = async () => {
+    // Snapshot the entry so an accidental delete can be undone. The recreated
+    // entry gets a new id (the server has no soft-delete) — an acceptable
+    // trade-off, matching the saved-foods Undo pattern.
+    const snapshot: Parameters<typeof createEntry>[0] = { entry_date: entry.date };
+    if (entry.name) snapshot.entry_name = entry.name;
+    if (entry.amount) snapshot.amount = entry.amount;
+    if (entry.macros) {
+      const m = entry.macros;
+      if (m.protein != null) snapshot.protein_g = m.protein;
+      if (m.carbs != null) snapshot.carbs_g = m.carbs;
+      if (m.fat != null) snapshot.fat_g = m.fat;
+      if (m.fiber != null) snapshot.fiber_g = m.fiber;
+      if (m.sugar != null) snapshot.sugar_g = m.sugar;
+    }
+
     try {
       await deleteEntry(entry.id);
       onUpdate();
-      addToast('success', 'Entry deleted');
+      addToast('success', 'Entry deleted', {
+        label: 'Undo',
+        onClick: async () => {
+          try {
+            await createEntry(snapshot);
+            onUpdate();
+          } catch (err) {
+            addToast('error', err instanceof Error ? err.message : 'Restore failed');
+          }
+        },
+      });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Failed to delete entry');
     }
@@ -145,20 +173,21 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             className="size-7 flex items-center justify-center rounded-[10px] border border-border text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
             onClick={handleSaveAsFood}
             disabled={savingFood}
+            aria-label="Save as quick-add"
             title="Save as quick-add"
           >
             {savingFood ? (
               <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
             ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
               </svg>
             )}
           </button>
         )}
         {canEdit && (
-          <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} aria-label="Delete entry" title="Delete">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18" /><path d="M6 6l12 12" />
             </svg>
           </button>

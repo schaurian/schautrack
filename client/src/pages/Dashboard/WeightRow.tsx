@@ -58,8 +58,12 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
 
   const handleBlur = () => {
     const raw = inputRef.current?.value.trim() || '';
+    // Only save if the user actually changed the rendered value. Without
+    // this, focus+blur on a date with no entry would silently write the
+    // pre-filled previous weight to that date.
+    if (raw === displayValue) return;
     const num = parseFloat(raw);
-    if (num && num > 0 && (num !== entry?.weight || !isToday)) {
+    if (num && num > 0) {
       handleSave();
     }
   };

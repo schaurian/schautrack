@@ -231,7 +231,9 @@ func TestClientIP_TrustProxy(t *testing.T) {
 	}{
 		{"remote addr only", "192.168.1.1:1234", "", "", "192.168.1.1"},
 		{"x-forwarded-for single", "127.0.0.1:1234", "10.0.0.1", "", "10.0.0.1"},
-		{"x-forwarded-for multiple", "127.0.0.1:1234", "10.0.0.1, 10.0.0.2", "", "10.0.0.1"},
+		// Rightmost (proxy-appended) entry wins; the leftmost is client-supplied.
+		{"x-forwarded-for multiple", "127.0.0.1:1234", "10.0.0.1, 10.0.0.2", "", "10.0.0.2"},
+		{"spoofed leftmost cannot change the key", "127.0.0.1:1234", "6.6.6.6, 10.0.0.2", "", "10.0.0.2"},
 		{"x-real-ip", "127.0.0.1:1234", "", "10.0.0.5", "10.0.0.5"},
 		{"xff takes precedence over xri", "127.0.0.1:1234", "10.0.0.1", "10.0.0.5", "10.0.0.1"},
 	}

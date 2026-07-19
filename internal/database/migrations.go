@@ -197,8 +197,9 @@ func ensureEmailVerificationSchema(ctx context.Context, pool *pgxpool.Pool) erro
 		// verification bypass). A persistent marker row guards it. The DDL above
 		// still runs every boot; only this UPDATE is gated.
 		//
-		// schema_data_migrations is created and read only here, so there is no
-		// concurrent-CREATE race with the parallel ensureXxx migrations.
+		// schema_data_migrations is created and read only here; migrations run
+		// sequentially under the migration advisory lock, so there is no
+		// concurrent-CREATE race.
 		_, err = tx.Exec(ctx, `
 			CREATE TABLE IF NOT EXISTS schema_data_migrations (
 				name TEXT PRIMARY KEY,
@@ -476,7 +477,9 @@ func ensureInviteSchema(ctx context.Context, pool *pgxpool.Pool) error {
 				expires_at TIMESTAMPTZ,
 				created_at TIMESTAMPTZ DEFAULT NOW()
 			);
-			CREATE INDEX IF NOT EXISTS invite_codes_code_idx ON invite_codes (code)`)
+			-- code TEXT UNIQUE already creates the invite_codes_code_key index;
+			-- the old extra plain index on the same column was pure overhead.
+			DROP INDEX IF EXISTS invite_codes_code_idx`)
 		return err
 	})
 }
@@ -746,21 +749,31 @@ func ensureWeightGoalsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
-func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	// Base tables first (others depend on them)
-	if err := ensureBaseSchema(ctx, pool); err != nil {
-		return fmt.Errorf("base schema: %w", err)
-	}
+// migrationLockKey is the application-scoped pg_advisory_lock key that
+// serializes schema migrations across replicas. Multiple pods starting at
+// once (rolling deploy, scale-up) would otherwise race conflicting DDL:
+// concurrent CREATE TABLE IF NOT EXISTS fails with "duplicate key value
+// violates unique constraint pg_type_typname_nsp_index", and concurrent
+// ALTER TABLE users deadlocks. The value is arbitrary but must stay stable
+// forever — during a rolling deploy old and new pods run side by side and
+// must agree on the key. It spells "schautra" ("schautrack" truncated to
+// eight bytes) in ASCII.
+const migrationLockKey int64 = 0x7363686175747261
 
-	// Parallel migrations
-	type migrationResult struct {
-		name string
-		err  error
-	}
-	migrations := []struct {
-		name string
-		fn   func(context.Context, *pgxpool.Pool) error
-	}{
+type migrationStep struct {
+	name string
+	fn   func(context.Context, *pgxpool.Pool) error
+}
+
+// migrationSteps returns every schema and data migration in execution order.
+// Order matters:
+//   - "base" creates users, calorie_entries, and "session"; every migration
+//     below either REFERENCES users or ALTERs one of these tables.
+//   - the trailing data migrations read columns created by "macros"
+//     (macro_goals, macros_enabled), so they must run after it.
+func migrationSteps() []migrationStep {
+	return []migrationStep{
+		{"base", ensureBaseSchema},
 		{"account_links", ensureAccountLinksSchema},
 		{"weight_entries", ensureWeightEntriesSchema},
 		{"user_prefs", ensureUserPrefsSchema},
@@ -777,43 +790,57 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"saved_foods", ensureSavedFoodsSchema},
 		{"body_profile", ensureBodyProfileSchema},
 		{"weight_goals", ensureWeightGoalsSchema},
+		{"todos", ensureTodosSchema},
+		{"daily_notes", ensureDailyNotesSchema},
+		{"backup_codes", ensureBackupCodesSchema},
+		{"invite", ensureInviteSchema},
+		// Data migrations (depend on columns created by "macros")
+		{"calorie_goal_to_macro_goals", migrateCalorieGoalToMacroGoals},
+		{"auto_calc_calories", migrateAutoCalcCalories},
+	}
+}
+
+func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+	// Advisory locks are session-scoped: lock and unlock must happen on the
+	// same underlying connection, so hold a dedicated one for the whole run.
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire connection for migration lock: %w", err)
 	}
 
-	results := make(chan migrationResult, len(migrations))
-	for _, m := range migrations {
-		go func(name string, fn func(context.Context, *pgxpool.Pool) error) {
-			results <- migrationResult{name: name, err: fn(ctx, pool)}
-		}(m.name, m.fn)
+	// pg_advisory_lock blocks until the lock is free, so a replica that loses
+	// the race simply waits here while the winner migrates, then re-runs the
+	// (idempotent) migrations itself against the finished schema.
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLockKey); err != nil {
+		conn.Release()
+		return fmt.Errorf("acquire migration advisory lock: %w", err)
 	}
+	defer func() {
+		// Unlock on a fresh context so a canceled ctx can't skip the unlock.
+		unlockCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if _, err := conn.Exec(unlockCtx, `SELECT pg_advisory_unlock($1)`, migrationLockKey); err != nil {
+			// A pooled connection still holding the lock would block every
+			// replica's migrations until this process exits. Close it so the
+			// server releases the lock; Release then destroys it instead of
+			// returning it to the pool.
+			log.Printf("failed to release migration advisory lock, closing connection: %v", err)
+			conn.Conn().Close(unlockCtx)
+		}
+		conn.Release()
+	}()
 
-	for range migrations {
-		r := <-results
-		if r.err != nil {
-			return fmt.Errorf("migration %s: %w", r.name, r.err)
+	// Migrations run SEQUENTIALLY, on purpose. They used to run in parallel
+	// goroutines, but five of them ALTER TABLE users in separate transactions,
+	// and ensureOIDCAccountsSchema first takes SHARE ROW EXCLUSIVE on users
+	// (CREATE TABLE ... REFERENCES users) and then upgrades to ACCESS
+	// EXCLUSIVE (ALTER TABLE users) — a lock-upgrade deadlock against any
+	// queued ACCESS EXCLUSIVE from a sibling goroutine. The parallelism saved
+	// negligible startup time.
+	for _, m := range migrationSteps() {
+		if err := m.fn(ctx, pool); err != nil {
+			return fmt.Errorf("migration %s: %w", m.name, err)
 		}
 	}
-
-	// Dependent migrations
-	if err := ensureTodosSchema(ctx, pool); err != nil {
-		return fmt.Errorf("todos schema: %w", err)
-	}
-	if err := ensureDailyNotesSchema(ctx, pool); err != nil {
-		return fmt.Errorf("daily_notes schema: %w", err)
-	}
-	if err := ensureBackupCodesSchema(ctx, pool); err != nil {
-		return fmt.Errorf("backup_codes schema: %w", err)
-	}
-	if err := ensureInviteSchema(ctx, pool); err != nil {
-		return fmt.Errorf("invite schema: %w", err)
-	}
-
-	// Data migrations
-	if err := migrateCalorieGoalToMacroGoals(ctx, pool); err != nil {
-		return fmt.Errorf("calorie goal migration: %w", err)
-	}
-	if err := migrateAutoCalcCalories(ctx, pool); err != nil {
-		return fmt.Errorf("auto calc calories migration: %w", err)
-	}
-
 	return nil
 }
