@@ -28,7 +28,7 @@ export default function BottomNav() {
           key={item.to}
           to={item.to}
           className={({ isActive }) => cn(
-            'relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] no-underline transition-colors',
+            'relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 font-display text-[10px] no-underline transition-colors',
             isActive ? 'font-bold text-primary' : 'text-muted-foreground',
           )}
         >

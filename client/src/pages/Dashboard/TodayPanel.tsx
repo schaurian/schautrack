@@ -30,8 +30,10 @@ export default function TodayPanel({
     );
   }
 
+  // The day dial: calories is the daily budget, so it gets the large ring;
+  // macros orbit as smaller satellites. Sweeps stagger in left to right.
   return (
-    <section className="flex flex-wrap items-start justify-center gap-x-4 gap-y-4 py-2 sm:gap-x-6">
+    <section className="flex flex-wrap items-center justify-center gap-x-4 gap-y-4 py-2 sm:gap-x-6">
       {caloriesEnabled && (
         <Ring
           macroKey="kcal"
@@ -40,9 +42,10 @@ export default function TodayPanel({
           goal={dailyGoal}
           unit="kcal"
           status={calorieStatus}
+          size={104}
         />
       )}
-      {enabledMacros.map((key) => (
+      {enabledMacros.map((key, i) => (
         <Ring
           key={key}
           macroKey={key}
@@ -51,6 +54,8 @@ export default function TodayPanel({
           goal={macroGoals[key] ?? null}
           unit="g"
           status={macroStatuses[key] || { statusClass: '', statusText: '' }}
+          size={64}
+          delay={120 + i * 90}
         />
       ))}
     </section>

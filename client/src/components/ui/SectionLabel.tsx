@@ -8,7 +8,7 @@ export function SectionLabel({ children, right, className }: {
 }) {
   return (
     <div className={cn('flex items-center justify-between gap-2 px-1 pb-1.5 pt-4', className)}>
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{children}</h3>
+      <h3 className="font-display text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{children}</h3>
       {right}
     </div>
   );

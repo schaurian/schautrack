@@ -117,7 +117,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-2">
       <header className="flex items-center justify-between px-1 pt-1">
-        <h2 className="text-[22px] font-extrabold tracking-tight">
+        <h2 className="font-display text-[22px] font-bold tracking-tight">
           {selectedDate === dashboard.todayStr ? t('dashboard.todayLabel') : selectedDate}
         </h2>
         {/* Ghost date pill: the real (transparent) input sits on top so the

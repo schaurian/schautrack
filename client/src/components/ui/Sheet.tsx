@@ -48,7 +48,7 @@ export function Sheet({ open, onClose, title, children }: {
         )}
       >
         <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-border lg:hidden" aria-hidden="true" />
-        {title && <h2 className="mb-3 text-base font-bold">{title}</h2>}
+        {title && <h2 className="mb-3 font-display text-base font-bold">{title}</h2>}
         {children}
       </div>
     </div>,

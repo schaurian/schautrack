@@ -21,7 +21,7 @@ export default function Sidebar() {
           <img src="/logo-128.webp" alt="" width={40} height={40} decoding="async" className="block h-full w-full object-cover" />
         </div>
         <div className="flex flex-col leading-none">
-          <span className="text-[16px] font-bold tracking-tight">{t('app.name')}</span>
+          <span className="font-display text-[16px] font-bold tracking-tight">{t('app.name')}</span>
           <span className="text-[12px] text-muted-foreground">{t('header.tagline')}</span>
         </div>
       </Link>

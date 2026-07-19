@@ -16,7 +16,9 @@ const LABEL_COLORS: Record<string, string> = {
 // mount, colored by MacroStatus (green/amber/red) falling back to the macro
 // color. Without a goal there is no progress semantics — just a hairline
 // circle with the value, so untargeted metrics stay quiet.
-export function Ring({ value, goal, unit, label, macroKey, status, size = 76 }: {
+// `delay` staggers the sweep so the Today dial loads as one orchestrated
+// moment (calories first, then each macro).
+export function Ring({ value, goal, unit, label, macroKey, status, size = 76, delay = 0 }: {
   value: number;
   goal: number | null;
   unit: string;
@@ -24,12 +26,13 @@ export function Ring({ value, goal, unit, label, macroKey, status, size = 76 }: 
   macroKey: string;
   status: MacroStatus;
   size?: number;
+  delay?: number;
 }) {
-  // Default size fits four rings across a 390px viewport (4×76 + 3×16 gap).
   const hasGoal = goal != null && goal > 0;
   const pct = hasGoal ? ringProgress(value, goal) : 0;
   const color = ringColor(status.statusClass, macroKey);
-  const strokeWidth = 6;
+  const large = size >= 90;
+  const strokeWidth = large ? 7 : 5.5;
   const r = (size - strokeWidth - 4) / 2; // 4px breathing room for the glow
   const circumference = 2 * Math.PI * r;
 
@@ -68,21 +71,29 @@ export function Ring({ value, goal, unit, label, macroKey, status, size = 76 }: 
               strokeDashoffset={dashOffset}
               style={{
                 filter: `drop-shadow(0 0 5px ${color})`,
-                transition: 'stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1)',
+                transition: `stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms`,
               }}
             />
           )}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-          <span className={cn('text-[16px] font-extrabold tabular-nums', !hasGoal && (LABEL_COLORS[macroKey] || 'text-primary'))}>{value}</span>
+          <span className={cn(
+            'font-display font-bold tabular-nums',
+            large ? 'text-[22px]' : 'text-[14px]',
+            !hasGoal && (LABEL_COLORS[macroKey] || 'text-primary'),
+          )}>{value}</span>
           {hasGoal && (
-            <span className="mt-0.5 text-[9px] tabular-nums text-muted-foreground">
+            <span className={cn('mt-0.5 tabular-nums text-muted-foreground', large ? 'text-[10px]' : 'text-[8.5px]')}>
               /{goal}{unit !== 'kcal' ? unit : ''}
             </span>
           )}
         </div>
       </div>
-      <span className={cn('mt-1.5 text-[10px] font-bold uppercase tracking-[0.12em]', LABEL_COLORS[macroKey] || 'text-primary')}>
+      <span className={cn(
+        'mt-1.5 font-display font-bold uppercase tracking-[0.12em]',
+        large ? 'text-[10.5px]' : 'text-[9.5px]',
+        LABEL_COLORS[macroKey] || 'text-primary',
+      )}>
         {label}
       </span>
     </div>
