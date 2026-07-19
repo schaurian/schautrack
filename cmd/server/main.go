@@ -226,11 +226,11 @@ func main() {
 
 	// Plan routes (weight-loss planner)
 	planHandler := &handler.PlanHandler{Pool: pool, Broker: sseBroker}
-	r.With(middleware.RequireLogin).Get("/plan", planHandler.Get)
-	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/plan/metrics", planHandler.UpdateMetrics)
-	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/plan/goal", planHandler.UpsertGoal)
-	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/plan/goal/apply-budget", planHandler.ApplyBudget)
-	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/plan/goal/abandon", planHandler.AbandonGoal)
+	r.With(middleware.RequireLogin).Get("/api/plan", planHandler.Get)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/api/plan/metrics", planHandler.UpdateMetrics)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/api/plan/goal", planHandler.UpsertGoal)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/goal/apply-budget", planHandler.ApplyBudget)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/goal/abandon", planHandler.AbandonGoal)
 
 	// Settings routes
 	settingsHandler := &handler.SettingsHandler{Pool: pool, Broker: sseBroker, AIKeyEncryptSecret: cfg.AIKeyEncryptSecret, TrustProxy: cfg.TrustProxy}
