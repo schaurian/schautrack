@@ -95,3 +95,24 @@ func TestLinkStateDefaults(t *testing.T) {
 		t.Errorf("Outgoing should be empty, got %d", len(state.Outgoing))
 	}
 }
+
+func TestSanitizeShareMap(t *testing.T) {
+	got := SanitizeShareMap(map[string]bool{
+		"nutrition": true,
+		"todos":     true,
+		"bogus":     true, // unknown key must be dropped
+		// weight, notes omitted -> must default false
+	})
+	want := map[string]bool{"nutrition": true, "weight": false, "todos": true, "notes": false}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d (map=%v)", len(got), len(want), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("key %q = %v, want %v", k, got[k], v)
+		}
+	}
+	if _, ok := got["bogus"]; ok {
+		t.Errorf("unknown key was not dropped: %v", got)
+	}
+}
