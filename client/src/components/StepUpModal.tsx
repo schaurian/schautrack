@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useStepUpStore } from '@/stores/stepUpStore';
@@ -21,6 +22,7 @@ import { Alert } from '@/components/ui/Alert';
 // modal's password field instead — a hand-rolled overlay with z-index alone
 // leaves the background DOM scannable, so autofill targets the wrong input.
 export default function StepUpModal() {
+  const { t } = useTranslation('common');
   const pending = useStepUpStore((s) => s.pending);
   const clear = useStepUpStore((s) => s.clear);
   const userEmail = useAuthStore((s) => s.user?.email);
@@ -60,7 +62,7 @@ export default function StepUpModal() {
       await pending.retry();
       clear();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Step-up failed');
+      setError(err instanceof ApiError ? err.message : t('stepUp.errors.stepUpFailed'));
       setLoading(null);
     }
   };
@@ -77,7 +79,7 @@ export default function StepUpModal() {
       await pending.retry();
       clear();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Passkey step-up failed');
+      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : t('stepUp.errors.passkeyFailed'));
       setLoading(null);
     }
   };
@@ -104,9 +106,9 @@ export default function StepUpModal() {
         <Dialog.Content
           className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-card p-6 text-card-foreground shadow-lg focus:outline-none"
         >
-          <Dialog.Title className="text-base font-semibold mb-1">Confirm it's you</Dialog.Title>
+          <Dialog.Title className="text-base font-semibold mb-1">{t('stepUp.title')}</Dialog.Title>
           <Dialog.Description className="text-sm text-muted-foreground mb-4">
-            This change requires fresh authentication.
+            {t('stepUp.description')}
           </Dialog.Description>
 
           {error && <Alert type="error" message={error} className="mb-4" />}
@@ -114,7 +116,7 @@ export default function StepUpModal() {
           {noMethods && (
             <Alert
               type="error"
-              message="No re-authentication method available. Log out and back in to make this change, or set a password / add a passkey first."
+              message={t('stepUp.noMethods')}
               className="mb-4"
             />
           )}
@@ -127,7 +129,7 @@ export default function StepUpModal() {
               loading={loading === 'passkey'}
               disabled={loading !== null}
             >
-              Use passkey
+              {t('stepUp.usePasskey')}
             </Button>
           )}
 
@@ -143,7 +145,7 @@ export default function StepUpModal() {
                 <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
               )}
-              Continue with {authInfo.oidc.label}
+              {t('stepUp.continueWith', { provider: authInfo.oidc.label })}
             </Button>
           )}
 
@@ -151,7 +153,7 @@ export default function StepUpModal() {
             <div className="relative my-3">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
+                <span className="bg-card px-2 text-muted-foreground">{t('stepUp.or')}</span>
               </div>
             </div>
           )}
@@ -173,7 +175,7 @@ export default function StepUpModal() {
                 hidden
               />
               <Input
-                label="Password"
+                label={t('stepUp.password')}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -183,18 +185,18 @@ export default function StepUpModal() {
               />
               {pending?.totpRequired && (
                 <Input
-                  label="2FA Code"
+                  label={t('stepUp.totpLabel')}
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   inputMode="numeric"
                   maxLength={8}
-                  placeholder="6-digit code or backup code"
+                  placeholder={t('stepUp.totpPlaceholder')}
                   required
                   autoComplete="one-time-code"
                 />
               )}
               <Button type="submit" className="w-full" loading={loading === 'password'} disabled={loading !== null}>
-                Continue
+                {t('stepUp.continue')}
               </Button>
             </form>
           )}
@@ -206,7 +208,7 @@ export default function StepUpModal() {
               size="sm"
               className="mt-3 w-full border border-border hover:border-foreground/40"
             >
-              Cancel
+              {t('stepUp.cancel')}
             </Button>
           </Dialog.Close>
         </Dialog.Content>

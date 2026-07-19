@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -12,7 +13,9 @@ interface Props {
 const MIN_DEFAULT = 1;
 const MAX_DEFAULT = 99;
 
-export function QuantityStepper({ value, onChange, min = MIN_DEFAULT, max = MAX_DEFAULT, className, label = 'Quantity' }: Props) {
+export function QuantityStepper({ value, onChange, min = MIN_DEFAULT, max = MAX_DEFAULT, className, label }: Props) {
+  const { t } = useTranslation('common');
+  const resolvedLabel = label ?? t('quantityStepper.label');
   const clamp = (n: number) => Math.max(min, Math.min(max, Math.trunc(n)));
   const dec = () => onChange(clamp(value - 1));
   const inc = () => onChange(clamp(value + 1));
@@ -22,7 +25,7 @@ export function QuantityStepper({ value, onChange, min = MIN_DEFAULT, max = MAX_
   return (
     <div
       role="group"
-      aria-label={label}
+      aria-label={resolvedLabel}
       className={cn(
         'inline-flex h-9 select-none items-stretch overflow-hidden rounded-md border border-input bg-muted/50',
         className,
@@ -32,7 +35,7 @@ export function QuantityStepper({ value, onChange, min = MIN_DEFAULT, max = MAX_
         type="button"
         onClick={dec}
         disabled={atMin}
-        aria-label="Decrease quantity"
+        aria-label={t('quantityStepper.decrease')}
         className="px-3 text-foreground/80 transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed cursor-pointer bg-transparent"
       >
         −
@@ -44,7 +47,7 @@ export function QuantityStepper({ value, onChange, min = MIN_DEFAULT, max = MAX_
         type="button"
         onClick={inc}
         disabled={atMax}
-        aria-label="Increase quantity"
+        aria-label={t('quantityStepper.increase')}
         className="px-3 text-foreground/80 transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed cursor-pointer bg-transparent"
       >
         +

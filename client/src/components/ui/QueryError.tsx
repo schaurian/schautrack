@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert } from './Alert';
 import { Button } from './Button';
 
@@ -30,19 +31,20 @@ interface QueryErrorProps {
  * Shows an offline hint via navigator.onLine and a Retry button.
  */
 export function QueryError({ error, onRetry, retrying }: QueryErrorProps) {
+  const { t } = useTranslation('common');
   // Re-render when connectivity changes so the hint stays accurate.
   const online = useSyncExternalStore(subscribe, getOnline, () => true);
   const message = online
     ? error instanceof Error && error.message
       ? error.message
-      : "Couldn't load this page. Please try again."
-    : "You appear to be offline. Check your connection and try again.";
+      : t('queryError.generic')
+    : t('queryError.offline');
 
   return (
     <div className="flex flex-col items-center gap-4 py-12 text-center">
       <Alert type="error" message={message} className="max-w-sm" />
       <Button variant="outline" onClick={onRetry} loading={retrying}>
-        Retry
+        {t('queryError.retry')}
       </Button>
     </div>
   );

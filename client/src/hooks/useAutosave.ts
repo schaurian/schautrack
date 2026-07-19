@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useToastStore } from '@/stores/toastStore';
+import i18n from '@/i18n';
 
 /**
  * Auto-save hook. Calls `saveFn` after `delay`ms of no changes.
@@ -37,7 +38,7 @@ export function useAutosave<T>(
       savedTimerRef.current = setTimeout(() => setStatus('idle'), 2000);
     } catch (err) {
       setStatus('error');
-      addToast('error', err instanceof Error ? err.message : 'Failed to save');
+      addToast('error', err instanceof Error ? err.message : i18n.t('errors.failedToSave', { ns: 'common' }));
     }
     savingRef.current = false;
     if (pendingRef.current) {

@@ -1,3 +1,82 @@
 {
-  "footer": { "tagline": "One day at a time" }
+  "app": {
+    "name": "Schautrack",
+    "loading": "Loading..."
+  },
+  "header": {
+    "tagline": "Every day counts",
+    "toggleMenu": "Toggle menu"
+  },
+  "nav": {
+    "admin": "Admin",
+    "dashboard": "Dashboard",
+    "plan": "Plan",
+    "settings": "Settings",
+    "pendingLinkRequests": "{{n}} pending link requests",
+    "logout": "Logout",
+    "login": "Login",
+    "register": "Register"
+  },
+  "footer": {
+    "tagline": "One day at a time",
+    "imprint": "Imprint",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "androidApp": "Get the Android app",
+    "updateAvailable": "Update available — click to view",
+    "viewOnGithub": "View on GitHub"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "unexpectedError": "An unexpected error occurred.",
+    "reload": "Reload Page"
+  },
+  "stepUp": {
+    "title": "Confirm it's you",
+    "description": "This change requires fresh authentication.",
+    "noMethods": "No re-authentication method available. Log out and back in to make this change, or set a password / add a passkey first.",
+    "usePasskey": "Use passkey",
+    "continueWith": "Continue with {{provider}}",
+    "or": "or",
+    "password": "Password",
+    "totpLabel": "2FA Code",
+    "totpPlaceholder": "6-digit code or backup code",
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "errors": {
+      "stepUpFailed": "Step-up failed",
+      "passkeyFailed": "Passkey step-up failed"
+    }
+  },
+  "quantityStepper": {
+    "label": "Quantity",
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
+  },
+  "queryError": {
+    "generic": "Couldn't load this page. Please try again.",
+    "offline": "You appear to be offline. Check your connection and try again.",
+    "retry": "Retry"
+  },
+  "toaster": {
+    "dismiss": "Dismiss"
+  },
+  "errors": {
+    "failedToSave": "Failed to save"
+  },
+  "notifications": {
+    "linkRequestWantsToLink": "{{email}} wants to link with you"
+  },
+  "macros": {
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "fiber": "Fiber",
+    "sugar": "Sugar",
+    "noGoalSet": "No goal set",
+    "goalMet": "Goal met",
+    "overTarget": "{{amount}} over target",
+    "remaining": "{{amount}} remaining",
+    "over": "{{amount}} over"
+  }
 }

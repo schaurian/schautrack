@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { useToastStore } from '@/stores/toastStore';
 import { cn } from '@/lib/utils';
 
 export default function Toaster() {
+  const { t } = useTranslation('common');
   const { toasts, removeToast, pauseToast, resumeToast } = useToastStore();
 
   // The live-region container is always rendered so screen readers observe it
@@ -46,7 +48,7 @@ export default function Toaster() {
           )}
           <button
             type="button"
-            aria-label="Dismiss"
+            aria-label={t('toaster.dismiss')}
             className="bg-transparent border-0 text-muted-foreground hover:text-foreground cursor-pointer text-lg leading-none p-0"
             onClick={() => removeToast(toast.id)}
           >&times;</button>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
+import i18n from '@/i18n';
 
 export function useSSE() {
   const queryClient = useQueryClient();
@@ -44,7 +45,7 @@ export function useSSE() {
         try {
           const data = JSON.parse((e as MessageEvent).data);
           if (data.type === 'request' && data.email) {
-            addToast('info', `${data.email} wants to link with you`);
+            addToast('info', i18n.t('notifications.linkRequestWantsToLink', { ns: 'common', email: data.email }));
           }
         } catch { /* ignore parse errors */ }
       });

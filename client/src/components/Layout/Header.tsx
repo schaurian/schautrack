@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
@@ -7,6 +8,7 @@ import { logout } from '@/api/auth';
 import { cn } from '@/lib/utils';
 
 export default function Header() {
+  const { t } = useTranslation('common');
   const { user, isAdmin, pendingLinkRequests, clearUser } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -49,8 +51,8 @@ export default function Header() {
             <img src="/logo-128.webp" alt="" width={48} height={48} decoding="async" className="w-full h-full object-cover block" />
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-[18px] font-bold tracking-tight">Schautrack</span>
-            <span className="text-[13px] text-muted-foreground">Every day counts</span>
+            <span className="text-[18px] font-bold tracking-tight">{t('app.name')}</span>
+            <span className="text-[13px] text-muted-foreground">{t('header.tagline')}</span>
           </div>
         </Link>
 
@@ -60,7 +62,7 @@ export default function Header() {
               type="button"
               className="relative z-[102] flex items-center justify-center p-2 md:hidden text-foreground"
               onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Toggle menu"
+              aria-label={t('header.toggleMenu')}
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
             >
@@ -82,27 +84,27 @@ export default function Header() {
             )}>
               {isAdmin && (
                 <Link to="/admin" onClick={() => setMenuOpen(false)} className={navClass('/admin')}>
-                  Admin
+                  {t('nav.admin')}
                 </Link>
               )}
               <Link to="/dashboard" onClick={() => setMenuOpen(false)} className={navClass('/dashboard')}>
-                Dashboard
+                {t('nav.dashboard')}
               </Link>
               <Link to="/plan" onClick={() => setMenuOpen(false)} className={navClass('/plan')}>
-                Plan
+                {t('nav.plan')}
               </Link>
               <Link to="/settings" onClick={() => setMenuOpen(false)} className={cn(navClass('/settings'), 'relative')}>
-                Settings
+                {t('nav.settings')}
                 {pendingLinkRequests > 0 && (
                   <>
                     <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0ea5e9] max-md:top-4 max-md:right-3" aria-hidden="true" />
-                    <span className="sr-only">{pendingLinkRequests} pending link requests</span>
+                    <span className="sr-only">{t('nav.pendingLinkRequests', { n: pendingLinkRequests })}</span>
                   </>
                 )}
               </Link>
               <button type="button" onClick={handleLogout}
                 className="cursor-pointer rounded-md border-none bg-transparent px-3 py-2 text-left text-base font-inherit text-foreground transition-colors hover:bg-surface-hover max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
-                Logout
+                {t('nav.logout')}
               </button>
             </nav>
 
@@ -114,11 +116,11 @@ export default function Header() {
           <nav className="flex items-center gap-1">
             <Link to="/login"
               className="rounded-md px-3 py-2 text-base text-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
-              Login
+              {t('nav.login')}
             </Link>
             <Link to="/register"
               className="rounded-md px-3 py-2 text-base text-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
-              Register
+              {t('nav.register')}
             </Link>
           </nav>
         )}

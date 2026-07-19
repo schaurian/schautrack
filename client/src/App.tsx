@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboardStore } from '@/stores/dashboardStore';
@@ -60,11 +61,12 @@ function SSEProvider() {
 }
 
 function LoadingScreen() {
+  const { t } = useTranslation('common');
   return (
     <div className="flex h-screen items-center justify-center bg-background text-foreground">
       <div className="text-center">
-        <div className="text-2xl font-semibold">Schautrack</div>
-        <div className="mt-2 text-muted-foreground">Loading...</div>
+        <div className="text-2xl font-semibold">{t('app.name')}</div>
+        <div className="mt-2 text-muted-foreground">{t('app.loading')}</div>
       </div>
     </div>
   );
