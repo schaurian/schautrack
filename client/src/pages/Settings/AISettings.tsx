@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { User } from '@/types';
 import { saveAiSettings } from '@/api/settings';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function AISettings({ user, onSave }: Props) {
+  const { t } = useTranslation('settings');
   const [provider, setProvider] = useState(user.preferredAiProvider || '');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(user.aiModel || '');
@@ -45,9 +47,9 @@ export default function AISettings({ user, onSave }: Props) {
       await saveAiSettings({ ai_provider: provider, ai_key: key, ai_model: model });
       setApiKey('');
       onSave();
-      addToast('success', 'API key saved');
+      addToast('success', t('ai.keySaved'));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to save API key');
+      addToast('error', err instanceof Error ? err.message : t('ai.keySaveFailed'));
     }
     setKeySaving(false);
   };
@@ -58,38 +60,38 @@ export default function AISettings({ user, onSave }: Props) {
       await saveAiSettings({ clear_settings: 'true' });
       setProvider(''); setModel(''); setApiKey('');
       onSave();
-      addToast('success', 'AI settings cleared');
+      addToast('success', t('ai.settingsCleared'));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to clear AI settings');
+      addToast('error', err instanceof Error ? err.message : t('ai.clearFailed'));
     }
     setLoading(false);
   };
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-3">AI Settings</h3>
+      <h3 className="text-sm font-semibold mb-3">{t('ai.heading')}</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider</label>
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('ai.provider')}</label>
           <select value={provider} onChange={(e) => setProvider(e.target.value)} className={selectClass}>
-            <option value="">Default</option>
+            <option value="">{t('ai.providerDefault')}</option>
             <option value="openai">OpenAI</option>
             <option value="claude">Claude</option>
             <option value="ollama">Ollama</option>
           </select>
         </div>
-        <Input label="Model (optional)" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. gpt-4o" />
-        <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+        <Input label={t('ai.modelLabel')} value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('ai.modelPlaceholder')} />
+        <Input label={t('ai.apiKeyLabel')} type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
           onBlur={handleKeyBlur} disabled={keySaving}
-          placeholder={user.hasAiKey ? `\u2022\u2022\u2022\u2022${user.aiKeyLast4}` : 'Enter API key'} />
+          placeholder={user.hasAiKey ? t('ai.apiKeyMaskedPlaceholder', { last4: user.aiKeyLast4 }) : t('ai.apiKeyPlaceholder')} />
         {!user.hasAiKey && user.hasGlobalAiKey && (
-          <p className="text-xs text-muted-foreground">A global API key is configured. AI features work without setting your own key.</p>
+          <p className="text-xs text-muted-foreground">{t('ai.globalKeyNotice')}</p>
         )}
       </div>
       <div className="border-t border-border pt-3 mt-3 flex flex-col gap-2">
-        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse text-right">Saving...</span>}
-        {status === 'saved' && <span className="text-xs text-green-400 text-right">Saved</span>}
-        <Button type="button" variant="destructive" className="w-full" onClick={handleClear} loading={loading}>Clear All</Button>
+        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse text-right">{t('status.saving')}</span>}
+        {status === 'saved' && <span className="text-xs text-green-400 text-right">{t('status.saved')}</span>}
+        <Button type="button" variant="destructive" className="w-full" onClick={handleClear} loading={loading}>{t('ai.clearAll')}</Button>
       </div>
     </Card>
   );

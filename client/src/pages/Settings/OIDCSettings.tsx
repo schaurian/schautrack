@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { getAuthInfo, type AuthInfo } from '@/api/passkeys';
 import { useAuthStore } from '@/stores/authStore';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function OIDCSettings({ linked, onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
   const addToast = useToastStore((s) => s.addToast);
   const fetchUser = useAuthStore((s) => s.fetchUser);
@@ -26,30 +28,30 @@ export default function OIDCSettings({ linked, onUpdate }: Props) {
   };
 
   const handleUnlink = async () => {
-    if (!confirm(`Unlink ${oidc.label}?`)) return;
+    if (!confirm(t('oidc.unlinkConfirm', { label: oidc.label }))) return;
     try {
       const settingsData = await api<{ oidcAccounts?: { id: number; provider: string }[] }>('/api/settings');
       const account = settingsData.oidcAccounts?.[0];
       if (!account) {
-        addToast('error', 'Account not found');
+        addToast('error', t('oidc.accountNotFound'));
         return;
       }
       await api('/settings/oidc/unlink', {
         method: 'POST',
         body: JSON.stringify({ id: account.id }),
       });
-      addToast('success', `${oidc.label} unlinked`);
+      addToast('success', t('oidc.unlinked', { label: oidc.label }));
       fetchUser();
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to unlink');
+      addToast('error', err instanceof Error ? err.message : t('oidc.unlinkFailed'));
     }
   };
 
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">Single Sign-On</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('oidc.heading')}</h3>
       </div>
       <div className="p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
@@ -65,14 +67,14 @@ export default function OIDCSettings({ linked, onUpdate }: Props) {
               className="text-xs text-destructive hover:text-destructive/80 cursor-pointer bg-transparent border-0 p-1 transition-colors"
               onClick={handleUnlink}
             >
-              Unlink
+              {t('oidc.unlink')}
             </button>
           ) : (
             <button
               className="text-xs text-primary hover:text-primary/80 cursor-pointer bg-transparent border-0 p-1 transition-colors"
               onClick={handleLink}
             >
-              Link
+              {t('oidc.link')}
             </button>
           )}
         </div>

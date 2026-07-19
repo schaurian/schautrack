@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toggleNotesEnabled } from '@/api/notes';
 import type { User } from '@/types';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function NoteSettings({ user, onSave }: Props) {
+  const { t } = useTranslation('settings');
   const addToast = useToastStore((s) => s.addToast);
   const [enabled, setEnabled] = useState(user.notesEnabled);
   const [toggling, setToggling] = useState(false);
@@ -22,7 +24,7 @@ export default function NoteSettings({ user, onSave }: Props) {
       setEnabled(newEnabled);
       onSave();
     } catch {
-      addToast('error', 'Failed to update setting');
+      addToast('error', t('note.toggleFailed'));
     }
     setToggling(false);
   };
@@ -30,7 +32,7 @@ export default function NoteSettings({ user, onSave }: Props) {
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Daily Notes</h3>
+        <h3 className="text-sm font-semibold">{t('note.heading')}</h3>
         <button
           type="button"
           onClick={handleToggle}
@@ -45,7 +47,7 @@ export default function NoteSettings({ user, onSave }: Props) {
         </button>
       </div>
       {enabled && (
-        <p className="text-xs text-muted-foreground mt-2">Write a daily note on the dashboard for any date.</p>
+        <p className="text-xs text-muted-foreground mt-2">{t('note.description')}</p>
       )}
     </Card>
   );

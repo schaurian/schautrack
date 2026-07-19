@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { setup2fa, enable2fa, disable2fa, regenerateBackupCodes } from '@/api/settings';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   const [setupData, setSetupData] = useState<{ qrDataUrl: string; secret: string } | null>(null);
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
@@ -30,7 +32,7 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
         setSetupData({ qrDataUrl: res.qrDataUrl, secret: res.secret });
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Setup failed.');
+      setError(err instanceof ApiError ? err.message : t('twofa.setupFailed'));
     }
     setLoading(false);
   };
@@ -46,16 +48,16 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
         setToken('');
         if (res.backupCodes) {
           setBackupCodes(res.backupCodes);
-          setSuccess('2FA enabled. Save your backup codes below.');
+          setSuccess(t('twofa.enabledWithCodes'));
         } else {
-          setSuccess('2FA enabled successfully.');
+          setSuccess(t('twofa.enabledSuccess'));
         }
         onUpdate();
       } else {
-        setError(res.error || 'Invalid code.');
+        setError(res.error || t('twofa.invalidCode'));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to enable 2FA.');
+      setError(err instanceof ApiError ? err.message : t('twofa.enableFailed'));
     }
     setLoading(false);
   };
@@ -67,14 +69,14 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
     try {
       const res = await disable2fa();
       if (res.ok) {
-        setSuccess('2FA disabled.');
+        setSuccess(t('twofa.disabled'));
         setBackupCodes(null);
         onUpdate();
       } else {
-        setError(res.error || 'Failed to disable 2FA.');
+        setError(res.error || t('twofa.disableFailed'));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to disable 2FA.');
+      setError(err instanceof ApiError ? err.message : t('twofa.disableFailed'));
     }
     setLoading(false);
   };
@@ -86,12 +88,12 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
       const res = await regenerateBackupCodes();
       if (res.ok && res.backupCodes) {
         setBackupCodes(res.backupCodes);
-        setSuccess('New backup codes generated. Save them now.');
+        setSuccess(t('twofa.regenerated'));
       } else {
-        setError(res.error || 'Failed to regenerate codes.');
+        setError(res.error || t('twofa.regenerateFailed'));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to regenerate codes.');
+      setError(err instanceof ApiError ? err.message : t('twofa.regenerateFailed'));
     }
     setRegenLoading(false);
   };
@@ -133,15 +135,15 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
 
   return (
     <Card>
-      <h3 className="text-base font-semibold mb-4">Two-Factor Authentication</h3>
+      <h3 className="text-base font-semibold mb-4">{t('twofa.heading')}</h3>
       {error && <Alert type="error" message={error} />}
       {success && <Alert type="success" message={success} />}
 
       {backupCodes && (
         <div className="flex flex-col gap-3 mb-4 p-3 rounded-md border border-border bg-muted/20">
-          <p className="text-sm font-medium text-foreground">Backup Codes</p>
+          <p className="text-sm font-medium text-foreground">{t('twofa.backupCodesTitle')}</p>
           <p className="text-xs text-muted-foreground">
-            Save these codes somewhere safe. Each code can only be used once to sign in if you lose your authenticator.
+            {t('twofa.backupCodesDescription')}
           </p>
           <div className="grid grid-cols-2 gap-1">
             {backupCodes.map((code) => (
@@ -152,13 +154,13 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={handleCopyCodes}>
-              {copied ? 'Copied!' : 'Copy All'}
+              {copied ? t('twofa.copied') : t('twofa.copyAll')}
             </Button>
             <Button size="sm" variant="ghost" onClick={handleDownloadCodes}>
-              Download
+              {t('twofa.download')}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setBackupCodes(null)}>
-              Done
+              {t('twofa.done')}
             </Button>
           </div>
         </div>
@@ -167,11 +169,11 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
       {totpEnabled ? (
         <>
           <p className="text-muted-foreground text-sm mt-3 mb-3">
-            2FA is enabled on your account.
+            {t('twofa.enabledNotice')}
           </p>
           <div className="border-t border-border pt-3 mt-1">
             <Button type="button" variant="destructive" className="w-full" loading={loading} onClick={handleDisable}>
-              Disable 2FA
+              {t('twofa.disableButton')}
             </Button>
           </div>
 
@@ -182,16 +184,16 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
               disabled={regenLoading}
               className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
             >
-              {regenLoading ? 'Regenerating...' : 'Regenerate backup codes'}
+              {regenLoading ? t('twofa.regenerating') : t('twofa.regenerateBackupCodes')}
             </button>
           </div>
         </>
       ) : setupData ? (
         <div className="flex flex-col gap-3 items-center">
           <p className="text-muted-foreground text-sm text-center">
-            Scan this QR code with your authenticator app:
+            {t('twofa.scanQr')}
           </p>
-          <img src={setupData.qrDataUrl} alt="2FA QR Code" className="w-[200px] h-[200px] rounded-lg" />
+          <img src={setupData.qrDataUrl} alt={t('twofa.qrAlt')} className="w-[200px] h-[200px] rounded-lg" />
           <div className="flex items-center gap-2">
             <code className="text-xs text-muted-foreground bg-surface px-2 py-1 rounded break-all">
               {setupData.secret}
@@ -201,28 +203,28 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
               onClick={handleCopySecret}
               className="bg-transparent border-none text-primary cursor-pointer text-xs whitespace-nowrap"
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? t('twofa.copied') : t('twofa.copy')}
             </button>
           </div>
           <form onSubmit={handleEnable} className="flex flex-col gap-3 w-full">
             <Input
-              label="Verification Code"
+              label={t('twofa.verificationCodeLabel')}
               value={token}
               onChange={(e) => setToken(e.target.value)}
               inputMode="numeric"
               maxLength={6}
-              placeholder="Enter 6-digit code"
+              placeholder={t('twofa.verificationCodePlaceholder')}
               required
             />
             <div className="border-t border-border pt-3 mt-1 flex gap-2">
-              <Button type="button" variant="ghost" className="flex-1" onClick={handleCancel}>Cancel</Button>
-              <Button type="submit" className="flex-1" loading={loading}>Activate</Button>
+              <Button type="button" variant="ghost" className="flex-1" onClick={handleCancel}>{t('twofa.cancel')}</Button>
+              <Button type="submit" className="flex-1" loading={loading}>{t('twofa.activate')}</Button>
             </div>
           </form>
         </div>
       ) : (
         <div className="border-t border-border pt-3 mt-1">
-          <Button className="w-full" onClick={handleSetup} loading={loading}>Setup 2FA</Button>
+          <Button className="w-full" onClick={handleSetup} loading={loading}>{t('twofa.setupButton')}</Button>
         </div>
       )}
     </Card>

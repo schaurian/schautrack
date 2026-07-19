@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { listPasskeys, deletePasskey, renamePasskey, passkeyRegisterBegin, passkeyRegisterFinish, getAuthInfo, type Passkey, type AuthInfo } from '@/api/passkeys';
 import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/stores/toastStore';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function PasskeySettings({ onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   const [passkeys, setPasskeys] = useState<Passkey[]>([]);
   const [newName, setNewName] = useState('');
   const [registering, setRegistering] = useState(false);
@@ -38,19 +40,19 @@ export default function PasskeySettings({ onUpdate }: Props) {
   if (!authInfo.passkeysEnabled) return null;
 
   const handleRegister = async () => {
-    const name = newName.trim() || 'Passkey';
+    const name = newName.trim() || t('passkey.defaultName');
     setRegistering(true);
     try {
       const options = await passkeyRegisterBegin();
       const credential = await startRegistration({ optionsJSON: options as any });
       await passkeyRegisterFinish(credential as any, name);
-      addToast('success', 'Passkey registered');
+      addToast('success', t('passkey.registered'));
       setNewName('');
       refresh();
       fetchUser();
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Passkey registration failed');
+      addToast('error', err instanceof Error ? err.message : t('passkey.registerFailed'));
     }
     setRegistering(false);
   };
@@ -59,10 +61,10 @@ export default function PasskeySettings({ onUpdate }: Props) {
     try {
       await deletePasskey(id);
       setPasskeys((prev) => prev.filter((p) => p.id !== id));
-      addToast('success', 'Passkey removed');
+      addToast('success', t('passkey.removed'));
       onUpdate();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to remove passkey');
+      addToast('error', err instanceof Error ? err.message : t('passkey.removeFailed'));
     }
   };
 
@@ -74,18 +76,18 @@ export default function PasskeySettings({ onUpdate }: Props) {
       setEditingId(null);
       refresh();
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : 'Failed to rename');
+      addToast('error', err instanceof Error ? err.message : t('passkey.renameFailed'));
     }
   };
 
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">Passkeys</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t('passkey.heading')}</h3>
       </div>
       <div className="p-4 flex flex-col gap-3">
         {passkeys.length === 0 && (
-          <p className="text-sm text-muted-foreground">No passkeys registered. Add one for passwordless login.</p>
+          <p className="text-sm text-muted-foreground">{t('passkey.empty')}</p>
         )}
 
         {passkeys.map((pk) => (
@@ -104,19 +106,19 @@ export default function PasskeySettings({ onUpdate }: Props) {
               <button
                 className="flex-1 min-w-0 truncate text-left text-sm text-foreground cursor-pointer bg-transparent border-0 p-0 hover:text-primary transition-colors"
                 onClick={() => { setEditingId(pk.id); setEditName(pk.name); }}
-                title="Click to rename"
+                title={t('passkey.renameTitle')}
               >
                 {pk.name}
               </button>
             )}
             <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
-              {pk.lastUsedAt ? `Used ${new Date(pk.lastUsedAt).toLocaleDateString()}` : 'Never used'}
+              {pk.lastUsedAt ? t('passkey.usedOn', { date: new Date(pk.lastUsedAt).toLocaleDateString() }) : t('passkey.neverUsed')}
             </span>
             <button
               className="text-xs text-destructive hover:text-destructive/80 cursor-pointer bg-transparent border-0 p-1 transition-colors"
               onClick={() => handleDelete(pk.id)}
             >
-              Remove
+              {t('passkey.remove')}
             </button>
           </div>
         ))}
@@ -125,20 +127,20 @@ export default function PasskeySettings({ onUpdate }: Props) {
           <div className="flex flex-col gap-2 mt-1">
             <input
               className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none focus:border-ring placeholder:text-muted-foreground/50"
-              placeholder="Passkey name (e.g., Phone, Laptop)"
+              placeholder={t('passkey.namePlaceholder')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               maxLength={50}
             />
             <Button size="default" loading={registering} disabled={!newName.trim()} onClick={handleRegister} className="w-full">
-              Add Passkey
+              {t('passkey.add')}
             </Button>
           </div>
         )}
 
         {passkeys.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {passkeys.length} of 10 passkeys used.
+            {t('passkey.countUsed', { count: passkeys.length })}
           </p>
         )}
       </div>

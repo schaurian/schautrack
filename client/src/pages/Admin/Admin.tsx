@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAdmin } from '@/hooks/useAuth';
 import { getAdminData, saveAdminSettings, deleteUser, createInvite, getInvites, deleteInvite } from '@/api/admin';
@@ -9,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import type { InviteCode } from '@/types';
 
 export default function Admin() {
+  const { t } = useTranslation('settings');
   const { isLoading: authLoading } = useRequireAdmin();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['admin'], queryFn: getAdminData });
@@ -18,12 +20,12 @@ export default function Admin() {
   }
 
   const handleDeleteUser = async (userId: number) => {
-    if (!confirm('Delete this user?')) return;
+    if (!confirm(t('admin.deleteUserConfirm'))) return;
     try {
       await deleteUser(userId);
       queryClient.invalidateQueries({ queryKey: ['admin'] });
     } catch (err) {
-      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to delete user');
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('admin.deleteUserFailed'));
     }
   };
 
@@ -46,6 +48,7 @@ const INITIAL_USERS = 25;
 const LOAD_MORE_BATCH = 25;
 
 function UserList({ users, onDelete }: { users: Array<{ id: number; email: string; email_verified: boolean; created_at: string }>; onDelete: (id: number) => void }) {
+  const { t } = useTranslation('settings');
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(INITIAL_USERS);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -77,13 +80,13 @@ function UserList({ users, onDelete }: { users: Array<{ id: number; email: strin
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold">Users ({filtered.length})</h3>
+        <h3 className="text-base font-semibold">{t('admin.usersHeading', { count: filtered.length })}</h3>
       </div>
       <input
         type="text"
         value={search}
         onChange={(e) => { setSearch(e.target.value); setShown(INITIAL_USERS); }}
-        placeholder="Search by email..."
+        placeholder={t('admin.searchPlaceholder')}
         className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring mb-3"
       />
       <div className="flex flex-col">
@@ -91,20 +94,20 @@ function UserList({ users, onDelete }: { users: Array<{ id: number; email: strin
           <div key={user.id} className="flex items-center gap-3 border-b border-border py-2 text-sm last:border-b-0">
             <span className="flex-1 font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</span>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {user.email_verified ? 'Verified' : 'Unverified'}
+              {user.email_verified ? t('admin.verified') : t('admin.unverified')}
               {' \u00B7 '}
               {new Date(user.created_at).toLocaleDateString()}
             </span>
-            <Button size="sm" variant="destructive" onClick={() => onDelete(user.id)}>Delete</Button>
+            <Button size="sm" variant="destructive" onClick={() => onDelete(user.id)}>{t('admin.delete')}</Button>
           </div>
         ))}
         {visible.length === 0 && (
-          <div className="py-4 text-center text-sm text-muted-foreground">No users found</div>
+          <div className="py-4 text-center text-sm text-muted-foreground">{t('admin.noUsersFound')}</div>
         )}
       </div>
       {hasMore && (
         <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">
-          Loading more&hellip;
+          {t('admin.loadingMore')}
         </div>
       )}
     </Card>
@@ -123,17 +126,9 @@ interface SettingMeta {
   envVar: string;
 }
 
-const SECTION_TITLES: Record<string, { title: string; description?: string }> = {
-  general: { title: 'General' },
-  ai: { title: 'AI Features', description: 'Photo-based calorie estimation. Provider keys set here are the global fallback when users don\'t have their own.' },
-  oidc: { title: 'OIDC / SSO', description: 'Single sign-on via an OpenID Connect provider. Set issuer + client id + client secret to enable.' },
-  passkeys: { title: 'Passkeys', description: 'WebAuthn passwordless login. Setting RP ID enables the feature.' },
-  features: { title: 'Features' },
-  smtp: { title: 'SMTP', description: 'Outgoing mail for password reset, email verification, etc.' },
-  security: { title: 'Security' },
-  legal: { title: 'Legal Pages' },
-  seo: { title: 'SEO / Deployment' },
-};
+// Order in which sections are rendered; titles/descriptions come from the
+// `admin.sections.<key>` i18n catalog.
+const SECTION_ORDER = ['general', 'ai', 'oidc', 'passkeys', 'features', 'smtp', 'security', 'legal', 'seo'];
 
 function AdminSettingsForm({
   settings,
@@ -144,6 +139,7 @@ function AdminSettingsForm({
   settingsOrder: string[];
   onSave: () => void;
 }) {
+  const { t } = useTranslation('settings');
   // values are user-edited drafts; only keys present here are sent on save.
   // Secret fields default to absent (we never receive the stored value); a
   // user typing into one populates the draft.
@@ -165,14 +161,14 @@ function AdminSettingsForm({
     const dangerousChanges = Object.keys(values).filter((k) => settings[k]?.dangerous);
     for (const k of dangerousChanges) {
       const meta = settings[k];
-      const phrase = k === 'passkeys_rp_id' ? 'INVALIDATE-PASSKEYS'
-        : k === 'ai_key_encryption_secret' ? 'ORPHAN-AI-KEYS'
-        : 'CONFIRM';
+      const phrase = k === 'passkeys_rp_id' ? t('admin.confirmPhraseInvalidatePasskeys')
+        : k === 'ai_key_encryption_secret' ? t('admin.confirmPhraseOrphanAiKeys')
+        : t('admin.confirmPhraseGeneric');
       const typed = window.prompt(
-        `Changing ${meta.envVar} has irreversible consequences:\n\n${meta.help}\n\nType ${phrase} to confirm.`,
+        t('admin.dangerousPrompt', { envVar: meta.envVar, help: meta.help, phrase }),
       );
       if (typed !== phrase) {
-        useToastStore.getState().addToast('info', 'Save cancelled.');
+        useToastStore.getState().addToast('info', t('admin.saveCancelled'));
         return;
       }
     }
@@ -184,26 +180,28 @@ function AdminSettingsForm({
         Object.entries(values).filter(([k]) => settings[k]?.source !== 'env'),
       );
       if (Object.keys(editable).length === 0) {
-        useToastStore.getState().addToast('info', 'No changes to save.');
+        useToastStore.getState().addToast('info', t('admin.noChanges'));
         setLoading(false);
         return;
       }
       await saveAdminSettings(editable);
       setValues({});
       onSave();
-      useToastStore.getState().addToast('success', 'Settings saved.');
+      useToastStore.getState().addToast('success', t('admin.settingsSaved'));
     } catch (err) {
-      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to save settings');
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('admin.saveSettingsFailed'));
     }
     setLoading(false);
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Application Settings</h2>
-      {Object.entries(SECTION_TITLES).map(([sectionKey, { title, description }]) => {
+      <h2 className="text-lg font-semibold">{t('admin.appSettingsHeading')}</h2>
+      {SECTION_ORDER.map((sectionKey) => {
         const keys = sections[sectionKey];
         if (!keys || keys.length === 0) return null;
+        const title = t(`admin.sections.${sectionKey}.title`);
+        const description = t(`admin.sections.${sectionKey}.description`, { defaultValue: '' }) || undefined;
         return (
           <SettingsSection
             key={sectionKey}
@@ -217,7 +215,7 @@ function AdminSettingsForm({
         );
       })}
       <div className="flex justify-end">
-        <Button type="submit" loading={loading}>Save</Button>
+        <Button type="submit" loading={loading}>{t('admin.save')}</Button>
       </div>
     </form>
   );
@@ -271,6 +269,7 @@ function SettingField({
   isDirty: boolean;
   onChange: (v: string) => void;
 }) {
+  const { t } = useTranslation('settings');
   const [revealing, setRevealing] = useState(false);
   const isEnv = meta.source === 'env';
   const isBool = ['enable_legal', 'enable_barcode', 'oidc_require_invite', 'smtp_secure', 'trust_proxy', 'robots_index'].includes(settingKey);
@@ -292,20 +291,20 @@ function SettingField({
         </label>
         {isEnv && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-            ENV
+            {t('admin.envBadge')}
           </span>
         )}
         {meta.tier === 'restart' && !isEnv && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30" title="Takes effect on next server restart">
-            🔄 Restart required
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30" title={t('admin.restartRequiredTitle')}>
+            {t('admin.restartRequiredBadge')}
           </span>
         )}
         {meta.dangerous && !isEnv && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/30">
-            ⚠ Dangerous
+            {t('admin.dangerousBadge')}
           </span>
         )}
-        {isDirty && <span className="text-[10px] text-primary">• unsaved</span>}
+        {isDirty && <span className="text-[10px] text-primary">{t('admin.unsavedBadge')}</span>}
       </div>
 
       {isRegistrationMode ? (
@@ -316,10 +315,10 @@ function SettingField({
           onChange={(e) => onChange(e.target.value)}
           disabled={isEnv}
         >
-          <option value="">(default: open)</option>
-          <option value="open">open — anyone can register</option>
-          <option value="invite">invite — requires an invite code</option>
-          <option value="false">false — registration disabled</option>
+          <option value="">{t('admin.registrationDefault')}</option>
+          <option value="open">{t('admin.registrationOpen')}</option>
+          <option value="invite">{t('admin.registrationInvite')}</option>
+          <option value="false">{t('admin.registrationDisabled')}</option>
         </select>
       ) : isBool ? (
         <select
@@ -329,17 +328,17 @@ function SettingField({
           onChange={(e) => onChange(e.target.value)}
           disabled={isEnv}
         >
-          <option value="">(unset)</option>
-          <option value="true">true</option>
-          <option value="false">false</option>
+          <option value="">{t('admin.unset')}</option>
+          <option value="true">{t('admin.boolTrue')}</option>
+          <option value="false">{t('admin.boolFalse')}</option>
         </select>
       ) : showSecretMask ? (
         <div className="flex items-center gap-2">
           <span className={`flex-1 ${inputClass} ${meta.isSet ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
-            {meta.isSet ? '•••••••• (stored)' : '(unset)'}
+            {meta.isSet ? t('admin.secretStored') : t('admin.unset')}
           </span>
           <Button type="button" size="sm" variant="ghost" onClick={() => setRevealing(true)} disabled={isEnv}>
-            Replace
+            {t('admin.replace')}
           </Button>
         </div>
       ) : (
@@ -350,7 +349,7 @@ function SettingField({
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
           disabled={isEnv}
-          placeholder={meta.secret ? 'Enter new value' : ''}
+          placeholder={meta.secret ? t('admin.secretPlaceholder') : ''}
           autoComplete={meta.secret ? 'new-password' : 'off'}
         />
       )}
@@ -361,6 +360,7 @@ function SettingField({
 }
 
 function InviteManager() {
+  const { t } = useTranslation('settings');
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: ['invites'], queryFn: getInvites });
   const [email, setEmail] = useState('');
@@ -375,7 +375,7 @@ function InviteManager() {
       setEmail('');
       queryClient.invalidateQueries({ queryKey: ['invites'] });
     } catch (err) {
-      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to create invite');
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('admin.createInviteFailed'));
     }
     setCreating(false);
   };
@@ -385,7 +385,7 @@ function InviteManager() {
       await deleteInvite(id);
       queryClient.invalidateQueries({ queryKey: ['invites'] });
     } catch (err) {
-      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to delete invite');
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('admin.deleteInviteFailed'));
     }
   };
 
@@ -402,15 +402,15 @@ function InviteManager() {
 
   return (
     <Card>
-      <h3 className="text-base font-semibold mb-4">Invite Codes</h3>
+      <h3 className="text-base font-semibold mb-4">{t('admin.inviteCodesHeading')}</h3>
       <form onSubmit={handleCreate} className="flex gap-2 mb-4">
         <Input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email (optional)"
+          placeholder={t('admin.emailOptionalPlaceholder')}
           className="flex-1"
         />
-        <Button type="submit" size="sm" loading={creating}>Create Invite</Button>
+        <Button type="submit" size="sm" loading={creating}>{t('admin.createInvite')}</Button>
       </form>
 
       {invites.length > 0 && (
@@ -422,13 +422,13 @@ function InviteManager() {
                 {invite.email && <span className="text-xs text-muted-foreground ml-2">{invite.email}</span>}
                 {invite.expires_at && !invite.used_by && (
                   <span className={`text-xs ml-2 ${new Date(invite.expires_at) < new Date() ? 'text-destructive' : 'text-muted-foreground/60'}`}>
-                    expires {new Date(invite.expires_at).toLocaleDateString()}
+                    {t('admin.expiresOn', { date: new Date(invite.expires_at).toLocaleDateString() })}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {invite.used_by ? (
-                  <span className="text-xs text-muted-foreground">Used by {invite.used_by_email}</span>
+                  <span className="text-xs text-muted-foreground">{t('admin.usedBy', { email: invite.used_by_email })}</span>
                 ) : (
                   <>
                     <button
@@ -436,14 +436,14 @@ function InviteManager() {
                       onClick={() => handleCopy(invite)}
                       className="text-xs text-primary hover:underline"
                     >
-                      {copiedId === invite.id ? 'Copied!' : 'Copy Link'}
+                      {copiedId === invite.id ? t('admin.copied') : t('admin.copyLink')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(invite.id)}
                       className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                     >
-                      Delete
+                      {t('admin.delete')}
                     </button>
                   </>
                 )}

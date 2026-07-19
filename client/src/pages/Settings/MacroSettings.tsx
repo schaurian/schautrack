@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { User } from '@/types';
 import { saveMacros } from '@/api/settings';
 import { MACRO_LABELS } from '@/lib/macros';
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function MacroSettings({ user, onSave }: Props) {
+  const { t } = useTranslation('settings');
   const macrosEnabled = user.macrosEnabled || {};
   const macroGoals = user.macroGoals || {};
 
@@ -72,11 +74,11 @@ export default function MacroSettings({ user, onSave }: Props) {
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-3">Nutrition Goals</h3>
+      <h3 className="text-sm font-semibold mb-3">{t('macro.heading')}</h3>
       <div className="flex flex-col gap-px">
         {allKeys.map((key) => {
-          const label = key === 'calories' ? 'Calories' : (MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key);
-          const unit = key === 'calories' ? 'kcal' : 'g';
+          const label = key === 'calories' ? t('macro.calories') : (MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key);
+          const unit = key === 'calories' ? t('macro.unitKcal') : t('macro.unitGram');
           const isChecked = enabled[key] || false;
           const style = MACRO_STYLES[key];
 
@@ -104,7 +106,7 @@ export default function MacroSettings({ user, onSave }: Props) {
                     type="number"
                     value={goals[key]}
                     onChange={(e) => setGoals({ ...goals, [key]: e.target.value })}
-                    placeholder="Goal"
+                    placeholder={t('macro.goalPlaceholder')}
                     tabIndex={isChecked ? 0 : -1}
                   />
                   <span className={cn('absolute right-2.5 text-[10px] tracking-wide opacity-60 pointer-events-none', style?.label)}>{unit}</span>
@@ -115,8 +117,8 @@ export default function MacroSettings({ user, onSave }: Props) {
                   onChange={(e) => setModes({ ...modes, [key]: e.target.value })}
                   tabIndex={isChecked ? 0 : -1}
                 >
-                  <option value="limit">Limit</option>
-                  <option value="target">Target</option>
+                  <option value="limit">{t('macro.modeLimit')}</option>
+                  <option value="target">{t('macro.modeTarget')}</option>
                 </select>
               </div>
             </div>
@@ -131,7 +133,7 @@ export default function MacroSettings({ user, onSave }: Props) {
                 checked={enabled.auto_calc_calories}
                 onChange={(e) => setEnabled({ ...enabled, auto_calc_calories: e.target.checked })}
               />
-              <span className="text-primary font-medium">Auto-calculate calories</span>
+              <span className="text-primary font-medium">{t('macro.autoCalculate')}</span>
             </label>
             <span className="text-xs text-muted-foreground ml-auto">P×4 + C×4 + F×9</span>
           </div>
@@ -140,7 +142,7 @@ export default function MacroSettings({ user, onSave }: Props) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-l-3 border-l-warning/40 rounded-r-lg px-3 py-2.5 bg-warning/[0.04] mt-px">
           <div className="flex items-center gap-2.5 shrink-0 sm:min-w-[110px]">
             <div className="size-4 shrink-0" />
-            <span className="text-sm font-medium text-warning">Threshold</span>
+            <span className="text-sm font-medium text-warning">{t('macro.threshold')}</span>
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <span className="relative flex items-center">
@@ -148,16 +150,16 @@ export default function MacroSettings({ user, onSave }: Props) {
               <span className="absolute right-2.5 text-[10px] tracking-wide text-warning opacity-60 pointer-events-none">%</span>
             </span>
             <select className={selectClass} tabIndex={-1} aria-hidden="true" style={{ opacity: 0, pointerEvents: 'none' }}>
-              <option value="limit">Limit</option>
-              <option value="target">Target</option>
+              <option value="limit">{t('macro.modeLimit')}</option>
+              <option value="target">{t('macro.modeTarget')}</option>
             </select>
           </div>
         </div>
       </div>
       {(status === 'saving' || status === 'saved') && (
         <div className="flex justify-end mt-2">
-          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
-          {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
+          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">{t('status.saving')}</span>}
+          {status === 'saved' && <span className="text-xs text-green-400">{t('status.saved')}</span>}
         </div>
       )}
     </Card>
