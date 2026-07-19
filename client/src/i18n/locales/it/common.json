@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Amministrazione",
     "dashboard": "Dashboard",
+    "today": "Oggi",
     "plan": "Piano",
     "settings": "Impostazioni",
     "pendingLinkRequests": "{{n}} richieste di collegamento in sospeso",

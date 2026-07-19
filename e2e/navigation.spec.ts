@@ -5,12 +5,12 @@ test.describe('Navigation', () => {
   test('nav links work when logged in', async ({ page }) => {
     await login(page);
 
-    // Click Settings
-    await page.getByText('Settings').click();
+    // Click Settings (sidebar)
+    await page.getByRole('link', { name: 'Settings' }).click();
     await expect(page).toHaveURL(/\/settings/, { timeout: 5000 });
 
-    // Click Dashboard
-    await page.getByText('Dashboard').click();
+    // Click Today (sidebar — the redesign renamed the Dashboard nav item)
+    await page.getByRole('link', { name: 'Today' }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 });
   });
 

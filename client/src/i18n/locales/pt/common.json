@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Painel",
+    "today": "Hoje",
     "plan": "Plano",
     "settings": "Definições",
     "pendingLinkRequests": "{{n}} pedidos de associação pendentes",

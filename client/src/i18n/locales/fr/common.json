@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Tableau de bord",
+    "today": "Aujourd'hui",
     "plan": "Plan",
     "settings": "Paramètres",
     "pendingLinkRequests": "{{n}} demandes de liaison en attente",

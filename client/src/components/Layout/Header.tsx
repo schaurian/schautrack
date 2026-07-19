@@ -1,47 +1,12 @@
-import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useLocation } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
-import { useDashboardStore } from '@/stores/dashboardStore';
-import { logout } from '@/api/auth';
-import { cn } from '@/lib/utils';
 
+// Guest-only top bar. The authenticated shell (Sidebar + BottomNav in Layout)
+// replaced the old in-header navigation.
 export default function Header() {
   const { t } = useTranslation('common');
-  const { user, isAdmin, pendingLinkRequests, clearUser } = useAuthStore();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { pathname } = useLocation();
-
-  // Close the mobile drawer on Escape so keyboard users aren't trapped behind it.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [menuOpen]);
-
-  const navClass = (path: string) => {
-    const active = pathname.startsWith(path);
-    return cn(
-      'rounded-[10px] px-3 py-2 text-base text-foreground transition-colors border border-transparent max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base max-md:border-b max-md:border-border',
-      active ? 'bg-[#0ea5e9]/[0.14] border-[#0ea5e9]/50 max-md:border-l-2 max-md:border-l-[#0ea5e9]' : 'hover:bg-surface-hover',
-    );
-  };
-
-  const handleLogout = async () => {
-    // 1. Network logout, then 2. clear all client state so the previous
-    // account's data can't leak into the next login in this tab, then 3. navigate.
-    try { await logout(); } catch { /* ignore */ }
-    queryClient.clear();
-    useDashboardStore.getState().reset();
-    clearUser();
-    navigate('/login');
-  };
+  const user = useAuthStore((s) => s.user);
 
   return (
     <header className="relative z-50">
@@ -56,63 +21,7 @@ export default function Header() {
           </div>
         </Link>
 
-        {user ? (
-          <>
-            <button
-              type="button"
-              className="relative z-[102] flex items-center justify-center p-2 md:hidden text-foreground"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label={t('header.toggleMenu')}
-              aria-expanded={menuOpen}
-              aria-controls="mobile-nav"
-            >
-              {menuOpen ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" /><path d="M6 6 18 18" />
-                </svg>
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 12h16" /><path d="M4 6h16" /><path d="M4 18h16" />
-                </svg>
-              )}
-            </button>
-
-            <nav id="mobile-nav" className={cn(
-              'flex items-center gap-1',
-              'max-md:fixed max-md:right-0 max-md:top-0 max-md:z-[101] max-md:h-screen max-md:w-[280px] max-md:translate-x-full max-md:invisible max-md:flex-col max-md:items-stretch max-md:border-l max-md:border-border max-md:bg-background max-md:pt-16 max-md:transition-[transform,visibility] max-md:duration-250',
-              menuOpen && 'max-md:translate-x-0 max-md:visible'
-            )}>
-              {isAdmin && (
-                <Link to="/admin" onClick={() => setMenuOpen(false)} className={navClass('/admin')}>
-                  {t('nav.admin')}
-                </Link>
-              )}
-              <Link to="/dashboard" onClick={() => setMenuOpen(false)} className={navClass('/dashboard')}>
-                {t('nav.dashboard')}
-              </Link>
-              <Link to="/plan" onClick={() => setMenuOpen(false)} className={navClass('/plan')}>
-                {t('nav.plan')}
-              </Link>
-              <Link to="/settings" onClick={() => setMenuOpen(false)} className={cn(navClass('/settings'), 'relative')}>
-                {t('nav.settings')}
-                {pendingLinkRequests > 0 && (
-                  <>
-                    <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0ea5e9] max-md:top-4 max-md:right-3" aria-hidden="true" />
-                    <span className="sr-only">{t('nav.pendingLinkRequests', { n: pendingLinkRequests })}</span>
-                  </>
-                )}
-              </Link>
-              <button type="button" onClick={handleLogout}
-                className="cursor-pointer rounded-md border-none bg-transparent px-3 py-2 text-left text-base font-inherit text-foreground transition-colors hover:bg-surface-hover max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">
-                {t('nav.logout')}
-              </button>
-            </nav>
-
-            {menuOpen && (
-              <div className="fixed inset-0 z-[100] bg-black/50 md:hidden" onClick={() => setMenuOpen(false)} />
-            )}
-          </>
-        ) : (
+        {!user && (
           <nav className="flex items-center gap-1">
             <Link to="/login"
               className="rounded-md px-3 py-2 text-base text-foreground transition-colors hover:bg-surface-hover hover:text-foreground">

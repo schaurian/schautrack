@@ -10,6 +10,7 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Dashboard",
+    "today": "Heute",
     "plan": "Plan",
     "settings": "Einstellungen",
     "pendingLinkRequests": "{{n}} ausstehende Verknüpfungsanfragen",
