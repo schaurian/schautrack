@@ -3,10 +3,12 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"schautrack/internal/model"
@@ -20,7 +22,7 @@ const (
 )
 
 // RequireLinkAuth checks the ?user= parameter and verifies linking.
-func RequireLinkAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
+func RequireLinkAuth(pool *pgxpool.Pool, category string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			currentUser := GetCurrentUser(r)
@@ -51,22 +53,31 @@ func RequireLinkAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 					return
 				}
 
-				// Check if linked
-				var exists bool
+				// Authorized only if the target user shares this category with us.
+				var shared bool
 				err = pool.QueryRow(r.Context(), `
-					SELECT EXISTS(
-						SELECT 1 FROM account_links
-						WHERE status = 'accepted'
-							AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))
-					)`, currentUser.ID, targetUserID).Scan(&exists)
+					SELECT COALESCE(
+						(CASE WHEN requester_id = $2 THEN requester_shares ELSE target_shares END ->> $3)::boolean,
+						false)
+					FROM account_links
+					WHERE status = 'accepted'
+						AND ((requester_id = $1 AND target_id = $2) OR (requester_id = $2 AND target_id = $1))`,
+					currentUser.ID, targetUserID, category).Scan(&shared)
 				if err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						// Not linked at all ⇒ forbidden (not a server error).
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusForbidden)
+						json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Not authorized"})
+						return
+					}
 					log.Printf("Link auth check failed: %v", err)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
 					json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Authorization check failed"})
 					return
 				}
-				if !exists {
+				if !shared {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusForbidden)
 					json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Not authorized"})
