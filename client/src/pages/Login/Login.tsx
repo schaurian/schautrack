@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { login, reset2fa } from '@/api/auth';
 import { getAuthInfo, passkeyLoginBegin, passkeyLoginFinish, type AuthInfo } from '@/api/passkeys';
@@ -9,9 +10,9 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { OIDC_LOGIN_ERRORS } from '@/lib/oidcMessages';
 
 export default function Login() {
+  const { t } = useTranslation('auth');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
@@ -42,7 +43,7 @@ export default function Login() {
   useEffect(() => {
     const code = searchParams.get('error');
     if (!code) return;
-    const msg = OIDC_LOGIN_ERRORS[code] ?? 'Sign-in failed. Please try again.';
+    const msg = t('oidc.login.' + code, { defaultValue: t('oidc.login.generic') });
     setError(msg);
     const next = new URLSearchParams(searchParams);
     next.delete('error');
@@ -59,7 +60,7 @@ export default function Login() {
       await fetchUser();
       navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Passkey login failed');
+      setError(err instanceof Error ? err.message : t('login.passkeyLoginFailed'));
     }
     setPasskeyLoading(false);
   };
@@ -89,7 +90,7 @@ export default function Login() {
         if (typeof err.data.captchaSvg === 'string') setCaptchaSvg(err.data.captchaSvg);
         if (typeof err.data.captchaQuestion === 'string') setCaptchaQuestion(err.data.captchaQuestion);
         if (err.data.requireCaptcha) setCaptcha('');
-      } else { setError('Could not log in.'); }
+      } else { setError(t('login.couldNotLogIn')); }
       setLoading(false);
     }
   };
@@ -104,7 +105,7 @@ export default function Login() {
         setResetMode('verify');
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not send reset code.');
+      setError(err instanceof ApiError ? err.message : t('login.couldNotSendResetCode'));
     }
     setLoading(false);
   };
@@ -120,10 +121,10 @@ export default function Login() {
         setRequireToken(false);
         setCanReset2fa(false);
         setToken('');
-        setSuccess(result.message || '2FA removed. You can now log in.');
+        setSuccess(result.message || t('login.twoFaRemovedSuccess'));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not verify code.');
+      setError(err instanceof ApiError ? err.message : t('login.couldNotVerifyCode'));
     }
     setLoading(false);
   };
@@ -132,16 +133,16 @@ export default function Login() {
     return (
       <div className="flex justify-center py-12">
         <Card className="w-full max-w-sm">
-          <h2 className="mb-2 text-xl font-semibold">Reset 2FA</h2>
-          <p className="text-sm text-muted-foreground mb-4">Enter your credentials. We'll send a verification code to your email.</p>
+          <h2 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h2>
+          <p className="text-sm text-muted-foreground mb-4">{t('login.reset2faRequestDescription')}</p>
           {error && <Alert type="error" message={error} className="mb-4" />}
           <form onSubmit={handleResetRequest} className="flex flex-col gap-4">
-            <Input label="Email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required autoComplete="email" />
-            <Input label="Password" type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required autoComplete="current-password" />
-            <Button type="submit" loading={loading}>Send Reset Code</Button>
+            <Input label={t('login.emailLabel')} type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required autoComplete="email" />
+            <Input label={t('login.passwordLabel')} type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required autoComplete="current-password" />
+            <Button type="submit" loading={loading}>{t('login.sendResetCode')}</Button>
           </form>
           <button type="button" onClick={() => { setResetMode(false); setError(''); }} className="mt-4 text-sm text-muted-foreground hover:text-primary transition-colors">
-            Back to login
+            {t('login.backToLogin')}
           </button>
         </Card>
       </div>
@@ -152,15 +153,15 @@ export default function Login() {
     return (
       <div className="flex justify-center py-12">
         <Card className="w-full max-w-sm">
-          <h2 className="mb-2 text-xl font-semibold">Reset 2FA</h2>
-          <p className="text-sm text-muted-foreground mb-4">Enter the verification code sent to your email.</p>
+          <h2 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h2>
+          <p className="text-sm text-muted-foreground mb-4">{t('login.reset2faVerifyDescription')}</p>
           {error && <Alert type="error" message={error} className="mb-4" />}
           <form onSubmit={handleResetVerify} className="flex flex-col gap-4">
-            <Input label="Verification Code" value={resetCode} onChange={(e) => setResetCode(e.target.value)} required inputMode="numeric" maxLength={6} placeholder="Enter 6-digit code" autoComplete="one-time-code" />
-            <Button type="submit" loading={loading}>Verify & Remove 2FA</Button>
+            <Input label={t('login.verificationCodeLabel')} value={resetCode} onChange={(e) => setResetCode(e.target.value)} required inputMode="numeric" maxLength={6} placeholder={t('login.verificationCodePlaceholder')} autoComplete="one-time-code" />
+            <Button type="submit" loading={loading}>{t('login.verifyAndRemove2fa')}</Button>
           </form>
           <button type="button" onClick={() => { setResetMode(false); setError(''); }} className="mt-4 text-sm text-muted-foreground hover:text-primary transition-colors">
-            Back to login
+            {t('login.backToLogin')}
           </button>
         </Card>
       </div>
@@ -170,7 +171,7 @@ export default function Login() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-6 text-xl font-semibold">Log In</h2>
+        <h2 className="mb-6 text-xl font-semibold">{t('login.title')}</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
 
@@ -178,7 +179,7 @@ export default function Login() {
           <div className="flex flex-col gap-2 mb-2">
             {authInfo.passkeysEnabled && (
               <Button type="button" variant="outline" className="w-full" loading={passkeyLoading} onClick={handlePasskeyLogin}>
-                Sign in with passkey
+                {t('login.signInWithPasskey')}
               </Button>
             )}
             {authInfo.oidc && (
@@ -188,12 +189,12 @@ export default function Login() {
                   <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 )}
-                Sign in with {authInfo.oidc.label}
+                {t('login.signInWithProvider', { provider: authInfo.oidc.label })}
               </Button>
             )}
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t('login.or')}</span></div>
             </div>
           </div>
         )}
@@ -201,44 +202,44 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!requireToken ? (
             <>
-              <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-              <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+              <Input label={t('login.emailLabel')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+              <Input label={t('login.passwordLabel')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
               {captchaSvg && (
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
-                    <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
+                    <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt={t('login.captchaAltText')} />
                   </div>
                   {captchaQuestion && (
                     <p className="text-sm text-muted-foreground">
-                      Cannot see the image? Enter the answer to this question instead: {captchaQuestion}
+                      {t('login.captchaFallbackQuestion', { question: captchaQuestion })}
                     </p>
                   )}
-                  <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
+                  <Input label={t('login.captchaLabel')} value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
                 </div>
               )}
             </>
           ) : (
             <>
-              <Input label="2FA Code" type="text" value={token} onChange={(e) => setToken(e.target.value)} required autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]*" />
-              <p className="text-xs text-muted-foreground">You can also enter a backup code.</p>
+              <Input label={t('login.twoFactorCodeLabel')} type="text" value={token} onChange={(e) => setToken(e.target.value)} required autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]*" />
+              <p className="text-xs text-muted-foreground">{t('login.backupCodeHint')}</p>
             </>
           )}
-          <Button type="submit" loading={loading}>{requireToken ? 'Verify' : 'Log In'}</Button>
+          <Button type="submit" loading={loading}>{requireToken ? t('login.verify') : t('login.submit')}</Button>
         </form>
         <div className="mt-6 flex flex-col gap-2 text-sm">
           <div className="flex justify-between">
-            {!requireToken && <Link to="/forgot-password">Forgot password?</Link>}
+            {!requireToken && <Link to="/forgot-password">{t('login.forgotPassword')}</Link>}
             {requireToken && canReset2fa && (
               <button type="button" onClick={() => { setResetMode('request'); setResetEmail(email); setResetPassword(password); setError(''); setSuccess(''); }} className="text-primary hover:underline">
-                Lost your authenticator?
+                {t('login.lostAuthenticator')}
               </button>
             )}
             {requireToken && !canReset2fa && (
-              <span className="text-muted-foreground/50 cursor-default" title="Email reset requires SMTP to be configured on the server">
-                Lost your authenticator?
+              <span className="text-muted-foreground/50 cursor-default" title={t('login.lostAuthenticatorTitle')}>
+                {t('login.lostAuthenticator')}
               </span>
             )}
-            <Link to="/register">Create account</Link>
+            <Link to="/register">{t('login.createAccount')}</Link>
           </div>
         </div>
       </Card>

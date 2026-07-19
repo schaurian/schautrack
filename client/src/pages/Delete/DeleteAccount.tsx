@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -7,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 
 export default function DeleteAccount() {
+  const { t } = useTranslation('auth');
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,11 +21,11 @@ export default function DeleteAccount() {
     setLoading(true);
     try {
       await api('/delete', { method: 'POST' });
-      setSuccess('Account deleted. Redirecting...');
+      setSuccess(t('deleteAccount.accountDeletedSuccess'));
       clearUser();
       setTimeout(() => navigate('/'), 2000);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not delete account.');
+      setError(err instanceof ApiError ? err.message : t('deleteAccount.couldNotDelete'));
     }
     setLoading(false);
   };
@@ -31,9 +33,9 @@ export default function DeleteAccount() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-2 text-xl font-semibold text-destructive">Delete Account</h2>
+        <h2 className="mb-2 text-xl font-semibold text-destructive">{t('deleteAccount.title')}</h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          This will permanently delete your account and all data. This cannot be undone.
+          {t('deleteAccount.description')}
         </p>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
@@ -46,7 +48,7 @@ export default function DeleteAccount() {
                 onChange={(e) => setConfirm(e.target.checked)}
                 className="mt-1"
               />
-              <span>I understand this is permanent and irreversible.</span>
+              <span>{t('deleteAccount.confirmCheckboxLabel')}</span>
             </label>
             <Button
               type="button"
@@ -55,7 +57,7 @@ export default function DeleteAccount() {
               disabled={!confirm}
               onClick={handleDelete}
             >
-              Delete My Account
+              {t('deleteAccount.submit')}
             </Button>
           </div>
         )}

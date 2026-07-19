@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { verifyEmail, resendVerification } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 
 export default function VerifyEmail() {
+  const { t } = useTranslation('auth');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -28,7 +30,7 @@ export default function VerifyEmail() {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Verification failed.');
+      setError(err instanceof ApiError ? err.message : t('verifyEmail.verificationFailed'));
     }
     setLoading(false);
   };
@@ -38,9 +40,9 @@ export default function VerifyEmail() {
     setResending(true);
     try {
       const result = await resendVerification({});
-      if (result.ok) setSuccess('New code sent to your email.');
+      if (result.ok) setSuccess(t('verifyEmail.newCodeSent'));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not resend.');
+      setError(err instanceof ApiError ? err.message : t('verifyEmail.couldNotResend'));
     }
     setResending(false);
   };
@@ -48,18 +50,18 @@ export default function VerifyEmail() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-6 text-xl font-semibold">Verify Email</h2>
+        <h2 className="mb-6 text-xl font-semibold">{t('verifyEmail.title')}</h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          Enter the verification code sent to your email.
+          {t('verifyEmail.description')}
         </p>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input label="Verification Code" value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="off" />
-          <Button type="submit" loading={loading}>Verify</Button>
+          <Input label={t('verifyEmail.verificationCodeLabel')} value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="off" />
+          <Button type="submit" loading={loading}>{t('verifyEmail.verify')}</Button>
         </form>
         <div className="mt-4">
-          <Button variant="ghost" size="sm" onClick={handleResend} loading={resending}>Resend Code</Button>
+          <Button variant="ghost" size="sm" onClick={handleResend} loading={resending}>{t('verifyEmail.resendCode')}</Button>
         </div>
       </Card>
     </div>
