@@ -87,18 +87,25 @@ func currentCalorieGoal(user *model.User) *int {
 	return user.DailyGoal
 }
 
-// gatherPlan pulls everything AssemblePlan needs straight from the DB for the
-// current user and returns the computed payload plus the active goal (if any).
-func (h *PlanHandler) gatherPlan(r *http.Request, user *model.User) (service.PlanResponse, *model.WeightGoal, error) {
+// buildPlanInputs pulls everything AssemblePlan needs straight from the DB
+// for the current user, normalizing weight-valued fields to kg. weight_entries
+// and weight_goals are stored in the user's display unit (kg or lb), but
+// AssemblePlan's BMR/BMI/TDEE math assumes kg — so lb users would otherwise
+// get ~2.2x wrong results. It returns the kg-normalized inputs, the original
+// (display-unit) active goal — needed by Get to echo it back to the client
+// and to mark it achieved — and the user's display unit. Used by both Get and
+// ApplyBudget so they compute identically.
+func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (service.PlanInputs, *model.WeightGoal, string, error) {
 	ctx := r.Context()
+	unit := user.WeightUnit
 
 	lastWeight, err := service.GetLastWeightEntry(ctx, h.Pool, user.ID, "")
 	if err != nil {
-		return service.PlanResponse{}, nil, err
+		return service.PlanInputs{}, nil, unit, err
 	}
 	var currentWeight *float64
 	if lastWeight != nil {
-		w := lastWeight.Weight
+		w := service.ToKg(lastWeight.Weight, unit)
 		currentWeight = &w
 	}
 
@@ -106,45 +113,68 @@ func (h *PlanHandler) gatherPlan(r *http.Request, user *model.User) (service.Pla
 	since := service.SubtractDaysUTC(service.FormatDateInTz(time.Now(), tz), 179)
 	series, err := service.GetWeightSeries(ctx, h.Pool, user.ID, since)
 	if err != nil {
-		return service.PlanResponse{}, nil, err
+		return service.PlanInputs{}, nil, unit, err
+	}
+	for i := range series {
+		series[i].Weight = service.ToKg(series[i].Weight, unit)
 	}
 
 	goal, err := service.GetActiveGoal(ctx, h.Pool, user.ID)
 	if err != nil {
-		return service.PlanResponse{}, nil, err
+		return service.PlanInputs{}, nil, unit, err
+	}
+	// goalKg is a kg copy for the math; goal (the original, display-unit
+	// object) is returned separately so the caller can echo/mutate it.
+	var goalKg *model.WeightGoal
+	if goal != nil {
+		g := *goal
+		g.StartWeight = service.ToKg(goal.StartWeight, unit)
+		g.TargetWeight = service.ToKg(goal.TargetWeight, unit)
+		if goal.RateKgPerWeek != nil {
+			v := service.ToKg(*goal.RateKgPerWeek, unit)
+			g.RateKgPerWeek = &v
+		}
+		goalKg = &g
 	}
 
-	resp := service.AssemblePlan(service.PlanInputs{
+	inputs := service.PlanInputs{
 		CurrentWeight:  currentWeight,
 		HeightCm:       user.HeightCm,
 		BirthYear:      user.BirthYear,
 		Sex:            user.Sex,
 		ActivityLevel:  user.ActivityLevel,
-		Goal:           goal,
+		Goal:           goalKg,
 		Series:         series,
 		CurrentCalGoal: currentCalorieGoal(user),
 		Now:            time.Now(),
-	})
-	return resp, goal, nil
+	}
+	return inputs, goal, unit, nil
 }
 
 // Get handles GET /plan
 func (h *PlanHandler) Get(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 
-	resp, goal, err := h.gatherPlan(r, user)
+	inputs, goal, unit, err := h.buildPlanInputs(r, user)
 	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not load plan.")
 		return
 	}
 
+	resp := service.AssemblePlan(inputs)
+
 	if resp.GoalReachedNow && goal != nil {
 		if err := service.MarkGoalAchieved(r.Context(), h.Pool, goal.ID); err != nil {
 			slog.Error("failed to mark goal achieved", "error", err)
-		} else if resp.Goal != nil {
-			resp.Goal.Status = "achieved"
+		} else {
+			goal.Status = "achieved"
 		}
 	}
+	// Echo the goal back in the user's display unit (AssemblePlan's Goal
+	// field is the kg copy used for the math) before converting the rest of
+	// the weight-valued fields.
+	resp.Goal = goal
+	service.ConvertPlanResponseToDisplayUnit(&resp, unit)
 
 	JSON(w, http.StatusOK, resp)
 }
@@ -240,11 +270,12 @@ func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 func (h *PlanHandler) ApplyBudget(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 
-	resp, _, err := h.gatherPlan(r, user)
+	inputs, _, _, err := h.buildPlanInputs(r, user)
 	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not compute budget.")
 		return
 	}
+	resp := service.AssemblePlan(inputs)
 	if resp.Computed == nil {
 		ErrorJSON(w, http.StatusBadRequest, "No active goal or incomplete body metrics.")
 		return
