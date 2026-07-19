@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import App from './App';
+import '@/i18n';
 // Self-hosted Noto Sans (weights 400/500/600/700) — replaces the third-party
 // Google Fonts request for GDPR compliance and air-gapped/self-hosted support.
 import '@fontsource/noto-sans/400.css';
