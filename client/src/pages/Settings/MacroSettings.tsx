@@ -86,9 +86,8 @@ export default function MacroSettings({ user, onSave }: Props) {
             <div
               key={key}
               className={cn(
-                'flex flex-wrap items-center gap-x-3 gap-y-2 border-l-3 rounded-r-lg px-3 py-2.5 transition-opacity',
-                style?.border,
-                isChecked ? style?.bg : 'bg-transparent opacity-50',
+                'flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 transition-opacity',
+                !isChecked && 'opacity-50',
               )}
             >
               <label className="flex items-center gap-2.5 cursor-pointer shrink-0 sm:min-w-[110px]">
@@ -126,7 +125,7 @@ export default function MacroSettings({ user, onSave }: Props) {
         })}
 
         {canAutoCalc && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l-3 border-l-primary/40 rounded-r-lg px-3 py-2.5 bg-primary/[0.04]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
             <label className="flex items-center gap-2.5 text-sm cursor-pointer">
               <input
                 type="checkbox"
@@ -139,7 +138,7 @@ export default function MacroSettings({ user, onSave }: Props) {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-l-3 border-l-warning/40 rounded-r-lg px-3 py-2.5 bg-warning/[0.04] mt-px">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
           <div className="flex items-center gap-2.5 shrink-0 sm:min-w-[110px]">
             <div className="size-4 shrink-0" />
             <span className="text-sm font-medium text-warning">{t('macro.threshold')}</span>

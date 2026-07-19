@@ -49,12 +49,12 @@ export default function OIDCSettings({ linked, onUpdate }: Props) {
   };
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('oidc.heading')}</h3>
+    <div className="surface overflow-hidden">
+      <div className="px-4 pt-4 pb-1">
+        <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('oidc.heading')}</h3>
       </div>
       <div className="p-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+        <div className="flex items-center justify-between py-1.5">
           <span className="flex items-center gap-2 text-sm text-foreground">
             {oidc.logo && (
               <img src={oidc.logo} alt="" className="w-5 h-5"

@@ -151,9 +151,9 @@ export default function PlanChart({
       );
     }
     return (
-      <div className={cn('rounded-xl border-2 border-border bg-card overflow-hidden', className)}>
-        <div className="px-4 py-3 border-b-2 border-border">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('plan.chart.title')}</h3>
+      <div className={cn('surface overflow-hidden', className)}>
+        <div className="px-4 pt-4 pb-2">
+          <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('plan.chart.title')}</h3>
         </div>
         <div className="p-8 flex items-center justify-center min-h-[200px]">
           <span className="text-sm text-muted-foreground text-center">{message}</span>
@@ -265,9 +265,9 @@ export default function PlanChart({
   }
 
   return (
-    <div className={cn('rounded-xl border-2 border-border bg-card overflow-hidden', className)}>
-      <div className="px-4 py-3 border-b-2 border-border flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('plan.chart.title')}</h3>
+    <div className={cn('surface overflow-hidden', className)}>
+      <div className="px-4 pt-4 pb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('plan.chart.title')}</h3>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           <LegendItem swatch={<span className="inline-block h-0.5 w-3 rounded-full bg-primary" />} label={t('plan.chart.legendActual')} />
           {planCurve.length > 0 && (
