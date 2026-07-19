@@ -29,6 +29,14 @@ test.describe('Linked User Data', () => {
       ON CONFLICT DO NOTHING
     `);
 
+    // Sharing is opt-in and defaults off; grant full sharing in both directions
+    // so this spec's existing assertions (which predate granular sharing) pass.
+    psql(`UPDATE account_links
+      SET requester_shares = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb,
+          target_shares    = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb
+      WHERE (requester_id = ${viewer.id} AND target_id = ${owner.id})
+         OR (requester_id = ${owner.id} AND target_id = ${viewer.id})`);
+
     // createIsolatedUser already cleaned data — insert fresh test data for the owner
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES (${owner.id}, '${TODAY}', ${TEST_ENTRY_AMOUNT}, 'E2E test meal')`);
     psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${owner.id}, '${TODAY}', ${TEST_WEIGHT}) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = ${TEST_WEIGHT}`);

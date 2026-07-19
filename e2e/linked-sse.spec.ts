@@ -22,6 +22,14 @@ test.describe('Linked User SSE Propagation', () => {
       VALUES (${userB.id}, ${userA.id}, 'accepted')
       ON CONFLICT DO NOTHING
     `);
+
+    // Sharing is opt-in and defaults off; grant full sharing in both directions
+    // so this spec's existing assertions (which predate granular sharing) pass.
+    psql(`UPDATE account_links
+      SET requester_shares = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb,
+          target_shares    = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb
+      WHERE (requester_id = ${userB.id} AND target_id = ${userA.id})
+         OR (requester_id = ${userA.id} AND target_id = ${userB.id})`);
   });
 
   test.afterAll(() => {

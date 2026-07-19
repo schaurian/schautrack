@@ -28,6 +28,14 @@ test.describe('Linked User Timezone Display', () => {
       ON CONFLICT DO NOTHING
     `);
 
+    // Sharing is opt-in and defaults off; grant full sharing in both directions
+    // so this spec's existing assertions (which predate granular sharing) pass.
+    psql(`UPDATE account_links
+      SET requester_shares = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb,
+          target_shares    = '{"nutrition":true,"weight":true,"todos":true,"notes":true}'::jsonb
+      WHERE (requester_id = ${viewer.id} AND target_id = ${creator.id})
+         OR (requester_id = ${creator.id} AND target_id = ${viewer.id})`);
+
     // Insert an entry for the creator at a known UTC timestamp
     psql(`
       INSERT INTO calorie_entries (user_id, entry_date, entry_name, amount, created_at)
