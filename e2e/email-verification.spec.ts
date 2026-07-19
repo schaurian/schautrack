@@ -1,5 +1,6 @@
 import { test, expect, Browser } from '@playwright/test';
 import { clearMailpit, extractCodeFromEmail } from './fixtures/helpers';
+import { acceptConsentIfShown } from './fixtures/consent';
 
 const PASSWORD = 'verify1234test';
 
@@ -18,6 +19,7 @@ async function registerAndReachVerify(browser: Browser, email: string) {
   await page.getByLabel('Email').fill(email);
   await page.locator('#password').fill(PASSWORD);
   await page.locator('#confirm-password').fill(PASSWORD);
+  await acceptConsentIfShown(page);
   await page.getByRole('button', { name: 'Continue' }).click();
 
   // Step 2 — captcha (CAPTCHA_BYPASS=true, any non-empty value passes)

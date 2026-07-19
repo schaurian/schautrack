@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { acceptConsentIfShown } from './fixtures/consent';
 
 test.describe('Registration', () => {
   test('registration page loads with form', async ({ browser }) => {
@@ -87,8 +88,10 @@ test.describe('Registration', () => {
     await page.getByLabel('Confirm Password').fill('different');
     await expect(submitButton).toBeDisabled();
 
-    // Fix confirm password to match — now enabled
+    // Fix confirm password to match — and accept consent when the instance
+    // shows the legal checkboxes — now enabled
     await page.getByLabel('Confirm Password').fill('test1234test');
+    await acceptConsentIfShown(page);
     await expect(submitButton).toBeEnabled();
 
     await context.close();

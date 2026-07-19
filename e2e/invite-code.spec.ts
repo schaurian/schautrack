@@ -1,18 +1,8 @@
 import { test, expect, Browser } from '@playwright/test';
 import { psql } from './fixtures/helpers';
+import { acceptConsentIfShown } from './fixtures/consent';
 
 const ADMIN_STORAGE = 'e2e/.auth/admin.json';
-
-// When legal pages are enabled (which the admin-settings/legal tests leave
-// on), registration requires accepting the Terms and the health-data consent.
-// Check the boxes when they are shown so these tests work in both states.
-async function acceptConsentIfShown(page: import('@playwright/test').Page) {
-  const termsBox = page.getByLabel('Accept the Terms of Service and Privacy Policy');
-  if (await termsBox.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await termsBox.check();
-    await page.getByLabel('Consent to health data processing').check();
-  }
-}
 
 /**
  * Make an authenticated API request using the admin session.
@@ -69,9 +59,11 @@ test.describe('Invite-Only Registration', () => {
   });
 
   test('invite code field is shown when registration is invite-only', async ({ browser }) => {
-    // Enable invite-only mode
+    // Enable invite-only mode. Since the invite-gate fix, 'invite' is the
+    // invite-only value — 'false' now means registration is fully CLOSED (the
+    // register page renders no form at all, let alone an invite field).
     const res = await adminApiRequest(browser, 'POST', '/admin/settings', {
-      settings: { enable_registration: 'false' },
+      settings: { enable_registration: 'invite' },
     });
     expect(res.status).toBe(200);
 

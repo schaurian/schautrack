@@ -120,4 +120,24 @@ test.describe.serial('Weight Planner', () => {
 
     await ctx.close();
   });
+
+  test('Clear erases body metrics (consent-withdrawal path)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await login(page);
+    await gotoPlan(page); // metrics are set by the earlier tests
+
+    // "Your Details" is collapsed once metrics are complete — expand it.
+    await page.getByRole('button', { name: /Your Details/ }).click();
+    await page.getByRole('button', { name: 'Clear', exact: true }).click();
+    await expect(page.getByText('Details cleared')).toBeVisible({ timeout: 10000 });
+
+    // The privacy policy promises actual erasure — verify at the DB level.
+    const cleared = psql(
+      `SELECT height_cm IS NULL AND birth_year IS NULL AND sex IS NULL AND activity_level IS NULL FROM users WHERE id = ${user.id}`
+    );
+    expect(cleared).toBe('t');
+
+    await ctx.close();
+  });
 });
