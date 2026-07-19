@@ -76,16 +76,26 @@ export default defineConfig({
     // enable_barcode) run concurrently with the chromium project and corrupt it.
     {
       name: 'admin-settings',
-      testMatch: [/barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/],
+      testMatch: [/barcode-extended\.spec\.ts/, /legal\.spec\.ts/],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['admin', 'chromium'],
+    },
+    // Invite tests register through the UI. Run them strictly AFTER the legal
+    // tests so enable_legal is in its final (true) state and the register
+    // form's consent checkboxes are deterministic instead of racing the
+    // legal.spec toggles.
+    {
+      name: 'invite',
+      testMatch: /invite-code\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['admin-settings'],
     },
     // Graceful shutdown — runs LAST after all other tests (kills the container)
     {
       name: 'shutdown',
       testMatch: /graceful-shutdown\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
-      dependencies: ['chromium', 'admin-settings'],
+      dependencies: ['chromium', 'invite'],
     },
     // Everything else: parallel with shared session
     {

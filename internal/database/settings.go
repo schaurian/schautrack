@@ -40,6 +40,13 @@ func (sc *SettingsCache) GetEffectiveSetting(ctx context.Context, key string, en
 		return SettingResult{Value: &envValue, Source: "env"}
 	}
 
+	// A cache constructed without a pool (unit tests, early startup) simply
+	// has no DB-backed values — treat every non-env key as unset instead of
+	// dereferencing a nil pool.
+	if sc.pool == nil {
+		return SettingResult{Value: nil, Source: "none"}
+	}
+
 	sc.mu.RLock()
 	entry, ok := sc.cache[key]
 	sc.mu.RUnlock()

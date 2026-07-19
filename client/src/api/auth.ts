@@ -28,7 +28,7 @@ export function login(data: { email: string; password: string; token?: string; c
   });
 }
 
-export function register(data: { step: string; email?: string; password?: string; timezone?: string; captcha?: string; invite_code?: string }) {
+export function register(data: { step: string; email?: string; password?: string; timezone?: string; captcha?: string; invite_code?: string; legal_accepted?: boolean; health_consent?: boolean }) {
   return api<RegisterResponse>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -36,7 +36,7 @@ export function register(data: { step: string; email?: string; password?: string
 }
 
 export function getRegistrationInfo() {
-  return api<{ registrationEnabled: boolean; inviteRequired?: boolean }>('/api/auth/registration-info');
+  return api<{ registrationEnabled: boolean; inviteRequired?: boolean; legalEnabled?: boolean }>('/api/auth/registration-info');
 }
 
 export function logout() {

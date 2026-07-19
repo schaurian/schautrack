@@ -381,6 +381,9 @@ func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config)
 		JSON(w, http.StatusOK, map[string]any{
 			"registrationEnabled": mode != regModeClosed,
 			"inviteRequired":      mode == regModeInvite,
+			// When true the register form must collect terms acceptance and
+			// explicit health-data consent (also enforced server-side).
+			"legalEnabled": legalPagesEnabled(r.Context(), settingsCache),
 		})
 	}
 }

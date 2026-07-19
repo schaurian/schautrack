@@ -750,6 +750,22 @@ func ensureWeightGoalsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+// ensureConsentSchema records WHEN a user accepted the terms and gave the
+// explicit Art. 9(2)(a) GDPR consent for health-data processing. Art. 7(1)
+// requires the controller to be able to demonstrate consent, so the fact and
+// time of consent are persisted rather than being a transient checkbox.
+// Nullable: rows predating this migration (and self-hosted instances without
+// ENABLE_LEGAL) simply have no recorded consent.
+func ensureConsentSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			ALTER TABLE users
+				ADD COLUMN IF NOT EXISTS legal_accepted_at TIMESTAMPTZ,
+				ADD COLUMN IF NOT EXISTS health_consent_at TIMESTAMPTZ`)
+		return err
+	})
+}
+
 // migrationLockKey is the application-scoped pg_advisory_lock key that
 // serializes schema migrations across replicas. Multiple pods starting at
 // once (rolling deploy, scale-up) would otherwise race conflicting DDL:
@@ -791,6 +807,7 @@ func migrationSteps() []migrationStep {
 		{"saved_foods", ensureSavedFoodsSchema},
 		{"body_profile", ensureBodyProfileSchema},
 		{"weight_goals", ensureWeightGoalsSchema},
+		{"consent", ensureConsentSchema},
 		{"todos", ensureTodosSchema},
 		{"daily_notes", ensureDailyNotesSchema},
 		{"backup_codes", ensureBackupCodesSchema},

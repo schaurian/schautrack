@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { QueryError } from '@/components/ui/QueryError';
+import { OIDC_SETTINGS_ERRORS, OIDC_SETTINGS_SUCCESS } from '@/lib/oidcMessages';
 import MacroSettings from './MacroSettings';
 import PreferencesSettings from './PreferencesSettings';
 import PasswordSettings from './PasswordSettings';
@@ -24,9 +24,9 @@ import NoteSettings from './NoteSettings';
 import SavedFoodsSettings from './SavedFoodsSettings';
 import PasskeySettings from './PasskeySettings';
 import OIDCSettings from './OIDCSettings';
+import ReportIssueCard from './ReportIssueCard';
 
 export default function Settings() {
-  const { t } = useTranslation('settings');
   const { isLoading: authLoading } = useRequireAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,18 +45,18 @@ export default function Settings() {
     const successCode = searchParams.get('success');
     if (!errorCode && !successCode) return;
     if (errorCode) {
-      const msg = t('oidc.errors.' + errorCode, { defaultValue: t('oidc.genericError') });
+      const msg = OIDC_SETTINGS_ERRORS[errorCode] ?? 'Something went wrong.';
       addToast('error', msg);
     }
     if (successCode) {
-      const msg = t('oidc.success.' + successCode, { defaultValue: '' });
+      const msg = OIDC_SETTINGS_SUCCESS[successCode];
       if (msg) addToast('success', msg);
     }
     const next = new URLSearchParams(searchParams);
     next.delete('error');
     next.delete('success');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams, addToast, t]);
+  }, [searchParams, setSearchParams, addToast]);
 
   const handleFileChange = useCallback(() => {
     const file = fileInputRef.current?.files?.[0];
@@ -93,15 +93,15 @@ export default function Settings() {
     try {
       const result = await importData(file);
       if (result.ok) {
-        setImportMessage({ type: 'success', text: result.message || t('data.importSuccess') });
+        setImportMessage({ type: 'success', text: result.message || 'Data imported successfully.' });
         refresh();
       } else {
-        setImportMessage({ type: 'error', text: result.error || t('data.importFailed') });
+        setImportMessage({ type: 'error', text: result.error || 'Import failed.' });
       }
     } catch (err) {
       setImportMessage({
         type: 'error',
-        text: err instanceof ApiError ? err.message : t('data.importFailed'),
+        text: err instanceof ApiError ? err.message : 'Import failed.',
       });
     }
     setImportLoading(false);
@@ -178,23 +178,23 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <Card>
-            <h3 className="text-sm font-semibold mb-4">{t('data.heading')}</h3>
+            <h3 className="text-sm font-semibold mb-4">Data</h3>
             <div className="flex flex-col gap-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('data.exportLabel')}</p>
-                <p className="text-xs text-muted-foreground mb-3">{t('data.exportDescription')}</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Export</p>
+                <p className="text-xs text-muted-foreground mb-3">Download all your entries as a JSON backup.</p>
                 <Button
                   variant="outline"
                   className="w-full"
                   onClick={handleExport}
                   loading={exportLoading}
                 >
-                  {t('data.exportButton')}
+                  Export JSON
                 </Button>
               </div>
               <div className="border-t border-border pt-4">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('data.importLabel')}</p>
-                <p className="text-xs text-muted-foreground mb-3">{t('data.importDescription')}</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Import</p>
+                <p className="text-xs text-muted-foreground mb-3">Restore from a JSON backup. This replaces all existing entries.</p>
                 {importMessage && <Alert type={importMessage.type} message={importMessage.text} className="mb-3" />}
                 <input
                   ref={fileInputRef}
@@ -208,7 +208,7 @@ export default function Settings() {
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full rounded-[10px] border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground hover:border-ring hover:text-foreground transition-colors cursor-pointer mb-3 text-left truncate"
                 >
-                  {selectedFileName ?? t('data.chooseFile')}
+                  {selectedFileName ?? 'Choose a file…'}
                 </button>
                 <Button
                   variant="destructive"
@@ -217,7 +217,7 @@ export default function Settings() {
                   loading={importLoading}
                   disabled={!selectedFileName}
                 >
-                  {t('data.importButton')}
+                  Import
                 </Button>
               </div>
             </div>
@@ -235,9 +235,9 @@ export default function Settings() {
             <Dialog.Content
               className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-card p-6 text-card-foreground shadow-lg focus:outline-none"
             >
-              <Dialog.Title className="text-base font-semibold mb-1 text-destructive">{t('confirmImport.title')}</Dialog.Title>
+              <Dialog.Title className="text-base font-semibold mb-1 text-destructive">Replace all entries?</Dialog.Title>
               <Dialog.Description className="text-sm text-muted-foreground mb-4">
-                {t('confirmImport.descriptionPrefix')}{selectedFileName ? <> <span className="font-medium text-foreground">{selectedFileName}</span></> : ''} {t('confirmImport.descriptionSuffix')}
+                Importing{selectedFileName ? <> <span className="font-medium text-foreground">{selectedFileName}</span></> : ''} will permanently delete all of your existing entries and replace them with the contents of this file. This cannot be undone.
               </Dialog.Description>
               <div className="flex flex-col gap-2">
                 <Button
@@ -246,7 +246,7 @@ export default function Settings() {
                   onClick={handleImport}
                   loading={importLoading}
                 >
-                  {t('confirmImport.replaceAll')}
+                  Replace all entries
                 </Button>
                 <Dialog.Close asChild>
                   <Button
@@ -255,7 +255,7 @@ export default function Settings() {
                     size="sm"
                     className="w-full border border-border hover:border-foreground/40"
                   >
-                    {t('confirmImport.cancel')}
+                    Cancel
                   </Button>
                 </Dialog.Close>
               </div>
@@ -264,26 +264,17 @@ export default function Settings() {
         </Dialog.Root>
         <div className="break-inside-avoid">
           <Card>
-            <h3 className="text-sm font-semibold mb-2 text-destructive">{t('danger.heading')}</h3>
-            <p className="text-xs text-muted-foreground mb-3">{t('danger.description')}</p>
+            <h3 className="text-sm font-semibold mb-2 text-destructive">Danger Zone</h3>
+            <p className="text-xs text-muted-foreground mb-3">Permanently delete your account and all data.</p>
             <div className="border-t border-border pt-3 mt-1">
-              <a href="/delete"><Button variant="destructive" className="w-full">{t('danger.deleteAccount')}</Button></a>
+              <a href="/delete"><Button variant="destructive" className="w-full">Delete Account</Button></a>
             </div>
           </Card>
         </div>
+        <div className="break-inside-avoid">
+          <ReportIssueCard />
+        </div>
       </div>
-
-      <p className="text-center text-xs text-muted-foreground">
-        {t('footer.bugReport')}{' '}
-        <a
-          href="https://github.com/schaurian/schautrack/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline"
-        >
-          {t('footer.openIssue')}
-        </a>
-      </p>
     </div>
   );
 }

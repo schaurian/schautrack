@@ -200,12 +200,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // Register handles POST /api/auth/register
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Step       string `json:"step"`
-		Email      string `json:"email"`
-		Password   string `json:"password"`
-		Timezone   string `json:"timezone"`
-		Captcha    string `json:"captcha"`
-		InviteCode string `json:"invite_code"`
+		Step          string `json:"step"`
+		Email         string `json:"email"`
+		Password      string `json:"password"`
+		Timezone      string `json:"timezone"`
+		Captcha       string `json:"captcha"`
+		InviteCode    string `json:"invite_code"`
+		LegalAccepted bool   `json:"legal_accepted"`
+		HealthConsent bool   `json:"health_consent"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
@@ -216,7 +218,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	switch body.Step {
 	case "credentials":
-		h.registerCredentials(w, r, sess, body.Email, body.Password, body.Timezone, body.InviteCode)
+		h.registerCredentials(w, r, sess, body.Email, body.Password, body.Timezone, body.InviteCode, body.LegalAccepted, body.HealthConsent)
 	case "captcha":
 		h.registerCaptcha(w, r, sess, body.Captcha)
 	default:
@@ -224,7 +226,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request, sess *session.Session, email, password, timezone, inviteCode string) {
+func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request, sess *session.Session, email, password, timezone, inviteCode string, legalAccepted, healthConsent bool) {
 	emailClean := strings.ToLower(strings.TrimSpace(email))
 	if emailClean == "" || password == "" {
 		ErrorJSON(w, http.StatusBadRequest, "Email and password are required.")
@@ -232,6 +234,16 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 	}
 	if len(password) < 10 {
 		ErrorJSON(w, http.StatusBadRequest, "Password must be at least 10 characters.")
+		return
+	}
+
+	// When this instance publishes legal pages (ENABLE_LEGAL), registration
+	// requires accepting the Terms/Privacy AND separately consenting to
+	// health-data processing (Art. 9(2)(a) GDPR; Art. 7(2) requires the two to
+	// be distinguishable). Instances without legal pages are unaffected.
+	requireConsent := legalPagesEnabled(r.Context(), h.Settings)
+	if requireConsent && (!legalAccepted || !healthConsent) {
+		ErrorJSON(w, http.StatusBadRequest, "You must accept the Terms and Privacy Policy and consent to the processing of your health data to register.")
 		return
 	}
 
@@ -304,6 +316,9 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		"hash":      hash,
 		"timezone":  timezone,
 		"createdAt": time.Now().Unix(),
+		// Recorded at INSERT time as legal_accepted_at/health_consent_at so
+		// the controller can demonstrate consent (Art. 7(1) GDPR).
+		"legalConsent": requireConsent && legalAccepted && healthConsent,
 	})
 
 	c := service.GenerateCaptcha()
@@ -323,6 +338,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 	hash, _ := pending["hash"].(string)
 	timezone, _ := pending["timezone"].(string)
 	createdAt, _ := pending["createdAt"].(float64)
+	legalConsent, _ := pending["legalConsent"].(bool)
 
 	if emailClean == "" || hash == "" || (createdAt > 0 && time.Since(time.Unix(int64(createdAt), 0)) > 30*time.Minute) {
 		sess.Delete("pendingRegistration")
@@ -387,10 +403,19 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 	}
 	defer tx.Rollback(r.Context())
 
+	// Consent timestamps are NULL unless this registration recorded consent
+	// (legal pages enabled + both checkboxes accepted at the credentials step).
+	var consentAt *time.Time
+	if legalConsent {
+		now := time.Now()
+		consentAt = &now
+	}
+
 	var userID int
 	err = tx.QueryRow(r.Context(),
-		`INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		emailClean, hash, timezone, !h.Email.IsConfigured(), `{"calories": true}`,
+		`INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled, legal_accepted_at, health_consent_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		emailClean, hash, timezone, !h.Email.IsConfigured(), `{"calories": true}`, consentAt, consentAt,
 	).Scan(&userID)
 	if err != nil {
 		slog.Error("registration failed", "error", err)

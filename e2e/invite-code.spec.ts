@@ -1,5 +1,6 @@
 import { test, expect, Browser } from '@playwright/test';
 import { psql } from './fixtures/helpers';
+import { acceptConsentIfShown } from './fixtures/consent';
 
 const ADMIN_STORAGE = 'e2e/.auth/admin.json';
 
@@ -58,9 +59,11 @@ test.describe('Invite-Only Registration', () => {
   });
 
   test('invite code field is shown when registration is invite-only', async ({ browser }) => {
-    // Enable invite-only mode
+    // Enable invite-only mode. Since the invite-gate fix, 'invite' is the
+    // invite-only value — 'false' now means registration is fully CLOSED (the
+    // register page renders no form at all, let alone an invite field).
     const res = await adminApiRequest(browser, 'POST', '/admin/settings', {
-      settings: { enable_registration: 'false' },
+      settings: { enable_registration: 'invite' },
     });
     expect(res.status).toBe(200);
 
@@ -107,6 +110,7 @@ test.describe('Invite-Only Registration', () => {
     await page.locator('#confirm-password').fill('invitepass1234');
     await expect(inviteField).toBeVisible({ timeout: 10000 });
     await page.getByLabel('Invite Code').fill(code);
+    await acceptConsentIfShown(page);
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // Step 2: captcha
@@ -134,6 +138,7 @@ test.describe('Invite-Only Registration', () => {
     await page.locator('#confirm-password').fill('invitepass1234');
     await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Invite Code').fill('INVALID-CODE-XXXXXX');
+    await acceptConsentIfShown(page);
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // Server rejects invalid invite code in step 1 — error shown immediately
@@ -166,6 +171,7 @@ test.describe('Invite-Only Registration', () => {
     await page.locator('#confirm-password').fill('invitepass1234');
     await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Invite Code').fill(expiredCode);
+    await acceptConsentIfShown(page);
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // Server rejects expired invite code in step 1
@@ -197,6 +203,7 @@ test.describe('Invite-Only Registration', () => {
     await page.locator('#confirm-password').fill('invitepass1234');
     await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Invite Code').fill(usedCode);
+    await acceptConsentIfShown(page);
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // Server rejects already-used invite code in step 1

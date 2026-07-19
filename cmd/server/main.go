@@ -21,6 +21,7 @@ import (
 	"schautrack/internal/database"
 	"schautrack/internal/handler"
 	"schautrack/internal/middleware"
+	"schautrack/internal/release"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
 	"schautrack/internal/sse"
@@ -114,6 +115,15 @@ func main() {
 		}
 	}
 
+	// Release source for the update check + "Report an Issue" links. A bad
+	// UPDATE_PROVIDER/UPDATE_REPO must never break startup — fall back to the
+	// public GitHub repo and log it.
+	updateProvider, err := release.New(cfg.UpdateProvider, cfg.UpdateRepo, cfg.UpdateBaseURL)
+	if err != nil {
+		slog.Error("invalid release source config; falling back to github", "error", err)
+		updateProvider, _ = release.New("github", "schaurian/schautrack", "")
+	}
+
 	// Router
 	r := chi.NewRouter()
 	// AccessLog is outermost so it observes the final committed status (including
@@ -143,7 +153,7 @@ func main() {
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
-		r.Get("/latest-version", handler.LatestVersion(cfg.UpdateCheckEnabled))
+		r.Get("/latest-version", handler.LatestVersion(updateProvider, cfg.UpdateCheckEnabled))
 		r.Get("/csrf", handler.CsrfToken)
 		r.Get("/me", handler.Me(pool, cfg.AdminEmail, settingsCache, cfg))
 
@@ -242,6 +252,7 @@ func main() {
 	planHandler := &handler.PlanHandler{Pool: pool, Broker: sseBroker}
 	r.With(middleware.RequireLogin).Get("/api/plan", planHandler.Get)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/api/plan/metrics", planHandler.UpdateMetrics)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/metrics/clear", planHandler.ClearMetrics)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Put("/api/plan/goal", planHandler.UpsertGoal)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/goal/apply-budget", planHandler.ApplyBudget)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/plan/goal/abandon", planHandler.AbandonGoal)
