@@ -13,6 +13,18 @@ import (
 const weightGoalColumns = `id, user_id, start_weight, start_date, target_weight, pace_mode,
 	rate_kg_per_week, target_date, activity_level, status, achieved_at, created_at, updated_at`
 
+// dateArgOrNil normalizes a *string into a value pgx can encode into a DATE
+// column: the dereferenced "2006-01-02" string, or nil for NULL. pgx's date
+// codec encodes a string but NOT a *string (it errors with
+// "dateStringCodec: cannot encode *string"), which is why passing g.TargetDate
+// directly breaks every by-date goal insert.
+func dateArgOrNil(s *string) any {
+	if s == nil {
+		return nil
+	}
+	return *s
+}
+
 func scanWeightGoal(row pgx.Row) (*model.WeightGoal, error) {
 	var g model.WeightGoal
 	err := row.Scan(
@@ -59,7 +71,7 @@ func UpsertActiveGoal(ctx context.Context, pool *pgxpool.Pool, g *model.WeightGo
 		INSERT INTO weight_goals (user_id, start_weight, start_date, target_weight, pace_mode, rate_kg_per_week, target_date, activity_level, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active')
 		RETURNING `+weightGoalColumns,
-		g.UserID, g.StartWeight, g.StartDate, g.TargetWeight, g.PaceMode, g.RateKgPerWeek, g.TargetDate, g.ActivityLevel)
+		g.UserID, g.StartWeight, g.StartDate, g.TargetWeight, g.PaceMode, g.RateKgPerWeek, dateArgOrNil(g.TargetDate), g.ActivityLevel)
 	saved, err := scanWeightGoal(row)
 	if err != nil {
 		return nil, err

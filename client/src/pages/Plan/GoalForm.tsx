@@ -119,7 +119,7 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
             )}
             <div>
               <span className="text-muted-foreground">~</span>
-              <span className="font-semibold">{computed.etaWeeks}</span>
+              <span className="font-semibold">{Math.round(computed.etaWeeks)}</span>
               <span className="text-muted-foreground"> weeks</span>
             </div>
           </div>
