@@ -8,6 +8,7 @@ import ForgotPassword from '@/pages/ForgotPassword/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword/ResetPassword';
 import VerifyEmail from '@/pages/VerifyEmail/VerifyEmail';
 import Dashboard from '@/pages/Dashboard/Dashboard';
+import Plan from '@/pages/Plan/Plan';
 import Settings from '@/pages/Settings/Settings';
 import Admin from '@/pages/Admin/Admin';
 import Privacy from '@/pages/Legal/Privacy';
@@ -41,6 +42,7 @@ export default function AppRouter() {
         <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/plan" element={<ProtectedRoute><Plan /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/delete" element={<ProtectedRoute><DeleteAccount /></ProtectedRoute>} />
