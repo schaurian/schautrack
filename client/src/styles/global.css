@@ -39,6 +39,7 @@
 
   --color-surface: rgba(255, 255, 255, 0.03);
   --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-divider: rgba(255, 255, 255, 0.05);
 
   /* Macro colors */
   --color-macro-kcal: #6d8cff;
@@ -181,6 +182,11 @@
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* Respect the OS "reduce motion" preference: neutralize persistent animations
