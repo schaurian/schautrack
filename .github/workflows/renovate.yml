@@ -13,7 +13,7 @@ jobs:
   renovate:
     runs-on: arc-runner
     container:
-      image: renovate/renovate:43
+      image: renovate/renovate:44
     steps:
       - name: Run Renovate
         env:
