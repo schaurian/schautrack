@@ -51,15 +51,12 @@ test.describe('Macro Status Colors', () => {
     // Wait for protein chip to show the value (120)
     await expect(todayPanel.getByText('120')).toBeVisible({ timeout: 8000 });
 
-    // The Protein label is in a div inside the chip div:
-    //   <div class="rounded-xl border p-3 transition-colors {statusClasses}">   ← chipDiv
-    //     <div class="text-xs font-bold uppercase ...">Protein</div>             ← labelDiv (one level up from text)
-    //   </div>
+    // The protein MacroChip root carries data-testid="macro-chip-protein" and
+    // holds the status classes ({statusClasses}) we assert on.
     const proteinLabel = todayPanel.getByText('Protein', { exact: true }).first();
     await expect(proteinLabel).toBeVisible({ timeout: 8000 });
 
-    // labelDiv.locator('..') = chipDiv
-    const chipDiv = proteinLabel.locator('..');
+    const chipDiv = page.getByTestId('macro-chip-protein');
     const chipClass = await chipDiv.getAttribute('class');
 
     // In target mode, protein=120 >= goal=100 → success (green)
@@ -88,8 +85,8 @@ test.describe('Macro Status Colors', () => {
     const caloriesLabel = todayPanel.getByText('Calories', { exact: true }).first();
     await expect(caloriesLabel).toBeVisible({ timeout: 8000 });
 
-    // labelDiv.locator('..') = chipDiv
-    const chipDiv = caloriesLabel.locator('..');
+    // The calories chip uses macroKey "kcal" → data-testid="macro-chip-kcal".
+    const chipDiv = page.getByTestId('macro-chip-kcal');
     const chipClass = await chipDiv.getAttribute('class');
 
     // In limit mode, calories=1200 > goal=1000 → destructive (red)

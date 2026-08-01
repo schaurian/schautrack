@@ -51,8 +51,8 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const active = rangePreset || range.preset;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
+    <div data-testid="timeline" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.06]">
         <h3 className="text-sm font-medium text-muted-foreground">Timeline</h3>
       </div>
       {/* Range selector */}

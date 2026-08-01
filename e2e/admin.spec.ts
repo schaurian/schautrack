@@ -117,7 +117,7 @@ test.describe('Admin Panel', () => {
     await page.waitForTimeout(1000);
 
     // Count invites by their <code> elements in the invite list section
-    const inviteSection = page.getByText('Invite Codes').locator('..').locator('..');
+    const inviteSection = page.getByTestId('invite-manager');
     const codesBefore = await inviteSection.locator('code').count();
     expect(codesBefore).toBeGreaterThan(0);
 
@@ -318,7 +318,7 @@ test.describe('Admin Panel', () => {
     // Find the invite row by code text, then go up to the row container
     const codeEl = page.locator('code').filter({ hasText: 'USED-INVITE-CODE-E2E' });
     await expect(codeEl).toBeVisible({ timeout: 5000 });
-    const inviteRow = codeEl.locator('../..'); // code -> flex-1 div -> row div
+    const inviteRow = page.getByTestId('invite-row').filter({ hasText: 'USED-INVITE-CODE-E2E' });
 
     // There should be no Delete button for a used invite
     const deleteBtn = inviteRow.locator('button').filter({ hasText: 'Delete' });
@@ -382,7 +382,7 @@ test.describe('Admin Panel', () => {
 
     // Helper to find an invite row by its code
     function inviteRow(code: string) {
-      return page.locator('code').filter({ hasText: code }).locator('../..');
+      return page.getByTestId('invite-row').filter({ hasText: code });
     }
 
     // Unused invite: should show a Delete button

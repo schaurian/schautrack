@@ -83,6 +83,7 @@ export default function MacroSettings({ user, onSave }: Props) {
           return (
             <div
               key={key}
+              data-testid={`macro-row-${key}`}
               className={cn(
                 'flex flex-wrap items-center gap-x-3 gap-y-2 border-l-3 rounded-r-lg px-3 py-2.5 transition-opacity',
                 style?.border,
@@ -124,7 +125,7 @@ export default function MacroSettings({ user, onSave }: Props) {
         })}
 
         {canAutoCalc && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l-3 border-l-primary/40 rounded-r-lg px-3 py-2.5 bg-primary/[0.04]">
+          <div data-testid="macro-row-auto-calc" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l-3 border-l-primary/40 rounded-r-lg px-3 py-2.5 bg-primary/[0.04]">
             <label className="flex items-center gap-2.5 text-sm cursor-pointer">
               <input
                 type="checkbox"

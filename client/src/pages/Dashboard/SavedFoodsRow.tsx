@@ -63,8 +63,8 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
 
   return (
     <>
-      <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-        <div className="px-4 py-2 border-b-2 border-border flex items-center justify-between">
+      <div data-testid="saved-foods-row" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+        <div className="px-4 py-2 border-b border-white/[0.06] flex items-center justify-between">
           <h3 className="text-sm font-medium text-muted-foreground">Quick add</h3>
           <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
             Manage

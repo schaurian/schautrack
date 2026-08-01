@@ -86,8 +86,8 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   if (!data?.enabled) return null;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+    <div data-testid="note-editor" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Notes</h3>
         <div className="flex items-center gap-2">
           {saving && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}

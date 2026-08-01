@@ -120,7 +120,7 @@ test.describe.serial('Settings', () => {
     // Find the Daily Notes card toggle
     const notesHeading = page.getByRole('heading', { name: 'Daily Notes' });
     await notesHeading.scrollIntoViewIfNeeded();
-    const notesCard = notesHeading.locator('../..');
+    const notesCard = page.getByTestId('note-settings-card');
     const notesToggle = notesCard.locator('button').first();
 
     // Determine current state from presence of the description text
@@ -149,7 +149,7 @@ test.describe.serial('Settings', () => {
     await page.waitForURL(/\/settings/);
     const notesHeading2 = page.getByRole('heading', { name: 'Daily Notes' });
     await notesHeading2.scrollIntoViewIfNeeded();
-    const notesCard2 = notesHeading2.locator('../..');
+    const notesCard2 = page.getByTestId('note-settings-card');
     await notesCard2.locator('button').first().click();
     await page.waitForTimeout(600);
 
@@ -259,7 +259,7 @@ test.describe.serial('Settings', () => {
     // Find the Todos card toggle (heading "Todos" within a Card)
     const todosHeading = page.getByRole('heading', { name: 'Todos', exact: true });
     await todosHeading.scrollIntoViewIfNeeded();
-    const todosCard = todosHeading.locator('../..');
+    const todosCard = page.getByTestId('todo-settings-card');
     const todosToggle = todosCard.locator('button').first();
 
     // Determine current state from presence of description text
@@ -290,7 +290,7 @@ test.describe.serial('Settings', () => {
     await page.waitForURL(/\/settings/);
     const todosHeading2 = page.getByRole('heading', { name: 'Todos', exact: true });
     await todosHeading2.scrollIntoViewIfNeeded();
-    const todosCard2 = todosHeading2.locator('../..');
+    const todosCard2 = page.getByTestId('todo-settings-card');
     await todosCard2.locator('button').first().click();
     await page.waitForTimeout(600);
 

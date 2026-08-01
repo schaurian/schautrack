@@ -401,7 +401,7 @@ function InviteManager() {
   const invites = data?.invites || [];
 
   return (
-    <Card>
+    <Card data-testid="invite-manager">
       <h3 className="text-base font-semibold mb-4">Invite Codes</h3>
       <form onSubmit={handleCreate} className="flex gap-2 mb-4">
         <Input
@@ -416,7 +416,7 @@ function InviteManager() {
       {invites.length > 0 && (
         <div className="flex flex-col divide-y divide-border rounded-md border border-border overflow-hidden">
           {invites.map((invite) => (
-            <div key={invite.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+            <div key={invite.id} data-testid="invite-row" className="flex items-center gap-3 px-3 py-2 text-sm">
               <div className="flex-1 min-w-0">
                 <code className="text-xs font-mono text-foreground break-all">{invite.code}</code>
                 {invite.email && <span className="text-xs text-muted-foreground ml-2">{invite.email}</span>}

@@ -66,7 +66,7 @@ export default function AISettings({ user, onSave }: Props) {
   };
 
   return (
-    <Card>
+    <Card data-testid="ai-settings-card">
       <h3 className="text-sm font-semibold mb-3">AI Settings</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">

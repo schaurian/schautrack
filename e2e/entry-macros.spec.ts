@@ -61,7 +61,7 @@ test.describe('Entry with Macros', () => {
     await expect(entryText).toBeVisible({ timeout: 5000 });
 
     // Clean up
-    const deleteBtn = entryText.locator('..').locator('..').locator('button[title="Delete"]');
+    const deleteBtn = page.getByTestId('entry-row').filter({ hasText: 'Chicken breast' }).locator('button[title="Delete"]');
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
       await expect(page.getByText('Chicken breast')).not.toBeVisible({ timeout: 5000 });
