@@ -30,6 +30,16 @@ interface Props {
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50';
 
+// Secondary entry methods (photo, barcode) and save-as-quick-add. Same
+// vocabulary as .surface — hairline edge plus a 1px inner top highlight —
+// at tile scale, so they read as part of the card rather than as leftover
+// bordered boxes next to the primary action.
+const actionTileClass =
+  'grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.04] text-muted-foreground cursor-pointer ' +
+  'shadow-[0_0_0_1px_rgba(255,255,255,0.07),inset_0_1px_0_rgba(255,255,255,0.06)] ' +
+  'transition-colors hover:bg-white/[0.07] hover:text-foreground ' +
+  'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/[0.04] disabled:hover:text-muted-foreground';
+
 export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, aiProviderName, barcodeEnabled, onSubmit }: Props) {
   const { t } = useTranslation('dashboard');
   const [name, setName] = useState('');
@@ -267,7 +277,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             {hasAiEnabled && (
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
+                className={`relative ${actionTileClass}`}
                 onClick={() => setAiModalOpen(true)}
                 disabled={!!aiDisabled}
                 aria-label={t('entries.estimateAiAriaLabel')}
@@ -278,7 +288,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                   <path d="M20 3v4" /><path d="M22 5h-4" />
                 </svg>
                 {localAiUsage && localAiUsage.limit > 0 && (
-                  <span className="text-[10px] font-medium tabular-nums">{localAiUsage.remaining}</span>
+                  <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-background px-1 text-[10px] font-semibold tabular-nums leading-tight text-muted-foreground">
+                    {localAiUsage.remaining}
+                  </span>
                 )}
               </button>
             )}
@@ -286,7 +298,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             {barcodeEnabled && (
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
+                className={actionTileClass}
                 onClick={() => setBarcodeModalOpen(true)}
                 aria-label={t('entries.scanBarcodeLabel')}
                 title={t('entries.scanBarcodeLabel')}
@@ -300,7 +312,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
 
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
+              className={actionTileClass}
               onClick={handleSaveAsFood}
               disabled={!canSaveAsFood || savingFood}
               aria-label={t('entries.saveAsQuickAddLabel')}
@@ -320,10 +332,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
               size="default"
               loading={loading}
               disabled={!hasInput}
-              className={`flex-1 sm:flex-initial ${
+              className={`flex-1 sm:flex-initial border-0 font-semibold ${
                 hasInput
-                  ? 'bg-primary/10 text-primary border border-primary/30 font-semibold hover:bg-primary/20 bg-gradient-to-r from-primary/15 via-secondary/15 to-primary/15 bg-[length:200%_100%] animate-[shimmer_4s_linear_infinite]'
-                  : 'bg-muted text-muted-foreground border border-border'
+                  ? 'bg-gradient-to-br from-secondary to-primary text-primary-foreground shadow-[0_4px_16px_rgba(109,140,255,0.35)] hover:brightness-110'
+                  : 'bg-white/[0.04] text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]'
               }`}
             >
               {t('entries.trackButton')}

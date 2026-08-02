@@ -237,11 +237,15 @@ export default function Account() {
           <ReportIssueCard />
         </div>
 
-        {/* The app's only logout. */}
+        {/* The app's only logout. Ghost inside a surface card like every other
+            row here — logging out is routine, so it shouldn't carry a button
+            border that competes with Delete account right above it. */}
         <div className="break-inside-avoid">
-          <Button variant="ghost" className="w-full border border-border" onClick={doLogout}>
-            {t('account.logout')}
-          </Button>
+          <Card className="p-2 sm:p-2">
+            <Button variant="ghost" className="w-full" onClick={doLogout}>
+              {t('account.logout')}
+            </Button>
+          </Card>
         </div>
       </div>
     </div>
