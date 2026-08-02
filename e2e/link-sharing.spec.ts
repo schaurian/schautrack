@@ -72,7 +72,7 @@ test.describe('Granular link sharing', () => {
     const card = ownerCard(page);
     await expect(card).toBeVisible({ timeout: 8000 });
     // Switch to the owner: click the card (its today dot, or the card itself).
-    const cardRoot = card.locator('../..');
+    const cardRoot = page.getByTestId('share-card').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') });
     const dot = cardRoot.locator(`button[title="${TODAY}"]`);
     if (await dot.count()) { await dot.click(); } else { await cardRoot.click(); }
     await page.waitForTimeout(500);

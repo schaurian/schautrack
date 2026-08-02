@@ -5,8 +5,10 @@ import { savePreferences } from '@/api/settings';
 import { Card } from '@/components/ui/Card';
 import { useAutosave } from '@/hooks/useAutosave';
 import i18n, { SUPPORTED_LANGUAGES } from '@/i18n';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+/** Radix Select disallows an item with value="" — map this sentinel back to ''. */
+const AUTO = '__auto__';
 
 interface Props {
   user: User;
@@ -47,23 +49,32 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-language" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('i18n.language')}</label>
-          <select id="pref-language" value={language} onChange={(e) => onLanguageChange(e.target.value)} className={selectClass}>
-            <option value="">{t('i18n.automatic')}</option>
-            {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.endonym}</option>)}
-          </select>
+          <Select value={language || AUTO} onValueChange={(v) => onLanguageChange(v === AUTO ? '' : v)}>
+            <SelectTrigger id="pref-language" data-testid="pref-language"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={AUTO}>{t('i18n.automatic')}</SelectItem>
+              {SUPPORTED_LANGUAGES.map((l) => <SelectItem key={l.code} value={l.code}>{l.endonym}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-weight-unit" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('preferences.weightUnit.label')}</label>
-          <select id="pref-weight-unit" value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lb')} className={selectClass}>
-            <option value="kg">{t('preferences.weightUnit.kg')}</option>
-            <option value="lb">{t('preferences.weightUnit.lb')}</option>
-          </select>
+          <Select value={weightUnit} onValueChange={(v) => setWeightUnit(v as 'kg' | 'lb')}>
+            <SelectTrigger id="pref-weight-unit"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="kg">{t('preferences.weightUnit.kg')}</SelectItem>
+              <SelectItem value="lb">{t('preferences.weightUnit.lb')}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-timezone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('preferences.timezone.label')}</label>
-          <select id="pref-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
-            {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
+          <Select value={timezone} onValueChange={setTimezone}>
+            <SelectTrigger id="pref-timezone"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {timezones.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       {(status === 'saving' || status === 'saved') && (

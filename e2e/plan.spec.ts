@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { createIsolatedUser, psql } from './fixtures/helpers';
+import { chooseOption } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -51,8 +52,8 @@ test.describe.serial('Weight Planner', () => {
     await expect(heightInput).toBeVisible({ timeout: 10000 });
     await heightInput.fill('180');
     await page.locator('label:text-is("Birth Year") + input').fill('1986');
-    await page.locator('label:text-is("Sex") + select').selectOption('male');
-    await page.locator('label:text-is("Activity Level") + select').selectOption('moderate');
+    await chooseOption(page, page.getByTestId('metrics-sex'), 'male');
+    await chooseOption(page, page.getByTestId('metrics-activity'), 'moderate');
     await page.getByRole('button', { name: 'Save Details' }).click();
     await expect(page.getByText('Details saved')).toBeVisible({ timeout: 10000 });
 

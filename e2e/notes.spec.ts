@@ -8,8 +8,9 @@ let user: { email: string; password: string; id: string };
 async function getNotesToggle(page: import('@playwright/test').Page) {
   // The h3 "Daily Notes" is inside a Card. Go up to the card, then find the toggle sibling.
   const heading = page.getByRole('heading', { name: 'Daily Notes' });
-  // The toggle is a sibling button in the same flex row
-  const card = heading.locator('..');  // parent div (the flex row)
+  // The Daily Notes settings card carries data-testid="note-settings-card";
+  // its only button is the enable/disable toggle.
+  const card = page.getByTestId('note-settings-card');
   const toggle = card.locator('button').first();
   return { heading, toggle };
 }

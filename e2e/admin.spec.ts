@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { execSync } from 'child_process';
 import { psql, fetchMailpitMessages, clearMailpit } from './fixtures/helpers';
+import { chooseOption, selectedValue, expectSelectValue } from './fixtures/select';
 
 // storageState: 'e2e/.auth/admin.json' is set by the 'admin' project in playwright.config.ts
 
@@ -61,7 +62,7 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    const regSelect = page.getByLabel('ENABLE_REGISTRATION');
+    const regSelect = page.getByTestId('admin-setting-enable_registration');
     await regSelect.scrollIntoViewIfNeeded();
     await expect(regSelect).toBeVisible({ timeout: 5000 });
 
@@ -71,10 +72,10 @@ test.describe('Admin Panel', () => {
       return;
     }
 
-    const current = await regSelect.inputValue();
-    const flipped = current === 'true' ? 'false' : 'true';
+    const current = await selectedValue(regSelect);
+    const flipped = current === 'open' ? 'invite' : 'open';
 
-    await regSelect.selectOption(flipped);
+    await chooseOption(page, regSelect, flipped);
 
     // Save
     await page.getByRole('button', { name: 'Save' }).click();
@@ -85,12 +86,12 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    const reloadedSelect = page.getByLabel('ENABLE_REGISTRATION');
+    const reloadedSelect = page.getByTestId('admin-setting-enable_registration');
     await reloadedSelect.scrollIntoViewIfNeeded();
-    await expect(reloadedSelect).toHaveValue(flipped, { timeout: 5000 });
+    await expectSelectValue(reloadedSelect, flipped);
 
     // Restore
-    await reloadedSelect.selectOption(current);
+    await chooseOption(page, reloadedSelect, current);
     await page.getByRole('button', { name: 'Save' }).click();
     await page.waitForTimeout(500);
   });
@@ -117,7 +118,7 @@ test.describe('Admin Panel', () => {
     await page.waitForTimeout(1000);
 
     // Count invites by their <code> elements in the invite list section
-    const inviteSection = page.getByText('Invite Codes').locator('..').locator('..');
+    const inviteSection = page.getByTestId('invite-manager');
     const codesBefore = await inviteSection.locator('code').count();
     expect(codesBefore).toBeGreaterThan(0);
 
@@ -167,16 +168,14 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    // The form has proper htmlFor/id pairing so getByLabel resolves directly
-    // to the input/select.
-    const barcodeSelect = page.getByLabel('ENABLE_BARCODE');
+    const barcodeSelect = page.getByTestId('admin-setting-enable_barcode');
     await barcodeSelect.scrollIntoViewIfNeeded();
     await expect(barcodeSelect).toBeVisible({ timeout: 5000 });
 
-    const current = await barcodeSelect.inputValue();
+    const current = await selectedValue(barcodeSelect);
     const flipped = current === 'true' ? 'false' : 'true';
 
-    await barcodeSelect.selectOption(flipped);
+    await chooseOption(page, barcodeSelect, flipped);
     await page.getByRole('button', { name: 'Save' }).click();
     await page.waitForTimeout(800);
 
@@ -185,12 +184,12 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    const barcodeSelect2 = page.getByLabel('ENABLE_BARCODE');
+    const barcodeSelect2 = page.getByTestId('admin-setting-enable_barcode');
     await barcodeSelect2.scrollIntoViewIfNeeded();
-    await expect(barcodeSelect2).toHaveValue(flipped, { timeout: 5000 });
+    await expectSelectValue(barcodeSelect2, flipped);
 
     // Restore
-    await barcodeSelect2.selectOption(current);
+    await chooseOption(page, barcodeSelect2, current);
     await page.getByRole('button', { name: 'Save' }).click();
     await page.waitForTimeout(500);
   });
@@ -318,7 +317,7 @@ test.describe('Admin Panel', () => {
     // Find the invite row by code text, then go up to the row container
     const codeEl = page.locator('code').filter({ hasText: 'USED-INVITE-CODE-E2E' });
     await expect(codeEl).toBeVisible({ timeout: 5000 });
-    const inviteRow = codeEl.locator('../..'); // code -> flex-1 div -> row div
+    const inviteRow = page.getByTestId('invite-row').filter({ hasText: 'USED-INVITE-CODE-E2E' });
 
     // There should be no Delete button for a used invite
     const deleteBtn = inviteRow.locator('button').filter({ hasText: 'Delete' });
@@ -382,7 +381,7 @@ test.describe('Admin Panel', () => {
 
     // Helper to find an invite row by its code
     function inviteRow(code: string) {
-      return page.locator('code').filter({ hasText: code }).locator('../..');
+      return page.getByTestId('invite-row').filter({ hasText: code });
     }
 
     // Unused invite: should show a Delete button

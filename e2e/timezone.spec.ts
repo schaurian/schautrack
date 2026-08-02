@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser } from './fixtures/helpers';
+import { chooseOption, selectedValue, expectSelectValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -31,24 +32,24 @@ test.describe('Timezone Handling', () => {
 
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 10000 });
 
-    const tzSelect = page.locator('select').filter({ has: page.locator('option[value="UTC"]') });
+    const tzSelect = page.locator('#pref-timezone');
     await expect(tzSelect).toBeVisible({ timeout: 5000 });
 
-    const originalTz = await tzSelect.inputValue();
+    const originalTz = await selectedValue(tzSelect);
     const newTz = originalTz === 'America/New_York' ? 'Europe/Berlin' : 'America/New_York';
 
-    await tzSelect.selectOption(newTz);
+    await chooseOption(page, tzSelect, newTz);
     await page.waitForTimeout(1500); // autosave
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 10000 });
 
-    const reloaded = page.locator('select').filter({ has: page.locator('option[value="UTC"]') });
-    await expect(reloaded).toHaveValue(newTz, { timeout: 5000 });
+    const reloaded = page.locator('#pref-timezone');
+    await expectSelectValue(reloaded, newTz);
 
     // Restore
-    await reloaded.selectOption(originalTz);
+    await chooseOption(page, reloaded, originalTz);
     await page.waitForTimeout(1500);
     await ctx.close();
   });

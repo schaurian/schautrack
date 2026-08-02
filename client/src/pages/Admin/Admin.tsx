@@ -8,7 +8,11 @@ import { useToastStore } from '@/stores/toastStore';
 import { useAutosave } from '@/hooks/useAutosave';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { InviteCode } from '@/types';
+
+/** Sentinel for "no value" — Radix Select disallows an item with value="". */
+const UNSET = '__unset__';
 
 export default function Admin() {
   const { t } = useTranslation('settings');
@@ -310,30 +314,24 @@ function SettingField({
       </div>
 
       {isRegistrationMode ? (
-        <select
-          id={fieldId}
-          className={inputClass}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={isEnv}
-        >
-          <option value="">{t('admin.registrationDefault')}</option>
-          <option value="open">{t('admin.registrationOpen')}</option>
-          <option value="invite">{t('admin.registrationInvite')}</option>
-          <option value="false">{t('admin.registrationDisabled')}</option>
-        </select>
+        <Select value={value || UNSET} onValueChange={(v) => onChange(v === UNSET ? '' : v)} disabled={isEnv}>
+          <SelectTrigger id={fieldId} data-testid={fieldId}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNSET}>{t('admin.registrationDefault')}</SelectItem>
+            <SelectItem value="open">{t('admin.registrationOpen')}</SelectItem>
+            <SelectItem value="invite">{t('admin.registrationInvite')}</SelectItem>
+            <SelectItem value="false">{t('admin.registrationDisabled')}</SelectItem>
+          </SelectContent>
+        </Select>
       ) : isBool ? (
-        <select
-          id={fieldId}
-          className={inputClass}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={isEnv}
-        >
-          <option value="">{t('admin.unset')}</option>
-          <option value="true">{t('admin.boolTrue')}</option>
-          <option value="false">{t('admin.boolFalse')}</option>
-        </select>
+        <Select value={value || UNSET} onValueChange={(v) => onChange(v === UNSET ? '' : v)} disabled={isEnv}>
+          <SelectTrigger id={fieldId} data-testid={fieldId}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNSET}>{t('admin.unset')}</SelectItem>
+            <SelectItem value="true">{t('admin.boolTrue')}</SelectItem>
+            <SelectItem value="false">{t('admin.boolFalse')}</SelectItem>
+          </SelectContent>
+        </Select>
       ) : showSecretMask ? (
         <div className="flex items-center gap-2">
           <span className={`flex-1 ${inputClass} ${meta.isSet ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
@@ -403,7 +401,7 @@ function InviteManager() {
   const invites = data?.invites || [];
 
   return (
-    <Card>
+    <Card data-testid="invite-manager">
       <h3 className="text-base font-semibold mb-4">{t('admin.inviteCodesHeading')}</h3>
       <form onSubmit={handleCreate} className="flex gap-2 mb-4">
         <Input
@@ -418,7 +416,7 @@ function InviteManager() {
       {invites.length > 0 && (
         <div className="flex flex-col divide-y divide-border rounded-md border border-border overflow-hidden">
           {invites.map((invite) => (
-            <div key={invite.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+            <div key={invite.id} data-testid="invite-row" className="flex items-center gap-3 px-3 py-2 text-sm">
               <div className="flex-1 min-w-0">
                 <code className="text-xs font-mono text-foreground break-all">{invite.code}</code>
                 {invite.email && <span className="text-xs text-muted-foreground ml-2">{invite.email}</span>}

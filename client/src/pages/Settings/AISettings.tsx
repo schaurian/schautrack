@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useToastStore } from '@/stores/toastStore';
 import { useAutosave } from '@/hooks/useAutosave';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+/** Radix Select disallows an item with value="" — map this sentinel back to ''. */
+const NONE = '__none__';
 
 interface Props {
   user: User;
@@ -68,17 +70,20 @@ export default function AISettings({ user, onSave }: Props) {
   };
 
   return (
-    <Card>
+    <Card data-testid="ai-settings-card">
       <h3 className="text-sm font-semibold mb-3">{t('ai.heading')}</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('ai.provider')}</label>
-          <select value={provider} onChange={(e) => setProvider(e.target.value)} className={selectClass}>
-            <option value="">{t('ai.providerDefault')}</option>
-            <option value="openai">OpenAI</option>
-            <option value="claude">Claude</option>
-            <option value="ollama">Ollama</option>
-          </select>
+          <Select value={provider || NONE} onValueChange={(v) => setProvider(v === NONE ? '' : v)}>
+            <SelectTrigger data-testid="ai-provider"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>{t('ai.providerDefault')}</SelectItem>
+              <SelectItem value="openai">OpenAI</SelectItem>
+              <SelectItem value="claude">Claude</SelectItem>
+              <SelectItem value="ollama">Ollama</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Input label={t('ai.modelLabel')} value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('ai.modelPlaceholder')} />
         <Input label={t('ai.apiKeyLabel')} type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}

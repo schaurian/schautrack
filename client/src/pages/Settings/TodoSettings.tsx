@@ -30,7 +30,7 @@ export default function TodoSettings({ user, onSave }: Props) {
   };
 
   return (
-    <Card>
+    <Card data-testid="todo-settings-card">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{t('todo.heading')}</h3>
         <button

@@ -172,8 +172,8 @@ export default function Dashboard() {
       )}
 
       {showCat('nutrition') && (
-        <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+        <div data-testid="entries" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
             <h3 className="text-sm font-medium text-muted-foreground">{t('dashboard.entriesSectionTitle')}</h3>
             <span className="text-sm text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>
           </div>

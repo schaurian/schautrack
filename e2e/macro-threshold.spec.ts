@@ -132,7 +132,7 @@ test.describe.serial('Macro Threshold', () => {
     const isProteinVisible = await proteinText.isVisible({ timeout: 8000 }).catch(() => false);
 
     if (isProteinVisible) {
-      const proteinChip = proteinText.locator('../..');
+      const proteinChip = page.getByTestId('macro-chip-protein');
       const chipClass = await proteinChip.getAttribute('class');
       if (chipClass) {
         expect(chipClass).not.toMatch(/destructive/);

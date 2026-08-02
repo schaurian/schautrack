@@ -6,9 +6,12 @@ import { updateMetrics, clearMetrics } from '@/api/plan';
 import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+/** Radix Select disallows an item with value="" — map this sentinel back to ''. */
+const NONE = '__none__';
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const selectClass = inputClass;
 
 const ACTIVITY_LEVELS: { value: string; labelKey: string }[] = [
   { value: 'sedentary', labelKey: 'sedentary' },
@@ -90,21 +93,27 @@ export default function MetricsForm({ metrics }: Props) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.sexLabel')}</label>
-              <select className={selectClass} value={sex} onChange={(e) => setSex(e.target.value)}>
-                <option value="">{t('plan.metricsForm.selectPlaceholder')}</option>
-                <option value="male">{t('plan.metricsForm.sexMale')}</option>
-                <option value="female">{t('plan.metricsForm.sexFemale')}</option>
-                <option value="other">{t('plan.metricsForm.sexOther')}</option>
-              </select>
+              <Select value={sex || NONE} onValueChange={(v) => setSex(v === NONE ? '' : v)}>
+                <SelectTrigger data-testid="metrics-sex"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>{t('plan.metricsForm.selectPlaceholder')}</SelectItem>
+                  <SelectItem value="male">{t('plan.metricsForm.sexMale')}</SelectItem>
+                  <SelectItem value="female">{t('plan.metricsForm.sexFemale')}</SelectItem>
+                  <SelectItem value="other">{t('plan.metricsForm.sexOther')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.activityLevelLabel')}</label>
-              <select className={selectClass} value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}>
-                <option value="">{t('plan.metricsForm.selectPlaceholder')}</option>
-                {ACTIVITY_LEVELS.map(({ value, labelKey }) => (
-                  <option key={value} value={value}>{t(`plan.metricsForm.activity.${labelKey}`)}</option>
-                ))}
-              </select>
+              <Select value={activityLevel || NONE} onValueChange={(v) => setActivityLevel(v === NONE ? '' : v)}>
+                <SelectTrigger data-testid="metrics-activity"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>{t('plan.metricsForm.selectPlaceholder')}</SelectItem>
+                  {ACTIVITY_LEVELS.map(({ value, labelKey }) => (
+                    <SelectItem key={value} value={value}>{t(`plan.metricsForm.activity.${labelKey}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">

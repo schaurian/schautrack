@@ -149,9 +149,9 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   const hasMacros = caloriesEnabled || enabledMacros.length > 0;
 
   return (
-    <div className={cn(
+    <div data-testid="entry-row" className={cn(
       'rounded-[10px] border border-border bg-white/[0.015] transition-[border-color,background] duration-150 hover:bg-white/[0.04] hover:border-white/10',
-      editing && 'border-[#0ea5e9]/40 shadow-[0_0_0_1px_rgba(14,165,233,0.25),0_8px_22px_rgba(2,18,45,0.4)]',
+      editing && 'border-[#0ea5e9]/40 ring-1 ring-primary/40',
     )}>
       {/* Row 1: Name + Time + Delete */}
       <div className="flex items-center gap-1.5 px-3 py-2">

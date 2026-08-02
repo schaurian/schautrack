@@ -42,9 +42,10 @@ export default function PlanCard({ weightUnit }: Props) {
   return (
     <Link
       to="/plan"
-      className="block rounded-xl border-2 border-border bg-card overflow-hidden no-underline text-foreground transition-colors hover:border-primary/40"
+      data-testid="plan-card"
+      className="block rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden no-underline text-foreground transition-colors hover:border-primary/40"
     >
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">{t('plan.card.title')}</h3>
         {trend && (
           <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', trend.classes)}>

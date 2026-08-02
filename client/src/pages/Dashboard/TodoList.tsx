@@ -199,8 +199,8 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
   const total = data.todos.length;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+    <div data-testid="todo-list" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">{t('todos.sectionTitle')}</h3>
         <div className="flex items-center gap-2">
           {total > 0 && <span className="text-xs text-muted-foreground">{t('todos.progressCount', { completed, total })}</span>}

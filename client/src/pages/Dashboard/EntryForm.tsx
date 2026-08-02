@@ -172,8 +172,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   };
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
+    <div data-testid="entry-form" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.06]">
         <h3 className="text-sm font-medium text-muted-foreground">{t('entries.logSectionTitle')}</h3>
       </div>
       <form onSubmit={handleSubmit} className="p-4">

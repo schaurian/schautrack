@@ -64,7 +64,7 @@ test.describe('Linked User SSE Propagation', () => {
       await expect(userALabel).toBeVisible({ timeout: 20000 });
 
       // Click today's dot in User A's share card to switch to their view
-      const userACard = userALabel.locator('../..');
+      const userACard = pageB.getByTestId('share-card').filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') });
       const todayDot = userACard.locator(`button[title="${TODAY}"]`).first();
       const dotVisible = await todayDot.isVisible({ timeout: 5000 }).catch(() => false);
 

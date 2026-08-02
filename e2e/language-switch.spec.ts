@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createIsolatedUser } from './fixtures/helpers';
+import { chooseOption, expectSelectValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -23,9 +24,7 @@ test.describe.serial('Language selector + autodetect', () => {
     await page.waitForLoadState('domcontentloaded');
   }
 
-  // The language <select> is the only one carrying a German option.
-  const langSelect = (page: import('@playwright/test').Page) =>
-    page.locator('select').filter({ has: page.locator('option[value="de"]') });
+  const langSelect = (page: import('@playwright/test').Page) => page.getByTestId('pref-language');
 
   const htmlLang = (page: import('@playwright/test').Page) =>
     page.evaluate(() => document.documentElement.lang);
@@ -41,7 +40,7 @@ test.describe.serial('Language selector + autodetect', () => {
     await expect(page.getByText('Language', { exact: true })).toBeVisible();
 
     // Switch to German — label and <html lang> update live.
-    await sel.selectOption('de');
+    await chooseOption(page, sel, 'de');
     await expect(page.getByText('Sprache', { exact: true })).toBeVisible();
     await expect.poll(() => htmlLang(page)).toBe('de');
 
@@ -53,7 +52,7 @@ test.describe.serial('Language selector + autodetect', () => {
     // Persisted: comes back in German after reload.
     await expect.poll(() => htmlLang(page), { timeout: 10000 }).toBe('de');
     await expect(page.getByText('Sprache', { exact: true })).toBeVisible();
-    await expect(langSelect(page)).toHaveValue('de');
+    await expectSelectValue(langSelect(page), 'de');
 
     await ctx.close();
   });
@@ -68,8 +67,9 @@ test.describe.serial('Language selector + autodetect', () => {
     // Persisted German from the previous test.
     await expect.poll(() => htmlLang(page), { timeout: 10000 }).toBe('de');
 
-    // Choose Automatic — reverts to the (en) browser language.
-    await sel.selectOption('');
+    // Choose Automatic — reverts to the (en) browser language. '' isn't a legal
+    // Radix item value; the component maps this sentinel back to ''.
+    await chooseOption(page, sel, '__auto__');
     await expect.poll(() => htmlLang(page)).toBe('en');
     await expect(page.getByText('Language', { exact: true })).toBeVisible();
 

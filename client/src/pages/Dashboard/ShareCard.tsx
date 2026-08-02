@@ -48,6 +48,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
 
   return (
     <div
+      data-testid="share-card"
       role="button"
       tabIndex={0}
       aria-pressed={isActive}

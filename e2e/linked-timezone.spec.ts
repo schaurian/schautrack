@@ -74,7 +74,7 @@ test.describe('Linked User Timezone Display', () => {
     // Click the creator's dot for the entry date using aria-label
     // DayDot renders: <button title="{date}" aria-label="{date}: {status}">
     // Look for the April 1 dot within the creator's card
-    const creatorCard = creatorLabel.locator('../..');
+    const creatorCard = page.getByTestId('share-card').filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') });
     const entryDot = creatorCard.locator(`button[title="${ENTRY_DATE}"]`).first();
 
     await entryDot.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});

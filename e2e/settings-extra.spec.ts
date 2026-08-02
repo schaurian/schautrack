@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { chooseOption } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -23,7 +24,7 @@ test.describe.serial('Settings Extra', () => {
     await page.waitForTimeout(3000);
 
     // "Saved" must not be visible without user action
-    await expect(page.getByText('Saved')).not.toBeVisible();
+    await expect(page.getByText('Saved', { exact: true })).not.toBeVisible();
 
     await ctx.close();
   });
@@ -39,17 +40,17 @@ test.describe.serial('Settings Extra', () => {
     await aiHeading.scrollIntoViewIfNeeded();
 
     // Find Provider select and change it to 'claude'
-    const aiCard = aiHeading.locator('../..');
-    const providerSelect = aiCard.locator('select');
+    const aiCard = page.getByTestId('ai-settings-card');
+    const providerSelect = aiCard.getByTestId('ai-provider');
     const providerSelectVisible = await providerSelect.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (providerSelectVisible) {
-      await providerSelect.selectOption('claude');
+      await chooseOption(page, providerSelect, 'claude');
     }
 
     // Fill Model input
     const modelInput = page.locator('input[placeholder*="gpt-4o"]').or(
-      page.locator('label').filter({ hasText: 'Model' }).locator('..').locator('input')
+      page.getByTestId('ai-settings-card').getByLabel('Model')
     );
     const modelInputEl = modelInput.first();
     const modelVisible = await modelInputEl.isVisible({ timeout: 3000 }).catch(() => false);
@@ -68,7 +69,7 @@ test.describe.serial('Settings Extra', () => {
 
     if (modelVisible) {
       const reloadedModel = page.locator('input[placeholder*="gpt-4o"]').or(
-        page.locator('label').filter({ hasText: 'Model' }).locator('..').locator('input')
+        page.getByTestId('ai-settings-card').getByLabel('Model')
       );
       const reloadedVal = await reloadedModel.first().inputValue().catch(() => '');
       expect(reloadedVal).toBe('test-model-e2e');
@@ -99,7 +100,7 @@ test.describe.serial('Settings Extra', () => {
     await aiHeading.scrollIntoViewIfNeeded();
 
     // Find the API Key input (type=password) scoped to the AI Settings card
-    const aiCardForKey = page.getByText('AI Settings').locator('../..');
+    const aiCardForKey = page.getByTestId('ai-settings-card');
     const keyInput = aiCardForKey.locator('input[type="password"]').first();
     const keyVisible = await keyInput.isVisible({ timeout: 5000 }).catch(() => false);
 
@@ -129,7 +130,7 @@ test.describe.serial('Settings Extra', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('AI Settings')).toBeVisible({ timeout: 10000 });
 
-    const reloadedAiCard = page.getByText('AI Settings').locator('../..');
+    const reloadedAiCard = page.getByTestId('ai-settings-card');
     const reloadedKey = reloadedAiCard.locator('input[type="password"]').first();
     const placeholder = await reloadedKey.getAttribute('placeholder');
     // When a key is saved, placeholder shows "••••XXXX" (masked + last 4)

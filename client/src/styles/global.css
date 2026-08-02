@@ -65,14 +65,8 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-size: 15px;
     line-height: 1.5;
-    background-image:
-      radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.15), transparent 50%),
-      radial-gradient(circle at 80% 10%, rgba(168, 85, 247, 0.25), transparent 50%),
-      radial-gradient(circle at 60% 80%, rgba(14, 165, 233, 0.12), transparent 45%),
-      radial-gradient(circle at 10% 70%, rgba(168, 85, 247, 0.22), transparent 45%),
-      radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08), transparent 60%),
-      linear-gradient(135deg, #070d1a, #0a1220);
-    background-attachment: fixed;
+    /* One flat, calm surface — no stacked gradients. */
+    background-color: var(--color-background);
     min-height: 100%;
   }
 

@@ -1,12 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser } from './fixtures/helpers';
+import { chooseOption, expectSelectValue, selectedValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
 
 /** Helper: locate the checkbox for a given macro label (e.g. 'Protein'). */
 function macroCheckbox(page: import('@playwright/test').Page, label: string) {
-  return page.getByText(label, { exact: true }).locator('..').locator('input[type="checkbox"]');
+  // Each macro row carries data-testid="macro-row-<key>" where key is the
+  // lowercased label (Calories→calories, Protein→protein, …).
+  return page.getByTestId(`macro-row-${label.toLowerCase()}`).locator('input[type="checkbox"]');
 }
 
 /**
@@ -142,16 +145,23 @@ test.describe.serial('Macro Settings', () => {
     }
 
     // Find the Protein row — locate the goal input within the row containing "Protein"
-    const proteinRow = page.locator('label').filter({ hasText: 'Protein' }).locator('..');
+    const proteinRow = page.getByTestId('macro-row-protein');
     const goalInput = proteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(goalInput).toBeVisible({ timeout: 5000 });
+
+    // The seeded user already sits at protein 150 / "Target", so start from
+    // "Limit" — autosave only fires on a real change, and picking the value
+    // that's already selected is a no-op.
+    const modeSelect = proteinRow.getByTestId('macro-mode-protein');
+    if ((await selectedValue(modeSelect)) !== 'limit') {
+      await triggerAndWaitForMacroSave(page, () => chooseOption(page, modeSelect, 'limit'));
+    }
 
     // Set goal to 150 and mode to "Target", then wait for autosave
     await triggerAndWaitForMacroSave(page, async () => {
       await goalInput.click({ clickCount: 3 });
       await goalInput.fill('150');
-      const modeSelect = proteinRow.locator('select');
-      await modeSelect.selectOption('target');
+      await chooseOption(page, modeSelect, 'target');
     });
 
     // Reload and verify
@@ -160,18 +170,18 @@ test.describe.serial('Macro Settings', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
 
-    const reloadedProteinRow = page.locator('label').filter({ hasText: 'Protein' }).locator('..');
+    const reloadedProteinRow = page.getByTestId('macro-row-protein');
     const reloadedGoal = reloadedProteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(reloadedGoal).toHaveValue('150', { timeout: 5000 });
 
-    const reloadedMode = reloadedProteinRow.locator('select');
-    await expect(reloadedMode).toHaveValue('target', { timeout: 3000 });
+    const reloadedMode = reloadedProteinRow.getByTestId('macro-mode-protein');
+    await expectSelectValue(reloadedMode, 'target', 3000);
 
     // Restore to neutral
     await triggerAndWaitForMacroSave(page, async () => {
       await reloadedGoal.click({ clickCount: 3, force: true });
       await reloadedGoal.fill('0', { force: true });
-      await reloadedMode.selectOption('limit', { force: true });
+      await chooseOption(page, reloadedMode, 'limit');
     });
 
     await ctx.close();
@@ -206,8 +216,8 @@ test.describe.serial('Macro Settings', () => {
       });
     }
 
-    // After enabling all four, the "Auto-calculate calories" checkbox should appear
-    const autoCalcCb = page.getByText('Auto-calculate calories').locator('..').locator('input[type="checkbox"]');
+    // After enabling all four, the "Auto-calculate calories" row should appear
+    const autoCalcCb = page.getByTestId('macro-row-auto-calc').locator('input[type="checkbox"]');
     await expect(autoCalcCb).toBeVisible({ timeout: 5000 });
 
     const wasAutoCalcChecked = await autoCalcCb.isChecked();
@@ -220,17 +230,18 @@ test.describe.serial('Macro Settings', () => {
     await page.waitForURL(/\/settings/);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Auto-calculate calories').locator('..').locator('input[type="checkbox"]')).toBeChecked({ timeout: 5000 });
+    await expect(page.getByTestId('macro-row-auto-calc').locator('input[type="checkbox"]')).toBeChecked({ timeout: 5000 });
 
     // Go to dashboard and fill in protein=10, carbs=20, fat=5
     await page.goto(`${baseURL}/dashboard`);
     await page.waitForURL(/\/dashboard/);
 
-    // Macro inputs use inputmode="numeric"; calories auto-calc field is readonly with inputmode="tel"
-    const proteinInput = page.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input[inputmode="numeric"]');
-    const carbsInput = page.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input[inputmode="numeric"]');
-    const fatInput = page.locator('label').filter({ hasText: 'Fat' }).locator('..').locator('input[inputmode="numeric"]');
-    const caloriesInput = page.locator('label').filter({ hasText: 'Calories' }).locator('..').locator('input[inputmode="tel"]');
+    // Entry-form fields have stable ids; scope to the entry-form landmark.
+    const entryForm = page.getByTestId('entry-form');
+    const proteinInput = entryForm.locator('#entry-macro-protein');
+    const carbsInput = entryForm.locator('#entry-macro-carbs');
+    const fatInput = entryForm.locator('#entry-macro-fat');
+    const caloriesInput = entryForm.locator('#entry-calories');
 
     await expect(proteinInput).toBeVisible({ timeout: 10000 });
     await proteinInput.click();
@@ -251,7 +262,7 @@ test.describe.serial('Macro Settings', () => {
     // Restore auto-calc and macros
     await triggerAndWaitForMacroSave(page, async () => {
       if (!wasAutoCalcChecked) {
-        const autoCalcCb2 = page.getByText('Auto-calculate calories').locator('..').locator('input[type="checkbox"]');
+        const autoCalcCb2 = page.getByTestId('macro-row-auto-calc').locator('input[type="checkbox"]');
         if (await autoCalcCb2.isVisible({ timeout: 1000 }).catch(() => false)) {
           await autoCalcCb2.click();
           await page.waitForTimeout(100);

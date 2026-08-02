@@ -59,7 +59,7 @@ test.describe('Entry Inline Edit', () => {
     await expect(page.getByText('Renamed entry')).toBeVisible({ timeout: 5000 });
 
     // Clean up
-    const deleteBtn = page.getByText('Renamed entry').locator('..').locator('..').locator('button[title="Delete"]');
+    const deleteBtn = page.getByTestId('entry-row').filter({ hasText: 'Renamed entry' }).locator('button[title="Delete"]');
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
     }
@@ -78,9 +78,9 @@ test.describe('Entry Inline Edit', () => {
     await expect(entryBtn).toBeVisible({ timeout: 10000 });
     await entryBtn.scrollIntoViewIfNeeded();
 
-    // The outer entry container is 3 levels up from the button:
-    // button → span → row-1-div → outer-entry-div
-    const row = entryBtn.locator('..').locator('..').locator('..');
+    // The entry row is the container with data-testid="entry-row" holding this
+    // entry's name; scope by the name to reach it without depending on nesting.
+    const row = page.getByTestId('entry-row').filter({ hasText: 'Cal edit test' });
 
     // Find an editable numeric button (calorie or macro value pill)
     const editableButtons = row.locator('button.tabular-nums:not([disabled])');

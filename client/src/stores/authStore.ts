@@ -13,7 +13,7 @@ interface AuthState {
   clearUser: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAdmin: false,
   pendingLinkRequests: 0,
@@ -21,7 +21,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   isInitialized: false,
 
   fetchUser: async () => {
-    set({ isLoading: true });
+    // Only the very first fetch may flip the app into a loading state. Pages
+    // gate their whole tree on it, so doing this for a background refresh
+    // (every autosave calls fetchUser) unmounts the form mid-edit: pending
+    // debounced saves are dropped and the freshly saved value visibly
+    // reverts when the form remounts from the not-yet-updated query cache.
+    if (!get().user) set({ isLoading: true });
     try {
       const data = await getMe();
       set({ user: data.user, isAdmin: data.isAdmin, pendingLinkRequests: data.pendingLinkRequests || 0, isLoading: false, isInitialized: true });

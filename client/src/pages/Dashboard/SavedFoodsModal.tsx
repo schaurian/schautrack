@@ -102,7 +102,7 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[150] bg-background/80 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-[150] w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border-2 border-border bg-card overflow-hidden focus:outline-none">
-        <div className="flex items-center justify-between px-4 py-3 border-b-2 border-border">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
           <Dialog.Title className="text-base font-semibold">{t('savedFoods.modalTitle')}</Dialog.Title>
           <Dialog.Close
             aria-label={t('dashboard.closeAriaLabel')}
@@ -127,7 +127,7 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
 
         <div className="flex-1 overflow-y-auto p-2">
           {creating && (
-            <div className="rounded-[10px] border border-[#0ea5e9]/40 bg-white/[0.015] mb-1.5 shadow-[0_0_0_1px_rgba(14,165,233,0.25),0_8px_22px_rgba(2,18,45,0.4)]">
+            <div className="rounded-[10px] border border-[#0ea5e9]/40 bg-white/[0.015] mb-1.5 ring-1 ring-primary/40">
               <div className="flex items-center gap-1.5 px-3 py-2">
                 <input
                   ref={draftRef}
@@ -300,7 +300,7 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
   return (
     <div className={cn(
       'group rounded-[10px] border border-border bg-white/[0.015] transition-[border-color,background] duration-150 hover:bg-white/[0.04] hover:border-white/10',
-      editing && 'border-[#0ea5e9]/40 shadow-[0_0_0_1px_rgba(14,165,233,0.25),0_8px_22px_rgba(2,18,45,0.4)]',
+      editing && 'border-[#0ea5e9]/40 ring-1 ring-primary/40',
     )}>
       {/* Row 1: emoji + name + badges + actions */}
       <div className="flex items-center gap-1.5 px-3 py-2">

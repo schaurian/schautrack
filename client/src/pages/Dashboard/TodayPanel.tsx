@@ -35,11 +35,19 @@ const BAR_COLORS: Record<string, string> = {
   sugar: 'bg-macro-sugar',
 };
 
+/**
+ * Semantic status ('success' | 'warning' | 'danger') exposed as `data-status`
+ * so tests can assert goal status without coupling to Tailwind color classes.
+ */
+function statusName(statusClass: string) {
+  return statusClass.startsWith('macro-stat--') ? statusClass.slice('macro-stat--'.length) : undefined;
+}
+
 function statusClasses(statusClass: string) {
-  if (statusClass === 'macro-stat--success') return { chip: 'bg-success/10 border-success/35', value: 'text-green-300', bar: 'bg-green-500' };
-  if (statusClass === 'macro-stat--warning') return { chip: 'bg-warning/10 border-warning/35', value: 'text-yellow-300', bar: 'bg-amber-500' };
-  if (statusClass === 'macro-stat--danger') return { chip: 'bg-destructive/10 border-destructive/35', value: 'text-red-300', bar: 'bg-red-500' };
-  return { chip: 'bg-surface border-white/6', value: '', bar: '' };
+  if (statusClass === 'macro-stat--success') return { value: 'text-green-300', bar: 'bg-green-500' };
+  if (statusClass === 'macro-stat--warning') return { value: 'text-yellow-300', bar: 'bg-amber-500' };
+  if (statusClass === 'macro-stat--danger') return { value: 'text-red-300', bar: 'bg-red-500' };
+  return { value: '', bar: '' };
 }
 
 export default function TodayPanel({
@@ -56,50 +64,76 @@ export default function TodayPanel({
     );
   }
 
-  const itemCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
-  const cols = itemCount <= 3 ? itemCount : Math.ceil(itemCount / 2);
-
   return (
-    <section className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">{selectedDate === todayStr ? t('dashboard.todayLabel') : selectedDate}</h3>
+    <section data-testid="today-panel" className="pt-1 pb-2">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {selectedDate === todayStr ? t('dashboard.todayLabel') : selectedDate}
       </div>
-      <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-        {caloriesEnabled && (
-          <MacroChip
-            macroKey="kcal"
-            label={t('entries.caloriesLabel')}
-            total={todayTotal}
-            goal={dailyGoal}
-            unit="kcal"
-            status={calorieStatus}
-          />
-        )}
 
-        {enabledMacros.map((key) => {
-          const total = todayMacroTotals[key] || 0;
-          const goal = macroGoals[key] ?? null;
-          const status = macroStatuses[key] || { statusClass: '', statusText: '' };
-          const label = MACRO_LABELS[key as MacroKey]?.label || key;
+      {caloriesEnabled && (
+        <HeroCalories total={todayTotal} goal={dailyGoal} status={calorieStatus} />
+      )}
 
-          return (
-            <MacroChip
-              key={key}
-              macroKey={key}
-              label={label}
-              total={total}
-              goal={goal}
-              unit="g"
-              status={status}
-            />
-          );
-        })}
-      </div>
+      {enabledMacros.length > 0 && (
+        <div
+          className={cn(
+            'grid gap-x-5 gap-y-4 [grid-template-columns:repeat(auto-fill,minmax(86px,1fr))]',
+            caloriesEnabled ? 'mt-6' : 'mt-4'
+          )}
+        >
+          {enabledMacros.map((key) => {
+            const total = todayMacroTotals[key] || 0;
+            const goal = macroGoals[key] ?? null;
+            const status = macroStatuses[key] || { statusClass: '', statusText: '' };
+            const label = MACRO_LABELS[key as MacroKey]?.label || key;
+            return (
+              <MacroStat key={key} macroKey={key} label={label} total={total} goal={goal} unit="g" status={status} />
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
 
-function MacroChip({ macroKey, label, total, goal, unit, status }: {
+function HeroCalories({ total, goal, status }: { total: number; goal: number | null; status: MacroStatus }) {
+  const pct = goal ? Math.min(Math.round((total / goal) * 100), 100) : null;
+  const over = goal != null && total > goal;
+  const sc = statusClasses(status.statusClass);
+  const hasStatus = !!status.statusClass;
+
+  return (
+    <div className="mt-2" data-testid="hero-calories" data-status={statusName(status.statusClass)}>
+      <div className="flex items-baseline gap-2.5">
+        <span className={cn('text-6xl font-bold tabular-nums leading-none tracking-tight', hasStatus && sc.value)}>
+          {total.toLocaleString()}
+        </span>
+        {goal != null ? (
+          <span className="text-base text-muted-foreground tabular-nums">/ {goal.toLocaleString()} kcal</span>
+        ) : (
+          <span className="text-base text-muted-foreground">kcal</span>
+        )}
+      </div>
+
+      {pct != null && (
+        <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.07] overflow-hidden">
+          <div
+            className={cn('h-full rounded-full transition-[width] duration-500', over ? 'bg-red-500' : (hasStatus && sc.bar) || 'bg-primary')}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+
+      {goal != null && (
+        <div className="mt-1.5 text-sm text-muted-foreground tabular-nums">
+          {over ? `${(total - goal).toLocaleString()} over goal` : `${(goal - total).toLocaleString()} left`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MacroStat({ macroKey, label, total, goal, unit, status }: {
   macroKey: string;
   label: string;
   total: number;
@@ -112,23 +146,22 @@ function MacroChip({ macroKey, label, total, goal, unit, status }: {
   const hasStatus = !!status.statusClass;
 
   return (
-    <div className={cn('rounded-xl border p-3 transition-colors', sc.chip)}>
-      <div className={cn('text-xs font-bold uppercase tracking-wider mb-1', LABEL_COLORS[macroKey] || 'text-primary')}>
+    <div data-testid={`macro-chip-${macroKey}`} data-status={statusName(status.statusClass)}>
+      <div className={cn('text-[10px] font-semibold uppercase tracking-wider', LABEL_COLORS[macroKey] || 'text-muted-foreground')}>
         {label}
       </div>
-      <div className={cn('text-xl font-bold tabular-nums leading-tight whitespace-nowrap', hasStatus && sc.value)}>
+      <div className={cn('mt-1 text-lg font-semibold tabular-nums leading-tight whitespace-nowrap', hasStatus && sc.value)}>
         {total}
-        {goal != null && <span className="text-muted-foreground font-normal text-[0.6em]"> / {goal} {unit}</span>}
+        {goal != null && <span className="text-muted-foreground font-normal text-xs"> / {goal}{unit}</span>}
       </div>
       {pct != null && (
-        <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+        <div className="mt-1.5 h-1 rounded-full bg-white/[0.07] overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-[width] duration-300', hasStatus ? sc.bar : (BAR_COLORS[macroKey] || 'bg-primary'))}
             style={{ width: `${pct}%` }}
           />
         </div>
       )}
-      <div className="mt-2 text-sm text-muted-foreground">{status.statusText}</div>
     </div>
   );
 }
