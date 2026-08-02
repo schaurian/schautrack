@@ -1,14 +1,43 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"schautrack/internal/service"
 	"schautrack/internal/session"
 )
+
+var errResetTokenNoLongerValid = errors.New("password reset token is no longer valid")
+
+type resetTokenExecutor interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}
+
+// consumePasswordResetToken revalidates and consumes the token at the moment
+// the password is changed. Code verification and password submission are two
+// separate requests, so the token may expire or be consumed by another reset
+// between them.
+func consumePasswordResetToken(ctx context.Context, tx resetTokenExecutor, tokenID, userID int) error {
+	tag, err := tx.Exec(ctx, `
+		UPDATE password_reset_tokens
+		SET used = TRUE
+		WHERE id = $1 AND user_id = $2 AND used = FALSE AND expires_at > NOW()`,
+		tokenID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return errResetTokenNoLongerValid
+	}
+	return nil
+}
 
 // ForgotPassword handles POST /api/auth/forgot-password
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
@@ -154,8 +183,8 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the password, consume the token, and invalidate EVERY existing
-	// session of the user atomically: an attacker holding a stolen session
+	// Revalidate and consume the token, update the password, and invalidate every
+	// existing session atomically: an attacker holding a stolen session
 	// cookie must not keep access after the victim resets their password.
 	// The caller's own (anonymous) session carries no userId and survives.
 	tx, err := h.Pool.Begin(r.Context())
@@ -164,11 +193,19 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
-	if _, err := tx.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, userID); err != nil {
+	if err := consumePasswordResetToken(r.Context(), tx, tokenID, userID); err != nil {
+		if errors.Is(err, errResetTokenNoLongerValid) {
+			sess.Delete("resetEmail")
+			sess.Delete("resetCodeVerified")
+			sess.Delete("resetTokenId")
+			sess.Delete("resetUserId")
+			ErrorJSON(w, http.StatusBadRequest, "Reset code expired or already used. Please start again.")
+			return
+		}
 		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
 		return
 	}
-	if _, err := tx.Exec(r.Context(), "UPDATE password_reset_tokens SET used = TRUE WHERE id = $1", tokenID); err != nil {
+	if _, err := tx.Exec(r.Context(), "UPDATE users SET password_hash = $1 WHERE id = $2", hash, userID); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not reset password.")
 		return
 	}
