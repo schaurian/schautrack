@@ -179,13 +179,7 @@
       "budgetLabel": "Budget : ",
       "etaLabel": "Date estimée : ",
       "weeksLabel_one": " semaine",
-      "weeksLabel_other": " semaines",
-      "saveButton": "Enregistrer l'objectif",
-      "toastInvalidTargetWeight": "Entrez un poids cible valide",
-      "toastMissingRate": "Entrez un rythme hebdomadaire",
-      "toastMissingTargetDate": "Choisissez une date cible",
-      "toastSaved": "Objectif enregistré",
-      "toastSaveFailed": "Échec de l'enregistrement de l'objectif"
+      "weeksLabel_other": " semaines"
     },
     "metricsForm": {
       "consentNotice": "Données de santé facultatives, traitées uniquement sur ce serveur pour calculer votre plan, sur la base de votre consentement (Art. 9(2)(a) GDPR). Supprimez-les à tout moment avec Effacer ou en supprimant votre compte.",

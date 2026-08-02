@@ -179,13 +179,7 @@
       "budgetLabel": "Budget: ",
       "etaLabel": "Verwacht op: ",
       "weeksLabel_one": " week",
-      "weeksLabel_other": " weken",
-      "saveButton": "Doel opslaan",
-      "toastInvalidTargetWeight": "Voer een geldig streefgewicht in",
-      "toastMissingRate": "Voer een wekelijks tempo in",
-      "toastMissingTargetDate": "Kies een streefdatum",
-      "toastSaved": "Doel opgeslagen",
-      "toastSaveFailed": "Opslaan van doel mislukt"
+      "weeksLabel_other": " weken"
     },
     "metricsForm": {
       "title": "Jouw gegevens",

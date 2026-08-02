@@ -187,13 +187,7 @@
       "weeksLabel_one": " tydzień",
       "weeksLabel_few": " tygodnie",
       "weeksLabel_many": " tygodni",
-      "weeksLabel_other": " tygodnia",
-      "saveButton": "Zapisz cel",
-      "toastInvalidTargetWeight": "Wpisz prawidłową docelową wagę",
-      "toastMissingRate": "Wpisz tygodniowe tempo",
-      "toastMissingTargetDate": "Wybierz datę docelową",
-      "toastSaved": "Cel zapisany",
-      "toastSaveFailed": "Nie udało się zapisać celu"
+      "weeksLabel_other": " tygodnia"
     },
     "metricsForm": {
       "title": "Twoje dane",

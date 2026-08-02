@@ -179,13 +179,7 @@
       "budgetLabel": "Orçamento: ",
       "etaLabel": "Previsão: ",
       "weeksLabel_one": " semana",
-      "weeksLabel_other": " semanas",
-      "saveButton": "Guardar Objetivo",
-      "toastInvalidTargetWeight": "Introduza um peso-alvo válido",
-      "toastMissingRate": "Introduza uma taxa semanal",
-      "toastMissingTargetDate": "Escolha uma data-alvo",
-      "toastSaved": "Objetivo guardado",
-      "toastSaveFailed": "Falha ao guardar objetivo"
+      "weeksLabel_other": " semanas"
     },
     "metricsForm": {
       "title": "Os Seus Dados",

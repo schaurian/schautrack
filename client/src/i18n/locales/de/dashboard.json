@@ -179,13 +179,7 @@
       "budgetLabel": "Budget: ",
       "etaLabel": "Voraussichtlich: ",
       "weeksLabel_one": " Woche",
-      "weeksLabel_other": " Wochen",
-      "saveButton": "Ziel speichern",
-      "toastInvalidTargetWeight": "Gib ein gültiges Zielgewicht ein",
-      "toastMissingRate": "Gib eine wöchentliche Rate ein",
-      "toastMissingTargetDate": "Wähle ein Zieldatum",
-      "toastSaved": "Ziel gespeichert",
-      "toastSaveFailed": "Ziel konnte nicht gespeichert werden"
+      "weeksLabel_other": " Wochen"
     },
     "metricsForm": {
       "title": "Deine Angaben",

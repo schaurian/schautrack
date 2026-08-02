@@ -63,8 +63,8 @@ test.describe.serial('Weight Planner', () => {
     const rateInput = page.getByPlaceholder('e.g. 0.5');
     await expect(rateInput).toBeVisible({ timeout: 10000 });
     await rateInput.fill('0.75');
-    await page.getByRole('button', { name: 'Save Goal' }).click();
-    await expect(page.getByText('Goal saved')).toBeVisible({ timeout: 10000 });
+    // The goal autosaves; the shared confirmation is the "Saved" toast.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 });
 
     // 4. A recommended daily budget should appear (~2600 kcal for this profile).
     await expect(page.getByRole('heading', { name: 'Recommended Budget' })).toBeVisible({ timeout: 15000 });
@@ -108,12 +108,10 @@ test.describe.serial('Weight Planner', () => {
     const dateStr = nearFuture.toISOString().slice(0, 10);
     await dateInput.fill(dateStr);
     // The date field is a controlled input — assert React state actually took
-    // the value (otherwise handleSave's "Choose a target date" guard returns
-    // before saving).
+    // the value, since autosave only fires once the goal is complete.
     await expect(dateInput).toHaveValue(dateStr);
 
-    await page.getByRole('button', { name: 'Save Goal' }).click();
-    await expect(page.getByText('Goal saved')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 });
 
     // The aggressive-pace warning is the real behavioral signal that the goal
     // saved and the server recomputed the plan.

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { WeightGoal, PlanComputed, PlanWarning } from '@/types';
 import { upsertGoal } from '@/api/plan';
-import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { useAutosave } from '@/hooks/useAutosave';
 import { cn } from '@/lib/utils';
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
@@ -21,41 +21,32 @@ interface Props {
 export default function GoalForm({ goal, computed, warnings, weightUnit, metricsComplete }: Props) {
   const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
-  const addToast = useToastStore((s) => s.addToast);
   const [targetWeight, setTargetWeight] = useState(goal ? String(goal.target_weight) : '');
   const [paceMode, setPaceMode] = useState<'rate' | 'date'>(goal?.pace_mode || 'rate');
   const [rate, setRate] = useState(goal?.rate_kg_per_week != null ? String(goal.rate_kg_per_week) : '');
   const [targetDate, setTargetDate] = useState(goal?.target_date || '');
-  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    const tw = parseFloat(targetWeight);
-    if (!tw || tw <= 0) {
-      addToast('error', t('plan.goalForm.toastInvalidTargetWeight'));
-      return;
-    }
-    if (paceMode === 'rate' && !rate) {
-      addToast('error', t('plan.goalForm.toastMissingRate'));
-      return;
-    }
-    if (paceMode === 'date' && !targetDate) {
-      addToast('error', t('plan.goalForm.toastMissingTargetDate'));
-      return;
-    }
-    setSaving(true);
-    try {
-      await upsertGoal({
-        target_weight: tw,
-        pace_mode: paceMode,
-        ...(paceMode === 'rate' ? { rate_kg_per_week: parseFloat(rate) } : { target_date: targetDate }),
-      });
-      queryClient.invalidateQueries({ queryKey: ['plan'] });
-      addToast('success', t('plan.goalForm.toastSaved'));
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : t('plan.goalForm.toastSaveFailed'));
-    }
-    setSaving(false);
-  };
+  // Autosaves like every other form. A goal is only writable once it has a
+  // target weight and a pace, so an incomplete form simply doesn't save —
+  // quieter than toasting a validation error on every keystroke.
+  const complete = Number(targetWeight) > 0 && (paceMode === 'rate' ? !!rate : !!targetDate);
+  const data = useMemo(
+    () => ({ targetWeight, paceMode, rate, targetDate }),
+    [targetWeight, paceMode, rate, targetDate],
+  );
+
+  const saveFn = useCallback(async (d: typeof data) => {
+    await upsertGoal({
+      target_weight: parseFloat(d.targetWeight),
+      pace_mode: d.paceMode,
+      ...(d.paceMode === 'rate'
+        ? { rate_kg_per_week: parseFloat(d.rate) }
+        : { target_date: d.targetDate }),
+    });
+    queryClient.invalidateQueries({ queryKey: ['plan'] });
+  }, [queryClient]);
+
+  useAutosave(data, saveFn, { delay: 1000, enabled: complete });
 
   return (
     <Card>
@@ -127,9 +118,6 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
           </div>
         )}
 
-        <div className="flex justify-end">
-          <Button onClick={handleSave} loading={saving} size="sm">{t('plan.goalForm.saveButton')}</Button>
-        </div>
       </div>
     </Card>
   );
