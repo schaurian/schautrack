@@ -30,7 +30,7 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
     onSave();
   }, [onSave]);
 
-  const { status } = useAutosave(data, saveFn);
+  useAutosave(data, saveFn);
 
   const onLanguageChange = (code: string) => {
     setLanguage(code);
@@ -77,12 +77,6 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
           </Select>
         </div>
       </div>
-      {(status === 'saving' || status === 'saved') && (
-        <div className="flex justify-end mt-2">
-          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">{t('status.saving')}</span>}
-          {status === 'saved' && <span className="text-xs text-green-400">{t('status.saved')}</span>}
-        </div>
-      )}
     </Card>
   );
 }

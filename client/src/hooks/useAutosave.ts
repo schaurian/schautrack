@@ -34,6 +34,9 @@ export function useAutosave<T>(
     try {
       await saveFn(latestDataRef.current);
       setStatus('saved');
+      // Confirmation belongs in the toast stack with every other one, rather
+      // than as a label inside whichever card happened to change.
+      addToast('success', i18n.t('status.saved', { ns: 'settings' }));
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setStatus('idle'), 2000);
     } catch (err) {

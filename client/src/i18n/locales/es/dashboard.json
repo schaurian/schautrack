@@ -108,7 +108,6 @@
   "notes": {
     "sectionTitle": "Notas",
     "savingIndicator": "Guardando...",
-    "savedIndicator": "Guardado",
     "charCount_one": "{{count}}/10000",
     "charCount_other": "{{count}}/10000",
     "placeholder": "Escribe una nota para este día...",

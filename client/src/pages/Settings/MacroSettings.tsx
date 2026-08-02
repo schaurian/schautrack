@@ -68,7 +68,7 @@ export default function MacroSettings({ user, onSave }: Props) {
     onSave();
   }, [onSave]);
 
-  const { status } = useAutosave(data, saveFn, { delay: 1000 });
+  useAutosave(data, saveFn, { delay: 1000 });
 
   const allKeys = ['calories', ...MACRO_KEYS];
 
@@ -167,12 +167,6 @@ export default function MacroSettings({ user, onSave }: Props) {
           </div>
         </div>
       </div>
-      {(status === 'saving' || status === 'saved') && (
-        <div className="flex justify-end mt-2">
-          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">{t('status.saving')}</span>}
-          {status === 'saved' && <span className="text-xs text-green-400">{t('status.saved')}</span>}
-        </div>
-      )}
     </Card>
   );
 }

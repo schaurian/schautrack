@@ -54,6 +54,18 @@ export const useToastStore = create<ToastState>((set, get) => {
   return {
     toasts: [],
     addToast: (type, message, action) => {
+      // Repeated identical notices refresh the one on screen instead of
+      // stacking. Autosave fires one per change, so editing three settings in a
+      // row would otherwise leave three copies of "Saved" piled up. Toasts with
+      // an action are exempt: each carries its own Undo for a different write.
+      if (!action) {
+        const existing = get().toasts.find((t) => t.type === type && t.message === message && !t.action);
+        if (existing) {
+          clear(existing.id);
+          schedule(existing.id, existing.duration);
+          return;
+        }
+      }
       const id = nextId++;
       const duration = type === 'error' || action ? LONG_DURATION : DEFAULT_DURATION;
       set((state) => ({ toasts: [...state.toasts, { id, type, message, action, duration }] }));

@@ -259,8 +259,7 @@
     "manage": "Manage saved foods"
   },
   "status": {
-    "saved": "Saved",
-    "saving": "Saving..."
+    "saved": "Saved"
   },
   "todo": {
     "description": "Manage your todos on the dashboard.",

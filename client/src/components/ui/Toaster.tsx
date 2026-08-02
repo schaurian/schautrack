@@ -14,7 +14,7 @@ export default function Toaster() {
       role="status"
       aria-live="polite"
       aria-atomic="false"
-      className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 max-w-sm"
+      className="fixed right-4 z-[200] flex flex-col gap-2 max-w-sm bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-4"
     >
       {toasts.map((toast) => (
         <div

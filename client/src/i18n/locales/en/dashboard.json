@@ -109,7 +109,6 @@
     "charCount_one": "{{count}}/10000",
     "charCount_other": "{{count}}/10000",
     "placeholder": "Write a note for this day...",
-    "savedIndicator": "Saved",
     "savingIndicator": "Saving...",
     "sectionTitle": "Notes",
     "toastSaveFailed": "Failed to save note"

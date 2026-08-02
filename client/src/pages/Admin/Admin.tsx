@@ -197,14 +197,12 @@ function AdminSettingsForm({
     onSave();
   }, [settings, onSave, t]);
 
-  const { status } = useAutosave(values, saveFn);
+  useAutosave(values, saveFn);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{t('admin.appSettingsHeading')}</h2>
-        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">{t('status.saving')}</span>}
-        {status === 'saved' && <span className="text-xs text-green-400">{t('status.saved')}</span>}
       </div>
       {SECTION_ORDER.map((sectionKey) => {
         const keys = sections[sectionKey];

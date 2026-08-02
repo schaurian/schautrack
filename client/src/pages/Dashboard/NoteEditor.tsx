@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { getNote, saveNote } from '@/api/notes';
 import { useToastStore } from '@/stores/toastStore';
+import i18n from '@/i18n';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 
 interface Props {
@@ -15,9 +16,7 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   const { t } = useTranslation('dashboard');
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef('');
   // Track editing state so a refetch (SSE note-change, window refocus, …)
   // can't clobber keystrokes typed during the save/refetch window.
@@ -52,15 +51,14 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   const doSave = useCallback(async (content: string) => {
     if (content === lastSavedRef.current) return;
     setSaving(true);
-    setSaved(false);
     try {
       await saveNote(date, content);
       lastSavedRef.current = content;
       // Only mark clean if nothing was typed while the save was in flight.
       if (valueRef.current === content) dirtyRef.current = false;
-      setSaved(true);
-      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
+      // Same confirmation as every other autosave: a toast, not a label in
+      // the card. (This editor debounces itself rather than using useAutosave.)
+      useToastStore.getState().addToast('success', i18n.t('status.saved', { ns: 'settings' }));
     } catch (err) {
       useToastStore.getState().addToast('error', err instanceof Error ? err.message : t('notes.toastSaveFailed'));
     }
@@ -94,7 +92,6 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
         right={
           <div className="flex items-center gap-2">
             {saving && <span className="text-xs text-muted-foreground animate-pulse">{t('notes.savingIndicator')}</span>}
-            {!saving && saved && <span className="text-xs text-green-400">{t('notes.savedIndicator')}</span>}
             {canEdit && <span className={`text-xs ${value.length > 9500 ? 'text-destructive' : 'text-muted-foreground'}`}>{t('notes.charCount', { count: value.length })}</span>}
           </div>
         }

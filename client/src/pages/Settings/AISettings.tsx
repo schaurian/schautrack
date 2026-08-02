@@ -34,7 +34,7 @@ export default function AISettings({ user, onSave }: Props) {
     onSave();
   }, [onSave]);
 
-  const { status } = useAutosave(autoData, autoSaveFn, { delay: 1200 });
+  useAutosave(autoData, autoSaveFn, { delay: 1200 });
 
   // The key is submitted explicitly on blur of its input, and the field is
   // only cleared after that save succeeds.
@@ -94,8 +94,6 @@ export default function AISettings({ user, onSave }: Props) {
         )}
       </div>
       <div className="border-t border-border pt-3 mt-3 flex flex-col gap-2">
-        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse text-right">{t('status.saving')}</span>}
-        {status === 'saved' && <span className="text-xs text-green-400 text-right">{t('status.saved')}</span>}
         <Button type="button" variant="destructive" className="w-full" onClick={handleClear} loading={loading}>{t('ai.clearAll')}</Button>
       </div>
     </Card>

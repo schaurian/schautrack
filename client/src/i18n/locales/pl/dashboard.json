@@ -112,7 +112,6 @@
   "notes": {
     "sectionTitle": "Notatki",
     "savingIndicator": "Zapisywanie...",
-    "savedIndicator": "Zapisano",
     "charCount_one": "{{count}}/10000",
     "charCount_few": "{{count}}/10000",
     "charCount_many": "{{count}}/10000",
