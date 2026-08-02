@@ -3,8 +3,7 @@ import type { User } from '@/types';
 import { savePreferences } from '@/api/settings';
 import { Card } from '@/components/ui/Card';
 import { useAutosave } from '@/hooks/useAutosave';
-
-const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   user: User;
@@ -31,16 +30,22 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-weight-unit" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight Unit</label>
-          <select id="pref-weight-unit" value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lb')} className={selectClass}>
-            <option value="kg">Kilograms (kg)</option>
-            <option value="lb">Pounds (lb)</option>
-          </select>
+          <Select value={weightUnit} onValueChange={(v) => setWeightUnit(v as 'kg' | 'lb')}>
+            <SelectTrigger id="pref-weight-unit"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="kg">Kilograms (kg)</SelectItem>
+              <SelectItem value="lb">Pounds (lb)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-timezone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timezone</label>
-          <select id="pref-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
-            {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
+          <Select value={timezone} onValueChange={setTimezone}>
+            <SelectTrigger id="pref-timezone"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {timezones.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       {(status === 'saving' || status === 'saved') && (

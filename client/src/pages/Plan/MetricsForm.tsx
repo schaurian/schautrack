@@ -5,9 +5,9 @@ import { updateMetrics, clearMetrics } from '@/api/plan';
 import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const selectClass = inputClass;
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentary: 'Sedentary (little or no exercise)',
@@ -88,21 +88,27 @@ export default function MetricsForm({ metrics }: Props) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sex</label>
-              <select className={selectClass} value={sex} onChange={(e) => setSex(e.target.value)}>
-                <option value="">Select…</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
+              <Select value={sex || '__none__'} onValueChange={(v) => setSex(v === '__none__' ? '' : v)}>
+                <SelectTrigger data-testid="metrics-sex"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select…</SelectItem>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity Level</label>
-              <select className={selectClass} value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}>
-                <option value="">Select…</option>
-                {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
+              <Select value={activityLevel || '__none__'} onValueChange={(v) => setActivityLevel(v === '__none__' ? '' : v)}>
+                <SelectTrigger data-testid="metrics-activity"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select…</SelectItem>
+                  {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">

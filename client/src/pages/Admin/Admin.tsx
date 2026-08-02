@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/stores/toastStore';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { InviteCode } from '@/types';
+
+/** Sentinel for "no value" — Radix Select disallows an item with value="". */
+const UNSET = '__unset__';
 
 export default function Admin() {
   const { isLoading: authLoading } = useRequireAdmin();
@@ -309,30 +313,24 @@ function SettingField({
       </div>
 
       {isRegistrationMode ? (
-        <select
-          id={fieldId}
-          className={inputClass}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={isEnv}
-        >
-          <option value="">(default: open)</option>
-          <option value="open">open — anyone can register</option>
-          <option value="invite">invite — requires an invite code</option>
-          <option value="false">false — registration disabled</option>
-        </select>
+        <Select value={value || UNSET} onValueChange={(v) => onChange(v === UNSET ? '' : v)} disabled={isEnv}>
+          <SelectTrigger id={fieldId} data-testid={fieldId}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNSET}>(default: open)</SelectItem>
+            <SelectItem value="open">open — anyone can register</SelectItem>
+            <SelectItem value="invite">invite — requires an invite code</SelectItem>
+            <SelectItem value="false">false — registration disabled</SelectItem>
+          </SelectContent>
+        </Select>
       ) : isBool ? (
-        <select
-          id={fieldId}
-          className={inputClass}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={isEnv}
-        >
-          <option value="">(unset)</option>
-          <option value="true">true</option>
-          <option value="false">false</option>
-        </select>
+        <Select value={value || UNSET} onValueChange={(v) => onChange(v === UNSET ? '' : v)} disabled={isEnv}>
+          <SelectTrigger id={fieldId} data-testid={fieldId}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNSET}>(unset)</SelectItem>
+            <SelectItem value="true">true</SelectItem>
+            <SelectItem value="false">false</SelectItem>
+          </SelectContent>
+        </Select>
       ) : showSecretMask ? (
         <div className="flex items-center gap-2">
           <span className={`flex-1 ${inputClass} ${meta.isSet ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>

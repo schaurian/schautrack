@@ -8,8 +8,9 @@ import { useAutosave } from '@/hooks/useAutosave';
 
 const MACRO_KEYS = ['protein', 'carbs', 'fat', 'fiber', 'sugar'];
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 const inputClass = 'w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const selectClass = 'rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 const MACRO_STYLES: Record<string, { label: string; border: string; bg: string }> = {
   calories: { label: 'text-macro-kcal', border: 'border-l-macro-kcal', bg: 'bg-macro-kcal/[0.04]' },
@@ -110,15 +111,13 @@ export default function MacroSettings({ user, onSave }: Props) {
                   />
                   <span className={cn('absolute right-2.5 text-[10px] tracking-wide opacity-60 pointer-events-none', style?.label)}>{unit}</span>
                 </span>
-                <select
-                  className={selectClass}
-                  value={modes[key]}
-                  onChange={(e) => setModes({ ...modes, [key]: e.target.value })}
-                  tabIndex={isChecked ? 0 : -1}
-                >
-                  <option value="limit">Limit</option>
-                  <option value="target">Target</option>
-                </select>
+                <Select value={modes[key] || 'limit'} onValueChange={(v) => setModes({ ...modes, [key]: v })}>
+                  <SelectTrigger className="w-[108px] shrink-0" tabIndex={isChecked ? 0 : -1} data-testid={`macro-mode-${key}`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="limit">Limit</SelectItem>
+                    <SelectItem value="target">Target</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           );
@@ -148,10 +147,7 @@ export default function MacroSettings({ user, onSave }: Props) {
               <input className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
               <span className="absolute right-2.5 text-[10px] tracking-wide text-warning opacity-60 pointer-events-none">%</span>
             </span>
-            <select className={selectClass} tabIndex={-1} aria-hidden="true" style={{ opacity: 0, pointerEvents: 'none' }}>
-              <option value="limit">Limit</option>
-              <option value="target">Target</option>
-            </select>
+            <div aria-hidden className="w-[108px] shrink-0" />
           </div>
         </div>
       </div>

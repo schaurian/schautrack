@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useToastStore } from '@/stores/toastStore';
 import { useAutosave } from '@/hooks/useAutosave';
-
-const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   user: User;
@@ -71,12 +70,15 @@ export default function AISettings({ user, onSave }: Props) {
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider</label>
-          <select value={provider} onChange={(e) => setProvider(e.target.value)} className={selectClass}>
-            <option value="">Default</option>
-            <option value="openai">OpenAI</option>
-            <option value="claude">Claude</option>
-            <option value="ollama">Ollama</option>
-          </select>
+          <Select value={provider || '__none__'} onValueChange={(v) => setProvider(v === '__none__' ? '' : v)}>
+            <SelectTrigger data-testid="ai-provider"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Default</SelectItem>
+              <SelectItem value="openai">OpenAI</SelectItem>
+              <SelectItem value="claude">Claude</SelectItem>
+              <SelectItem value="ollama">Ollama</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Input label="Model (optional)" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. gpt-4o" />
         <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
