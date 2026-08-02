@@ -120,7 +120,6 @@ test.describe.serial('Todos', () => {
     const editInput = page.locator('input[maxlength="100"]').first();
     await expect(editInput).toBeVisible({ timeout: 5000 });
     await editInput.fill('Renamed Todo');
-    // 'Save', not exact, also matches the disabled "Save as quick-add" icon button.
     await page.getByRole('button', { name: 'Save', exact: true }).first().click();
 
     // Close manager

@@ -172,11 +172,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   };
 
   return (
-    <div data-testid="entry-form" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
-      <div className="px-4 py-3 border-b border-white/[0.06]">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('entries.logSectionTitle')}</h3>
-      </div>
-      <form onSubmit={handleSubmit} className="p-4">
+    <>
+      <form onSubmit={handleSubmit} className="flex flex-col pt-1">
         {/* Food name + Quantity */}
         <div className="mb-3 flex items-end gap-2">
           <div className="flex flex-1 flex-col">
@@ -364,6 +361,6 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           />
         </Suspense>
       )}
-    </div>
+    </>
   );
 }

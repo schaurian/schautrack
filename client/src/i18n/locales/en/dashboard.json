@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Log",
+    "addFood": "Add food",
     "foodNameAriaLabel": "Food name",
     "foodNamePlaceholder": "Breakfast, snack...",
     "qtyLabel": "Qty",

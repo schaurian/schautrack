@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
 
-// TodayPanel chip status classes (from TodayPanel.tsx statusClasses()):
-//   macro-stat--success → bg-success/10 border-success/35  (target mode: at/over goal = green)
-//   macro-stat--warning → bg-warning/10 border-warning/35  (limit mode: close to goal = yellow)
-//   macro-stat--danger  → bg-destructive/10 border-destructive/35 (limit mode: over goal = red)
+// TodayPanel renders SVG progress rings (components/ui/Ring.tsx). Status maps
+// to the progress circle's stroke color (lib/ring.ts ringColor):
+//   macro-stat--success → #22c55e (green)
+//   macro-stat--warning → #f59e0b (amber)
+//   macro-stat--danger  → #ef4444 (red)
+// Each ring: <div role="img" aria-label="<Label>: <value> / <goal> <unit>">
+// containing an <svg> with circle[0]=track and circle[1]=progress (stroke).
 
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
 
@@ -35,7 +38,7 @@ test.describe('Macro Status Colors', () => {
     psql(`DELETE FROM calorie_entries WHERE user_id = ${limitUser.id}`);
   });
 
-  test('target mode: at or over goal shows success styling on protein stat', async ({ browser }) => {
+  test('target mode: over goal shows success/green styling on protein chip', async ({ browser }) => {
     // Insert entry directly to guarantee protein=120 is recorded (avoids form input fragility)
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, protein_g, entry_name)
           VALUES (${targetUser.id}, '${TODAY}', 500, 120, 'High protein meal')`);
@@ -44,25 +47,19 @@ test.describe('Macro Status Colors', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for the TodayPanel to render with data
-    const todayPanel = page.getByTestId('today-panel');
-    await expect(todayPanel).toBeVisible({ timeout: 10000 });
+    // Wait for the protein ring to render with the value (120)
+    const proteinRing = page.getByRole('img', { name: /^Protein:/ }).first();
+    await expect(proteinRing).toBeVisible({ timeout: 10000 });
+    await expect(proteinRing.getByText('120')).toBeVisible({ timeout: 8000 });
 
-    // Wait for protein chip to show the value (120)
-    await expect(todayPanel.getByText('120')).toBeVisible({ timeout: 8000 });
-
-    // The protein stat carries data-testid="macro-chip-protein" and exposes its
-    // goal status as data-status (see statusName() in TodayPanel.tsx).
-    const proteinLabel = todayPanel.getByText('Protein', { exact: true }).first();
-    await expect(proteinLabel).toBeVisible({ timeout: 8000 });
-
-    // In target mode, protein=120 >= goal=100 → success (green)
-    await expect(page.getByTestId('macro-chip-protein')).toHaveAttribute('data-status', 'success', { timeout: 8000 });
+    // In target mode, protein=120 >= goal=100 → success → green ring
+    const proteinStroke = await proteinRing.locator('circle').nth(1).getAttribute('stroke');
+    expect(proteinStroke).toBe('#22c55e');
 
     await ctx.close();
   });
 
-  test('limit mode: over goal shows danger styling on the calorie hero', async ({ browser }) => {
+  test('limit mode: over goal shows destructive/red styling on calories chip', async ({ browser }) => {
     // Insert entry directly for reliable calorie tracking
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name)
           VALUES (${limitUser.id}, '${TODAY}', 1200, 'Over limit meal')`);
@@ -71,18 +68,14 @@ test.describe('Macro Status Colors', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for TodayPanel with the calorie value
-    const todayPanel = page.getByTestId('today-panel');
-    await expect(todayPanel).toBeVisible({ timeout: 10000 });
-    // The hero total is locale-formatted (1,200).
-    await expect(todayPanel.getByText(/1[,.\s]?200/)).toBeVisible({ timeout: 8000 });
+    // Wait for the calories ring with the value
+    const kcalRing = page.getByRole('img', { name: /^Calories:/ }).first();
+    await expect(kcalRing).toBeVisible({ timeout: 10000 });
+    await expect(kcalRing.getByText('1200')).toBeVisible({ timeout: 8000 });
 
-    // Calories are the hero of the redesigned panel (no separate chip): it
-    // exposes the same data-status.
-    await expect(todayPanel.getByText('200 over goal')).toBeVisible({ timeout: 8000 });
-
-    // In limit mode, calories=1200 > goal=1000 → danger (red)
-    await expect(page.getByTestId('hero-calories')).toHaveAttribute('data-status', 'danger', { timeout: 8000 });
+    // In limit mode, calories=1200 > goal=1000 → danger → red ring
+    const kcalStroke = await kcalRing.locator('circle').nth(1).getAttribute('stroke');
+    expect(kcalStroke).toBe('#ef4444');
 
     await ctx.close();
   });

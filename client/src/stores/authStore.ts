@@ -21,11 +21,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
 
   fetchUser: async () => {
-    // Only the very first fetch may flip the app into a loading state. Pages
-    // gate their whole tree on it, so doing this for a background refresh
-    // (every autosave calls fetchUser) unmounts the form mid-edit: pending
-    // debounced saves are dropped and the freshly saved value visibly
-    // reverts when the form remounts from the not-yet-updated query cache.
+    // Only surface the loading state on the initial fetch. Background
+    // refreshes (e.g. Settings' onSave → refresh) must not flip pages into
+    // their loading gate — that unmounts the whole tree and wipes local UI
+    // state (2FA backup codes reveal, in-flight form values).
     if (!get().user) set({ isLoading: true });
     try {
       const data = await getMe();

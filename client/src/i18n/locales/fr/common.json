@@ -10,12 +10,14 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Tableau de bord",
+    "today": "Aujourd'hui",
     "plan": "Plan",
     "settings": "Paramètres",
     "pendingLinkRequests": "{{n}} demandes de liaison en attente",
     "logout": "Déconnexion",
     "login": "Connexion",
-    "register": "Inscription"
+    "register": "Inscription",
+    "account": "Compte"
   },
   "footer": {
     "tagline": "Un jour à la fois",

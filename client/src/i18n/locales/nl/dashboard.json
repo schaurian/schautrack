@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Log",
+    "addFood": "Voeding toevoegen",
     "foodNameAriaLabel": "Naam van eten",
     "foodNamePlaceholder": "Ontbijt, snack...",
     "qtyLabel": "Aantal",

@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { MacroStatus } from '@/types';
 import { MACRO_LABELS, type MacroKey } from '@/lib/macros';
+import { ringProgress, ringColor } from '@/lib/ring';
+import { Ring } from '@/components/ui/Ring';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -18,7 +20,6 @@ interface Props {
 }
 
 const LABEL_COLORS: Record<string, string> = {
-  kcal: 'text-macro-kcal',
   protein: 'text-macro-protein',
   carbs: 'text-macro-carbs',
   fat: 'text-macro-fat',
@@ -26,34 +27,46 @@ const LABEL_COLORS: Record<string, string> = {
   sugar: 'text-macro-sugar',
 };
 
-const BAR_COLORS: Record<string, string> = {
-  kcal: 'bg-macro-kcal',
-  protein: 'bg-macro-protein',
-  carbs: 'bg-macro-carbs',
-  fat: 'bg-macro-fat',
-  fiber: 'bg-macro-fiber',
-  sugar: 'bg-macro-sugar',
-};
-
-/**
- * Semantic status ('success' | 'warning' | 'danger') exposed as `data-status`
- * so tests can assert goal status without coupling to Tailwind color classes.
- */
-function statusName(statusClass: string) {
-  return statusClass.startsWith('macro-stat--') ? statusClass.slice('macro-stat--'.length) : undefined;
-}
-
-function statusClasses(statusClass: string) {
-  if (statusClass === 'macro-stat--success') return { value: 'text-green-300', bar: 'bg-green-500' };
-  if (statusClass === 'macro-stat--warning') return { value: 'text-yellow-300', bar: 'bg-amber-500' };
-  if (statusClass === 'macro-stat--danger') return { value: 'text-red-300', bar: 'bg-red-500' };
-  return { value: '', bar: '' };
+// One glowing bar per macro — easier to compare against each other than
+// mini-rings; the big calorie ring keeps the single budget number focal.
+function MacroBar({ macroKey, label, value, goal, status }: {
+  macroKey: string;
+  label: string;
+  value: number;
+  goal: number | null;
+  status: MacroStatus;
+}) {
+  const hasGoal = goal != null && goal > 0;
+  const pct = hasGoal ? ringProgress(value, goal) : 0;
+  const color = ringColor(status.statusClass, macroKey);
+  return (
+    <div
+      role="img"
+      aria-label={`${label}: ${value}${hasGoal ? ` / ${goal}` : ''} g`}
+      title={status.statusText || undefined}
+    >
+      <div className="mb-1 flex items-baseline justify-between gap-2 text-[12px] leading-none">
+        <span className={cn('font-display font-bold', LABEL_COLORS[macroKey] || 'text-primary')}>{label}</span>
+        <span className="font-bold tabular-nums text-[#c3ccdd]">
+          {value}
+          <span className="font-normal text-muted-foreground">{hasGoal ? `/${goal}g` : 'g'}</span>
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-black/35">
+        {hasGoal && (
+          <div
+            className="h-full rounded-full transition-[width] duration-700 ease-out"
+            style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}` }}
+          />
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function TodayPanel({
   dailyGoal, todayTotal, caloriesEnabled, calorieStatus,
   enabledMacros, macroGoals, todayMacroTotals, macroStatuses,
-  selectedDate, todayStr,
 }: Props) {
   const { t } = useTranslation('dashboard');
   if (!caloriesEnabled && enabledMacros.length === 0) {
@@ -64,104 +77,37 @@ export default function TodayPanel({
     );
   }
 
+  // Hero card: calorie budget ring on the left, macro bars on the right.
   return (
-    <section data-testid="today-panel" className="pt-1 pb-2">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {selectedDate === todayStr ? t('dashboard.todayLabel') : selectedDate}
-      </div>
-
+    <section className={cn(
+      'surface flex items-center gap-5 p-5',
+      enabledMacros.length === 0 && 'justify-center',
+    )}>
       {caloriesEnabled && (
-        <HeroCalories total={todayTotal} goal={dailyGoal} status={calorieStatus} />
+        <Ring
+          macroKey="kcal"
+          label={t('entries.caloriesLabel')}
+          value={todayTotal}
+          goal={dailyGoal}
+          unit="kcal"
+          status={calorieStatus}
+          size={112}
+        />
       )}
-
       {enabledMacros.length > 0 && (
-        <div
-          className={cn(
-            'grid gap-x-5 gap-y-4 [grid-template-columns:repeat(auto-fill,minmax(86px,1fr))]',
-            caloriesEnabled ? 'mt-6' : 'mt-4'
-          )}
-        >
-          {enabledMacros.map((key) => {
-            const total = todayMacroTotals[key] || 0;
-            const goal = macroGoals[key] ?? null;
-            const status = macroStatuses[key] || { statusClass: '', statusText: '' };
-            const label = MACRO_LABELS[key as MacroKey]?.label || key;
-            return (
-              <MacroStat key={key} macroKey={key} label={label} total={total} goal={goal} unit="g" status={status} />
-            );
-          })}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {enabledMacros.map((key) => (
+            <MacroBar
+              key={key}
+              macroKey={key}
+              label={MACRO_LABELS[key as MacroKey]?.label || key}
+              value={todayMacroTotals[key] || 0}
+              goal={macroGoals[key] ?? null}
+              status={macroStatuses[key] || { statusClass: '', statusText: '' }}
+            />
+          ))}
         </div>
       )}
     </section>
-  );
-}
-
-function HeroCalories({ total, goal, status }: { total: number; goal: number | null; status: MacroStatus }) {
-  const pct = goal ? Math.min(Math.round((total / goal) * 100), 100) : null;
-  const over = goal != null && total > goal;
-  const sc = statusClasses(status.statusClass);
-  const hasStatus = !!status.statusClass;
-
-  return (
-    <div className="mt-2" data-testid="hero-calories" data-status={statusName(status.statusClass)}>
-      <div className="flex items-baseline gap-2.5">
-        <span className={cn('text-6xl font-bold tabular-nums leading-none tracking-tight', hasStatus && sc.value)}>
-          {total.toLocaleString()}
-        </span>
-        {goal != null ? (
-          <span className="text-base text-muted-foreground tabular-nums">/ {goal.toLocaleString()} kcal</span>
-        ) : (
-          <span className="text-base text-muted-foreground">kcal</span>
-        )}
-      </div>
-
-      {pct != null && (
-        <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.07] overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-[width] duration-500', over ? 'bg-red-500' : (hasStatus && sc.bar) || 'bg-primary')}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-
-      {goal != null && (
-        <div className="mt-1.5 text-sm text-muted-foreground tabular-nums">
-          {over ? `${(total - goal).toLocaleString()} over goal` : `${(goal - total).toLocaleString()} left`}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MacroStat({ macroKey, label, total, goal, unit, status }: {
-  macroKey: string;
-  label: string;
-  total: number;
-  goal: number | null;
-  unit: string;
-  status: MacroStatus;
-}) {
-  const pct = goal ? Math.min(Math.round((total / goal) * 100), 100) : null;
-  const sc = statusClasses(status.statusClass);
-  const hasStatus = !!status.statusClass;
-
-  return (
-    <div data-testid={`macro-chip-${macroKey}`} data-status={statusName(status.statusClass)}>
-      <div className={cn('text-[10px] font-semibold uppercase tracking-wider', LABEL_COLORS[macroKey] || 'text-muted-foreground')}>
-        {label}
-      </div>
-      <div className={cn('mt-1 text-lg font-semibold tabular-nums leading-tight whitespace-nowrap', hasStatus && sc.value)}>
-        {total}
-        {goal != null && <span className="text-muted-foreground font-normal text-xs"> / {goal}{unit}</span>}
-      </div>
-      {pct != null && (
-        <div className="mt-1.5 h-1 rounded-full bg-white/[0.07] overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-[width] duration-300', hasStatus ? sc.bar : (BAR_COLORS[macroKey] || 'bg-primary'))}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-    </div>
   );
 }

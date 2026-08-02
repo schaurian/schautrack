@@ -21,7 +21,7 @@ export default function VerifyEmailChange() {
     setLoading(true);
     try {
       await verifyEmailChange({ code });
-      navigate('/settings');
+      navigate('/account');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('verifyEmailChange.verificationFailed'));
     }
@@ -30,7 +30,7 @@ export default function VerifyEmailChange() {
 
   const handleCancel = async () => {
     await cancelEmailChange();
-    navigate('/settings');
+    navigate('/account');
   };
 
   return (

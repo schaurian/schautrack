@@ -25,7 +25,7 @@ test.describe.serial('Settings', () => {
     }
   }
 
-  test('settings page loads with user email', async ({ browser }) => {
+  test('settings page loads with preferences', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await loginAndGo(page, '/settings');
@@ -47,7 +47,9 @@ test.describe.serial('Settings', () => {
     await chooseOption(page, weightSelect, newValue);
 
     // If there's a Save button, click it. Otherwise wait for auto-save.
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
+    // exact: true — role-name matching is substring by default, and 'Save'
+    // would otherwise match the "Manage saved foods" button.
+    const saveBtn = page.getByRole('button', { name: 'Save', exact: true }).first();
     if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await saveBtn.click();
     } else {

@@ -10,12 +10,14 @@
   "nav": {
     "admin": "Beheer",
     "dashboard": "Dashboard",
+    "today": "Vandaag",
     "plan": "Plan",
     "settings": "Instellingen",
     "pendingLinkRequests": "{{n}} openstaande koppelverzoeken",
     "logout": "Uitloggen",
     "login": "Inloggen",
-    "register": "Registreren"
+    "register": "Registreren",
+    "account": "Account"
   },
   "footer": {
     "tagline": "Dag voor dag",

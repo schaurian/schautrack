@@ -36,7 +36,7 @@ test.describe('Data Export / Import', () => {
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES (${user.id}, '2026-01-15', 350, 'E2E Export Meal') ON CONFLICT DO NOTHING`);
     psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${user.id}, '2026-01-15', 72.5) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = 72.5`);
 
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
 
     // Expire the step-up grace server-side (deterministic) so the modal triggers.
     expireStepUpGrace(user.id);
@@ -128,7 +128,7 @@ test.describe('Data Export / Import', () => {
     const tmpFile = path.join(tmpDir, `schautrack-import-test-${Date.now()}.json`);
     fs.writeFileSync(tmpFile, JSON.stringify(importFixture));
 
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
 
     // Scroll to and click the file chooser button (hidden input via button proxy)
     const fileChooserButton = page.locator('button', { hasText: 'Choose a file' });
@@ -171,7 +171,7 @@ test.describe('Data Export / Import', () => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
 
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
 
     const importBtn = page.getByRole('button', { name: 'Import', exact: true });
     await importBtn.scrollIntoViewIfNeeded({ timeout: 10000 });

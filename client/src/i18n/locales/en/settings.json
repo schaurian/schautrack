@@ -1,11 +1,15 @@
 {
-  "i18n": { "language": "Language", "automatic": "Automatic (browser language)" },
-
+  "account": {
+    "logout": "Logout"
+  },
+  "i18n": {
+    "language": "Language",
+    "automatic": "Automatic (browser language)"
+  },
   "status": {
     "saving": "Saving...",
     "saved": "Saved"
   },
-
   "macro": {
     "heading": "Nutrition Goals",
     "calories": "Calories",
@@ -17,7 +21,6 @@
     "unitKcal": "kcal",
     "unitGram": "g"
   },
-
   "preferences": {
     "heading": "Internationalization",
     "weightUnit": {
@@ -29,25 +32,21 @@
       "label": "Timezone"
     }
   },
-
   "todo": {
     "heading": "Todos",
     "description": "Manage your todos on the dashboard.",
     "toggleFailed": "Failed to update setting"
   },
-
   "note": {
     "heading": "Daily Notes",
     "description": "Write a daily note on the dashboard for any date.",
     "toggleFailed": "Failed to update setting"
   },
-
   "savedFoods": {
     "heading": "Saved foods",
     "description": "Quick-add chips on the dashboard. {{count}} saved.",
     "manage": "Manage saved foods"
   },
-
   "ai": {
     "heading": "AI Settings",
     "provider": "Provider",
@@ -64,7 +63,6 @@
     "settingsCleared": "AI settings cleared",
     "clearFailed": "Failed to clear AI settings"
   },
-
   "email": {
     "heading": "Change Email",
     "current": "Current: {{email}}",
@@ -72,7 +70,6 @@
     "submit": "Send Verification Code",
     "requestFailed": "Failed to request email change."
   },
-
   "password": {
     "heading": "Change Password",
     "newLabel": "New Password",
@@ -83,7 +80,6 @@
     "updatedToast": "Password updated",
     "failed": "Failed."
   },
-
   "twofa": {
     "heading": "Two-Factor Authentication",
     "setupFailed": "Setup failed.",
@@ -114,7 +110,6 @@
     "activate": "Activate",
     "setupButton": "Setup 2FA"
   },
-
   "passkey": {
     "heading": "Passkeys",
     "defaultName": "Passkey",
@@ -132,7 +127,6 @@
     "removeFailed": "Failed to remove passkey",
     "renameFailed": "Failed to rename"
   },
-
   "oidc": {
     "heading": "Single Sign-On",
     "unlink": "Unlink",
@@ -153,7 +147,6 @@
       "stepped_up": "Re-authenticated. You can try your action again now."
     }
   },
-
   "link": {
     "heading": "Account Links",
     "incoming": "Incoming",
@@ -178,7 +171,6 @@
       "updateFailed": "Failed to update sharing"
     }
   },
-
   "data": {
     "heading": "Data",
     "exportLabel": "Export",
@@ -191,7 +183,6 @@
     "importSuccess": "Data imported successfully.",
     "importFailed": "Import failed."
   },
-
   "confirmImport": {
     "title": "Replace all entries?",
     "descriptionPrefix": "Importing",
@@ -199,18 +190,15 @@
     "replaceAll": "Replace all entries",
     "cancel": "Cancel"
   },
-
   "danger": {
     "heading": "Danger Zone",
     "description": "Permanently delete your account and all data.",
     "deleteAccount": "Delete Account"
   },
-
   "footer": {
     "bugReport": "Spotted a bug or missing a feature?",
     "openIssue": "Open an issue on GitHub"
   },
-
   "reportIssue": {
     "title": "Report an Issue",
     "description": "Found a bug or missing a feature? This opens a pre-filled issue on the project tracker.",
@@ -220,18 +208,39 @@
     "acknowledgement": "I understand I'm on an older version ({{version}}) and my issue may already be reported or fixed — I've checked the open issues and still want to report it.",
     "submit": "Report an Issue"
   },
-
   "admin": {
     "sections": {
-      "general": { "title": "General" },
-      "ai": { "title": "AI Features", "description": "Photo-based calorie estimation. Provider keys set here are the global fallback when users don't have their own." },
-      "oidc": { "title": "OIDC / SSO", "description": "Single sign-on via an OpenID Connect provider. Set issuer + client id + client secret to enable." },
-      "passkeys": { "title": "Passkeys", "description": "WebAuthn passwordless login. Setting RP ID enables the feature." },
-      "features": { "title": "Features" },
-      "smtp": { "title": "SMTP", "description": "Outgoing mail for password reset, email verification, etc." },
-      "security": { "title": "Security" },
-      "legal": { "title": "Legal Pages" },
-      "seo": { "title": "SEO / Deployment" }
+      "general": {
+        "title": "General"
+      },
+      "ai": {
+        "title": "AI Features",
+        "description": "Photo-based calorie estimation. Provider keys set here are the global fallback when users don't have their own."
+      },
+      "oidc": {
+        "title": "OIDC / SSO",
+        "description": "Single sign-on via an OpenID Connect provider. Set issuer + client id + client secret to enable."
+      },
+      "passkeys": {
+        "title": "Passkeys",
+        "description": "WebAuthn passwordless login. Setting RP ID enables the feature."
+      },
+      "features": {
+        "title": "Features"
+      },
+      "smtp": {
+        "title": "SMTP",
+        "description": "Outgoing mail for password reset, email verification, etc."
+      },
+      "security": {
+        "title": "Security"
+      },
+      "legal": {
+        "title": "Legal Pages"
+      },
+      "seo": {
+        "title": "SEO / Deployment"
+      }
     },
     "appSettingsHeading": "Application Settings",
     "save": "Save",

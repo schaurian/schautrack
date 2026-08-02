@@ -15,6 +15,10 @@ services:
       - SESSION_SECRET=e2e-test-session-secret-not-for-production
       - RATE_LIMIT_AUTH=1000
       - RATE_LIMIT_STRICT=1000
+      # Keep the shared-IP captcha counter from gating unrelated sessions —
+      # all suite traffic is one IP and some specs fail logins on purpose.
+      # The per-session captcha counter (captcha.spec) is unaffected.
+      - LOGIN_CAPTCHA_GLOBAL_THRESHOLD=100000
       # Short step-up grace so tests can exercise both the in-grace and
       # expired paths without waiting out the production 10-min window.
       - STEP_UP_TTL=10s

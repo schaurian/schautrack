@@ -89,9 +89,9 @@ export default function Plan() {
   return (
     <div className="flex flex-col gap-4">
       {/* Status header */}
-      <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b-2 border-border">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('plan.status.title')}</h3>
+      <div className="surface overflow-hidden">
+        <div className="px-4 pt-4 pb-1">
+          <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('plan.status.title')}</h3>
         </div>
         <div className="p-4 grid gap-4 sm:grid-cols-3">
           <div>

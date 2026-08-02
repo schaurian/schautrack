@@ -29,8 +29,8 @@ test.describe('Password Change', () => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     const passwordHeading = page.getByText('Change Password');
     await passwordHeading.scrollIntoViewIfNeeded();
@@ -52,8 +52,8 @@ test.describe('Password Change', () => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     // A fresh login grants the step-up grace window (login doubles as step-up).
     // Expire it server-side (deterministic) instead of sleeping out STEP_UP_TTL,

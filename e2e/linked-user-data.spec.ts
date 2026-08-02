@@ -66,9 +66,9 @@ test.describe('Linked User Data', () => {
     const ownerLabel = page.locator('.text-sm.font-medium').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') }).first();
     await expect(ownerLabel).toBeVisible({ timeout: 8000 });
 
-    // The dots grid lives inside the owner's ShareCard (data-testid="share-card").
-    // Scope to that card by the owner's email prefix, then find the today dot.
-    const ownerCard = page.getByTestId('share-card').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') });
+    // The dots grid is a sibling div of the label's parent div, inside the same .rounded-xl
+    // Navigate: span -> parent div.mb-2 -> parent .rounded-xl -> find the today dot
+    const ownerCard = ownerLabel.locator('../..'); // span -> div.mb-2 -> .rounded-xl
     const todayDot = ownerCard.locator(`button[title="${TODAY}"]`);
     await expect(todayDot).toBeVisible({ timeout: 5000 });
     await todayDot.click();
@@ -81,7 +81,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const entries = page.getByTestId('entries');
+    const entries = page.locator('section').filter({ hasText: /Entries/ }).last();
     await entries.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(entries).toBeVisible({ timeout: 5000 });
     await expect(entries.getByText('E2E test meal')).toBeVisible({ timeout: 5000 });
@@ -100,7 +100,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const weightSection = page.getByTestId('weight-row');
+    const weightSection = page.locator('section').filter({ hasText: /Weight/ }).last();
     await weightSection.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(weightSection).toBeVisible({ timeout: 5000 });
 
@@ -117,7 +117,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const todosSection = page.getByTestId('todo-list');
+    const todosSection = page.locator('section').filter({ hasText: /Todos/ }).last();
     await todosSection.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(todosSection).toBeVisible({ timeout: 5000 });
 
@@ -130,7 +130,7 @@ test.describe('Linked User Data', () => {
     const page = await ctx.newPage();
     await switchToOwner(page);
 
-    const notesSection = page.getByTestId('note-editor');
+    const notesSection = page.locator('section').filter({ hasText: /Notes/ }).last();
     await notesSection.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(notesSection).toBeVisible({ timeout: 5000 });
 

@@ -71,6 +71,7 @@
   },
   "entries": {
     "logSectionTitle": "Eintragen",
+    "addFood": "Essen hinzufügen",
     "foodNameAriaLabel": "Name des Lebensmittels",
     "foodNamePlaceholder": "Frühstück, Snack...",
     "qtyLabel": "Menge",

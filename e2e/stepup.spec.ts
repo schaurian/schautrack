@@ -40,8 +40,8 @@ test.describe('Step-up auth', () => {
 
     // Immediately after login, step-up is fresh. Password change should go
     // through without prompting.
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
 
     const newPw = 'fresh-grace-pw-1';
@@ -66,8 +66,8 @@ test.describe('Step-up auth', () => {
     const page = await ctx.newPage();
     await login(page);
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     // Expire the step-up grace server-side (deterministic) instead of sleeping
     // past STEP_UP_TTL, so the next sensitive action re-prompts immediately.
@@ -97,8 +97,8 @@ test.describe('Step-up auth', () => {
     const page = await ctx.newPage();
     await login(page);
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     // Expire grace server-side so the modal triggers.
     expireStepUpGrace(user.id);
@@ -123,8 +123,8 @@ test.describe('Step-up auth', () => {
     const page = await ctx.newPage();
     await login(page);
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
     expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
@@ -159,7 +159,7 @@ test.describe('Step-up auth', () => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await login(page);
-    await page.goto('/settings');
+    await page.goto('/account');
     expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();
@@ -183,7 +183,7 @@ test.describe('Step-up auth', () => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await login(page);
-    await page.goto('/settings');
+    await page.goto('/account');
     expireStepUpGrace(user.id);
 
     await page.getByText('Change Password').scrollIntoViewIfNeeded();

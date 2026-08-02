@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { getPlan } from '@/api/plan';
 import { cn } from '@/lib/utils';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 import PlanChart from '../Plan/PlanChart';
 
 interface Props {
@@ -42,18 +43,18 @@ export default function PlanCard({ weightUnit }: Props) {
   return (
     <Link
       to="/plan"
-      data-testid="plan-card"
-      className="block rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden no-underline text-foreground transition-colors hover:border-primary/40"
+      className="surface block p-4 no-underline text-foreground transition-[filter] hover:brightness-110"
     >
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('plan.card.title')}</h3>
-        {trend && (
+      <SectionLabel
+        right={trend ? (
           <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', trend.classes)}>
             {trend.label}
           </span>
-        )}
-      </div>
-      <div className="p-4 flex flex-col gap-3">
+        ) : undefined}
+      >
+        {t('plan.card.title')}
+      </SectionLabel>
+      <div className="px-1 py-1 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-lg font-bold tabular-nums">
             {data.currentWeight != null ? data.currentWeight.toFixed(1) : '—'}

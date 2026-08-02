@@ -10,12 +10,14 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Dashboard",
+    "today": "Heute",
     "plan": "Plan",
     "settings": "Einstellungen",
     "pendingLinkRequests": "{{n}} ausstehende Verknüpfungsanfragen",
     "logout": "Abmelden",
     "login": "Anmelden",
-    "register": "Registrieren"
+    "register": "Registrieren",
+    "account": "Konto"
   },
   "footer": {
     "tagline": "Ein Tag nach dem anderen",

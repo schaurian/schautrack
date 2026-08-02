@@ -38,7 +38,7 @@ test.describe('Passkeys', () => {
 
     try {
       await login(page);
-      await page.goto('/settings');
+      await page.goto('/account');
 
       // Expire grace server-side so step-up gates the registration call.
       expireStepUpGrace(user.id);
@@ -79,7 +79,7 @@ test.describe('Passkeys', () => {
 
     try {
       await login(page);
-      await page.goto('/settings');
+      await page.goto('/account');
       expireStepUpGrace(user.id);
 
       await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();
@@ -88,8 +88,9 @@ test.describe('Passkeys', () => {
       await completeStepUp(page, user.password);
       await expect(page.getByText(/passkey registered/i)).toBeVisible({ timeout: 10000 });
 
-      // Log out, then sign in with the passkey (no password).
-      await page.getByText('Logout').click();
+      // Log out, then sign in with the passkey (no password). Already on
+      // /account, which is where the app's single Logout now lives.
+      await page.getByRole('button', { name: 'Logout' }).click();
       await page.waitForURL(/\/login|\/$/, { timeout: 10000 });
 
       await page.goto('/login');
@@ -110,7 +111,7 @@ test.describe('Passkeys', () => {
 
     try {
       await login(page);
-      await page.goto('/settings');
+      await page.goto('/account');
       expireStepUpGrace(user.id);
 
       // Register one passkey (step-up).
@@ -145,7 +146,7 @@ test.describe('Passkeys', () => {
 
     try {
       await login(page);
-      await page.goto('/settings');
+      await page.goto('/account');
       expireStepUpGrace(user.id);
 
       // Register a passkey so the modal can offer the passkey path.
@@ -190,7 +191,7 @@ test.describe('Passkeys', () => {
 
     try {
       await login(page);
-      await page.goto('/settings');
+      await page.goto('/account');
       expireStepUpGrace(user.id);
 
       await page.getByRole('heading', { name: /passkeys/i }).scrollIntoViewIfNeeded();

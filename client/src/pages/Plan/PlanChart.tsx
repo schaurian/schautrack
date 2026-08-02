@@ -1,4 +1,4 @@
-import { useId, useMemo, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SeriesPoint, CurvePoint, HealthyRange } from '@/types';
 import { cn } from '@/lib/utils';
@@ -75,7 +75,39 @@ export default function PlanChart({
   const { t } = useTranslation('dashboard');
   const titleId = useId();
   const isSpark = variant === 'spark';
-  const size = isSpark ? SPARK_SIZE : FULL_SIZE;
+
+  // The viewBox tracks the container's real width instead of being fixed, so the
+  // chart never needs to scroll sideways on a phone. Scaling a fixed 640-wide
+  // viewBox down to a ~326px column would shrink the 10px axis labels to ~5px;
+  // re-laying out at the measured width keeps them at their true size.
+  // Callback ref, not useLayoutEffect: the no-data branch returns a different
+  // tree, so the measured wrapper mounts and unmounts over the component's life
+  // and an effect with [] deps would miss the remount.
+  const [measuredW, setMeasuredW] = useState<number | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+
+  const wrapRef = useCallback((el: HTMLDivElement | null) => {
+    roRef.current?.disconnect();
+    roRef.current = null;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.round(entries[0].contentRect.width);
+      if (w > 0) setMeasuredW(w);
+    });
+    ro.observe(el);
+    roRef.current = ro;
+  }, []);
+
+  const size = useMemo(() => {
+    const base = isSpark ? SPARK_SIZE : FULL_SIZE;
+    if (measuredW == null) return base;
+    const width = Math.max(measuredW, isSpark ? 120 : 240);
+    // Keep a trend-like aspect on narrow screens; a 326x260 chart reads square.
+    const height = isSpark
+      ? base.height
+      : Math.min(base.height, Math.max(170, Math.round(width * 0.45)));
+    return { width, height };
+  }, [isSpark, measuredW]);
 
   const layout = useMemo(() => {
     const actual = series
@@ -151,9 +183,9 @@ export default function PlanChart({
       );
     }
     return (
-      <div className={cn('rounded-xl border-2 border-border bg-card overflow-hidden', className)}>
-        <div className="px-4 py-3 border-b-2 border-border">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('plan.chart.title')}</h3>
+      <div className={cn('surface overflow-hidden', className)}>
+        <div className="px-4 pt-4 pb-2">
+          <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('plan.chart.title')}</h3>
         </div>
         <div className="p-8 flex items-center justify-center min-h-[200px]">
           <span className="text-sm text-muted-foreground text-center">{message}</span>
@@ -172,7 +204,7 @@ export default function PlanChart({
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-labelledby={titleId}
-      style={{ width: '100%', height: 'auto', display: 'block', minWidth: isSpark ? 120 : 480 }}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
     >
       <title id={titleId}>{chartTitle}</title>
 
@@ -261,13 +293,13 @@ export default function PlanChart({
   );
 
   if (isSpark) {
-    return <div className={cn('overflow-x-auto', className)}>{svg}</div>;
+    return <div ref={wrapRef} className={className}>{svg}</div>;
   }
 
   return (
-    <div className={cn('rounded-xl border-2 border-border bg-card overflow-hidden', className)}>
-      <div className="px-4 py-3 border-b-2 border-border flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('plan.chart.title')}</h3>
+    <div className={cn('surface overflow-hidden', className)}>
+      <div className="px-4 pt-4 pb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('plan.chart.title')}</h3>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           <LegendItem swatch={<span className="inline-block h-0.5 w-3 rounded-full bg-primary" />} label={t('plan.chart.legendActual')} />
           {planCurve.length > 0 && (
@@ -279,7 +311,7 @@ export default function PlanChart({
           {healthyRange && <LegendItem swatch={<span className="inline-block h-2.5 w-3 rounded-sm bg-success/20" />} label={t('plan.chart.legendHealthyRange')} />}
         </div>
       </div>
-      <div className="p-4 overflow-x-auto">{svg}</div>
+      <div ref={wrapRef} className="p-4">{svg}</div>
     </div>
   );
 }

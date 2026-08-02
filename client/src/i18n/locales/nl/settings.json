@@ -1,4 +1,7 @@
 {
+  "account": {
+    "logout": "Uitloggen"
+  },
   "i18n": {
     "language": "Taal",
     "automatic": "Automatisch (browsertaal)"

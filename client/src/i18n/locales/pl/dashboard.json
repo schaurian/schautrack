@@ -73,6 +73,7 @@
   },
   "entries": {
     "logSectionTitle": "Dziennik",
+    "addFood": "Dodaj posiłek",
     "foodNameAriaLabel": "Nazwa jedzenia",
     "foodNamePlaceholder": "Śniadanie, przekąska...",
     "qtyLabel": "Ilość",

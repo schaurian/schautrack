@@ -11,6 +11,9 @@ import '@fontsource/noto-sans/400.css';
 import '@fontsource/noto-sans/500.css';
 import '@fontsource/noto-sans/600.css';
 import '@fontsource/noto-sans/700.css';
+// Display face for titles, section labels and the ring numerals.
+import '@fontsource/space-grotesk/500.css';
+import '@fontsource/space-grotesk/700.css';
 import '@/styles/global.css';
 
 export const queryClient = new QueryClient({

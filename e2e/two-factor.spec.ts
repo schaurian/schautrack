@@ -21,7 +21,11 @@ async function loginAs2faUser(page: import('@playwright/test').Page) {
 }
 
 async function logout(page: import('@playwright/test').Page) {
-  await page.getByText('Logout').click();
+  // Logout now exists exactly once, on /account. It used to be duplicated as a
+  // sidebar button on desktop plus an lg:hidden row in Settings on mobile,
+  // which is why this needed visibility-aware matching to stay unambiguous.
+  await page.goto('/account');
+  await page.getByRole('button', { name: 'Logout' }).click();
   await page.waitForURL(/\/login|\//, { timeout: 10000 });
 }
 
@@ -43,8 +47,8 @@ test.describe('Two-Factor Authentication', () => {
     await loginAs2faUser(page);
     await page.waitForURL('/dashboard', { timeout: 15000 });
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     // Intercept the setup API to capture the secret
     let setupData: any = null;
@@ -160,8 +164,8 @@ test.describe('Two-Factor Authentication', () => {
     await page.getByRole('button', { name: /verify/i }).click();
     await page.waitForURL('/dashboard', { timeout: 15000 });
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     // Expire the step-up grace server-side (deterministic) so the action is gated.
     expireStepUpGrace(twoFaUserId);
@@ -211,8 +215,8 @@ test.describe('Two-Factor Authentication', () => {
     await page.getByRole('button', { name: /verify/i }).click();
     await page.waitForURL('/dashboard', { timeout: 15000 });
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto('/account');
+    await page.waitForURL('/account');
 
     // Expire the step-up grace server-side so the disable is gated.
     expireStepUpGrace(twoFaUserId);

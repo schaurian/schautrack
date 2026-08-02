@@ -3,6 +3,7 @@ name: schautrack-dev
 services:
   web:
     build: .
+    restart: unless-stopped
     env_file:
       - .env
     ports:
@@ -48,6 +49,7 @@ services:
 
   db:
     image: postgres:18-alpine
+    restart: unless-stopped
     env_file:
       - .env
     environment:

@@ -10,12 +10,14 @@
   "nav": {
     "admin": "Admin",
     "dashboard": "Panel",
+    "today": "Hoy",
     "plan": "Plan",
     "settings": "Ajustes",
     "pendingLinkRequests": "{{n}} solicitudes de vínculo pendientes",
     "logout": "Cerrar sesión",
     "login": "Iniciar sesión",
-    "register": "Registrarse"
+    "register": "Registrarse",
+    "account": "Cuenta"
   },
   "footer": {
     "tagline": "Un día a la vez",

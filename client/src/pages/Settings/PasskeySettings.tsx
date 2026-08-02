@@ -81,17 +81,17 @@ export default function PasskeySettings({ onUpdate }: Props) {
   };
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">{t('passkey.heading')}</h3>
+    <div className="surface overflow-hidden">
+      <div className="px-4 pt-4 pb-1">
+        <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('passkey.heading')}</h3>
       </div>
-      <div className="p-4 flex flex-col gap-3">
+      <div className="p-4 pt-1 flex flex-col divide-y divide-divider">
         {passkeys.length === 0 && (
           <p className="text-sm text-muted-foreground">{t('passkey.empty')}</p>
         )}
 
         {passkeys.map((pk) => (
-          <div key={pk.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border px-3 py-2">
+          <div key={pk.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2.5">
             {editingId === pk.id ? (
               <input
                 className="flex-1 min-w-0 rounded-md border border-input bg-muted/50 px-2 py-1 text-sm text-foreground outline-none focus:border-ring"
