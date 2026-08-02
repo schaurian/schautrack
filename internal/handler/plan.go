@@ -70,7 +70,7 @@ func validateTargetDate(paceMode string, dateStr *string, todayStr string) bool 
 	if paceMode != "date" {
 		return true
 	}
-	if dateStr == nil || !dateRe.MatchString(*dateStr) {
+	if dateStr == nil || !isValidDate(*dateStr) {
 		return false
 	}
 	return *dateStr > todayStr

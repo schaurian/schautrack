@@ -23,7 +23,7 @@ type WeightHandler struct {
 // WeightDay handles GET /weight/day
 func (h *WeightHandler) WeightDay(w http.ResponseWriter, r *http.Request) {
 	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
@@ -80,7 +80,7 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 	if dateStr == "" || dateStr == "<nil>" {
 		dateStr = service.FormatDateInTz(time.Now(), userTz)
 	}
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
@@ -125,4 +125,3 @@ func (h *WeightHandler) WeightDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	OkJSON(w)
 }
-

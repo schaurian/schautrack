@@ -388,7 +388,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // DayEntries handles GET /entries/day
 func (h *EntriesHandler) DayEntries(w http.ResponseWriter, r *http.Request) {
 	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
