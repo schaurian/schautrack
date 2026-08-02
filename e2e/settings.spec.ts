@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createIsolatedUser } from './fixtures/helpers';
+import { chooseOption, selectedValue, expectSelectValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -38,12 +39,12 @@ test.describe.serial('Settings', () => {
     await loginAndGo(page, '/settings');
 
     // Find the weight unit select
-    const weightSelect = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
+    const weightSelect = page.locator('#pref-weight-unit');
     await expect(weightSelect).toBeVisible({ timeout: 5000 });
 
-    const currentValue = await weightSelect.inputValue();
+    const currentValue = await selectedValue(weightSelect);
     const newValue = currentValue === 'kg' ? 'lb' : 'kg';
-    await weightSelect.selectOption(newValue);
+    await chooseOption(page, weightSelect, newValue);
 
     // If there's a Save button, click it. Otherwise wait for auto-save.
     const saveBtn = page.getByRole('button', { name: 'Save' }).first();
@@ -57,12 +58,12 @@ test.describe.serial('Settings', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    const reloaded = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
-    const afterReload = await reloaded.inputValue();
+    const reloaded = page.locator('#pref-weight-unit');
+    const afterReload = await selectedValue(reloaded);
     expect(afterReload).toBe(newValue);
 
     // Restore
-    await reloaded.selectOption(currentValue);
+    await chooseOption(page, reloaded, currentValue);
     if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await saveBtn.click();
     } else {
@@ -92,7 +93,7 @@ test.describe.serial('Settings', () => {
     await goalInput.blur();
 
     // Wait for autosave indicator
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Reload and verify
     await page.reload();
@@ -165,28 +166,28 @@ test.describe.serial('Settings', () => {
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 10000 });
 
     // Find the timezone select (it contains timezone strings like "UTC")
-    const tzSelect = page.locator('select').filter({ has: page.locator('option[value="UTC"]') });
+    const tzSelect = page.locator('#pref-timezone');
     await expect(tzSelect).toBeVisible({ timeout: 5000 });
 
-    const originalTz = await tzSelect.inputValue();
+    const originalTz = await selectedValue(tzSelect);
     const newTz = originalTz === 'America/New_York' ? 'Europe/London' : 'America/New_York';
 
-    await tzSelect.selectOption(newTz);
+    await chooseOption(page, tzSelect, newTz);
 
     // Wait for the "Saved" indicator to appear
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Reload and verify the timezone was persisted
     await page.reload();
     await page.waitForURL(/\/settings/);
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 10000 });
 
-    const reloadedTzSelect = page.locator('select').filter({ has: page.locator('option[value="UTC"]') });
-    await expect(reloadedTzSelect).toHaveValue(newTz, { timeout: 5000 });
+    const reloadedTzSelect = page.locator('#pref-timezone');
+    await expectSelectValue(reloadedTzSelect, newTz);
 
     // Restore original timezone
-    await reloadedTzSelect.selectOption(originalTz);
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await chooseOption(page, reloadedTzSelect, originalTz);
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     await ctx.close();
   });
@@ -200,7 +201,7 @@ test.describe.serial('Settings', () => {
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
 
     // Without any user interaction, "Saved" must not appear within 2 seconds of load
-    await expect(page.getByText('Saved')).not.toBeVisible({ timeout: 2000 });
+    await expect(page.getByText('Saved', { exact: true })).not.toBeVisible({ timeout: 2000 });
 
     await ctx.close();
   });
@@ -224,7 +225,7 @@ test.describe.serial('Settings', () => {
     await goalInput.fill(newGoal);
     await goalInput.blur();
 
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Restore calorie goal
     await goalInput.click({ clickCount: 3 });
@@ -235,18 +236,18 @@ test.describe.serial('Settings', () => {
     // --- Weight unit autosave ---
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 5000 });
 
-    const weightSelect = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
+    const weightSelect = page.locator('#pref-weight-unit');
     await expect(weightSelect).toBeVisible({ timeout: 5000 });
 
-    const originalWeight = await weightSelect.inputValue();
+    const originalWeight = await selectedValue(weightSelect);
     const newWeight = originalWeight === 'kg' ? 'lb' : 'kg';
 
-    await weightSelect.selectOption(newWeight);
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await chooseOption(page, weightSelect, newWeight);
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     // Restore weight unit
-    await weightSelect.selectOption(originalWeight);
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+    await chooseOption(page, weightSelect, originalWeight);
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 6000 });
 
     await ctx.close();
   });

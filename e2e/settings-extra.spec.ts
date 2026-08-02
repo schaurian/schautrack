@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { chooseOption } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -23,7 +24,7 @@ test.describe.serial('Settings Extra', () => {
     await page.waitForTimeout(3000);
 
     // "Saved" must not be visible without user action
-    await expect(page.getByText('Saved')).not.toBeVisible();
+    await expect(page.getByText('Saved', { exact: true })).not.toBeVisible();
 
     await ctx.close();
   });
@@ -40,11 +41,11 @@ test.describe.serial('Settings Extra', () => {
 
     // Find Provider select and change it to 'claude'
     const aiCard = page.getByTestId('ai-settings-card');
-    const providerSelect = aiCard.locator('select');
+    const providerSelect = aiCard.getByTestId('ai-provider');
     const providerSelectVisible = await providerSelect.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (providerSelectVisible) {
-      await providerSelect.selectOption('claude');
+      await chooseOption(page, providerSelect, 'claude');
     }
 
     // Fill Model input

@@ -6,7 +6,7 @@ test.describe('Dashboard State', () => {
     await login(page);
 
     // The calorie panel should be visible with a number
-    const calorieValue = page.locator('.text-xl.font-bold.tabular-nums').first();
+    const calorieValue = page.getByTestId('today-panel').locator('.tabular-nums').first();
     await expect(calorieValue).toBeVisible({ timeout: 5000 });
 
     // Should contain a number

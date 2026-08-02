@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser } from './fixtures/helpers';
+import { chooseOption, expectSelectValue, selectedValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -148,12 +149,19 @@ test.describe.serial('Macro Settings', () => {
     const goalInput = proteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(goalInput).toBeVisible({ timeout: 5000 });
 
+    // The seeded user already sits at protein 150 / "Target", so start from
+    // "Limit" — autosave only fires on a real change, and picking the value
+    // that's already selected is a no-op.
+    const modeSelect = proteinRow.getByTestId('macro-mode-protein');
+    if ((await selectedValue(modeSelect)) !== 'limit') {
+      await triggerAndWaitForMacroSave(page, () => chooseOption(page, modeSelect, 'limit'));
+    }
+
     // Set goal to 150 and mode to "Target", then wait for autosave
     await triggerAndWaitForMacroSave(page, async () => {
       await goalInput.click({ clickCount: 3 });
       await goalInput.fill('150');
-      const modeSelect = proteinRow.locator('select');
-      await modeSelect.selectOption('target');
+      await chooseOption(page, modeSelect, 'target');
     });
 
     // Reload and verify
@@ -166,14 +174,14 @@ test.describe.serial('Macro Settings', () => {
     const reloadedGoal = reloadedProteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(reloadedGoal).toHaveValue('150', { timeout: 5000 });
 
-    const reloadedMode = reloadedProteinRow.locator('select');
-    await expect(reloadedMode).toHaveValue('target', { timeout: 3000 });
+    const reloadedMode = reloadedProteinRow.getByTestId('macro-mode-protein');
+    await expectSelectValue(reloadedMode, 'target', 3000);
 
     // Restore to neutral
     await triggerAndWaitForMacroSave(page, async () => {
       await reloadedGoal.click({ clickCount: 3, force: true });
       await reloadedGoal.fill('0', { force: true });
-      await reloadedMode.selectOption('limit', { force: true });
+      await chooseOption(page, reloadedMode, 'limit');
     });
 
     await ctx.close();

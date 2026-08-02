@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createIsolatedUser } from './fixtures/helpers';
+import { chooseOption, selectedValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -78,11 +79,11 @@ test.describe.serial('Weight Tracking', () => {
     // Go to Settings and switch the weight unit
     await page.goto(`${baseURL}/settings`);
     await page.waitForURL(/\/settings/);
-    const weightUnitSelect = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
+    const weightUnitSelect = page.locator('#pref-weight-unit');
     await expect(weightUnitSelect).toBeVisible({ timeout: 5000 });
-    const currentValue = await weightUnitSelect.inputValue();
+    const currentValue = await selectedValue(weightUnitSelect);
     const newValue = currentValue === 'kg' ? 'lb' : 'kg';
-    await weightUnitSelect.selectOption(newValue);
+    await chooseOption(page, weightUnitSelect, newValue);
     await page.waitForTimeout(1500); // autosave debounce
 
     // Navigate to dashboard
@@ -96,8 +97,8 @@ test.describe.serial('Weight Tracking', () => {
     // Restore
     await page.goto(`${baseURL}/settings`);
     await page.waitForURL(/\/settings/);
-    const restoreSelect = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
-    await restoreSelect.selectOption(currentValue);
+    const restoreSelect = page.locator('#pref-weight-unit');
+    await chooseOption(page, restoreSelect, currentValue);
     await page.waitForTimeout(1500);
 
     await ctx.close();
