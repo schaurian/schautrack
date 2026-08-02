@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"schautrack/internal/service"
@@ -66,11 +67,62 @@ func (b *Broker) Unsubscribe(userID int, ch chan []byte) {
 	close(ch)
 }
 
+// notifyChannel is the Postgres LISTEN/NOTIFY channel every instance uses to
+// fan events out to its own subscribers.
+const notifyChannel = "schautrack_events"
+
+// pgNotifyMaxPayload is Postgres' hard limit for a NOTIFY payload (8000 bytes).
+const pgNotifyMaxPayload = 8000
+
+// envelope is one event addressed to one user, as it travels through Postgres.
+type envelope struct {
+	UserID int             `json:"u"`
+	Event  string          `json:"e"`
+	Data   json.RawMessage `json:"d"`
+}
+
+// SendEvent delivers an event to every connection of one user — including the
+// ones held by *other* instances.
+//
+// A subscriber's channel lives in the memory of whichever instance is serving
+// its SSE stream, while the write that triggers the event can land on any
+// instance. So events are published through Postgres NOTIFY and delivered by
+// each instance's listener (including this one's), rather than written straight
+// to the local map. Publishing locally instead would mean a user only sees
+// realtime updates when their write happens to hit the same pod that holds
+// their stream.
 func (b *Broker) SendEvent(userID int, eventName string, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return
 	}
+
+	if b.pool == nil {
+		// No database to publish through (tests, and any future in-process use).
+		b.deliverLocal(userID, eventName, data)
+		return
+	}
+
+	msg, err := json.Marshal(envelope{UserID: userID, Event: eventName, Data: data})
+	if err != nil || len(msg) > pgNotifyMaxPayload {
+		// Oversized or unmarshalable: still serve the connections we hold, so
+		// a single-instance deployment degrades to exactly the old behaviour.
+		slog.Warn("sse: publishing locally only", "event", eventName, "bytes", len(msg), "error", err)
+		b.deliverLocal(userID, eventName, data)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := b.pool.Exec(ctx, "SELECT pg_notify($1, $2)", notifyChannel, string(msg)); err != nil {
+		// Postgres unreachable — local delivery is better than none.
+		slog.Error("sse: pg_notify failed, delivering locally only", "event", eventName, "error", err)
+		b.deliverLocal(userID, eventName, data)
+	}
+}
+
+// deliverLocal writes an event to the subscribers this instance holds.
+func (b *Broker) deliverLocal(userID int, eventName string, data []byte) {
 	msg := fmt.Appendf(nil, "event: %s\ndata: %s\n\n", eventName, data)
 
 	b.mu.RLock()
@@ -81,6 +133,54 @@ func (b *Broker) SendEvent(userID int, eventName string, payload any) {
 		default:
 			// Channel full, skip
 		}
+	}
+}
+
+// Listen consumes the NOTIFY channel for the lifetime of ctx and hands each
+// event to this instance's subscribers. It reconnects with backoff, and uses
+// its own connection rather than one from the shared pool — a LISTEN occupies
+// its connection permanently, and the pool is sized for request traffic.
+func (b *Broker) Listen(ctx context.Context, dsn string) {
+	backoff := time.Second
+	for {
+		if err := b.listenOnce(ctx, dsn); err != nil && ctx.Err() == nil {
+			slog.Error("sse: listener connection lost", "error", err, "retry_in", backoff)
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, 30*time.Second)
+	}
+}
+
+func (b *Broker) listenOnce(ctx context.Context, dsn string) error {
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(context.Background())
+
+	if _, err := conn.Exec(ctx, "LISTEN "+notifyChannel); err != nil {
+		return err
+	}
+	slog.Info("sse: listening for cross-instance events", "channel", notifyChannel)
+
+	for {
+		n, err := conn.WaitForNotification(ctx)
+		if err != nil {
+			return err
+		}
+		var env envelope
+		if err := json.Unmarshal([]byte(n.Payload), &env); err != nil {
+			slog.Error("sse: dropping malformed event", "error", err)
+			continue
+		}
+		b.deliverLocal(env.UserID, env.Event, env.Data)
 	}
 }
 
@@ -211,15 +311,13 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 const linkCacheTTL = 5 * time.Second
 
 func (b *Broker) getTargets(sourceUserID int) []int {
-	// If nobody at all is connected, no event can be delivered to any user, so
-	// resolving link targets would be pure waste — e.g. mutations from the
-	// mobile app or API while no dashboard is open.
-	b.mu.RLock()
-	anyClients := len(b.clients) > 0
-	b.mu.RUnlock()
-	if !anyClients {
-		return nil
-	}
+	// This used to return early when *this* instance held no subscribers, on
+	// the reasoning that an event with nobody to deliver it to is waste. That
+	// only holds for a single instance: behind a load balancer the pod handling
+	// a write is usually not the pod holding the user's stream, so the check
+	// fired exactly when the event was needed and nothing was ever published.
+	// Resolving targets is cheap — the link set is cached below, and publishing
+	// is one pg_notify.
 
 	// Serve the linked-user set from the cache while it is fresh.
 	if linked, ok := b.cachedLinks(sourceUserID); ok {

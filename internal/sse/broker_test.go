@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -198,12 +199,19 @@ func TestConcurrentSubscribeUnsubscribeSendEvent(t *testing.T) {
 	}
 }
 
-func TestGetTargetsShortCircuitsWithNoClients(t *testing.T) {
-	// The test broker has a nil pool: if getTargets reached the DB it would
-	// panic. With no subscribers, it must short-circuit before the lookup.
+func TestGetTargetsResolvesWithNoLocalClients(t *testing.T) {
+	// getTargets used to return nil when this instance held no subscribers.
+	// Behind a load balancer that is the normal case for the instance handling
+	// a write — the user's stream is on another one — so short-circuiting there
+	// silently dropped every cross-instance event. Targets must resolve anyway.
+	// (nil pool: the seeded cache keeps the lookup off the DB.)
 	b := newTestBroker()
-	if got := b.getTargets(1); got != nil {
-		t.Fatalf("expected nil targets when no clients are connected, got %v", got)
+	b.storeLinks(1, []int{2})
+
+	got := b.getTargets(1)
+
+	if len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Fatalf("expected [1 2] with no local subscribers, got %v", got)
 	}
 }
 
@@ -290,5 +298,62 @@ func TestServeHTTPRejectsWrongContextType(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+// The envelope is what crosses the wire between instances: an event published
+// by the pod handling a write must arrive intact at the pod holding the user's
+// stream. Encode it, decode it as the listener does, and check a subscriber on
+// the "other" instance receives a well-formed SSE frame.
+func TestEnvelopeRoundTripDeliversToAnotherInstance(t *testing.T) {
+	writer := newTestBroker()   // instance that handles the POST
+	streamer := newTestBroker() // instance that holds the SSE stream
+	ch := streamer.Subscribe(7)
+	defer streamer.Unsubscribe(7, ch)
+
+	data, err := json.Marshal(map[string]any{"sourceUserId": 7})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	published, err := json.Marshal(envelope{UserID: 7, Event: "entry-change", Data: data})
+	if err != nil {
+		t.Fatalf("marshal envelope: %v", err)
+	}
+	// The writer holds no subscribers for user 7; only the notification travels.
+	writer.SendEvent(7, "entry-change", map[string]any{"sourceUserId": 7})
+
+	var got envelope
+	if err := json.Unmarshal(published, &got); err != nil {
+		t.Fatalf("listener could not decode: %v", err)
+	}
+	streamer.deliverLocal(got.UserID, got.Event, got.Data)
+
+	select {
+	case msg := <-ch:
+		want := "event: entry-change\ndata: {\"sourceUserId\":7}\n\n"
+		if string(msg) != want {
+			t.Fatalf("frame = %q, want %q", msg, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("subscriber on the other instance received nothing")
+	}
+}
+
+// A payload too large for NOTIFY must still reach the connections this instance
+// holds rather than vanishing.
+func TestOversizedPayloadFallsBackToLocalDelivery(t *testing.T) {
+	b := newTestBroker()
+	ch := b.Subscribe(3)
+	defer b.Unsubscribe(3, ch)
+
+	b.SendEvent(3, "settings-change", map[string]any{"blob": strings.Repeat("x", pgNotifyMaxPayload+1)})
+
+	select {
+	case msg := <-ch:
+		if !strings.HasPrefix(string(msg), "event: settings-change\n") {
+			t.Fatalf("unexpected frame: %q", msg[:40])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("oversized event was dropped instead of delivered locally")
 	}
 }

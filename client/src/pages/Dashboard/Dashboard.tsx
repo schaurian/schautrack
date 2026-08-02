@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { useIsDesktop } from '@/hooks/useMediaQuery';
@@ -24,6 +24,7 @@ import NoteEditor from './NoteEditor';
 
 export default function Dashboard() {
   const { t } = useTranslation('dashboard');
+  const queryClient = useQueryClient();
   const { user, isLoading: authLoading } = useRequireAuth();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
@@ -189,11 +190,14 @@ export default function Dashboard() {
             aiProviderName={dashboard.aiProviderName}
             barcodeEnabled={dashboard.barcodeEnabled}
             onSubmit={() => {
-              // Refresh is driven by the entry-change SSE echo (useSSE): the
-              // server broadcasts entry-change to this user's own sessions too,
-              // so invalidating here as well would double-fetch the heavy
-              // /api/dashboard endpoint. Relying solely on the echo also keeps
-              // the user's other tabs/devices (and linked users) in sync.
+              // Refresh locally as well as via the entry-change SSE echo. The
+              // echo alone is not enough: it only reaches this tab if the write
+              // and the open stream were served by the same instance, so behind
+              // a load balancer the entry would often not appear until reload.
+              // TanStack dedupes the echo's invalidation into this refetch when
+              // both land together, so the cost is not a guaranteed double-fetch.
+              queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+              queryClient.invalidateQueries({ queryKey: ['day-entries'] });
             }}
           />
         </section>

@@ -72,8 +72,12 @@ func main() {
 	strictLimiter := middleware.NewRateLimiter(cfg.RateLimitStrict, 5*time.Minute, cfg.TrustProxy)
 	barcodeLimiter := middleware.NewRateLimiter(30, time.Minute, cfg.TrustProxy)
 
-	// SSE broker
+	// SSE broker. Events are fanned out through Postgres LISTEN/NOTIFY so they
+	// reach subscribers held by *other* instances: with more than one replica
+	// behind a load balancer, a user's stream and the write that should update
+	// it routinely land on different pods.
 	sseBroker := sse.NewBroker(pool)
+	go sseBroker.Listen(ctx, cfg.DatabaseURL)
 
 	// Auth handler
 	authHandler := &handler.AuthHandler{
