@@ -45,6 +45,9 @@ export default defineConfig({
   test: {
     // Pure logic modules under src/lib need no DOM; keep the runner lean.
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}'],
+    // tests/ holds build/dependency-boundary tests that read the lockfile and
+    // node_modules via node builtins. They live outside src so `tsc -b` (which
+    // includes only src and has no @types/node) stays clean.
+    include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.ts'],
   },
 });

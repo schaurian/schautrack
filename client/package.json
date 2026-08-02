@@ -38,6 +38,10 @@
     "tailwindcss": "^4.2.2",
     "zustand": "^5.0.5"
   },
+  "overrides": {
+    "sharp": "^0.35.3",
+    "ndarray-pixels": "^5.2.0"
+  },
   "devDependencies": {
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
