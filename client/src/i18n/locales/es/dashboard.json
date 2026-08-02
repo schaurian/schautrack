@@ -240,7 +240,7 @@
     "modalTitle": "Alimentos guardados",
     "searchPlaceholder": "Buscar…",
     "newButton": "+ Nuevo",
-    "draftNamePlaceholder": "Nombra tu alimento guardado y luego haz clic en las etiquetas para añadir valores…",
+    "draftNamePlaceholder": "Nombre (p. ej. Gachas)",
     "cancelButton": "Cancelar",
     "noMatches": "Sin resultados.",
     "emptyState": "Aún no tienes alimentos guardados. Usa el botón «Guardar» del formulario de entrada, o pulsa «+ Nuevo».",
@@ -263,7 +263,9 @@
     "toastRestoreFailed": "Error al restaurar",
     "toastDeleteFailed": "Error al eliminar",
     "logQuantityButton_one": "Registrar {{count}}×",
-    "logQuantityButton_other": "Registrar {{count}}×"
+    "logQuantityButton_other": "Registrar {{count}}×",
+    "addButton": "Añadir",
+    "toastInvalidValue": "Introduce un número en cada valor que rellenes."
   },
   "store": {
     "you": "Tú"

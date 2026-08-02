@@ -240,7 +240,7 @@
     "modalTitle": "Gespeicherte Lebensmittel",
     "searchPlaceholder": "Suchen…",
     "newButton": "+ Neu",
-    "draftNamePlaceholder": "Benenne dein gespeichertes Lebensmittel und klicke dann auf die Chips, um Werte hinzuzufügen…",
+    "draftNamePlaceholder": "Name (z. B. Haferbrei)",
     "cancelButton": "Abbrechen",
     "noMatches": "Keine Treffer.",
     "emptyState": "Noch keine gespeicherten Lebensmittel. Nutze den Button \"Speichern\" im Eintragsformular oder klicke auf \"+ Neu\".",
@@ -263,7 +263,9 @@
     "toastRestoreFailed": "Wiederherstellung fehlgeschlagen",
     "toastDeleteFailed": "Löschen fehlgeschlagen",
     "logQuantityButton_one": "{{count}}× tracken",
-    "logQuantityButton_other": "{{count}}× tracken"
+    "logQuantityButton_other": "{{count}}× tracken",
+    "addButton": "Hinzufügen",
+    "toastInvalidValue": "Gib für jeden ausgefüllten Wert eine Zahl ein."
   },
   "store": {
     "you": "Du"

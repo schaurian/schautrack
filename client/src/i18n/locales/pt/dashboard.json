@@ -240,7 +240,7 @@
     "modalTitle": "Alimentos guardados",
     "searchPlaceholder": "Pesquisar…",
     "newButton": "+ Novo",
-    "draftNamePlaceholder": "Dê um nome ao alimento guardado e depois clique nas etiquetas para adicionar valores…",
+    "draftNamePlaceholder": "Nome (ex.: Papas de aveia)",
     "cancelButton": "Cancelar",
     "noMatches": "Sem resultados.",
     "emptyState": "Ainda não há alimentos guardados. Use o botão \"Guardar\" no formulário de registo, ou clique em \"+ Novo\".",
@@ -263,7 +263,9 @@
     "toastRestoreFailed": "Falha ao restaurar",
     "toastDeleteFailed": "Falha ao eliminar",
     "logQuantityButton_one": "Registar {{count}}×",
-    "logQuantityButton_other": "Registar {{count}}×"
+    "logQuantityButton_other": "Registar {{count}}×",
+    "addButton": "Adicionar",
+    "toastInvalidValue": "Introduz um número em cada valor que preencheres."
   },
   "store": {
     "you": "Você"

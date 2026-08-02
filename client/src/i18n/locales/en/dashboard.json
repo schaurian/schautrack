@@ -234,6 +234,7 @@
     }
   },
   "savedFoods": {
+    "addButton": "Add",
     "cancelButton": "Cancel",
     "changeEmojiTitle": "Change emoji",
     "chipTooltipBase": "Tap to log {{name}}",
@@ -241,7 +242,7 @@
     "chipTooltipHint": " · Hold or Shift+Enter for quantity",
     "chooseQuantityAriaLabel": "Choose quantity for {{name}}",
     "deleteSavedFoodAriaLabel": "Delete saved food",
-    "draftNamePlaceholder": "Name your saved food, then click pills to add values…",
+    "draftNamePlaceholder": "Name (e.g. Porridge)",
     "emptyState": "No saved foods yet. Use the \"Save\" button on the entry form, or hit \"+ New\".",
     "logQuantityButton": "Log {{count}}×",
     "logQuantityButton_one": "Log {{count}}×",
@@ -255,6 +256,7 @@
     "sectionTitle": "Quick add",
     "toastDeleted": "Deleted {{name}}",
     "toastDeleteFailed": "Failed to delete",
+    "toastInvalidValue": "Enter a number for each value you fill in.",
     "toastNameRequired": "Name is required",
     "toastRestoreFailed": "Restore failed",
     "toastSaveFailed": "Failed to save",

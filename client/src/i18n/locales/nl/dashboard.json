@@ -240,7 +240,7 @@
     "modalTitle": "Opgeslagen eten",
     "searchPlaceholder": "Zoeken…",
     "newButton": "+ Nieuw",
-    "draftNamePlaceholder": "Geef je opgeslagen eten een naam en klik op de knopjes om waarden toe te voegen…",
+    "draftNamePlaceholder": "Naam (bijv. Havermout)",
     "cancelButton": "Annuleren",
     "noMatches": "Geen resultaten.",
     "emptyState": "Nog geen opgeslagen eten. Gebruik de knop \"Opslaan\" op het formulier, of klik op \"+ Nieuw\".",
@@ -263,7 +263,9 @@
     "toastRestoreFailed": "Herstellen mislukt",
     "toastDeleteFailed": "Verwijderen mislukt",
     "logQuantityButton_one": "{{count}}× bijhouden",
-    "logQuantityButton_other": "{{count}}× bijhouden"
+    "logQuantityButton_other": "{{count}}× bijhouden",
+    "addButton": "Toevoegen",
+    "toastInvalidValue": "Vul een getal in bij elke waarde die je invult."
   },
   "store": {
     "you": "Jij"

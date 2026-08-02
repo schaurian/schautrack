@@ -248,7 +248,7 @@
     "modalTitle": "Zapisane produkty",
     "searchPlaceholder": "Szukaj…",
     "newButton": "+ Nowy",
-    "draftNamePlaceholder": "Nazwij swój zapisany produkt, a następnie klikaj pigułki, aby dodać wartości…",
+    "draftNamePlaceholder": "Nazwa (np. Owsianka)",
     "cancelButton": "Anuluj",
     "noMatches": "Brak wyników.",
     "emptyState": "Nie masz jeszcze zapisanych produktów. Użyj przycisku \"Zapisz\" w formularzu wpisu lub kliknij \"+ Nowy\".",
@@ -275,7 +275,9 @@
     "logQuantityButton_one": "Zapisz {{count}}×",
     "logQuantityButton_other": "Zapisz {{count}}×",
     "logQuantityButton_few": "Zapisz {{count}}×",
-    "logQuantityButton_many": "Zapisz {{count}}×"
+    "logQuantityButton_many": "Zapisz {{count}}×",
+    "addButton": "Dodaj",
+    "toastInvalidValue": "Wpisz liczbę w każdym wypełnianym polu."
   },
   "store": {
     "you": "Ty"

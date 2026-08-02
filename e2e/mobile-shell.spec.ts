@@ -147,6 +147,37 @@ test.describe('Mobile shell (redesign)', () => {
     await ctx.close();
   });
 
+  test('a new quick food is created with its values in one step', async ({ browser }) => {
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`);
+
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
+    const page = await ctx.newPage();
+    await login(page);
+
+    await page.getByRole('button', { name: 'Add food' }).click();
+    await page.getByRole('dialog', { name: 'Add food' }).getByRole('button', { name: 'Manage', exact: true }).click();
+    const manage = page.locator('[data-modal-layer="saved-foods"]');
+    await expect(manage).toBeVisible({ timeout: 10000 });
+
+    // The values are on screen with the name — no save-then-edit-each-field.
+    await manage.getByRole('button', { name: /New/ }).click();
+    await manage.getByPlaceholder(/^Name/).fill('Rye Toast');
+    await manage.getByLabel('Calories').fill('160');
+    await manage.getByLabel('Protein').fill('6');
+    await manage.getByLabel('Carbs').fill('28');
+    await manage.getByRole('button', { name: 'Add', exact: true }).click();
+
+    await expect(manage.getByText('Rye Toast')).toBeVisible({ timeout: 10000 });
+
+    // Persisted with the values, not just the name.
+    await expect.poll(() => psql(
+      `SELECT amount || '/' || protein_g || '/' || carbs_g FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`,
+    ), { timeout: 10000 }).toBe('160/6/28');
+
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`);
+    await ctx.close();
+  });
+
   test('sheet closes via Escape and backdrop stays consistent', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();

@@ -19,6 +19,31 @@ interface Props {
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring';
 
+const draftInputClass =
+  'bg-muted/50 border border-input rounded-md px-2 py-1 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+
+function DraftField({ label, value, onChange, onKeyDown }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        className={draftInputClass}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder="0"
+      />
+    </label>
+  );
+}
+
 export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
@@ -33,6 +58,9 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState('');
+  // Calories and each macro, keyed the way the payload expects them.
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
   const draftRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery({
@@ -46,6 +74,7 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
       setSearch('');
       setCreating(false);
       setDraftName('');
+      setDraftValues({});
     }
   }, [isOpen]);
 
@@ -67,15 +96,30 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   const cancelDraft = () => {
     setCreating(false);
     setDraftName('');
+    setDraftValues({});
   };
 
   const commitDraft = async () => {
     const name = draftName.trim();
     if (!name) {
-      cancelDraft();
+      addToast('error', t('savedFoods.toastNameRequired'));
+      draftRef.current?.focus();
       return;
     }
     const payload: SavedFoodPayload = { name };
+    // Blank stays blank: a saved food may legitimately have no value for a
+    // macro, and 0 is a different statement from "not tracked".
+    for (const [key, raw] of Object.entries(draftValues)) {
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      const n = Number(trimmed);
+      if (!Number.isFinite(n) || n < 0) {
+        addToast('error', t('savedFoods.toastInvalidValue'));
+        return;
+      }
+      (payload as Record<string, unknown>)[key] = Math.round(n);
+    }
+    setSaving(true);
     try {
       await createSavedFood(payload);
       cancelDraft();
@@ -83,6 +127,7 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('savedFoods.toastSaveFailed'));
     }
+    setSaving(false);
   };
 
   const handleDraftKey = (e: React.KeyboardEvent) => {
@@ -128,20 +173,42 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
 
         <div className="flex-1 overflow-y-auto p-2">
           {creating && (
-            <div className="rounded-[10px] border border-[#0ea5e9]/40 bg-white/[0.015] mb-1.5 ring-1 ring-primary/40">
-              <div className="flex items-center gap-1.5 px-3 py-2">
-                <input
-                  ref={draftRef}
-                  type="text"
-                  className="flex-1 bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none"
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onBlur={commitDraft}
-                  onKeyDown={handleDraftKey}
-                  placeholder={t('savedFoods.draftNamePlaceholder')}
-                  maxLength={80}
-                />
+            <div className="rounded-[10px] border border-[#0ea5e9]/40 bg-white/[0.015] mb-1.5 p-3 ring-1 ring-primary/40">
+              <input
+                ref={draftRef}
+                type="text"
+                className={draftInputClass + ' w-full mb-2'}
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={handleDraftKey}
+                placeholder={t('savedFoods.draftNamePlaceholder')}
+                maxLength={80}
+              />
+              {/* Every value the food can carry, visible from the start —
+                  filling them in used to mean saving the name first and then
+                  editing each field one at a time. */}
+              <div className="grid grid-cols-3 gap-2">
+                {caloriesEnabled && (
+                  <DraftField
+                    label={t('entries.caloriesLabel')}
+                    value={draftValues.amount ?? ''}
+                    onChange={(v) => setDraftValues((d) => ({ ...d, amount: v }))}
+                    onKeyDown={handleDraftKey}
+                  />
+                )}
+                {enabledMacros.map((k) => (
+                  <DraftField
+                    key={k}
+                    label={MACRO_LABELS[k as keyof typeof MACRO_LABELS]?.label || k}
+                    value={draftValues[`${k}_g`] ?? ''}
+                    onChange={(v) => setDraftValues((d) => ({ ...d, [`${k}_g`]: v }))}
+                    onKeyDown={handleDraftKey}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 mt-3">
                 <Button size="sm" variant="ghost" onClick={cancelDraft}>{t('savedFoods.cancelButton')}</Button>
+                <Button size="sm" variant="default" onClick={commitDraft} loading={saving}>{t('savedFoods.addButton')}</Button>
               </div>
             </div>
           )}

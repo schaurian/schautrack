@@ -240,7 +240,7 @@
     "modalTitle": "Aliments enregistrés",
     "searchPlaceholder": "Rechercher…",
     "newButton": "+ Nouveau",
-    "draftNamePlaceholder": "Nommez votre aliment enregistré, puis cliquez sur les puces pour ajouter des valeurs…",
+    "draftNamePlaceholder": "Nom (p. ex. Porridge)",
     "cancelButton": "Annuler",
     "noMatches": "Aucun résultat.",
     "emptyState": "Aucun aliment enregistré pour le moment. Utilisez le bouton « Enregistrer » du formulaire d'entrée, ou cliquez sur « + Nouveau ».",
@@ -263,7 +263,9 @@
     "toastRestoreFailed": "Échec de la restauration",
     "toastDeleteFailed": "Échec de la suppression",
     "logQuantityButton_one": "Enregistrer {{count}}×",
-    "logQuantityButton_other": "Enregistrer {{count}}×"
+    "logQuantityButton_other": "Enregistrer {{count}}×",
+    "addButton": "Ajouter",
+    "toastInvalidValue": "Saisissez un nombre pour chaque valeur renseignée."
   },
   "store": {
     "you": "Vous"
