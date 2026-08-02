@@ -206,9 +206,6 @@
       "activityLevelLabel": "Poziom aktywności",
       "consentNotice": "Opcjonalne dane dotyczące zdrowia, przetwarzane wyłącznie na tym serwerze w celu obliczenia Twojego planu, na podstawie Twojej zgody (Art. 9(2)(a) GDPR). Możesz je usunąć w dowolnym momencie za pomocą przycisku Wyczyść lub usuwając swoje konto.",
       "clearButton": "Wyczyść",
-      "saveButton": "Zapisz dane",
-      "toastSaved": "Dane zapisane",
-      "toastSaveFailed": "Nie udało się zapisać danych",
       "toastCleared": "Dane wyczyszczone",
       "toastClearFailed": "Nie udało się wyczyścić danych",
       "activity": {

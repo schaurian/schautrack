@@ -54,8 +54,8 @@ test.describe.serial('Weight Planner', () => {
     await page.locator('label:text-is("Birth Year") + input').fill('1986');
     await chooseOption(page, page.getByTestId('metrics-sex'), 'male');
     await chooseOption(page, page.getByTestId('metrics-activity'), 'moderate');
-    await page.getByRole('button', { name: 'Save Details' }).click();
-    await expect(page.getByText('Details saved')).toBeVisible({ timeout: 10000 });
+    // Metrics autosave; the shared confirmation is the "Saved" toast.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 });
 
     // 3. Set a by-rate goal: 130kg -> 80kg at 0.75 kg/week.
     await page.locator('label:text-is("Target Weight") + span input').fill('80');

@@ -134,10 +134,10 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-3">
-      <header className="flex items-center justify-between px-1 pt-1">
-        <h2 className="font-display text-[22px] font-bold tracking-tight">
-          {selectedDate === dashboard.todayStr ? t('dashboard.todayLabel') : selectedDate}
-        </h2>
+      {/* No page title: the nav already names this page, and the pill below
+          carries the only thing the heading added — which day you are looking
+          at. It reads "Today" for today and the date otherwise. */}
+      <header className="flex items-center justify-end px-1 pt-1">
         {/* Ghost date pill: the real (transparent) input sits on top so keyboard
             entry and the aria-label keep working, and onClick calls showPicker()
             so the calendar opens on desktop too — see openDatePicker. */}
@@ -146,7 +146,9 @@ export default function Dashboard() {
             <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
           </svg>
           <span className="tabular-nums">
-            {formatDate(`${selectedDate}T00:00:00`, undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+            {selectedDate === dashboard.todayStr
+              ? t('dashboard.todayLabel')
+              : formatDate(`${selectedDate}T00:00:00`, undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
           </span>
           <input
             ref={dateInputRef}

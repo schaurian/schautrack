@@ -198,9 +198,6 @@
       "activityLevelLabel": "Nivel de actividad",
       "consentNotice": "Datos de salud opcionales, procesados únicamente en este servidor para calcular tu plan, según tu consentimiento (Art. 9(2)(a) GDPR). Elimínalos en cualquier momento con Borrar o eliminando tu cuenta.",
       "clearButton": "Borrar",
-      "saveButton": "Guardar datos",
-      "toastSaved": "Datos guardados",
-      "toastSaveFailed": "Error al guardar los datos",
       "toastCleared": "Datos borrados",
       "toastClearFailed": "Error al borrar los datos",
       "activity": {

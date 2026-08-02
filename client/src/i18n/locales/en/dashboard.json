@@ -185,7 +185,6 @@
       "heightLabel": "Height (cm)",
       "heightPlaceholder": "e.g. 175",
       "hideLabel": "Hide",
-      "saveButton": "Save Details",
       "selectPlaceholder": "Select…",
       "sexFemale": "Female",
       "sexLabel": "Sex",
@@ -193,9 +192,7 @@
       "sexOther": "Other",
       "title": "Your Details",
       "toastCleared": "Details cleared",
-      "toastClearFailed": "Failed to clear details",
-      "toastSaved": "Details saved",
-      "toastSaveFailed": "Failed to save details"
+      "toastClearFailed": "Failed to clear details"
     },
     "percentToGoal": "{{percent}}% to goal",
     "progress": {

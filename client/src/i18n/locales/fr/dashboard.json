@@ -200,9 +200,6 @@
       "sexFemale": "Femme",
       "sexOther": "Autre",
       "activityLevelLabel": "Niveau d'activité",
-      "saveButton": "Enregistrer les informations",
-      "toastSaved": "Informations enregistrées",
-      "toastSaveFailed": "Échec de l'enregistrement des informations",
       "activity": {
         "sedentary": "Sédentaire (peu ou pas d'exercice)",
         "light": "Léger (1 à 3 jours/semaine)",

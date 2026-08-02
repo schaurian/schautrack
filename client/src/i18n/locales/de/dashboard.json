@@ -196,9 +196,6 @@
       "sexFemale": "Weiblich",
       "sexOther": "Divers",
       "activityLevelLabel": "Aktivitätslevel",
-      "saveButton": "Angaben speichern",
-      "toastSaved": "Angaben gespeichert",
-      "toastSaveFailed": "Angaben konnten nicht gespeichert werden",
       "activity": {
         "sedentary": "Sitzend (wenig oder keine Bewegung)",
         "light": "Leicht (1-3 Tage/Woche)",

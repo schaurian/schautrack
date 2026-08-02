@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { PlanMetrics } from '@/types';
@@ -6,6 +6,7 @@ import { updateMetrics, clearMetrics } from '@/api/plan';
 import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { useAutosave } from '@/hooks/useAutosave';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /** Radix Select disallows an item with value="" — map this sentinel back to ''. */
@@ -36,22 +37,25 @@ export default function MetricsForm({ metrics }: Props) {
   const [activityLevel, setActivityLevel] = useState(metrics.activityLevel || '');
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await updateMetrics({
-        height_cm: height ? Number(height) : null,
-        birth_year: birthYear ? Number(birthYear) : null,
-        sex: (sex || null) as 'male' | 'female' | 'other' | null,
-        activity_level: activityLevel || null,
-      });
-      queryClient.invalidateQueries({ queryKey: ['plan'] });
-      addToast('success', t('plan.metricsForm.toastSaved'));
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : t('plan.metricsForm.toastSaveFailed'));
-    }
-    setSaving(false);
-  };
+  // Autosaves like the goal below it and every settings card. Fields are
+  // independent, so there is nothing to complete before a save is meaningful —
+  // any value is stored on its own and the others stay untouched.
+  const data = useMemo(
+    () => ({ height, birthYear, sex, activityLevel }),
+    [height, birthYear, sex, activityLevel],
+  );
+
+  const saveFn = useCallback(async (d: typeof data) => {
+    await updateMetrics({
+      height_cm: d.height ? Number(d.height) : null,
+      birth_year: d.birthYear ? Number(d.birthYear) : null,
+      sex: (d.sex || null) as 'male' | 'female' | 'other' | null,
+      activity_level: d.activityLevel || null,
+    });
+    queryClient.invalidateQueries({ queryKey: ['plan'] });
+  }, [queryClient]);
+
+  useAutosave(data, saveFn, { delay: 1000 });
 
   // Consent-withdrawal path: saves preserve omitted fields, so this dedicated
   // action is the only way to actually erase body metrics short of account
@@ -119,9 +123,9 @@ export default function MetricsForm({ metrics }: Props) {
           <p className="text-xs text-muted-foreground">
             {t('plan.metricsForm.consentNotice')}
           </p>
-          <div className="flex justify-between">
+          {/* Clear stays: it is the consent-withdrawal path, not a save. */}
+          <div className="flex justify-start">
             <Button onClick={handleClear} loading={saving} size="sm" variant="ghost" disabled={metrics.heightCm == null && metrics.birthYear == null && metrics.sex == null && metrics.activityLevel == null}>{t('plan.metricsForm.clearButton')}</Button>
-            <Button onClick={handleSave} loading={saving} size="sm">{t('plan.metricsForm.saveButton')}</Button>
           </div>
         </div>
       )}
