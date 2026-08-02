@@ -15,7 +15,7 @@
 import { execFileSync } from 'child_process';
 
 const DEMO_EMAIL = 'demo@schautrack.app';
-const FRIEND_EMAIL = 'sam@schautrack.app';
+const FRIEND_EMAIL = 'friend@schautrack.app';
 // bcrypt of "demo1234demo" — a throwaway credential for a throwaway database.
 const DEMO_HASH = '$2b$10$yGfth4QccMugcvNRMqNLhOPdL.1j9UI00W7Fy4oKBEWjriE8OdV6W';
 
@@ -210,9 +210,12 @@ function seedFriend(demoId: string, friendId: string) {
     insertDay(friendId, day(back), DAY_TEMPLATES[(back + 2) % 5]);
   }
 
-  psql(`DELETE FROM account_links WHERE requester_id IN (${demoId}, ${friendId}) AND target_id IN (${demoId}, ${friendId})`);
+  // Every link the demo account has, not just this pair: the database survives
+  // between runs, so a link left by an earlier seed would show up as a second
+  // friend row in the screenshots.
+  psql(`DELETE FROM account_links WHERE requester_id = ${demoId} OR target_id = ${demoId}`);
   psql(`INSERT INTO account_links (requester_id, target_id, status, requester_label, target_label, requester_shares, target_shares)
-        VALUES (${demoId}, ${friendId}, 'accepted', 'Sam', 'Alex',
+        VALUES (${demoId}, ${friendId}, 'accepted', 'Friend', 'Demo',
                 '{"nutrition": true, "weight": true, "todos": true, "notes": false}',
                 '{"nutrition": true, "weight": false, "todos": true, "notes": false}')`);
 }
