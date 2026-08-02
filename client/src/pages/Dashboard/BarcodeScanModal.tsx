@@ -256,8 +256,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
+        <Dialog.Overlay className="fixed inset-0 z-[300] bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
+        <Dialog.Content data-modal-layer="scanner" className="fixed inset-0 z-[300] bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 sm:bg-transparent shrink-0 z-10">
             <Dialog.Title className="text-sm font-semibold text-foreground">{t('barcodeScan.modalTitle')}</Dialog.Title>
             <Dialog.Close aria-label={t('dashboard.closeAriaLabel')} className="size-8 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">

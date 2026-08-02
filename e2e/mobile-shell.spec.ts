@@ -76,6 +76,42 @@ test.describe('Mobile shell (redesign)', () => {
     await ctx.close();
   });
 
+  test('the barcode scanner opens on top of the add sheet, not behind it', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
+    const page = await ctx.newPage();
+    await login(page);
+
+    await page.getByRole('button', { name: 'Add food' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Add food' });
+    await expect(sheet).toBeVisible();
+
+    await sheet.locator('button[title="Scan barcode"]').click();
+    const scanner = page.locator('[data-modal-layer="scanner"]');
+    await expect(scanner).toBeVisible({ timeout: 10000 });
+
+    // Visible is not enough — it was visible before the fix too, just painted
+    // underneath. Hit-testing is no good either: Radix sets pointer-events:none
+    // outside an open dialog, so elementFromPoint returns the scanner even when
+    // the sheet covers it. Compare the stacking order itself.
+    const layering = await page.evaluate(() => {
+      const scanner = document.querySelector('[data-modal-layer="scanner"]') as HTMLElement;
+      const sheetPanel = document.querySelector('[role="dialog"][aria-label="Add food"]') as HTMLElement;
+      return {
+        scanner: Number(getComputedStyle(scanner).zIndex),
+        sheet: Number(getComputedStyle(sheetPanel.parentElement as HTMLElement).zIndex),
+      };
+    });
+    expect(layering.scanner).toBeGreaterThan(layering.sheet);
+
+    // One Escape closes the scanner and leaves the sheet up, rather than
+    // dismissing both through the sheet's document-level listener.
+    await page.keyboard.press('Escape');
+    await expect(scanner).toBeHidden({ timeout: 5000 });
+    await expect(sheet).toBeVisible();
+
+    await ctx.close();
+  });
+
   test('sheet closes via Escape and backdrop stays consistent', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();

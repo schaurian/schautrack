@@ -19,13 +19,20 @@ export function Sheet({ open, onClose, title, children }: {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // The AI and barcode scanners open on top of this sheet and handle their
+      // own Escape. This listener is on the document, so without the guard one
+      // press would dismiss the scanner and the sheet under it in one go.
+      // Checked in the capture phase: by the time a bubble-phase handler runs,
+      // the scanner has already unmounted and there is nothing left to detect.
+      if (document.querySelector('[data-modal-layer]')) return;
+      onClose();
     };
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     panelRef.current?.focus();
     return () => {
       document.body.style.overflow = prevOverflow;
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       previouslyFocused?.focus?.();
     };
   }, [open, onClose]);
