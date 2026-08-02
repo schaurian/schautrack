@@ -35,12 +35,18 @@ test.describe.serial('Weight Tracking', () => {
     await weightInput.blur();
     await expect(page.getByText('Weight tracked')).toBeVisible({ timeout: 5000 });
 
-    const deleteBtn = page.locator('button[title="Delete weight entry"]');
-    await expect(deleteBtn).toBeEnabled({ timeout: 3000 });
+    // WeightRow only renders the delete control while a weight entry exists for
+    // the selected date (`canEdit && weightEntry`), so it appearing is proof the
+    // entry was persisted server-side. Its visible text is just "Delete", so the
+    // title is the only unambiguous hook.
+    const deleteBtn = page.getByTitle('Delete weight entry');
+    await expect(deleteBtn).toBeVisible({ timeout: 5000 });
     await deleteBtn.click();
 
-    // Weight input should clear or delete button should become disabled
-    await expect(page.locator('button[title="Delete weight entry"]')).toBeDisabled({ timeout: 5000 });
+    // ...and by the same guard it unmounts once the entry is gone — it never
+    // becomes a disabled button, so assert it is detached and the input cleared.
+    await expect(deleteBtn).toHaveCount(0, { timeout: 5000 });
+    await expect(weightInput).toHaveValue('', { timeout: 5000 });
 
     await ctx.close();
   });

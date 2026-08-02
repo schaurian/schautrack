@@ -1,29 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
-import { psql } from './fixtures/helpers';
+import { psql, detectAdminEmail } from './fixtures/helpers';
 
 const AUTH_FILE = 'e2e/.auth/admin.json';
-
-/**
- * Detect the admin email by checking ADMIN_EMAIL inside the running container.
- * Falls back to admin@test.com (compose.test.yml default).
- */
-function detectAdminEmail(): string {
-  try {
-    const { execSync } = require('child_process');
-    const containerName = execSync(
-      'docker ps --format "{{.Names}}" | grep -E "schautrack.*web"',
-      { encoding: 'utf-8' }
-    ).trim().split('\n')[0];
-    if (containerName) {
-      const email = execSync(
-        `docker exec ${containerName} printenv ADMIN_EMAIL`,
-        { encoding: 'utf-8' }
-      ).trim();
-      if (email) return email;
-    }
-  } catch { /* ignore */ }
-  return 'admin@test.com';
-}
 
 const ADMIN_EMAIL = detectAdminEmail();
 const ADMIN_PASSWORD = 'admin1234test';

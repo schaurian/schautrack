@@ -1,13 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
 
-// TodayPanel renders SVG progress rings (components/ui/Ring.tsx). Status maps
-// to the progress circle's stroke color (lib/ring.ts ringColor):
+// TodayPanel renders calories as an SVG progress ring (components/ui/Ring.tsx)
+// and each macro as a glowing bar (Dashboard/TodayPanel.tsx MacroBar).
+// Both are colored from MacroStatus via lib/ring.ts ringColor():
 //   macro-stat--success → #22c55e (green)
 //   macro-stat--warning → #f59e0b (amber)
 //   macro-stat--danger  → #ef4444 (red)
-// Each ring: <div role="img" aria-label="<Label>: <value> / <goal> <unit>">
-// containing an <svg> with circle[0]=track and circle[1]=progress (stroke).
+// Both wrappers are <div role="img" aria-label="<Label>: <value> / <goal> <unit>">.
+//   Ring: contains an <svg> with circle[0]=track and circle[1]=progress (stroke).
+//   MacroBar: contains a track div wrapping a fill div whose inline style sets
+//             `background` (and a matching box-shadow glow) to the status color.
 
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
 
@@ -38,7 +41,7 @@ test.describe('Macro Status Colors', () => {
     psql(`DELETE FROM calorie_entries WHERE user_id = ${limitUser.id}`);
   });
 
-  test('target mode: over goal shows success/green styling on protein chip', async ({ browser }) => {
+  test('target mode: over goal shows success/green fill on the protein bar', async ({ browser }) => {
     // Insert entry directly to guarantee protein=120 is recorded (avoids form input fragility)
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, protein_g, entry_name)
           VALUES (${targetUser.id}, '${TODAY}', 500, 120, 'High protein meal')`);
@@ -47,19 +50,20 @@ test.describe('Macro Status Colors', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for the protein ring to render with the value (120)
-    const proteinRing = page.getByRole('img', { name: /^Protein:/ }).first();
-    await expect(proteinRing).toBeVisible({ timeout: 10000 });
-    await expect(proteinRing.getByText('120')).toBeVisible({ timeout: 8000 });
+    // Wait for the protein bar to render with the value (120 of goal 100)
+    const proteinBar = page.getByRole('img', { name: /^Protein:/ }).first();
+    await expect(proteinBar).toBeVisible({ timeout: 10000 });
+    await expect(proteinBar).toHaveAttribute('aria-label', /^Protein: 120 \/ 100 g$/, { timeout: 8000 });
 
-    // In target mode, protein=120 >= goal=100 → success → green ring
-    const proteinStroke = await proteinRing.locator('circle').nth(1).getAttribute('stroke');
-    expect(proteinStroke).toBe('#22c55e');
+    // In target mode, protein=120 >= goal=100 → success → green bar fill
+    const proteinFill = proteinBar.locator('div[style*="background"]');
+    await expect(proteinFill).toBeVisible();
+    await expect(proteinFill).toHaveCSS('background-color', 'rgb(34, 197, 94)'); // #22c55e
 
     await ctx.close();
   });
 
-  test('limit mode: over goal shows destructive/red styling on calories chip', async ({ browser }) => {
+  test('limit mode: over goal shows destructive/red styling on calories ring', async ({ browser }) => {
     // Insert entry directly for reliable calorie tracking
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name)
           VALUES (${limitUser.id}, '${TODAY}', 1200, 'Over limit meal')`);

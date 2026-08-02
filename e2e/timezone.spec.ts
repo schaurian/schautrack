@@ -119,36 +119,29 @@ test.describe('Timezone Handling', () => {
       const page = await ctx.newPage();
       await loginAndGo(page);
 
-      // Navigate to the entry date
-      await page.locator('button').filter({ hasText: '30d' }).click();
+      // Navigate to the entry date via 30d range + dot click (range presets
+      // sit behind the "Nd ▾" toggle in the Timeline header since the redesign)
+      await page.getByRole('button', { name: /^\d+d/, expanded: false }).click();
+      await page.getByRole('button', { name: '30d', exact: true }).click();
       await page.waitForTimeout(500);
 
       const dot = page.locator(`button[aria-label^="${entryDate}"]`).first();
-      if (await dot.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await dot.click();
-        await page.waitForTimeout(500);
-      }
+      await expect(dot).toBeVisible({ timeout: 5000 });
+      await dot.click();
+      await page.waitForTimeout(500);
 
       // Verify the entry is visible
-      await expect(page.getByText('LA Time Test')).toBeVisible({ timeout: 8000 });
+      const nameBtn = page.getByRole('button', { name: 'LA Time Test', exact: true });
+      await expect(nameBtn).toBeVisible({ timeout: 8000 });
 
-      // Check the time display — should show afternoon time in LA timezone
-      const timeText = await page.evaluate(() => {
-        const btns = Array.from(document.querySelectorAll('button'));
-        const nameBtn = btns.find(b => b.textContent?.trim() === 'LA Time Test');
-        if (!nameBtn) return null;
-        const nameSpan = nameBtn.parentElement;
-        const rowDiv = nameSpan?.parentElement;
-        if (!rowDiv) return null;
-        const spans = Array.from(rowDiv.querySelectorAll('span'));
-        const timeSpan = spans.find(s => s.classList.contains('tabular-nums'));
-        return timeSpan?.textContent?.trim() || null;
-      });
+      // Check the time display — should show afternoon time in LA timezone.
+      // The entry row (EntryList.tsx) renders the time as the span immediately
+      // after the span wrapping the name button; neither carries a testid, so
+      // anchor on the name button's accessible name and step to its sibling.
+      const timeCell = nameBtn.locator('xpath=../following-sibling::span[1]');
 
       // UTC 20:00 → PDT 13:00. Accept 10:xx to 19:xx (accounts for DST variance)
-      if (timeText) {
-        expect(timeText).toMatch(/^1[0-9]:\d{2}$/);
-      }
+      await expect(timeCell).toHaveText(/^1[0-9]:\d{2}$/, { timeout: 5000 });
 
       await ctx.close();
     } finally {

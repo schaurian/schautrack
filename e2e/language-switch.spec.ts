@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, psql } from './fixtures/helpers';
 import { chooseOption, expectSelectValue } from './fixtures/select';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
@@ -10,6 +10,11 @@ let user: { email: string; password: string; id: string };
 test.describe.serial('Language selector + autodetect', () => {
   test.beforeAll(() => {
     user = createIsolatedUser('language');
+    // createIsolatedUser() resets entries/features but not users.language, and
+    // this spec *persists* a language. Without clearing it the first test would
+    // inherit whatever a previous run left behind (e.g. 'de' from an aborted
+    // run) and never start from the "Automatic -> en" baseline it asserts.
+    psql(`UPDATE users SET language = NULL WHERE id = ${user.id}`);
   });
 
   // Log in (default en context) and land on /settings.

@@ -101,7 +101,7 @@ test.describe.serial('Macro Threshold', () => {
     await ctx.close();
   });
 
-  test('protein chip with target mode does not show destructive styling when over target', async ({ browser }) => {
+  test('protein bar with target mode shows success (not destructive) styling when over target', async ({ browser }) => {
     // Enable protein in target mode for this test (protein goal=150, user will track 200)
     psql(`UPDATE users SET
       macros_enabled = '{"calories": true, "protein": true, "carbs": false, "fat": false, "fiber": false, "sugar": false, "auto_calc_calories": false}',
@@ -118,26 +118,27 @@ test.describe.serial('Macro Threshold', () => {
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('High protein');
     await page.locator('input[inputmode="tel"]').first().fill('500');
 
-    // Fill protein macro input if visible
-    const macroInputs = page.locator('input[inputmode="numeric"][placeholder="0"]');
-    const hasMacros = await macroInputs.first().isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasMacros) {
-      await macroInputs.first().fill('200');
-    }
+    // Protein is enabled above, so the macro input must be there
+    const proteinInput = page.locator('#entry-macro-protein');
+    await expect(proteinInput).toBeVisible({ timeout: 8000 });
+    await proteinInput.fill('200');
+
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // In TodayPanel, protein chip with target mode and over-target should show success, not destructive
-    const proteinText = page.getByText('Protein').first();
-    const isProteinVisible = await proteinText.isVisible({ timeout: 8000 }).catch(() => false);
+    // TodayPanel renders one glowing bar per macro (Dashboard/TodayPanel.tsx
+    // MacroBar): a wrapper div[role=img] with the accessible name, containing a
+    // fill div whose inline `background` is the status color (lib/ring.ts).
+    // target mode + total(200) >= goal(150) → macro-stat--success → green.
+    const proteinBar = page.getByRole('img', { name: /^Protein:/ }).first();
+    await expect(proteinBar).toBeVisible({ timeout: 10000 });
+    await expect(proteinBar).toHaveAttribute('aria-label', /^Protein: 200 \/ 150 g$/, { timeout: 10000 });
 
-    if (isProteinVisible) {
-      const proteinChip = page.getByTestId('macro-chip-protein');
-      const chipClass = await proteinChip.getAttribute('class');
-      if (chipClass) {
-        expect(chipClass).not.toMatch(/destructive/);
-      }
-    }
+    const proteinFill = proteinBar.locator('div[style*="background"]');
+    await expect(proteinFill).toBeVisible();
+    const fillColor = await proteinFill.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(fillColor).not.toBe('rgb(239, 68, 68)'); // #ef4444 destructive
+    expect(fillColor).toBe('rgb(34, 197, 94)'); // #22c55e success
 
     await ctx.close();
   });

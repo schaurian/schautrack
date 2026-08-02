@@ -5,8 +5,12 @@ import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
 // Insert entry at UTC 20:00 → PDT 13:00.
 // The viewer (UTC) sees the time displayed in the CREATOR's timezone (LA time), not their own.
 
-const ENTRY_UTC_TS = '2026-04-01 20:00:00+00'; // UTC 20:00 → LA 13:00 PDT (UTC-7)
-const ENTRY_DATE = '2026-04-01';
+// Pick a recent date so the entry's dot is always inside the timeline range.
+// A hardcoded date silently aged out of range and made this spec a no-op.
+const recent = new Date();
+recent.setUTCDate(recent.getUTCDate() - 5);
+const ENTRY_DATE = recent.toISOString().slice(0, 10);
+const ENTRY_UTC_TS = `${ENTRY_DATE} 20:00:00+00`; // UTC 20:00 → LA 13:00 PDT (UTC-7)
 const ENTRY_NAME = 'Creator LA Entry';
 
 let viewer: { email: string; password: string; id: string };
@@ -65,40 +69,21 @@ test.describe('Linked User Timezone Display', () => {
 
     await expect(creatorLabel).toBeVisible({ timeout: 20000 });
 
-    // Expand to 30d range to ensure April 1 dot is visible (14d default: March 23 – April 6,
-    // April 1 is within 14d, but 30d gives more margin)
-    await page.locator('button[aria-expanded="false"]').first().click();
-    const thirtyDayBtn = page.locator('button').filter({ hasText: '30d' });
-    await thirtyDayBtn.click();
+    // Range presets sit behind the "Nd ▾" toggle in the Timeline header.
+    await page.getByRole('button', { name: /^\d+d/, expanded: false }).first().click();
+    await page.getByRole('button', { name: '30d', exact: true }).click();
     await page.waitForTimeout(500);
 
-    // Click the creator's dot for the entry date using aria-label
-    // DayDot renders: <button title="{date}" aria-label="{date}: {status}">
-    // Look for the April 1 dot within the creator's card
+    // Click the creator's dot for the entry date. DayDot renders
+    // <button title="{date}" aria-label="{date}: {status}">.
     const creatorCard = page.getByTestId('share-card').filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') });
     const entryDot = creatorCard.locator(`button[title="${ENTRY_DATE}"]`).first();
+    await entryDot.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await expect(entryDot).toBeVisible({ timeout: 5000 });
+    await entryDot.click();
+    await page.waitForTimeout(800);
 
-    await entryDot.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
-    const dotVisible = await entryDot.isVisible({ timeout: 5000 }).catch(() => false);
-
-    if (!dotVisible) {
-      // Fallback: try any dot with this date anywhere on the page
-      const anyDot = page.locator(`button[aria-label^="${ENTRY_DATE}"]`).first();
-      if (await anyDot.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await anyDot.click();
-        await page.waitForTimeout(800);
-      } else {
-        // Entry date not in range — skip the entry-level assertions
-        console.log('[linked-timezone] Dot for', ENTRY_DATE, 'not found; skipping entry check');
-        await ctx.close();
-        return;
-      }
-    } else {
-      await entryDot.click();
-      await page.waitForTimeout(800);
-    }
-
-    // After switching to creator's view for April 1, scroll to entries section
+    // Switched to the creator's view for that date; scroll to the entries section
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(300);
 
@@ -108,31 +93,12 @@ test.describe('Linked User Timezone Display', () => {
     await entryName.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
     await expect(entryName).toBeVisible({ timeout: 10000 });
 
-    // Extract the displayed time for the entry
-    const timeText = await page.evaluate((name) => {
-      const btns = Array.from(document.querySelectorAll('button'));
-      const nameBtn = btns.find((b) => b.textContent?.trim() === name);
-      if (!nameBtn) return null;
-      // Row structure: span(flex-1) > button(name) | span(time) | button(delete)
-      const nameSpan = nameBtn.parentElement; // span.flex-1
-      const rowDiv = nameSpan?.parentElement; // div.flex.items-center
-      if (!rowDiv) return null;
-      const spans = Array.from(rowDiv.querySelectorAll('span'));
-      const timeSpan = spans.find((s) => s.classList.contains('tabular-nums'));
-      return timeSpan?.textContent?.trim() || null;
-    }, ENTRY_NAME);
-
-    // Entry time should be in LA timezone (13:xx), not UTC (20:xx)
-    if (timeText) {
-      const hourMatch = timeText.match(/^(\d{1,2}):/);
-      if (hourMatch) {
-        const hour = parseInt(hourMatch[1], 10);
-        // UTC 20:00 → PDT 13:00. Accept 12-14 for DST variance.
-        expect(hour).toBeGreaterThanOrEqual(12);
-        expect(hour).toBeLessThanOrEqual(14);
-        expect(hour).not.toBe(20); // should NOT show UTC time
-      }
-    }
+    // The time cell is the span right after the span wrapping the name button
+    // (EntryList.tsx); neither carries a testid, so anchor on the name button.
+    // Viewing a linked user shows the CREATOR's timezone: UTC 20:00 → LA 13:00
+    // (12:00 outside DST), never the viewer's 20:00 UTC.
+    const timeCell = entryName.locator('xpath=../following-sibling::span[1]');
+    await expect(timeCell).toHaveText(/^1[23]:\d{2}$/, { timeout: 5000 });
 
     await ctx.close();
   });

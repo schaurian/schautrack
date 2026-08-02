@@ -1,26 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { execSync } from 'child_process';
-import { psql, fetchMailpitMessages, clearMailpit } from './fixtures/helpers';
+import { psql, fetchMailpitMessages, clearMailpit, detectAdminEmail } from './fixtures/helpers';
 import { chooseOption, selectedValue, expectSelectValue } from './fixtures/select';
 
 // storageState: 'e2e/.auth/admin.json' is set by the 'admin' project in playwright.config.ts
-
-function detectAdminEmail(): string {
-  try {
-    const containerName = execSync(
-      'docker ps --format "{{.Names}}" | grep -E "schautrack.*web"',
-      { encoding: 'utf-8' }
-    ).trim().split('\n')[0];
-    if (containerName) {
-      const email = execSync(
-        `docker exec ${containerName} printenv ADMIN_EMAIL`,
-        { encoding: 'utf-8' }
-      ).trim();
-      if (email) return email;
-    }
-  } catch { /* ignore */ }
-  return 'admin@test.com';
-}
 
 const ADMIN_EMAIL = detectAdminEmail();
 

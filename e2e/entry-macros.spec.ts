@@ -60,8 +60,13 @@ test.describe('Entry with Macros', () => {
     await entryText.scrollIntoViewIfNeeded({ timeout: 10000 });
     await expect(entryText).toBeVisible({ timeout: 5000 });
 
-    // Clean up
-    const deleteBtn = page.getByTestId('entry-row').filter({ hasText: 'Chicken breast' }).locator('button[title="Delete"]');
+    // Clean up. The redesigned EntryList has no entry-row test id; reach the
+    // delete button through the row that holds this entry's name button.
+    const deleteBtn = page
+      .locator('div')
+      .filter({ has: page.getByRole('button', { name: 'Chicken breast', exact: true }) })
+      .last()
+      .getByRole('button', { name: 'Delete entry' });
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
       await expect(page.getByText('Chicken breast')).not.toBeVisible({ timeout: 5000 });

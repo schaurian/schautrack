@@ -120,6 +120,9 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
             className="ml-auto cursor-pointer rounded-md border border-destructive/25 bg-transparent px-3 py-2 text-sm font-semibold text-destructive/90 transition-colors hover:bg-destructive/10"
             onClick={handleDelete}
             title={t('weight.deleteEntryTitle')}
+            // Visible text wins over title in the accessible name, so without
+            // this a screen reader announces a context-free "Delete".
+            aria-label={t('weight.deleteEntryTitle')}
           >
             {t('weight.deleteButton')}
           </button>

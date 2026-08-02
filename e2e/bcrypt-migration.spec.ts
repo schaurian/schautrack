@@ -62,9 +62,10 @@ test.describe.serial('Bcrypt Migration', () => {
       await page.getByRole('button', { name: 'Log In' }).click();
       await page.waitForURL(/\/dashboard/, { timeout: 15000 });
 
-      // Go to settings and change password
-      await page.goto(`${baseURL}/settings`);
-      await page.waitForURL(/\/settings/);
+      // Change the password. The account-level rows live on /account since the
+      // redesign split them out of /settings.
+      await page.goto(`${baseURL}/account`);
+      await page.waitForURL(/\/account/);
 
       const passwordHeading = page.getByText('Change Password');
       await passwordHeading.scrollIntoViewIfNeeded();

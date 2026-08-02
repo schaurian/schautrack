@@ -1,8 +1,31 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { createIsolatedUser } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
+
+/**
+ * Scope to a single entry in the entries list.
+ *
+ * The redesigned EntryList (client/src/pages/Dashboard/EntryList.tsx) renders
+ * each entry as a plain <div> without a test id: an upper row holds the name
+ * button / time / actions and a lower row holds the macro pills. So the row is
+ * the *smallest* element that contains both this entry's name button and its
+ * macro pills — match on containment (not nesting depth or CSS classes) and
+ * take the deepest hit, since every other match is one of its ancestors.
+ *
+ * Only ever one pill is in edit mode (an <input>, not a button), so matching
+ * "any macro pill button" keeps the row resolvable mid-edit as well.
+ */
+const MACRO_PILL = /^(Calories|Protein|Carbs|Fat|Fiber|Sugar)\b/;
+
+function entryRow(page: Page, name: string): Locator {
+  return page
+    .locator('div')
+    .filter({ has: page.getByRole('button', { name, exact: true }) })
+    .filter({ has: page.getByRole('button', { name: MACRO_PILL }) })
+    .last();
+}
 
 test.describe('Entry Inline Edit', () => {
   test.beforeAll(() => {
@@ -59,9 +82,10 @@ test.describe('Entry Inline Edit', () => {
     await expect(page.getByText('Renamed entry')).toBeVisible({ timeout: 5000 });
 
     // Clean up
-    const deleteBtn = page.getByTestId('entry-row').filter({ hasText: 'Renamed entry' }).locator('button[title="Delete"]');
+    const deleteBtn = entryRow(page, 'Renamed entry').getByRole('button', { name: 'Delete entry' });
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
+      await expect(page.getByRole('button', { name: 'Renamed entry', exact: true })).toBeHidden({ timeout: 5000 });
     }
 
     await ctx.close();
@@ -78,24 +102,23 @@ test.describe('Entry Inline Edit', () => {
     await expect(entryBtn).toBeVisible({ timeout: 10000 });
     await entryBtn.scrollIntoViewIfNeeded();
 
-    // The entry row is the container with data-testid="entry-row" holding this
-    // entry's name; scope by the name to reach it without depending on nesting.
-    const row = page.getByTestId('entry-row').filter({ hasText: 'Cal edit test' });
+    const row = entryRow(page, 'Cal edit test');
 
-    // Find an editable numeric button (calorie or macro value pill)
-    const editableButtons = row.locator('button.tabular-nums:not([disabled])');
-    await expect(editableButtons.first()).toBeVisible({ timeout: 5000 });
-    await editableButtons.first().click();
+    // The calorie value is a macro pill button labelled "Calories <value> kcal"
+    // ("Calories -" while unset). Clicking it swaps the pill for an inline input.
+    const caloriePill = row.getByRole('button', { name: /^Calories\b/ });
+    await expect(caloriePill).toBeEnabled({ timeout: 5000 });
+    await caloriePill.click();
 
-    const editInput = row.locator('input[inputmode]');
+    const editInput = row.getByRole('textbox');
     await expect(editInput).toBeVisible({ timeout: 5000 });
     await editInput.fill('99');
     await editInput.press('Enter');
 
-    await expect(row.locator('.tabular-nums').filter({ hasText: '99' }).first()).toBeVisible({ timeout: 5000 });
+    await expect(row.getByRole('button', { name: 'Calories 99 kcal' })).toBeVisible({ timeout: 5000 });
 
     // Clean up
-    const deleteBtn = row.locator('button[title="Delete"]');
+    const deleteBtn = row.getByRole('button', { name: 'Delete entry' });
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
     }

@@ -29,6 +29,25 @@ function detectDbContainer(): string {
  * The command is invoked via execFileSync with an argument array (no shell), so the container
  * name and variable values are never re-parsed by a shell.
  */
+/**
+ * The admin email the app under test recognises, read from the running web
+ * container's ADMIN_EMAIL. Prefers the test container: with a dev stack up too,
+ * taking the first match reads the dev value and every admin check then fails
+ * against the test app — silently skipping the whole admin project.
+ */
+export function detectAdminEmail(): string {
+  try {
+    const out = execSync('docker ps --format "{{.Names}}" | grep -E "schautrack.*web"', { encoding: 'utf-8' }).trim();
+    const names = out.split('\n').map((n) => n.trim()).filter(Boolean);
+    const container = names.find((n) => n.includes('test')) || names[0];
+    if (container) {
+      const email = execSync(`docker exec ${container} printenv ADMIN_EMAIL`, { encoding: 'utf-8' }).trim();
+      if (email) return email;
+    }
+  } catch { /* fall through to the compose.test.yml default */ }
+  return 'admin@test.com';
+}
+
 export function psql(sql: string, vars: Record<string, string | number> = {}): string {
   const varArgs = Object.entries(vars).flatMap(([k, v]) => ['-v', `${k}=${v}`]);
   const raw = execFileSync(
