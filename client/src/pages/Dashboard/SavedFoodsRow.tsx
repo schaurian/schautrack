@@ -12,13 +12,20 @@ import SavedFoodsModal from './SavedFoodsModal';
 
 interface Props {
   selectedDate: string;
+  /**
+   * Called after a chip successfully tracks an entry. The mobile add sheet
+   * uses it to close itself, the same way submitting the form does — tracking
+   * a quick-add is finishing the task, so leaving the sheet up is a dead end.
+   * Desktop renders the row inline and passes nothing.
+   */
+  onTracked?: () => void;
 }
 
 const DESKTOP_CHIPS = 8;
 const MOBILE_CHIPS = 6;
 const LONG_PRESS_MS = 450;
 
-export default function SavedFoodsRow({ selectedDate }: Props) {
+export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
   const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
@@ -57,6 +64,7 @@ export default function SavedFoodsRow({ selectedDate }: Props) {
           }
         },
       });
+      onTracked?.();
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('savedFoods.toastTrackFailed'));
     }

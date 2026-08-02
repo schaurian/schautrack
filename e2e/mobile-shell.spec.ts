@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, psql } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
@@ -46,6 +46,33 @@ test.describe('Mobile shell (redesign)', () => {
 
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Sheet test food')).toBeVisible({ timeout: 10000 });
+    await ctx.close();
+  });
+
+  test('tracking a quick-add chip closes the sheet', async ({ browser }) => {
+    // Quick add only exists inside the sheet on mobile, and tracking a chip
+    // completes the task — so the sheet must go down, exactly as it does when
+    // the form is submitted.
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Chip Food'`);
+    psql(`INSERT INTO saved_foods (user_id, name, amount) VALUES (${user.id}, 'Chip Food', 210)`);
+
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
+    const page = await ctx.newPage();
+    await login(page);
+
+    await page.getByRole('button', { name: 'Add food' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add food' });
+    await expect(dialog).toBeVisible();
+
+    const chip = dialog.getByRole('button', { name: /Chip Food/ }).first();
+    await expect(chip).toBeVisible({ timeout: 10000 });
+    await chip.click();
+
+    await expect(dialog).not.toBeVisible({ timeout: 10000 });
+    // and it actually tracked
+    await expect(page.getByText('Chip Food').first()).toBeVisible({ timeout: 10000 });
+
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Chip Food'`);
     await ctx.close();
   });
 

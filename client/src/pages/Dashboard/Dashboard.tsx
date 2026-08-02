@@ -205,7 +205,7 @@ export default function Dashboard() {
         <>
           <Fab aria-label={t('entries.addFood')} onClick={() => setAddOpen(true)} />
           <Sheet open={addOpen} onClose={() => setAddOpen(false)} title={t('entries.addFood')}>
-            <SavedFoodsRow selectedDate={selectedDate} />
+            <SavedFoodsRow selectedDate={selectedDate} onTracked={() => setAddOpen(false)} />
             <EntryForm
               selectedDate={selectedDate}
               caloriesEnabled={dashboard.caloriesEnabled}
