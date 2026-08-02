@@ -1,286 +1,303 @@
 {
-  "i18n": {
-    "language": "Język",
-    "automatic": "Automatycznie (język przeglądarki)"
-  },
-  "status": {
-    "saving": "Zapisywanie...",
-    "saved": "Zapisano"
-  },
-  "macro": {
-    "heading": "Cele żywieniowe",
-    "calories": "Kalorie",
-    "goalPlaceholder": "Cel",
-    "modeLimit": "Limit",
-    "modeTarget": "Cel",
-    "autoCalculate": "Automatycznie oblicz kalorie",
-    "threshold": "Próg",
-    "unitKcal": "kcal",
-    "unitGram": "g"
-  },
-  "preferences": {
-    "heading": "Internacjonalizacja",
-    "weightUnit": {
-      "label": "Jednostka wagi",
-      "kg": "Kilogramy (kg)",
-      "lb": "Funty (lb)"
+  "admin": {
+    "appSettingsHeading": "Ustawienia aplikacji",
+    "boolFalse": "false",
+    "boolTrue": "true",
+    "confirmPhraseGeneric": "CONFIRM",
+    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
+    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
+    "copied": "Skopiowano!",
+    "copyLink": "Kopiuj link",
+    "createInvite": "Utwórz zaproszenie",
+    "createInviteFailed": "Nie udało się utworzyć zaproszenia",
+    "dangerousBadge": "⚠ Niebezpieczne",
+    "dangerousPrompt": "Zmiana {{envVar}} ma nieodwracalne konsekwencje:\n\n{{help}}\n\nWpisz {{phrase}}, aby potwierdzić.",
+    "delete": "Usuń",
+    "deleteInviteFailed": "Nie udało się usunąć zaproszenia",
+    "deleteUserConfirm": "Usunąć tego użytkownika?",
+    "deleteUserFailed": "Nie udało się usunąć użytkownika",
+    "emailOptionalPlaceholder": "E-mail (opcjonalnie)",
+    "envBadge": "ENV",
+    "expiresOn": "wygasa {{date}}",
+    "inviteCodesHeading": "Kody zaproszeń",
+    "loadingMore": "Ładowanie więcej…",
+    "noChanges": "Brak zmian do zapisania.",
+    "noUsersFound": "Nie znaleziono użytkowników",
+    "registrationDefault": "(domyślnie: otwarta)",
+    "registrationDisabled": "false — rejestracja wyłączona",
+    "registrationInvite": "zaproszenie — wymaga kodu zaproszenia",
+    "registrationOpen": "otwarta — każdy może się zarejestrować",
+    "replace": "Zastąp",
+    "restartRequiredBadge": "🔄 Wymaga restartu",
+    "restartRequiredTitle": "Zacznie obowiązywać po następnym restarcie serwera",
+    "save": "Zapisz",
+    "saveCancelled": "Zapis anulowany.",
+    "saveSettingsFailed": "Nie udało się zapisać ustawień",
+    "searchPlaceholder": "Szukaj po e-mailu...",
+    "secretPlaceholder": "Wpisz nową wartość",
+    "secretStored": "•••••••• (zapisano)",
+    "sections": {
+      "ai": {
+        "description": "Szacowanie kalorii na podstawie zdjęć. Klucze dostawców ustawione tutaj są globalną wartością zapasową, gdy użytkownicy nie mają własnego klucza.",
+        "title": "Funkcje AI"
+      },
+      "features": {
+        "description": "",
+        "title": "Funkcje"
+      },
+      "general": {
+        "description": "",
+        "title": "Ogólne"
+      },
+      "legal": {
+        "description": "",
+        "title": "Strony prawne"
+      },
+      "oidc": {
+        "description": "Logowanie jednokrotne przez dostawcę OpenID Connect. Ustaw issuer + client id + client secret, aby włączyć.",
+        "title": "OIDC / SSO"
+      },
+      "passkeys": {
+        "description": "Logowanie bez hasła przez WebAuthn. Ustawienie RP ID włącza tę funkcję.",
+        "title": "Klucze dostępu"
+      },
+      "security": {
+        "description": "",
+        "title": "Bezpieczeństwo"
+      },
+      "seo": {
+        "description": "",
+        "title": "SEO / Wdrożenie"
+      },
+      "smtp": {
+        "description": "Poczta wychodząca do resetowania hasła, weryfikacji e-mail itp.",
+        "title": "SMTP"
+      }
     },
-    "timezone": {
-      "label": "Strefa czasowa"
-    }
-  },
-  "todo": {
-    "heading": "Zadania",
-    "description": "Zarządzaj swoimi zadaniami na panelu.",
-    "toggleFailed": "Nie udało się zaktualizować ustawienia"
-  },
-  "note": {
-    "heading": "Notatki dzienne",
-    "description": "Pisz codzienną notatkę na panelu dla dowolnej daty.",
-    "toggleFailed": "Nie udało się zaktualizować ustawienia"
-  },
-  "savedFoods": {
-    "heading": "Zapisane produkty",
-    "description": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
-    "manage": "Zarządzaj zapisanymi produktami"
+    "settingsSaved": "Ustawienia zapisane.",
+    "unsavedBadge": "• niezapisane",
+    "unset": "(nieustawione)",
+    "unverified": "Niezweryfikowany",
+    "usedBy": "Użyte przez {{email}}",
+    "usersHeading": "Użytkownicy ({{count}})",
+    "usersHeading_few": "Użytkownicy ({{count}})",
+    "usersHeading_many": "Użytkownicy ({{count}})",
+    "usersHeading_one": "Użytkownicy ({{count}})",
+    "usersHeading_other": "Użytkownicy ({{count}})",
+    "verified": "Zweryfikowany"
   },
   "ai": {
+    "apiKeyLabel": "Klucz API",
+    "apiKeyMaskedPlaceholder": "••••{{last4}}",
+    "apiKeyPlaceholder": "Wpisz klucz API",
+    "clearAll": "Wyczyść wszystko",
+    "clearFailed": "Nie udało się wyczyścić ustawień AI",
+    "globalKeyNotice": "Skonfigurowano globalny klucz API. Funkcje AI działają bez ustawiania własnego klucza.",
     "heading": "Ustawienia AI",
-    "provider": "Dostawca",
-    "providerDefault": "Domyślny",
+    "keySaveFailed": "Nie udało się zapisać klucza API",
+    "keySaved": "Klucz API zapisany",
     "modelLabel": "Model (opcjonalnie)",
     "modelPlaceholder": "np. gpt-4o",
-    "apiKeyLabel": "Klucz API",
-    "apiKeyPlaceholder": "Wpisz klucz API",
-    "apiKeyMaskedPlaceholder": "••••{{last4}}",
-    "globalKeyNotice": "Skonfigurowano globalny klucz API. Funkcje AI działają bez ustawiania własnego klucza.",
-    "clearAll": "Wyczyść wszystko",
-    "keySaved": "Klucz API zapisany",
-    "keySaveFailed": "Nie udało się zapisać klucza API",
-    "settingsCleared": "Ustawienia AI wyczyszczone",
-    "clearFailed": "Nie udało się wyczyścić ustawień AI"
+    "provider": "Dostawca",
+    "providerDefault": "Domyślny",
+    "settingsCleared": "Ustawienia AI wyczyszczone"
+  },
+  "confirmImport": {
+    "cancel": "Anuluj",
+    "descriptionPrefix": "Import",
+    "descriptionSuffix": "trwale usunie wszystkie Twoje istniejące wpisy i zastąpi je zawartością tego pliku. Tej operacji nie można cofnąć.",
+    "replaceAll": "Zastąp wszystkie wpisy",
+    "title": "Zastąpić wszystkie wpisy?"
+  },
+  "danger": {
+    "deleteAccount": "Usuń konto",
+    "description": "Trwale usuń swoje konto i wszystkie dane.",
+    "heading": "Strefa zagrożenia"
+  },
+  "data": {
+    "chooseFile": "Wybierz plik…",
+    "exportButton": "Eksportuj JSON",
+    "exportDescription": "Pobierz wszystkie swoje wpisy jako kopię zapasową JSON.",
+    "exportLabel": "Eksport",
+    "heading": "Dane",
+    "importButton": "Importuj",
+    "importDescription": "Przywróć z kopii zapasowej JSON. To zastąpi wszystkie istniejące wpisy.",
+    "importFailed": "Import nie powiódł się.",
+    "importLabel": "Import",
+    "importSuccess": "Dane zaimportowane pomyślnie."
   },
   "email": {
-    "heading": "Zmień e-mail",
     "current": "Aktualny: {{email}}",
+    "heading": "Zmień e-mail",
     "newEmailLabel": "Nowy e-mail",
-    "submit": "Wyślij kod weryfikacyjny",
-    "requestFailed": "Nie udało się zażądać zmiany e-mail."
+    "requestFailed": "Nie udało się zażądać zmiany e-mail.",
+    "submit": "Wyślij kod weryfikacyjny"
   },
-  "password": {
-    "heading": "Zmień hasło",
-    "newLabel": "Nowe hasło",
-    "confirmLabel": "Potwierdź hasło",
-    "submit": "Zaktualizuj hasło",
-    "mismatch": "Nowe hasła nie są zgodne.",
-    "updated": "Hasło zaktualizowane.",
-    "updatedToast": "Hasło zaktualizowane",
-    "failed": "Niepowodzenie."
+  "footer": {
+    "bugReport": "Znalazłeś błąd lub brakuje funkcji?",
+    "openIssue": "Zgłoś sprawę na GitHubie"
   },
-  "twofa": {
-    "heading": "Uwierzytelnianie dwuskładnikowe",
-    "setupFailed": "Konfiguracja nie powiodła się.",
-    "enabledWithCodes": "2FA włączone. Zapisz poniższe kody zapasowe.",
-    "enabledSuccess": "2FA zostało pomyślnie włączone.",
-    "invalidCode": "Nieprawidłowy kod.",
-    "enableFailed": "Nie udało się włączyć 2FA.",
-    "disabled": "2FA wyłączone.",
-    "disableFailed": "Nie udało się wyłączyć 2FA.",
-    "regenerated": "Wygenerowano nowe kody zapasowe. Zapisz je teraz.",
-    "regenerateFailed": "Nie udało się wygenerować nowych kodów.",
-    "backupCodesTitle": "Kody zapasowe",
-    "backupCodesDescription": "Zapisz te kody w bezpiecznym miejscu. Każdy kod może zostać użyty tylko raz do zalogowania, jeśli stracisz dostęp do aplikacji uwierzytelniającej.",
-    "copyAll": "Kopiuj wszystkie",
-    "copied": "Skopiowano!",
-    "download": "Pobierz",
-    "done": "Gotowe",
-    "enabledNotice": "2FA jest włączone na Twoim koncie.",
-    "disableButton": "Wyłącz 2FA",
-    "regenerating": "Generowanie...",
-    "regenerateBackupCodes": "Wygeneruj nowe kody zapasowe",
-    "scanQr": "Zeskanuj ten kod QR aplikacją uwierzytelniającą:",
-    "qrAlt": "Kod QR 2FA",
-    "copy": "Kopiuj",
-    "verificationCodeLabel": "Kod weryfikacyjny",
-    "verificationCodePlaceholder": "Wpisz 6-cyfrowy kod",
+  "i18n": {
+    "automatic": "Automatycznie (język przeglądarki)",
+    "language": "Język"
+  },
+  "link": {
+    "accept": "Akceptuj",
     "cancel": "Anuluj",
-    "activate": "Aktywuj",
-    "setupButton": "Skonfiguruj 2FA"
-  },
-  "passkey": {
-    "heading": "Klucze dostępu",
-    "defaultName": "Klucz dostępu",
-    "empty": "Brak zarejestrowanych kluczy dostępu. Dodaj jeden, aby logować się bez hasła.",
-    "usedOn": "Użyto {{date}}",
-    "neverUsed": "Nigdy nie użyto",
+    "decline": "Odrzuć",
+    "heading": "Połączenia kont",
+    "incoming": "Przychodzące",
+    "labelUpdateFailed": "Nie udało się zaktualizować etykiety",
+    "linked": "Połączone",
+    "pending": "Oczekujące",
     "remove": "Usuń",
-    "renameTitle": "Kliknij, aby zmienić nazwę",
-    "namePlaceholder": "Nazwa klucza dostępu (np. Telefon, Laptop)",
-    "add": "Dodaj klucz dostępu",
-    "countUsed": "Użyto {{count}} z 10 kluczy dostępu.",
-    "registered": "Klucz dostępu zarejestrowany",
-    "registerFailed": "Rejestracja klucza dostępu nie powiodła się",
-    "removed": "Klucz dostępu usunięty",
-    "removeFailed": "Nie udało się usunąć klucza dostępu",
-    "renameFailed": "Nie udało się zmienić nazwy"
+    "removeFailed": "Nie udało się usunąć połączenia",
+    "requestFailed": "Nie udało się wysłać prośby o połączenie",
+    "requestLabel": "Połącz przez e-mail",
+    "respondFailed": "Nie udało się odpowiedzieć na prośbę o połączenie",
+    "sendRequest": "Wyślij prośbę",
+    "share": {
+      "notes": "Notatki dzienne",
+      "nutrition": "Odżywianie",
+      "readOnlyNote": "Udostępniasz im (tylko do odczytu):",
+      "todos": "Zadania",
+      "updateFailed": "Nie udało się zaktualizować udostępniania",
+      "weight": "Waga"
+    }
+  },
+  "macro": {
+    "autoCalculate": "Automatycznie oblicz kalorie",
+    "calories": "Kalorie",
+    "goalPlaceholder": "Cel",
+    "heading": "Cele żywieniowe",
+    "modeLimit": "Limit",
+    "modeTarget": "Cel",
+    "threshold": "Próg",
+    "unitGram": "g",
+    "unitKcal": "kcal"
+  },
+  "note": {
+    "description": "Pisz codzienną notatkę na panelu dla dowolnej daty.",
+    "heading": "Notatki dzienne",
+    "toggleFailed": "Nie udało się zaktualizować ustawienia"
   },
   "oidc": {
-    "heading": "Logowanie jednokrotne",
-    "unlink": "Odłącz",
-    "link": "Połącz",
-    "unlinkConfirm": "Odłączyć {{label}}?",
     "accountNotFound": "Nie znaleziono konta",
-    "unlinked": "{{label}} odłączony",
-    "unlinkFailed": "Nie udało się odłączyć",
-    "genericError": "Coś poszło nie tak.",
     "errors": {
       "oidc_already_linked": "To konto dostawcy logowania jest już połączone z innym użytkownikiem.",
       "oidc_email_unverified": "Twój dostawca logowania nie potwierdził Twojego adresu e-mail. Zweryfikuj go tam, a następnie spróbuj ponownie.",
       "oidc_link_failed": "Nie udało się połączyć dostawcy logowania. Spróbuj ponownie.",
       "oidc_step_up_mismatch": "To konto logowania nie jest połączone z Twoim użytkownikiem. Zaloguj się połączonym kontem, aby potwierdzić."
     },
+    "genericError": "Coś poszło nie tak.",
+    "heading": "Logowanie jednokrotne",
+    "link": "Połącz",
     "success": {
       "oidc_linked": "Dostawca logowania połączony z Twoim kontem.",
       "stepped_up": "Ponownie uwierzytelniono. Możesz teraz spróbować wykonać akcję jeszcze raz."
-    }
+    },
+    "unlink": "Odłącz",
+    "unlinkConfirm": "Odłączyć {{label}}?",
+    "unlinkFailed": "Nie udało się odłączyć",
+    "unlinked": "{{label}} odłączony"
   },
-  "link": {
-    "heading": "Połączenia kont",
-    "incoming": "Przychodzące",
-    "pending": "Oczekujące",
-    "linked": "Połączone",
-    "accept": "Akceptuj",
-    "decline": "Odrzuć",
-    "cancel": "Anuluj",
+  "passkey": {
+    "add": "Dodaj klucz dostępu",
+    "countUsed": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_few": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_many": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_one": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_other": "Użyto {{count}} z 10 kluczy dostępu.",
+    "defaultName": "Klucz dostępu",
+    "empty": "Brak zarejestrowanych kluczy dostępu. Dodaj jeden, aby logować się bez hasła.",
+    "heading": "Klucze dostępu",
+    "namePlaceholder": "Nazwa klucza dostępu (np. Telefon, Laptop)",
+    "neverUsed": "Nigdy nie użyto",
+    "registerFailed": "Rejestracja klucza dostępu nie powiodła się",
+    "registered": "Klucz dostępu zarejestrowany",
     "remove": "Usuń",
-    "requestLabel": "Połącz przez e-mail",
-    "sendRequest": "Wyślij prośbę",
-    "requestFailed": "Nie udało się wysłać prośby o połączenie",
-    "respondFailed": "Nie udało się odpowiedzieć na prośbę o połączenie",
-    "removeFailed": "Nie udało się usunąć połączenia",
-    "labelUpdateFailed": "Nie udało się zaktualizować etykiety",
-    "share": {
-      "readOnlyNote": "Udostępniasz im (tylko do odczytu):",
-      "nutrition": "Odżywianie",
-      "weight": "Waga",
-      "todos": "Zadania",
-      "notes": "Notatki dzienne",
-      "updateFailed": "Nie udało się zaktualizować udostępniania"
+    "removeFailed": "Nie udało się usunąć klucza dostępu",
+    "removed": "Klucz dostępu usunięty",
+    "renameFailed": "Nie udało się zmienić nazwy",
+    "renameTitle": "Kliknij, aby zmienić nazwę",
+    "usedOn": "Użyto {{date}}"
+  },
+  "password": {
+    "confirmLabel": "Potwierdź hasło",
+    "failed": "Niepowodzenie.",
+    "heading": "Zmień hasło",
+    "mismatch": "Nowe hasła nie są zgodne.",
+    "newLabel": "Nowe hasło",
+    "submit": "Zaktualizuj hasło",
+    "updated": "Hasło zaktualizowane.",
+    "updatedToast": "Hasło zaktualizowane"
+  },
+  "preferences": {
+    "heading": "Internacjonalizacja",
+    "timezone": {
+      "label": "Strefa czasowa"
+    },
+    "weightUnit": {
+      "kg": "Kilogramy (kg)",
+      "label": "Jednostka wagi",
+      "lb": "Funty (lb)"
     }
-  },
-  "data": {
-    "heading": "Dane",
-    "exportLabel": "Eksport",
-    "exportDescription": "Pobierz wszystkie swoje wpisy jako kopię zapasową JSON.",
-    "exportButton": "Eksportuj JSON",
-    "importLabel": "Import",
-    "importDescription": "Przywróć z kopii zapasowej JSON. To zastąpi wszystkie istniejące wpisy.",
-    "chooseFile": "Wybierz plik…",
-    "importButton": "Importuj",
-    "importSuccess": "Dane zaimportowane pomyślnie.",
-    "importFailed": "Import nie powiódł się."
-  },
-  "confirmImport": {
-    "title": "Zastąpić wszystkie wpisy?",
-    "descriptionPrefix": "Import",
-    "descriptionSuffix": "trwale usunie wszystkie Twoje istniejące wpisy i zastąpi je zawartością tego pliku. Tej operacji nie można cofnąć.",
-    "replaceAll": "Zastąp wszystkie wpisy",
-    "cancel": "Anuluj"
-  },
-  "danger": {
-    "heading": "Strefa zagrożenia",
-    "description": "Trwale usuń swoje konto i wszystkie dane.",
-    "deleteAccount": "Usuń konto"
-  },
-  "footer": {
-    "bugReport": "Znalazłeś błąd lub brakuje funkcji?",
-    "openIssue": "Zgłoś sprawę na GitHubie"
   },
   "reportIssue": {
-    "title": "Zgłoś problem",
+    "acknowledgement": "Rozumiem, że korzystam ze starszej wersji ({{version}}) i mój problem mógł już zostać zgłoszony lub naprawiony — mimo sprawdzenia otwartych zgłoszeń nadal chcę go zgłosić.",
     "description": "Znalazłeś błąd lub brakuje Ci funkcji? To otworzy wstępnie wypełnione zgłoszenie w systemie śledzenia projektu.",
-    "yourVersion": "Twoja wersja: ",
     "latestAvailable": " — dostępna jest wersja v{{latest}}",
     "olderVersion": "Używasz starszej wersji. Najpierw <issues>przejrzyj otwarte zgłoszenia</issues> — Twój problem mógł już zostać zgłoszony lub naprawiony.",
-    "acknowledgement": "Rozumiem, że korzystam ze starszej wersji ({{version}}) i mój problem mógł już zostać zgłoszony lub naprawiony — mimo sprawdzenia otwartych zgłoszeń nadal chcę go zgłosić.",
-    "submit": "Zgłoś problem"
+    "submit": "Zgłoś problem",
+    "title": "Zgłoś problem",
+    "yourVersion": "Twoja wersja: "
   },
-  "admin": {
-    "sections": {
-      "general": {
-        "title": "Ogólne"
-      },
-      "ai": {
-        "title": "Funkcje AI",
-        "description": "Szacowanie kalorii na podstawie zdjęć. Klucze dostawców ustawione tutaj są globalną wartością zapasową, gdy użytkownicy nie mają własnego klucza."
-      },
-      "oidc": {
-        "title": "OIDC / SSO",
-        "description": "Logowanie jednokrotne przez dostawcę OpenID Connect. Ustaw issuer + client id + client secret, aby włączyć."
-      },
-      "passkeys": {
-        "title": "Klucze dostępu",
-        "description": "Logowanie bez hasła przez WebAuthn. Ustawienie RP ID włącza tę funkcję."
-      },
-      "features": {
-        "title": "Funkcje"
-      },
-      "smtp": {
-        "title": "SMTP",
-        "description": "Poczta wychodząca do resetowania hasła, weryfikacji e-mail itp."
-      },
-      "security": {
-        "title": "Bezpieczeństwo"
-      },
-      "legal": {
-        "title": "Strony prawne"
-      },
-      "seo": {
-        "title": "SEO / Wdrożenie"
-      }
-    },
-    "appSettingsHeading": "Ustawienia aplikacji",
-    "save": "Zapisz",
-    "deleteUserConfirm": "Usunąć tego użytkownika?",
-    "deleteUserFailed": "Nie udało się usunąć użytkownika",
-    "usersHeading": "Użytkownicy ({{count}})",
-    "searchPlaceholder": "Szukaj po e-mailu...",
-    "verified": "Zweryfikowany",
-    "unverified": "Niezweryfikowany",
-    "delete": "Usuń",
-    "noUsersFound": "Nie znaleziono użytkowników",
-    "loadingMore": "Ładowanie więcej…",
-    "envBadge": "ENV",
-    "restartRequiredBadge": "🔄 Wymaga restartu",
-    "restartRequiredTitle": "Zacznie obowiązywać po następnym restarcie serwera",
-    "dangerousBadge": "⚠ Niebezpieczne",
-    "unsavedBadge": "• niezapisane",
-    "registrationDefault": "(domyślnie: otwarta)",
-    "registrationOpen": "otwarta — każdy może się zarejestrować",
-    "registrationInvite": "zaproszenie — wymaga kodu zaproszenia",
-    "registrationDisabled": "false — rejestracja wyłączona",
-    "unset": "(nieustawione)",
-    "boolTrue": "true",
-    "boolFalse": "false",
-    "secretStored": "•••••••• (zapisano)",
-    "replace": "Zastąp",
-    "secretPlaceholder": "Wpisz nową wartość",
-    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
-    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
-    "confirmPhraseGeneric": "CONFIRM",
-    "dangerousPrompt": "Zmiana {{envVar}} ma nieodwracalne konsekwencje:\n\n{{help}}\n\nWpisz {{phrase}}, aby potwierdzić.",
-    "saveCancelled": "Zapis anulowany.",
-    "noChanges": "Brak zmian do zapisania.",
-    "settingsSaved": "Ustawienia zapisane.",
-    "saveSettingsFailed": "Nie udało się zapisać ustawień",
-    "inviteCodesHeading": "Kody zaproszeń",
-    "emailOptionalPlaceholder": "E-mail (opcjonalnie)",
-    "createInvite": "Utwórz zaproszenie",
-    "createInviteFailed": "Nie udało się utworzyć zaproszenia",
-    "deleteInviteFailed": "Nie udało się usunąć zaproszenia",
-    "usedBy": "Użyte przez {{email}}",
-    "copyLink": "Kopiuj link",
+  "savedFoods": {
+    "description": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_few": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_many": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_one": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_other": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "heading": "Zapisane produkty",
+    "manage": "Zarządzaj zapisanymi produktami"
+  },
+  "status": {
+    "saved": "Zapisano",
+    "saving": "Zapisywanie..."
+  },
+  "todo": {
+    "description": "Zarządzaj swoimi zadaniami na panelu.",
+    "heading": "Zadania",
+    "toggleFailed": "Nie udało się zaktualizować ustawienia"
+  },
+  "twofa": {
+    "activate": "Aktywuj",
+    "backupCodesDescription": "Zapisz te kody w bezpiecznym miejscu. Każdy kod może zostać użyty tylko raz do zalogowania, jeśli stracisz dostęp do aplikacji uwierzytelniającej.",
+    "backupCodesTitle": "Kody zapasowe",
+    "cancel": "Anuluj",
     "copied": "Skopiowano!",
-    "expiresOn": "wygasa {{date}}"
+    "copy": "Kopiuj",
+    "copyAll": "Kopiuj wszystkie",
+    "disableButton": "Wyłącz 2FA",
+    "disableFailed": "Nie udało się wyłączyć 2FA.",
+    "disabled": "2FA wyłączone.",
+    "done": "Gotowe",
+    "download": "Pobierz",
+    "enableFailed": "Nie udało się włączyć 2FA.",
+    "enabledNotice": "2FA jest włączone na Twoim koncie.",
+    "enabledSuccess": "2FA zostało pomyślnie włączone.",
+    "enabledWithCodes": "2FA włączone. Zapisz poniższe kody zapasowe.",
+    "heading": "Uwierzytelnianie dwuskładnikowe",
+    "invalidCode": "Nieprawidłowy kod.",
+    "qrAlt": "Kod QR 2FA",
+    "regenerateBackupCodes": "Wygeneruj nowe kody zapasowe",
+    "regenerateFailed": "Nie udało się wygenerować nowych kodów.",
+    "regenerated": "Wygenerowano nowe kody zapasowe. Zapisz je teraz.",
+    "regenerating": "Generowanie...",
+    "scanQr": "Zeskanuj ten kod QR aplikacją uwierzytelniającą:",
+    "setupButton": "Skonfiguruj 2FA",
+    "setupFailed": "Konfiguracja nie powiodła się.",
+    "verificationCodeLabel": "Kod weryfikacyjny",
+    "verificationCodePlaceholder": "Wpisz 6-cyfrowy kod"
   }
 }

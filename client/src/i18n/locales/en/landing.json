@@ -1,71 +1,91 @@
 {
-  "hero": {
-    "title": "Track nutrition, not complexity",
-    "subtitle": "A free, open-source, self-hostable nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance. Your data, your server.",
-    "getStarted": "Get Started",
-    "viewSource": "View Source"
-  },
   "features": {
-    "simpleLogging": {
-      "title": "Simple Logging",
-      "desc": "Log calories and macros in seconds. Or scan a barcode to pull nutrition data instantly."
-    },
     "aiEstimation": {
-      "title": "AI Estimation",
-      "desc": "Snap a photo and let AI estimate calories and macros for you."
-    },
-    "shareWithFriends": {
-      "title": "Share with Friends",
-      "desc": "Link accounts with friends or partners to keep each other accountable."
+      "desc": "Snap a photo and let AI estimate calories and macros for you.",
+      "title": "AI Estimation"
     },
     "selfHostable": {
-      "title": "Self-Hostable",
-      "desc": "Run your own instance. Your data stays yours."
+      "desc": "Run your own instance. Your data stays yours.",
+      "title": "Self-Hostable"
+    },
+    "shareWithFriends": {
+      "desc": "Link accounts with friends or partners to keep each other accountable.",
+      "title": "Share with Friends"
+    },
+    "simpleLogging": {
+      "desc": "Log calories and macros in seconds. Or scan a barcode to pull nutrition data instantly.",
+      "title": "Simple Logging"
     }
   },
   "googlePlay": {
     "alt": "Get it on Google Play"
   },
+  "hero": {
+    "getStarted": "Get Started",
+    "subtitle": "A free, open-source, self-hostable nutrition tracker that stays out of your way. Log calories and macros, set goals, and see how your day is going at a glance. Your data, your server.",
+    "title": "Track nutrition, not complexity",
+    "viewSource": "View Source"
+  },
   "imprint": {
-    "heading": "Imprint",
     "ddgNotice": {
-      "heading": "Information pursuant to § 5 DDG",
       "addressAlt": "Postal address of the operator",
-      "emailAlt": "Email address of the operator"
-    },
-    "responsibleForContent": {
-      "heading": "Responsible for content pursuant to § 18 (2) MStV",
-      "addressAlt": "Name and postal address of the person responsible for content"
+      "emailAlt": "Email address of the operator",
+      "heading": "Information pursuant to § 5 DDG"
     },
     "disputeResolution": {
-      "heading": "Consumer Dispute Resolution",
-      "body": "We are neither willing nor obliged to participate in dispute resolution proceedings before a consumer arbitration board (§ 36 VSBG)."
+      "body": "We are neither willing nor obliged to participate in dispute resolution proceedings before a consumer arbitration board (§ 36 VSBG).",
+      "heading": "Consumer Dispute Resolution"
+    },
+    "heading": "Imprint",
+    "responsibleForContent": {
+      "addressAlt": "Name and postal address of the person responsible for content",
+      "heading": "Responsible for content pursuant to § 18 (2) MStV"
     }
   },
   "privacy": {
-    "heading": "Privacy Policy",
-    "lastUpdated": "Last updated: 19 July 2026",
-    "intro": "Schautrack collects only the data necessary to provide the calorie, nutrition, and weight tracking service.",
+    "accountLinking": {
+      "body": "If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo entries. They cannot edit or delete them. You can remove the link at any time from Settings.",
+      "heading": "Account Linking"
+    },
     "controller": {
-      "heading": "Controller",
-      "body": "The data controller responsible for this Schautrack instance is the operator identified on the <linkImprint>Imprint</linkImprint> page. You can reach the controller at the contact address given there."
+      "body": "The data controller responsible for this Schautrack instance is the operator identified on the <linkImprint>Imprint</linkImprint> page. You can reach the controller at the contact address given there.",
+      "heading": "Controller"
+    },
+    "cookies": {
+      "body": "Schautrack sets one strictly necessary first-party session cookie (<code>schautrack.sid</code>) to keep you signed in. No analytics or third-party cookies are used.",
+      "heading": "Cookies"
     },
     "dataWeCollect": {
       "heading": "Data We Collect",
       "items": {
+        "authMaterial": "Authentication material you choose to set up: password hash, TOTP secret, backup codes, passkey credentials",
+        "bodyMetrics": "Body metrics you optionally provide for the weight planner — height, birth year, sex, and activity level — and any weight goals you set",
         "email": "Email address (for authentication and account recovery)",
         "entries": "Calorie, macro, and weight entries you create",
-        "bodyMetrics": "Body metrics you optionally provide for the weight planner — height, birth year, sex, and activity level — and any weight goals you set",
         "notes": "Daily notes and todos (if you enable them)",
-        "preferences": "Timezone and display preferences",
-        "authMaterial": "Authentication material you choose to set up: password hash, TOTP secret, backup codes, passkey credentials"
+        "preferences": "Timezone and display preferences"
       }
     },
-    "healthData": {
-      "heading": "Health Data",
-      "body1": "Your weight entries, body metrics, weight goals, and nutrition intake are data concerning health under Art. 9 GDPR. Schautrack processes them exclusively to provide the features you use: logging, statistics, and the weight planner's calorie-budget and timeline calculations. These calculations (basal metabolic rate, energy expenditure, calorie budget) run entirely on this server — your health data is not shared with any third party and is not used for advertising or any other purpose.",
-      "body2": "Legal basis: your explicit consent (Art. 9(2)(a) GDPR), given at registration. You can withdraw this consent at any time — as easily as you gave it — by deleting the relevant entries or your entire account in Settings (Art. 7(3) GDPR). Withdrawal does not affect the lawfulness of processing that took place before the withdrawal. Without this consent the tracking features cannot be provided."
+    "dataWeDontCollect": {
+      "heading": "Data We Don't Collect",
+      "items": {
+        "noAnalytics": "No analytics or tracking scripts",
+        "noDataSold": "No data sold to third parties",
+        "noThirdPartyCookies": "No third-party cookies"
+      }
     },
+    "heading": "Privacy Policy",
+    "healthData": {
+      "body1": "Your weight entries, body metrics, weight goals, and nutrition intake are data concerning health under Art. 9 GDPR. Schautrack processes them exclusively to provide the features you use: logging, statistics, and the weight planner's calorie-budget and timeline calculations. These calculations (basal metabolic rate, energy expenditure, calorie budget) run entirely on this server — your health data is not shared with any third party and is not used for advertising or any other purpose.",
+      "body2": "Legal basis: your explicit consent (Art. 9(2)(a) GDPR), given at registration. You can withdraw this consent at any time — as easily as you gave it — by deleting the relevant entries or your entire account in Settings (Art. 7(3) GDPR). Withdrawal does not affect the lawfulness of processing that took place before the withdrawal. Without this consent the tracking features cannot be provided.",
+      "heading": "Health Data"
+    },
+    "internationalTransfers": {
+      "body": "If the configured AI provider is OpenAI or Anthropic Claude, submitting a photo for estimation transfers that image to a recipient in the United States. Such transfers rely on the provider's Standard Contractual Clauses. You can avoid these transfers by not using the AI estimation feature, or by configuring a self-hosted Ollama endpoint in Settings.",
+      "heading": "International Transfers"
+    },
+    "intro": "Schautrack collects only the data necessary to provide the calorie, nutrition, and weight tracking service.",
+    "lastUpdated": "Last updated: 19 July 2026",
     "legalBases": {
       "heading": "Legal Bases",
       "items": {
@@ -74,108 +94,88 @@
         "securityLogs": "<strong>Security logs and rate limiting</strong> (IP address, user agent on sensitive account actions): our legitimate interest in securing the service and preventing abuse, Art. 6(1)(f) GDPR."
       }
     },
-    "cookies": {
-      "heading": "Cookies",
-      "body": "Schautrack sets one strictly necessary first-party session cookie (<code>schautrack.sid</code>) to keep you signed in. No analytics or third-party cookies are used."
-    },
     "logsSecurity": {
-      "heading": "Logs & Security",
-      "body": "For sensitive account actions (logins, password and email changes, 2FA changes, passkey changes, account deletion) we record the action, your IP address, and your user agent so the account owner can review activity and so we can detect abuse. The same information is held briefly to rate-limit authentication endpoints. The CAPTCHA shown at registration is generated by this server itself — no third-party CAPTCHA service is involved."
+      "body": "For sensitive account actions (logins, password and email changes, 2FA changes, passkey changes, account deletion) we record the action, your IP address, and your user agent so the account owner can review activity and so we can detect abuse. The same information is held briefly to rate-limit authentication endpoints. The CAPTCHA shown at registration is generated by this server itself — no third-party CAPTCHA service is involved.",
+      "heading": "Logs & Security"
     },
-    "accountLinking": {
-      "heading": "Account Linking",
-      "body": "If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo entries. They cannot edit or delete them. You can remove the link at any time from Settings."
+    "retention": {
+      "heading": "Retention",
+      "items": {
+        "accountDeletion": "When you delete your account, all associated data is removed.",
+        "auditLog": "Audit log entries (sensitive auth actions, with IP and user agent) are retained for the lifetime of the account.",
+        "consentRecord": "The date and time you accepted the Terms and consented to health-data processing are stored with your account as proof of consent (Art. 7(1) GDPR).",
+        "entries": "Calorie, macro, weight, note, and todo entries, body metrics, and weight goals are retained until you delete them or delete your account.",
+        "sessions": "Authenticated sessions expire 30 days after your last visit; anonymous sessions expire after 15 minutes of inactivity."
+      }
+    },
+    "rights": {
+      "body1": "You can export all of your data at any time from Settings (data portability, Art. 20 GDPR), and you can delete your account and all associated data at any time from Settings. For other GDPR requests (access, rectification, erasure, restriction, objection), contact the address listed on the <linkImprint>Imprint</linkImprint> page.",
+      "body2": "If you reside in the EU/EEA, you also have the right to lodge a complaint with your local data-protection supervisory authority. The competent authority for the operator of this instance is the <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>.",
+      "heading": "Your Rights & Data Deletion"
     },
     "subprocessors": {
       "heading": "Sub-processors",
       "intro": "We use a small number of external services to operate Schautrack:",
       "items": {
         "aiEstimation": "<strong>AI nutrition estimation:</strong> When you submit a food photo for estimation, the photo is sent to the AI provider configured by the operator of this Schautrack instance — currently either OpenAI or Anthropic Claude (both based in the United States), or a self-hosted Ollama instance. You can also configure your own API key for any of these providers in Settings. If you do not use this feature, no photo data is shared with any AI provider. Your body metrics, weight entries, and weight goals are never sent to AI providers.",
+        "backups": "<strong>Backups:</strong> encrypted offsite backups stored in the EU.",
         "barcodeLookups": "<strong>Barcode lookups:</strong> Scanned barcode numbers are sent to <linkOff>Open Food Facts</linkOff> to retrieve product nutrition data, under the <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
-        "hosting": "<strong>Hosting:</strong> an EU-based hosting provider in Germany.",
         "emailDelivery": "<strong>Email delivery:</strong> a transactional email provider for verification, password reset, and account-change notifications.",
-        "backups": "<strong>Backups:</strong> encrypted offsite backups stored in the EU."
+        "hosting": "<strong>Hosting:</strong> an EU-based hosting provider in Germany."
       }
-    },
-    "internationalTransfers": {
-      "heading": "International Transfers",
-      "body": "If the configured AI provider is OpenAI or Anthropic Claude, submitting a photo for estimation transfers that image to a recipient in the United States. Such transfers rely on the provider's Standard Contractual Clauses. You can avoid these transfers by not using the AI estimation feature, or by configuring a self-hosted Ollama endpoint in Settings."
-    },
-    "retention": {
-      "heading": "Retention",
-      "items": {
-        "entries": "Calorie, macro, weight, note, and todo entries, body metrics, and weight goals are retained until you delete them or delete your account.",
-        "sessions": "Authenticated sessions expire 30 days after your last visit; anonymous sessions expire after 15 minutes of inactivity.",
-        "auditLog": "Audit log entries (sensitive auth actions, with IP and user agent) are retained for the lifetime of the account.",
-        "consentRecord": "The date and time you accepted the Terms and consented to health-data processing are stored with your account as proof of consent (Art. 7(1) GDPR).",
-        "accountDeletion": "When you delete your account, all associated data is removed."
-      }
-    },
-    "dataWeDontCollect": {
-      "heading": "Data We Don't Collect",
-      "items": {
-        "noAnalytics": "No analytics or tracking scripts",
-        "noThirdPartyCookies": "No third-party cookies",
-        "noDataSold": "No data sold to third parties"
-      }
-    },
-    "rights": {
-      "heading": "Your Rights & Data Deletion",
-      "body1": "You can export all of your data at any time from Settings (data portability, Art. 20 GDPR), and you can delete your account and all associated data at any time from Settings. For other GDPR requests (access, rectification, erasure, restriction, objection), contact the address listed on the <linkImprint>Imprint</linkImprint> page.",
-      "body2": "If you reside in the EU/EEA, you also have the right to lodge a complaint with your local data-protection supervisory authority. The competent authority for the operator of this instance is the <linkBayLDA>Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</linkBayLDA>."
     }
   },
   "terms": {
-    "heading": "Terms of Service",
-    "lastUpdated": "Last updated: 19 July 2026",
-    "intro": "By using Schautrack, you agree to these terms.",
-    "service": {
-      "heading": "Service",
-      "body": "Schautrack provides calorie, nutrition, and weight tracking tools, including an optional weight planner that estimates a daily calorie budget and timeline from the information you provide. The service is offered free of charge."
-    },
-    "eligibility": {
-      "heading": "Eligibility",
-      "body": "You must be at least 16 years old to use Schautrack. This threshold follows from the age of digital consent applicable to the health-data consent the service relies on (Art. 8 GDPR as implemented in Germany)."
-    },
-    "notMedicalAdvice": {
-      "heading": "Not Medical Advice",
-      "body": "Calorie counts, macro estimates from photos, barcode nutrition data, and the weight planner's calculations — including calorie budgets, BMI values, and projected timelines — are formula-based estimates and informational only. They may be inaccurate. Schautrack is not a medical device and is not a substitute for professional medical, dietary, or nutritional advice. It is not suitable for managing eating disorders or any medical condition. Consult a qualified professional before starting a weight-loss or weight-gain program, and verify nutrition information on product packaging when precision matters."
-    },
-    "yourAccount": {
-      "heading": "Your Account",
-      "body": "You are responsible for maintaining the security of your account and for any credentials you choose to set up, including your password, two-factor authentication codes, backup codes, and passkeys."
+    "acceptableUse": {
+      "body": "Don't abuse the service, attempt to access other users' data, or use automated tools to scrape the service.",
+      "heading": "Acceptable Use"
     },
     "accountLinking": {
-      "heading": "Account Linking",
-      "body": "If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo entries. Only link accounts with people you trust, and remove the link from Settings if you no longer want to share."
-    },
-    "thirdPartyData": {
-      "heading": "Third-Party Data",
-      "body": "Barcode nutrition data is provided by <linkOff>Open Food Facts</linkOff> under the <linkOdbl>Open Database License (ODbL)</linkOdbl>. This data is community-contributed and may not always be accurate."
-    },
-    "acceptableUse": {
-      "heading": "Acceptable Use",
-      "body": "Don't abuse the service, attempt to access other users' data, or use automated tools to scrape the service."
+      "body": "If you accept a link request from another user, that user can read your calorie, macro, weight, note and todo entries. Only link accounts with people you trust, and remove the link from Settings if you no longer want to share.",
+      "heading": "Account Linking"
     },
     "availability": {
-      "heading": "Availability",
-      "body": "Schautrack is provided free of charge and without an availability guarantee. We may modify or discontinue the service; if we discontinue it, we will give reasonable advance notice by email so you can export your data from Settings."
-    },
-    "termination": {
-      "heading": "Termination",
-      "body": "You can stop using Schautrack and delete your account, including all associated data, at any time from Settings. We may suspend or terminate accounts that violate these terms or abuse the service; where reasonable, we will notify you by email beforehand and give you the opportunity to export your data."
-    },
-    "liability": {
-      "heading": "Liability",
-      "body": "We are liable without limitation for damages caused by intent or gross negligence, for injury to life, body, or health, and under the German Product Liability Act. For slight negligence, we are liable only for breaches of essential contractual obligations (obligations whose fulfilment makes the proper performance of the contract possible in the first place and on whose fulfilment you may regularly rely), limited to the damage that is typical for this kind of contract and foreseeable at its conclusion. Any further liability is excluded. This does not shift the burden of proof to your disadvantage."
+      "body": "Schautrack is provided free of charge and without an availability guarantee. We may modify or discontinue the service; if we discontinue it, we will give reasonable advance notice by email so you can export your data from Settings.",
+      "heading": "Availability"
     },
     "changes": {
-      "heading": "Changes to These Terms",
-      "body": "These terms may be updated from time to time. The version published on this page is the version that applies to your use of the service. Material changes will be communicated by email to your registered address where reasonably possible."
+      "body": "These terms may be updated from time to time. The version published on this page is the version that applies to your use of the service. Material changes will be communicated by email to your registered address where reasonably possible.",
+      "heading": "Changes to These Terms"
+    },
+    "eligibility": {
+      "body": "You must be at least 16 years old to use Schautrack. This threshold follows from the age of digital consent applicable to the health-data consent the service relies on (Art. 8 GDPR as implemented in Germany).",
+      "heading": "Eligibility"
     },
     "governingLaw": {
-      "heading": "Governing Law",
-      "body": "These terms are governed by the laws of the Federal Republic of Germany. Mandatory consumer protection rights of your country of residence remain unaffected."
+      "body": "These terms are governed by the laws of the Federal Republic of Germany. Mandatory consumer protection rights of your country of residence remain unaffected.",
+      "heading": "Governing Law"
+    },
+    "heading": "Terms of Service",
+    "intro": "By using Schautrack, you agree to these terms.",
+    "lastUpdated": "Last updated: 19 July 2026",
+    "liability": {
+      "body": "We are liable without limitation for damages caused by intent or gross negligence, for injury to life, body, or health, and under the German Product Liability Act. For slight negligence, we are liable only for breaches of essential contractual obligations (obligations whose fulfilment makes the proper performance of the contract possible in the first place and on whose fulfilment you may regularly rely), limited to the damage that is typical for this kind of contract and foreseeable at its conclusion. Any further liability is excluded. This does not shift the burden of proof to your disadvantage.",
+      "heading": "Liability"
+    },
+    "notMedicalAdvice": {
+      "body": "Calorie counts, macro estimates from photos, barcode nutrition data, and the weight planner's calculations — including calorie budgets, BMI values, and projected timelines — are formula-based estimates and informational only. They may be inaccurate. Schautrack is not a medical device and is not a substitute for professional medical, dietary, or nutritional advice. It is not suitable for managing eating disorders or any medical condition. Consult a qualified professional before starting a weight-loss or weight-gain program, and verify nutrition information on product packaging when precision matters.",
+      "heading": "Not Medical Advice"
+    },
+    "service": {
+      "body": "Schautrack provides calorie, nutrition, and weight tracking tools, including an optional weight planner that estimates a daily calorie budget and timeline from the information you provide. The service is offered free of charge.",
+      "heading": "Service"
+    },
+    "termination": {
+      "body": "You can stop using Schautrack and delete your account, including all associated data, at any time from Settings. We may suspend or terminate accounts that violate these terms or abuse the service; where reasonable, we will notify you by email beforehand and give you the opportunity to export your data.",
+      "heading": "Termination"
+    },
+    "thirdPartyData": {
+      "body": "Barcode nutrition data is provided by <linkOff>Open Food Facts</linkOff> under the <linkOdbl>Open Database License (ODbL)</linkOdbl>. This data is community-contributed and may not always be accurate.",
+      "heading": "Third-Party Data"
+    },
+    "yourAccount": {
+      "body": "You are responsible for maintaining the security of your account and for any credentials you choose to set up, including your password, two-factor authentication codes, backup codes, and passkeys.",
+      "heading": "Your Account"
     }
   }
 }

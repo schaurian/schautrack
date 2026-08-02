@@ -6,6 +6,16 @@
 // Plural note: locales may legitimately have MORE keys than `en` (e.g. Polish
 // expands `_one`/`_other` into `_one`/`_few`/`_many`/`_other`). Extra keys are
 // fine; only keys present in `en` but absent from a locale are failures.
+//
+// Why this still exists after the i18next-cli migration: `i18next-cli status`
+// reports coverage but has no flag to exit non-zero, so it cannot gate CI, and
+// `i18next-cli extract --ci` only checks that `en` matches the source (drift).
+// Extraction is deliberately scoped to `locales: ['en']` in i18next.config.ts —
+// letting it write the other seven would seed them with empty strings and make
+// any cross-locale check pass vacuously. This script is the only guardrail that
+// the seven hand-translated locales keep up with `en`. Run both:
+//   npm run i18n:drift   -> `en` matches the source code
+//   npm run i18n:check   -> the other locales match `en`
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

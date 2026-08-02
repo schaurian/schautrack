@@ -88,6 +88,14 @@ jobs:
         run: npm test
         working-directory: client
 
+      # Two complementary guardrails: `i18n:drift` re-runs the extractor and
+      # fails if the committed `en` catalogs are stale w.r.t. the source code;
+      # `i18n:check` fails if any of the seven translated locales has fallen
+      # behind `en`.
+      - name: Check i18n extraction drift
+        run: npm run i18n:drift
+        working-directory: client
+
       - name: Check i18n catalog parity
         run: npm run i18n:check
         working-directory: client

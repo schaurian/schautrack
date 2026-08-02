@@ -1,286 +1,297 @@
 {
-  "i18n": {
-    "language": "Lingua",
-    "automatic": "Automatica (lingua del browser)"
-  },
-  "status": {
-    "saving": "Salvataggio...",
-    "saved": "Salvato"
-  },
-  "macro": {
-    "heading": "Obiettivi nutrizionali",
-    "calories": "Calorie",
-    "goalPlaceholder": "Obiettivo",
-    "modeLimit": "Limite",
-    "modeTarget": "Target",
-    "autoCalculate": "Calcola calorie automaticamente",
-    "threshold": "Soglia",
-    "unitKcal": "kcal",
-    "unitGram": "g"
-  },
-  "preferences": {
-    "heading": "Internazionalizzazione",
-    "weightUnit": {
-      "label": "Unità di peso",
-      "kg": "Chilogrammi (kg)",
-      "lb": "Libbre (lb)"
+  "admin": {
+    "appSettingsHeading": "Impostazioni applicazione",
+    "boolFalse": "false",
+    "boolTrue": "true",
+    "confirmPhraseGeneric": "CONFIRM",
+    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
+    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
+    "copied": "Copiato!",
+    "copyLink": "Copia link",
+    "createInvite": "Crea invito",
+    "createInviteFailed": "Creazione dell'invito non riuscita",
+    "dangerousBadge": "⚠ Pericoloso",
+    "dangerousPrompt": "Modificare {{envVar}} ha conseguenze irreversibili:\n\n{{help}}\n\nDigita {{phrase}} per confermare.",
+    "delete": "Elimina",
+    "deleteInviteFailed": "Eliminazione dell'invito non riuscita",
+    "deleteUserConfirm": "Eliminare questo utente?",
+    "deleteUserFailed": "Eliminazione dell'utente non riuscita",
+    "emailOptionalPlaceholder": "Email (facoltativo)",
+    "envBadge": "ENV",
+    "expiresOn": "scade il {{date}}",
+    "inviteCodesHeading": "Codici invito",
+    "loadingMore": "Caricamento altri…",
+    "noChanges": "Nessuna modifica da salvare.",
+    "noUsersFound": "Nessun utente trovato",
+    "registrationDefault": "(predefinito: aperta)",
+    "registrationDisabled": "false — registrazione disabilitata",
+    "registrationInvite": "invito — richiede un codice invito",
+    "registrationOpen": "aperta — chiunque può registrarsi",
+    "replace": "Sostituisci",
+    "restartRequiredBadge": "🔄 Riavvio necessario",
+    "restartRequiredTitle": "Ha effetto al prossimo riavvio del server",
+    "save": "Salva",
+    "saveCancelled": "Salvataggio annullato.",
+    "saveSettingsFailed": "Salvataggio delle impostazioni non riuscito",
+    "searchPlaceholder": "Cerca per email...",
+    "secretPlaceholder": "Inserisci nuovo valore",
+    "secretStored": "•••••••• (memorizzato)",
+    "sections": {
+      "ai": {
+        "description": "Stima delle calorie basata su foto. Le chiavi provider impostate qui sono il fallback globale quando gli utenti non hanno una propria chiave.",
+        "title": "Funzioni AI"
+      },
+      "features": {
+        "description": "",
+        "title": "Funzioni"
+      },
+      "general": {
+        "description": "",
+        "title": "Generale"
+      },
+      "legal": {
+        "description": "",
+        "title": "Pagine legali"
+      },
+      "oidc": {
+        "description": "Single sign-on tramite un provider OpenID Connect. Imposta issuer + client id + client secret per attivarlo.",
+        "title": "OIDC / SSO"
+      },
+      "passkeys": {
+        "description": "Accesso senza password WebAuthn. Impostare l'RP ID attiva la funzione.",
+        "title": "Passkey"
+      },
+      "security": {
+        "description": "",
+        "title": "Sicurezza"
+      },
+      "seo": {
+        "description": "",
+        "title": "SEO / Distribuzione"
+      },
+      "smtp": {
+        "description": "Posta in uscita per reset password, verifica email, ecc.",
+        "title": "SMTP"
+      }
     },
-    "timezone": {
-      "label": "Fuso orario"
-    }
-  },
-  "todo": {
-    "heading": "Cose da fare",
-    "description": "Gestisci le tue attività nella dashboard.",
-    "toggleFailed": "Aggiornamento dell'impostazione non riuscito"
-  },
-  "note": {
-    "heading": "Note giornaliere",
-    "description": "Scrivi una nota giornaliera nella dashboard per qualsiasi data.",
-    "toggleFailed": "Aggiornamento dell'impostazione non riuscito"
-  },
-  "savedFoods": {
-    "heading": "Cibi salvati",
-    "description": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
-    "manage": "Gestisci cibi salvati"
+    "settingsSaved": "Impostazioni salvate.",
+    "unsavedBadge": "• non salvato",
+    "unset": "(non impostato)",
+    "unverified": "Non verificato",
+    "usedBy": "Usato da {{email}}",
+    "usersHeading": "Utenti ({{count}})",
+    "usersHeading_one": "Utenti ({{count}})",
+    "usersHeading_other": "Utenti ({{count}})",
+    "verified": "Verificato"
   },
   "ai": {
+    "apiKeyLabel": "Chiave API",
+    "apiKeyMaskedPlaceholder": "••••{{last4}}",
+    "apiKeyPlaceholder": "Inserisci chiave API",
+    "clearAll": "Cancella tutto",
+    "clearFailed": "Cancellazione delle impostazioni AI non riuscita",
+    "globalKeyNotice": "È configurata una chiave API globale. Le funzioni AI funzionano senza impostare una tua chiave.",
     "heading": "Impostazioni AI",
-    "provider": "Provider",
-    "providerDefault": "Predefinito",
+    "keySaveFailed": "Salvataggio della chiave API non riuscito",
+    "keySaved": "Chiave API salvata",
     "modelLabel": "Modello (facoltativo)",
     "modelPlaceholder": "es. gpt-4o",
-    "apiKeyLabel": "Chiave API",
-    "apiKeyPlaceholder": "Inserisci chiave API",
-    "apiKeyMaskedPlaceholder": "••••{{last4}}",
-    "globalKeyNotice": "È configurata una chiave API globale. Le funzioni AI funzionano senza impostare una tua chiave.",
-    "clearAll": "Cancella tutto",
-    "keySaved": "Chiave API salvata",
-    "keySaveFailed": "Salvataggio della chiave API non riuscito",
-    "settingsCleared": "Impostazioni AI cancellate",
-    "clearFailed": "Cancellazione delle impostazioni AI non riuscita"
+    "provider": "Provider",
+    "providerDefault": "Predefinito",
+    "settingsCleared": "Impostazioni AI cancellate"
+  },
+  "confirmImport": {
+    "cancel": "Annulla",
+    "descriptionPrefix": "L'importazione di",
+    "descriptionSuffix": "eliminerà permanentemente tutte le tue voci esistenti e le sostituirà con il contenuto di questo file. Questa azione non può essere annullata.",
+    "replaceAll": "Sostituisci tutte le voci",
+    "title": "Sostituire tutte le voci?"
+  },
+  "danger": {
+    "deleteAccount": "Elimina account",
+    "description": "Elimina permanentemente il tuo account e tutti i dati.",
+    "heading": "Zona pericolosa"
+  },
+  "data": {
+    "chooseFile": "Scegli un file…",
+    "exportButton": "Esporta JSON",
+    "exportDescription": "Scarica tutte le tue voci come backup JSON.",
+    "exportLabel": "Esporta",
+    "heading": "Dati",
+    "importButton": "Importa",
+    "importDescription": "Ripristina da un backup JSON. Questo sostituisce tutte le voci esistenti.",
+    "importFailed": "Importazione non riuscita.",
+    "importLabel": "Importa",
+    "importSuccess": "Dati importati con successo."
   },
   "email": {
-    "heading": "Cambia email",
     "current": "Attuale: {{email}}",
+    "heading": "Cambia email",
     "newEmailLabel": "Nuova email",
-    "submit": "Invia codice di verifica",
-    "requestFailed": "Richiesta di cambio email non riuscita."
+    "requestFailed": "Richiesta di cambio email non riuscita.",
+    "submit": "Invia codice di verifica"
   },
-  "password": {
-    "heading": "Cambia password",
-    "newLabel": "Nuova password",
-    "confirmLabel": "Conferma password",
-    "submit": "Aggiorna password",
-    "mismatch": "Le nuove password non corrispondono.",
-    "updated": "Password aggiornata.",
-    "updatedToast": "Password aggiornata",
-    "failed": "Non riuscito."
+  "footer": {
+    "bugReport": "Hai trovato un bug o manca una funzione?",
+    "openIssue": "Apri una segnalazione su GitHub"
   },
-  "twofa": {
-    "heading": "Autenticazione a due fattori",
-    "setupFailed": "Configurazione non riuscita.",
-    "enabledWithCodes": "2FA attivata. Salva i tuoi codici di backup qui sotto.",
-    "enabledSuccess": "2FA attivata con successo.",
-    "invalidCode": "Codice non valido.",
-    "enableFailed": "Attivazione della 2FA non riuscita.",
-    "disabled": "2FA disattivata.",
-    "disableFailed": "Disattivazione della 2FA non riuscita.",
-    "regenerated": "Nuovi codici di backup generati. Salvali ora.",
-    "regenerateFailed": "Rigenerazione dei codici non riuscita.",
-    "backupCodesTitle": "Codici di backup",
-    "backupCodesDescription": "Salva questi codici in un posto sicuro. Ogni codice può essere usato una sola volta per accedere se perdi il tuo autenticatore.",
-    "copyAll": "Copia tutto",
-    "copied": "Copiato!",
-    "download": "Scarica",
-    "done": "Fatto",
-    "enabledNotice": "La 2FA è attiva sul tuo account.",
-    "disableButton": "Disattiva 2FA",
-    "regenerating": "Rigenerazione in corso...",
-    "regenerateBackupCodes": "Rigenera codici di backup",
-    "scanQr": "Scansiona questo codice QR con la tua app di autenticazione:",
-    "qrAlt": "Codice QR 2FA",
-    "copy": "Copia",
-    "verificationCodeLabel": "Codice di verifica",
-    "verificationCodePlaceholder": "Inserisci il codice a 6 cifre",
+  "i18n": {
+    "automatic": "Automatica (lingua del browser)",
+    "language": "Lingua"
+  },
+  "link": {
+    "accept": "Accetta",
     "cancel": "Annulla",
-    "activate": "Attiva",
-    "setupButton": "Configura 2FA"
-  },
-  "passkey": {
-    "heading": "Passkey",
-    "defaultName": "Passkey",
-    "empty": "Nessuna passkey registrata. Aggiungine una per l'accesso senza password.",
-    "usedOn": "Usata il {{date}}",
-    "neverUsed": "Mai usata",
+    "decline": "Rifiuta",
+    "heading": "Collegamenti account",
+    "incoming": "In arrivo",
+    "labelUpdateFailed": "Aggiornamento dell'etichetta non riuscito",
+    "linked": "Collegato",
+    "pending": "In sospeso",
     "remove": "Rimuovi",
-    "renameTitle": "Clicca per rinominare",
-    "namePlaceholder": "Nome passkey (es. Telefono, Laptop)",
-    "add": "Aggiungi passkey",
-    "countUsed": "{{count}} di 10 passkey usate.",
-    "registered": "Passkey registrata",
-    "registerFailed": "Registrazione della passkey non riuscita",
-    "removed": "Passkey rimossa",
-    "removeFailed": "Rimozione della passkey non riuscita",
-    "renameFailed": "Rinomina non riuscita"
+    "removeFailed": "Rimozione del collegamento non riuscita",
+    "requestFailed": "Invio della richiesta di collegamento non riuscito",
+    "requestLabel": "Collega tramite email",
+    "respondFailed": "Risposta al collegamento non riuscita",
+    "sendRequest": "Invia richiesta",
+    "share": {
+      "notes": "Note giornaliere",
+      "nutrition": "Nutrizione",
+      "readOnlyNote": "Condividi con loro (sola lettura):",
+      "todos": "Cose da fare",
+      "updateFailed": "Impossibile aggiornare la condivisione",
+      "weight": "Peso"
+    }
+  },
+  "macro": {
+    "autoCalculate": "Calcola calorie automaticamente",
+    "calories": "Calorie",
+    "goalPlaceholder": "Obiettivo",
+    "heading": "Obiettivi nutrizionali",
+    "modeLimit": "Limite",
+    "modeTarget": "Target",
+    "threshold": "Soglia",
+    "unitGram": "g",
+    "unitKcal": "kcal"
+  },
+  "note": {
+    "description": "Scrivi una nota giornaliera nella dashboard per qualsiasi data.",
+    "heading": "Note giornaliere",
+    "toggleFailed": "Aggiornamento dell'impostazione non riuscito"
   },
   "oidc": {
-    "heading": "Single Sign-On",
-    "unlink": "Scollega",
-    "link": "Collega",
-    "unlinkConfirm": "Scollegare {{label}}?",
     "accountNotFound": "Account non trovato",
-    "unlinked": "{{label}} scollegato",
-    "unlinkFailed": "Scollegamento non riuscito",
-    "genericError": "Qualcosa è andato storto.",
     "errors": {
       "oidc_already_linked": "Quell'account del provider di accesso è già collegato a un altro utente.",
       "oidc_email_unverified": "Il tuo provider di accesso non ha confermato la tua email. Verificala lì, poi riprova.",
       "oidc_link_failed": "Impossibile collegare il tuo provider di accesso. Riprova.",
       "oidc_step_up_mismatch": "Quell'account di accesso non è collegato al tuo utente. Accedi con l'account collegato per confermare."
     },
+    "genericError": "Qualcosa è andato storto.",
+    "heading": "Single Sign-On",
+    "link": "Collega",
     "success": {
       "oidc_linked": "Provider di accesso collegato al tuo account.",
       "stepped_up": "Ri-autenticato. Ora puoi riprovare la tua azione."
-    }
+    },
+    "unlink": "Scollega",
+    "unlinkConfirm": "Scollegare {{label}}?",
+    "unlinkFailed": "Scollegamento non riuscito",
+    "unlinked": "{{label}} scollegato"
   },
-  "link": {
-    "heading": "Collegamenti account",
-    "incoming": "In arrivo",
-    "pending": "In sospeso",
-    "linked": "Collegato",
-    "accept": "Accetta",
-    "decline": "Rifiuta",
-    "cancel": "Annulla",
+  "passkey": {
+    "add": "Aggiungi passkey",
+    "countUsed": "{{count}} di 10 passkey usate.",
+    "countUsed_one": "{{count}} di 10 passkey usate.",
+    "countUsed_other": "{{count}} di 10 passkey usate.",
+    "defaultName": "Passkey",
+    "empty": "Nessuna passkey registrata. Aggiungine una per l'accesso senza password.",
+    "heading": "Passkey",
+    "namePlaceholder": "Nome passkey (es. Telefono, Laptop)",
+    "neverUsed": "Mai usata",
+    "registerFailed": "Registrazione della passkey non riuscita",
+    "registered": "Passkey registrata",
     "remove": "Rimuovi",
-    "requestLabel": "Collega tramite email",
-    "sendRequest": "Invia richiesta",
-    "requestFailed": "Invio della richiesta di collegamento non riuscito",
-    "respondFailed": "Risposta al collegamento non riuscita",
-    "removeFailed": "Rimozione del collegamento non riuscita",
-    "labelUpdateFailed": "Aggiornamento dell'etichetta non riuscito",
-    "share": {
-      "readOnlyNote": "Condividi con loro (sola lettura):",
-      "nutrition": "Nutrizione",
-      "weight": "Peso",
-      "todos": "Cose da fare",
-      "notes": "Note giornaliere",
-      "updateFailed": "Impossibile aggiornare la condivisione"
+    "removeFailed": "Rimozione della passkey non riuscita",
+    "removed": "Passkey rimossa",
+    "renameFailed": "Rinomina non riuscita",
+    "renameTitle": "Clicca per rinominare",
+    "usedOn": "Usata il {{date}}"
+  },
+  "password": {
+    "confirmLabel": "Conferma password",
+    "failed": "Non riuscito.",
+    "heading": "Cambia password",
+    "mismatch": "Le nuove password non corrispondono.",
+    "newLabel": "Nuova password",
+    "submit": "Aggiorna password",
+    "updated": "Password aggiornata.",
+    "updatedToast": "Password aggiornata"
+  },
+  "preferences": {
+    "heading": "Internazionalizzazione",
+    "timezone": {
+      "label": "Fuso orario"
+    },
+    "weightUnit": {
+      "kg": "Chilogrammi (kg)",
+      "label": "Unità di peso",
+      "lb": "Libbre (lb)"
     }
-  },
-  "data": {
-    "heading": "Dati",
-    "exportLabel": "Esporta",
-    "exportDescription": "Scarica tutte le tue voci come backup JSON.",
-    "exportButton": "Esporta JSON",
-    "importLabel": "Importa",
-    "importDescription": "Ripristina da un backup JSON. Questo sostituisce tutte le voci esistenti.",
-    "chooseFile": "Scegli un file…",
-    "importButton": "Importa",
-    "importSuccess": "Dati importati con successo.",
-    "importFailed": "Importazione non riuscita."
-  },
-  "confirmImport": {
-    "title": "Sostituire tutte le voci?",
-    "descriptionPrefix": "L'importazione di",
-    "descriptionSuffix": "eliminerà permanentemente tutte le tue voci esistenti e le sostituirà con il contenuto di questo file. Questa azione non può essere annullata.",
-    "replaceAll": "Sostituisci tutte le voci",
-    "cancel": "Annulla"
-  },
-  "danger": {
-    "heading": "Zona pericolosa",
-    "description": "Elimina permanentemente il tuo account e tutti i dati.",
-    "deleteAccount": "Elimina account"
-  },
-  "footer": {
-    "bugReport": "Hai trovato un bug o manca una funzione?",
-    "openIssue": "Apri una segnalazione su GitHub"
   },
   "reportIssue": {
-    "title": "Segnala un problema",
+    "acknowledgement": "Capisco di stare usando una versione meno recente ({{version}}) e che il mio problema potrebbe essere già stato segnalato o risolto — ho controllato le segnalazioni aperte e voglio comunque segnalarlo.",
     "description": "Hai trovato un bug o manca una funzionalità? Questo apre una segnalazione precompilata sul tracker del progetto.",
-    "yourVersion": "La tua versione: ",
     "latestAvailable": " — è disponibile la v{{latest}}",
     "olderVersion": "Stai usando una versione meno recente. Prima di procedere, <issues>consulta le segnalazioni aperte</issues> — il tuo problema potrebbe essere già stato segnalato o risolto.",
-    "acknowledgement": "Capisco di stare usando una versione meno recente ({{version}}) e che il mio problema potrebbe essere già stato segnalato o risolto — ho controllato le segnalazioni aperte e voglio comunque segnalarlo.",
-    "submit": "Segnala un problema"
+    "submit": "Segnala un problema",
+    "title": "Segnala un problema",
+    "yourVersion": "La tua versione: "
   },
-  "admin": {
-    "sections": {
-      "general": {
-        "title": "Generale"
-      },
-      "ai": {
-        "title": "Funzioni AI",
-        "description": "Stima delle calorie basata su foto. Le chiavi provider impostate qui sono il fallback globale quando gli utenti non hanno una propria chiave."
-      },
-      "oidc": {
-        "title": "OIDC / SSO",
-        "description": "Single sign-on tramite un provider OpenID Connect. Imposta issuer + client id + client secret per attivarlo."
-      },
-      "passkeys": {
-        "title": "Passkey",
-        "description": "Accesso senza password WebAuthn. Impostare l'RP ID attiva la funzione."
-      },
-      "features": {
-        "title": "Funzioni"
-      },
-      "smtp": {
-        "title": "SMTP",
-        "description": "Posta in uscita per reset password, verifica email, ecc."
-      },
-      "security": {
-        "title": "Sicurezza"
-      },
-      "legal": {
-        "title": "Pagine legali"
-      },
-      "seo": {
-        "title": "SEO / Distribuzione"
-      }
-    },
-    "appSettingsHeading": "Impostazioni applicazione",
-    "save": "Salva",
-    "deleteUserConfirm": "Eliminare questo utente?",
-    "deleteUserFailed": "Eliminazione dell'utente non riuscita",
-    "usersHeading": "Utenti ({{count}})",
-    "searchPlaceholder": "Cerca per email...",
-    "verified": "Verificato",
-    "unverified": "Non verificato",
-    "delete": "Elimina",
-    "noUsersFound": "Nessun utente trovato",
-    "loadingMore": "Caricamento altri…",
-    "envBadge": "ENV",
-    "restartRequiredBadge": "🔄 Riavvio necessario",
-    "restartRequiredTitle": "Ha effetto al prossimo riavvio del server",
-    "dangerousBadge": "⚠ Pericoloso",
-    "unsavedBadge": "• non salvato",
-    "registrationDefault": "(predefinito: aperta)",
-    "registrationOpen": "aperta — chiunque può registrarsi",
-    "registrationInvite": "invito — richiede un codice invito",
-    "registrationDisabled": "false — registrazione disabilitata",
-    "unset": "(non impostato)",
-    "boolTrue": "true",
-    "boolFalse": "false",
-    "secretStored": "•••••••• (memorizzato)",
-    "replace": "Sostituisci",
-    "secretPlaceholder": "Inserisci nuovo valore",
-    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
-    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
-    "confirmPhraseGeneric": "CONFIRM",
-    "dangerousPrompt": "Modificare {{envVar}} ha conseguenze irreversibili:\n\n{{help}}\n\nDigita {{phrase}} per confermare.",
-    "saveCancelled": "Salvataggio annullato.",
-    "noChanges": "Nessuna modifica da salvare.",
-    "settingsSaved": "Impostazioni salvate.",
-    "saveSettingsFailed": "Salvataggio delle impostazioni non riuscito",
-    "inviteCodesHeading": "Codici invito",
-    "emailOptionalPlaceholder": "Email (facoltativo)",
-    "createInvite": "Crea invito",
-    "createInviteFailed": "Creazione dell'invito non riuscita",
-    "deleteInviteFailed": "Eliminazione dell'invito non riuscita",
-    "usedBy": "Usato da {{email}}",
-    "copyLink": "Copia link",
+  "savedFoods": {
+    "description": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
+    "description_one": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
+    "description_other": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
+    "heading": "Cibi salvati",
+    "manage": "Gestisci cibi salvati"
+  },
+  "status": {
+    "saved": "Salvato",
+    "saving": "Salvataggio..."
+  },
+  "todo": {
+    "description": "Gestisci le tue attività nella dashboard.",
+    "heading": "Cose da fare",
+    "toggleFailed": "Aggiornamento dell'impostazione non riuscito"
+  },
+  "twofa": {
+    "activate": "Attiva",
+    "backupCodesDescription": "Salva questi codici in un posto sicuro. Ogni codice può essere usato una sola volta per accedere se perdi il tuo autenticatore.",
+    "backupCodesTitle": "Codici di backup",
+    "cancel": "Annulla",
     "copied": "Copiato!",
-    "expiresOn": "scade il {{date}}"
+    "copy": "Copia",
+    "copyAll": "Copia tutto",
+    "disableButton": "Disattiva 2FA",
+    "disableFailed": "Disattivazione della 2FA non riuscita.",
+    "disabled": "2FA disattivata.",
+    "done": "Fatto",
+    "download": "Scarica",
+    "enableFailed": "Attivazione della 2FA non riuscita.",
+    "enabledNotice": "La 2FA è attiva sul tuo account.",
+    "enabledSuccess": "2FA attivata con successo.",
+    "enabledWithCodes": "2FA attivata. Salva i tuoi codici di backup qui sotto.",
+    "heading": "Autenticazione a due fattori",
+    "invalidCode": "Codice non valido.",
+    "qrAlt": "Codice QR 2FA",
+    "regenerateBackupCodes": "Rigenera codici di backup",
+    "regenerateFailed": "Rigenerazione dei codici non riuscita.",
+    "regenerated": "Nuovi codici di backup generati. Salvali ora.",
+    "regenerating": "Rigenerazione in corso...",
+    "scanQr": "Scansiona questo codice QR con la tua app di autenticazione:",
+    "setupButton": "Configura 2FA",
+    "setupFailed": "Configurazione non riuscita.",
+    "verificationCodeLabel": "Codice di verifica",
+    "verificationCodePlaceholder": "Inserisci il codice a 6 cifre"
   }
 }
