@@ -918,14 +918,16 @@ func (h *LinksHandler) SetShares(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 
 	var saved []byte
+	var otherUserID int
 	err = h.Pool.QueryRow(r.Context(), `
 		UPDATE account_links
 		SET requester_shares = CASE WHEN requester_id = $3 THEN $1::jsonb ELSE requester_shares END,
 			target_shares    = CASE WHEN target_id    = $3 THEN $1::jsonb ELSE target_shares    END,
 			updated_at = NOW()
 		WHERE id = $2 AND status = 'accepted' AND ($3 = requester_id OR $3 = target_id)
-		RETURNING CASE WHEN requester_id = $3 THEN requester_shares ELSE target_shares END`,
-		sharesJSON, linkID, user.ID).Scan(&saved)
+		RETURNING CASE WHEN requester_id = $3 THEN requester_shares ELSE target_shares END,
+			CASE WHEN requester_id = $3 THEN target_id ELSE requester_id END`,
+		sharesJSON, linkID, user.ID).Scan(&saved, &otherUserID)
 	if err != nil {
 		ErrorJSON(w, http.StatusNotFound, "Link not found")
 		return
@@ -934,7 +936,10 @@ func (h *LinksHandler) SetShares(w http.ResponseWriter, r *http.Request) {
 	var savedMap map[string]bool
 	json.Unmarshal(saved, &savedMap)
 	savedMap = service.SanitizeShareMap(savedMap)
+	// Notify both sides: the caller may have another settings tab open, while
+	// the linked user must immediately gain/lose the affected dashboard data.
 	h.Broker.BroadcastLinkSharesChange(linkID, user.ID, savedMap)
+	h.Broker.BroadcastLinkSharesChange(linkID, otherUserID, savedMap)
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "shares": savedMap})
 }
 

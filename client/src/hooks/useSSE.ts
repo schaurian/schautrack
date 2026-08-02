@@ -54,6 +54,13 @@ export function useSSE() {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       });
 
+      source.addEventListener('link-shares-change', () => {
+        // A permission change can add/remove whole sections from a linked
+        // dashboard. Refresh both the viewer and any other open settings tab.
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['settings'] });
+      });
+
       source.addEventListener('todo-change', () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         queryClient.invalidateQueries({ queryKey: ['todos'] });

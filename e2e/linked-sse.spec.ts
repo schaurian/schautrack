@@ -12,6 +12,8 @@ let userA: { email: string; password: string; id: string };
 let userB: { email: string; password: string; id: string };
 
 test.describe('Linked User SSE Propagation', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeAll(() => {
     userA = createIsolatedUser('linked-sse-a');
     userB = createIsolatedUser('linked-sse-b');
@@ -90,6 +92,40 @@ test.describe('Linked User SSE Propagation', () => {
         await expect(pageA.getByRole('button', { name: entryName })).toBeVisible({ timeout: 5000 });
         test.skip(true, 'Share card dot not visible; cannot verify cross-user SSE in this configuration');
       }
+    } finally {
+      await ctxA.close();
+      await ctxB.close();
+    }
+  });
+
+  test('share permission changes propagate to the linked viewer without reload', async ({ browser }) => {
+    // User A is target_id, so target_shares controls what A shares with B.
+    // Start with nutrition as the only shared category: disabling it should
+    // remove A's entire share card from B's already-open dashboard.
+    psql(`UPDATE account_links
+      SET target_shares = '{"nutrition":true,"weight":false,"todos":false,"notes":false}'::jsonb
+      WHERE requester_id = ${userB.id} AND target_id = ${userA.id}`);
+
+    const { context: ctxA, page: pageA } = await loginUser(browser, userA.email, userA.password);
+    const { context: ctxB, page: pageB } = await loginUser(browser, userB.email, userB.password);
+
+    try {
+      await pageB.goto('/dashboard');
+      const userALabel = pageB
+        .locator('.text-sm.font-medium')
+        .filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') })
+        .first();
+      await expect(userALabel).toBeVisible({ timeout: 20000 });
+
+      await pageA.goto('/settings');
+      const linkButton = pageA.getByRole('button', { name: userB.email });
+      await expect(linkButton).toBeVisible({ timeout: 10000 });
+      const linkRow = linkButton.locator('../..');
+      const nutrition = linkRow.locator('label', { hasText: 'Nutrition' });
+      await expect(nutrition.locator('input')).toBeChecked();
+      await nutrition.click();
+
+      await expect(userALabel).toHaveCount(0, { timeout: 15000 });
     } finally {
       await ctxA.close();
       await ctxB.close();
