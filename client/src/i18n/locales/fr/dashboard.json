@@ -262,7 +262,9 @@
     "toastUpdateFailed": "Échec de la mise à jour",
     "toastDeleted": "{{name}} supprimé",
     "toastRestoreFailed": "Échec de la restauration",
-    "toastDeleteFailed": "Échec de la suppression"
+    "toastDeleteFailed": "Échec de la suppression",
+    "logQuantityButton_one": "Enregistrer {{count}}×",
+    "logQuantityButton_other": "Enregistrer {{count}}×"
   },
   "store": {
     "you": "Vous"

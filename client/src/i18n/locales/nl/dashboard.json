@@ -262,7 +262,9 @@
     "toastUpdateFailed": "Bijwerken mislukt",
     "toastDeleted": "{{name}} verwijderd",
     "toastRestoreFailed": "Herstellen mislukt",
-    "toastDeleteFailed": "Verwijderen mislukt"
+    "toastDeleteFailed": "Verwijderen mislukt",
+    "logQuantityButton_one": "{{count}}× bijhouden",
+    "logQuantityButton_other": "{{count}}× bijhouden"
   },
   "store": {
     "you": "Jij"

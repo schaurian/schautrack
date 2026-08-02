@@ -262,7 +262,9 @@
     "toastUpdateFailed": "Falha ao atualizar",
     "toastDeleted": "{{name}} eliminado",
     "toastRestoreFailed": "Falha ao restaurar",
-    "toastDeleteFailed": "Falha ao eliminar"
+    "toastDeleteFailed": "Falha ao eliminar",
+    "logQuantityButton_one": "Registar {{count}}×",
+    "logQuantityButton_other": "Registar {{count}}×"
   },
   "store": {
     "you": "Você"

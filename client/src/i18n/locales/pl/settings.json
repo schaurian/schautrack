@@ -45,7 +45,11 @@
   "savedFoods": {
     "heading": "Zapisane produkty",
     "description": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
-    "manage": "Zarządzaj zapisanymi produktami"
+    "manage": "Zarządzaj zapisanymi produktami",
+    "description_one": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_other": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_few": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}.",
+    "description_many": "Pigułki szybkiego dodawania na panelu. Zapisano: {{count}}."
   },
   "ai": {
     "heading": "Ustawienia AI",
@@ -125,7 +129,11 @@
     "registerFailed": "Rejestracja klucza dostępu nie powiodła się",
     "removed": "Klucz dostępu usunięty",
     "removeFailed": "Nie udało się usunąć klucza dostępu",
-    "renameFailed": "Nie udało się zmienić nazwy"
+    "renameFailed": "Nie udało się zmienić nazwy",
+    "countUsed_one": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_other": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_few": "Użyto {{count}} z 10 kluczy dostępu.",
+    "countUsed_many": "Użyto {{count}} z 10 kluczy dostępu."
   },
   "oidc": {
     "heading": "Logowanie jednokrotne",
@@ -211,7 +219,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "Ogólne"
+        "title": "Ogólne",
+        "description": ""
       },
       "ai": {
         "title": "Funkcje AI",
@@ -226,20 +235,24 @@
         "description": "Logowanie bez hasła przez WebAuthn. Ustawienie RP ID włącza tę funkcję."
       },
       "features": {
-        "title": "Funkcje"
+        "title": "Funkcje",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Poczta wychodząca do resetowania hasła, weryfikacji e-mail itp."
       },
       "security": {
-        "title": "Bezpieczeństwo"
+        "title": "Bezpieczeństwo",
+        "description": ""
       },
       "legal": {
-        "title": "Strony prawne"
+        "title": "Strony prawne",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Wdrożenie"
+        "title": "SEO / Wdrożenie",
+        "description": ""
       }
     },
     "appSettingsHeading": "Ustawienia aplikacji",
@@ -284,6 +297,10 @@
     "usedBy": "Użyte przez {{email}}",
     "copyLink": "Kopiuj link",
     "copied": "Skopiowano!",
-    "expiresOn": "wygasa {{date}}"
+    "expiresOn": "wygasa {{date}}",
+    "usersHeading_one": "Użytkownicy ({{count}})",
+    "usersHeading_other": "Użytkownicy ({{count}})",
+    "usersHeading_few": "Użytkownicy ({{count}})",
+    "usersHeading_many": "Użytkownicy ({{count}})"
   }
 }

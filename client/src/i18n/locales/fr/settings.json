@@ -45,7 +45,9 @@
   "savedFoods": {
     "heading": "Aliments enregistrés",
     "description": "Puces d'ajout rapide sur le tableau de bord. {{count}} enregistré(s).",
-    "manage": "Gérer les aliments enregistrés"
+    "manage": "Gérer les aliments enregistrés",
+    "description_one": "Puces d'ajout rapide sur le tableau de bord. {{count}} enregistré(s).",
+    "description_other": "Puces d'ajout rapide sur le tableau de bord. {{count}} enregistré(s)."
   },
   "ai": {
     "heading": "Paramètres IA",
@@ -125,7 +127,9 @@
     "registerFailed": "Échec de l'enregistrement de la clé d'accès",
     "removed": "Clé d'accès retirée",
     "removeFailed": "Échec du retrait de la clé d'accès",
-    "renameFailed": "Échec du renommage"
+    "renameFailed": "Échec du renommage",
+    "countUsed_one": "{{count}} clé(s) d'accès sur 10 utilisées.",
+    "countUsed_other": "{{count}} clé(s) d'accès sur 10 utilisées."
   },
   "oidc": {
     "heading": "Authentification unique",
@@ -211,7 +215,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "Général"
+        "title": "Général",
+        "description": ""
       },
       "ai": {
         "title": "Fonctionnalités IA",
@@ -226,20 +231,24 @@
         "description": "Connexion sans mot de passe via WebAuthn. Définir l'ID RP active la fonctionnalité."
       },
       "features": {
-        "title": "Fonctionnalités"
+        "title": "Fonctionnalités",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Courrier sortant pour la réinitialisation du mot de passe, la vérification de l'e-mail, etc."
       },
       "security": {
-        "title": "Sécurité"
+        "title": "Sécurité",
+        "description": ""
       },
       "legal": {
-        "title": "Pages légales"
+        "title": "Pages légales",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Déploiement"
+        "title": "SEO / Déploiement",
+        "description": ""
       }
     },
     "appSettingsHeading": "Paramètres de l'application",
@@ -284,6 +293,8 @@
     "usedBy": "Utilisé par {{email}}",
     "copyLink": "Copier le lien",
     "copied": "Copié !",
-    "expiresOn": "expire le {{date}}"
+    "expiresOn": "expire le {{date}}",
+    "usersHeading_one": "Utilisateurs ({{count}})",
+    "usersHeading_other": "Utilisateurs ({{count}})"
   }
 }

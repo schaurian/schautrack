@@ -45,7 +45,9 @@
   "savedFoods": {
     "heading": "Cibi salvati",
     "description": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
-    "manage": "Gestisci cibi salvati"
+    "manage": "Gestisci cibi salvati",
+    "description_one": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati.",
+    "description_other": "Pillole di aggiunta rapida nella dashboard. {{count}} salvati."
   },
   "ai": {
     "heading": "Impostazioni AI",
@@ -125,7 +127,9 @@
     "registerFailed": "Registrazione della passkey non riuscita",
     "removed": "Passkey rimossa",
     "removeFailed": "Rimozione della passkey non riuscita",
-    "renameFailed": "Rinomina non riuscita"
+    "renameFailed": "Rinomina non riuscita",
+    "countUsed_one": "{{count}} di 10 passkey usate.",
+    "countUsed_other": "{{count}} di 10 passkey usate."
   },
   "oidc": {
     "heading": "Single Sign-On",
@@ -211,7 +215,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "Generale"
+        "title": "Generale",
+        "description": ""
       },
       "ai": {
         "title": "Funzioni AI",
@@ -226,20 +231,24 @@
         "description": "Accesso senza password WebAuthn. Impostare l'RP ID attiva la funzione."
       },
       "features": {
-        "title": "Funzioni"
+        "title": "Funzioni",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Posta in uscita per reset password, verifica email, ecc."
       },
       "security": {
-        "title": "Sicurezza"
+        "title": "Sicurezza",
+        "description": ""
       },
       "legal": {
-        "title": "Pagine legali"
+        "title": "Pagine legali",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Distribuzione"
+        "title": "SEO / Distribuzione",
+        "description": ""
       }
     },
     "appSettingsHeading": "Impostazioni applicazione",
@@ -284,6 +293,8 @@
     "usedBy": "Usato da {{email}}",
     "copyLink": "Copia link",
     "copied": "Copiato!",
-    "expiresOn": "scade il {{date}}"
+    "expiresOn": "scade il {{date}}",
+    "usersHeading_one": "Utenti ({{count}})",
+    "usersHeading_other": "Utenti ({{count}})"
   }
 }

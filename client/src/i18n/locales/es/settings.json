@@ -45,7 +45,9 @@
   "savedFoods": {
     "heading": "Alimentos guardados",
     "description": "Etiquetas de acceso rápido en el panel. {{count}} guardados.",
-    "manage": "Gestionar alimentos guardados"
+    "manage": "Gestionar alimentos guardados",
+    "description_one": "Etiquetas de acceso rápido en el panel. {{count}} guardados.",
+    "description_other": "Etiquetas de acceso rápido en el panel. {{count}} guardados."
   },
   "ai": {
     "heading": "Configuración de IA",
@@ -125,7 +127,9 @@
     "registerFailed": "Error al registrar la clave de acceso",
     "removed": "Clave de acceso eliminada",
     "removeFailed": "Error al eliminar la clave de acceso",
-    "renameFailed": "Error al renombrar"
+    "renameFailed": "Error al renombrar",
+    "countUsed_one": "{{count}} de 10 claves de acceso usadas.",
+    "countUsed_other": "{{count}} de 10 claves de acceso usadas."
   },
   "oidc": {
     "heading": "Inicio de sesión único",
@@ -211,7 +215,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "General"
+        "title": "General",
+        "description": ""
       },
       "ai": {
         "title": "Funciones de IA",
@@ -226,20 +231,24 @@
         "description": "Inicio de sesión sin contraseña mediante WebAuthn. Configurar el RP ID activa esta función."
       },
       "features": {
-        "title": "Funciones"
+        "title": "Funciones",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Correo saliente para restablecimiento de contraseña, verificación de correo electrónico, etc."
       },
       "security": {
-        "title": "Seguridad"
+        "title": "Seguridad",
+        "description": ""
       },
       "legal": {
-        "title": "Páginas legales"
+        "title": "Páginas legales",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Despliegue"
+        "title": "SEO / Despliegue",
+        "description": ""
       }
     },
     "appSettingsHeading": "Configuración de la aplicación",
@@ -284,6 +293,8 @@
     "usedBy": "Usado por {{email}}",
     "copyLink": "Copiar enlace",
     "copied": "¡Copiado!",
-    "expiresOn": "expira el {{date}}"
+    "expiresOn": "expira el {{date}}",
+    "usersHeading_one": "Usuarios ({{count}})",
+    "usersHeading_other": "Usuarios ({{count}})"
   }
 }

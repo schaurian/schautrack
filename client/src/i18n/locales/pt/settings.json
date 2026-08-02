@@ -45,7 +45,9 @@
   "savedFoods": {
     "heading": "Alimentos guardados",
     "description": "Etiquetas de adição rápida no painel. {{count}} guardado(s).",
-    "manage": "Gerir alimentos guardados"
+    "manage": "Gerir alimentos guardados",
+    "description_one": "Etiquetas de adição rápida no painel. {{count}} guardado(s).",
+    "description_other": "Etiquetas de adição rápida no painel. {{count}} guardado(s)."
   },
   "ai": {
     "heading": "Definições de IA",
@@ -125,7 +127,9 @@
     "registerFailed": "Falha ao registar chave de acesso",
     "removed": "Chave de acesso removida",
     "removeFailed": "Falha ao remover chave de acesso",
-    "renameFailed": "Falha ao renomear"
+    "renameFailed": "Falha ao renomear",
+    "countUsed_one": "{{count}} de 10 chaves de acesso usadas.",
+    "countUsed_other": "{{count}} de 10 chaves de acesso usadas."
   },
   "oidc": {
     "heading": "Início de Sessão Único",
@@ -211,7 +215,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "Geral"
+        "title": "Geral",
+        "description": ""
       },
       "ai": {
         "title": "Funcionalidades de IA",
@@ -226,20 +231,24 @@
         "description": "Início de sessão sem palavra-passe via WebAuthn. Definir o RP ID ativa a funcionalidade."
       },
       "features": {
-        "title": "Funcionalidades"
+        "title": "Funcionalidades",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Correio de saída para reposição de palavra-passe, verificação de email, etc."
       },
       "security": {
-        "title": "Segurança"
+        "title": "Segurança",
+        "description": ""
       },
       "legal": {
-        "title": "Páginas Legais"
+        "title": "Páginas Legais",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Implementação"
+        "title": "SEO / Implementação",
+        "description": ""
       }
     },
     "appSettingsHeading": "Definições da Aplicação",
@@ -284,6 +293,8 @@
     "usedBy": "Usado por {{email}}",
     "copyLink": "Copiar Link",
     "copied": "Copiado!",
-    "expiresOn": "expira em {{date}}"
+    "expiresOn": "expira em {{date}}",
+    "usersHeading_one": "Utilizadores ({{count}})",
+    "usersHeading_other": "Utilizadores ({{count}})"
   }
 }

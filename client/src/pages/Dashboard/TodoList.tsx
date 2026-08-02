@@ -10,8 +10,11 @@ import type { Todo, TodoDay } from '@/types';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
+// `t` arrives as a parameter, so static extraction cannot see that it is bound
+// to the `dashboard` namespace — the explicit `dashboard:` prefix keeps
+// `npm run i18n:extract` from filing these under the default `common` catalog.
 function getDayLabels(t: TFunction): string[] {
-  return DAY_KEYS.map((k) => t(`todos.days.${k}`));
+  return DAY_KEYS.map((k) => t(`dashboard:todos.days.${k}`));
 }
 
 function formatTimeDigits(digits: string): string {

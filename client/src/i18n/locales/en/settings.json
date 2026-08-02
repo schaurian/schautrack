@@ -2,288 +2,299 @@
   "account": {
     "logout": "Logout"
   },
-  "i18n": {
-    "language": "Language",
-    "automatic": "Automatic (browser language)"
-  },
-  "status": {
-    "saving": "Saving...",
-    "saved": "Saved"
-  },
-  "macro": {
-    "heading": "Nutrition Goals",
-    "calories": "Calories",
-    "goalPlaceholder": "Goal",
-    "modeLimit": "Limit",
-    "modeTarget": "Target",
-    "autoCalculate": "Auto-calculate calories",
-    "threshold": "Threshold",
-    "unitKcal": "kcal",
-    "unitGram": "g"
-  },
-  "preferences": {
-    "heading": "Internationalization",
-    "weightUnit": {
-      "label": "Weight Unit",
-      "kg": "Kilograms (kg)",
-      "lb": "Pounds (lb)"
+  "admin": {
+    "appSettingsHeading": "Application Settings",
+    "boolFalse": "false",
+    "boolTrue": "true",
+    "confirmPhraseGeneric": "CONFIRM",
+    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
+    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
+    "copied": "Copied!",
+    "copyLink": "Copy Link",
+    "createInvite": "Create Invite",
+    "createInviteFailed": "Failed to create invite",
+    "dangerousBadge": "⚠ Dangerous",
+    "dangerousPrompt": "Changing {{envVar}} has irreversible consequences:\n\n{{help}}\n\nType {{phrase}} to confirm.",
+    "delete": "Delete",
+    "deleteInviteFailed": "Failed to delete invite",
+    "deleteUserConfirm": "Delete this user?",
+    "deleteUserFailed": "Failed to delete user",
+    "emailOptionalPlaceholder": "Email (optional)",
+    "envBadge": "ENV",
+    "expiresOn": "expires {{date}}",
+    "inviteCodesHeading": "Invite Codes",
+    "loadingMore": "Loading more…",
+    "noChanges": "No changes to save.",
+    "noUsersFound": "No users found",
+    "registrationDefault": "(default: open)",
+    "registrationDisabled": "false — registration disabled",
+    "registrationInvite": "invite — requires an invite code",
+    "registrationOpen": "open — anyone can register",
+    "replace": "Replace",
+    "restartRequiredBadge": "🔄 Restart required",
+    "restartRequiredTitle": "Takes effect on next server restart",
+    "save": "Save",
+    "saveCancelled": "Save cancelled.",
+    "saveSettingsFailed": "Failed to save settings",
+    "searchPlaceholder": "Search by email...",
+    "secretPlaceholder": "Enter new value",
+    "secretStored": "•••••••• (stored)",
+    "sections": {
+      "ai": {
+        "description": "Photo-based calorie estimation. Provider keys set here are the global fallback when users don't have their own.",
+        "title": "AI Features"
+      },
+      "features": {
+        "description": "",
+        "title": "Features"
+      },
+      "general": {
+        "description": "",
+        "title": "General"
+      },
+      "legal": {
+        "description": "",
+        "title": "Legal Pages"
+      },
+      "oidc": {
+        "description": "Single sign-on via an OpenID Connect provider. Set issuer + client id + client secret to enable.",
+        "title": "OIDC / SSO"
+      },
+      "passkeys": {
+        "description": "WebAuthn passwordless login. Setting RP ID enables the feature.",
+        "title": "Passkeys"
+      },
+      "security": {
+        "description": "",
+        "title": "Security"
+      },
+      "seo": {
+        "description": "",
+        "title": "SEO / Deployment"
+      },
+      "smtp": {
+        "description": "Outgoing mail for password reset, email verification, etc.",
+        "title": "SMTP"
+      }
     },
-    "timezone": {
-      "label": "Timezone"
-    }
-  },
-  "todo": {
-    "heading": "Todos",
-    "description": "Manage your todos on the dashboard.",
-    "toggleFailed": "Failed to update setting"
-  },
-  "note": {
-    "heading": "Daily Notes",
-    "description": "Write a daily note on the dashboard for any date.",
-    "toggleFailed": "Failed to update setting"
-  },
-  "savedFoods": {
-    "heading": "Saved foods",
-    "description": "Quick-add chips on the dashboard. {{count}} saved.",
-    "manage": "Manage saved foods"
+    "settingsSaved": "Settings saved.",
+    "unsavedBadge": "• unsaved",
+    "unset": "(unset)",
+    "unverified": "Unverified",
+    "usedBy": "Used by {{email}}",
+    "usersHeading": "Users ({{count}})",
+    "usersHeading_one": "Users ({{count}})",
+    "usersHeading_other": "Users ({{count}})",
+    "verified": "Verified"
   },
   "ai": {
-    "heading": "AI Settings",
-    "provider": "Provider",
-    "providerDefault": "Default",
-    "modelLabel": "Model (optional)",
-    "modelPlaceholder": "e.g. gpt-4o",
     "apiKeyLabel": "API Key",
-    "apiKeyPlaceholder": "Enter API key",
     "apiKeyMaskedPlaceholder": "••••{{last4}}",
-    "globalKeyNotice": "A global API key is configured. AI features work without setting your own key.",
+    "apiKeyPlaceholder": "Enter API key",
     "clearAll": "Clear All",
+    "clearFailed": "Failed to clear AI settings",
+    "globalKeyNotice": "A global API key is configured. AI features work without setting your own key.",
+    "heading": "AI Settings",
     "keySaved": "API key saved",
     "keySaveFailed": "Failed to save API key",
-    "settingsCleared": "AI settings cleared",
-    "clearFailed": "Failed to clear AI settings"
+    "modelLabel": "Model (optional)",
+    "modelPlaceholder": "e.g. gpt-4o",
+    "provider": "Provider",
+    "providerDefault": "Default",
+    "settingsCleared": "AI settings cleared"
+  },
+  "confirmImport": {
+    "cancel": "Cancel",
+    "descriptionPrefix": "Importing",
+    "descriptionSuffix": "will permanently delete all of your existing entries and replace them with the contents of this file. This cannot be undone.",
+    "replaceAll": "Replace all entries",
+    "title": "Replace all entries?"
+  },
+  "danger": {
+    "deleteAccount": "Delete Account",
+    "description": "Permanently delete your account and all data.",
+    "heading": "Danger Zone"
+  },
+  "data": {
+    "chooseFile": "Choose a file…",
+    "exportButton": "Export JSON",
+    "exportDescription": "Download all your entries as a JSON backup.",
+    "exportLabel": "Export",
+    "heading": "Data",
+    "importButton": "Import",
+    "importDescription": "Restore from a JSON backup. This replaces all existing entries.",
+    "importFailed": "Import failed.",
+    "importLabel": "Import",
+    "importSuccess": "Data imported successfully."
   },
   "email": {
-    "heading": "Change Email",
     "current": "Current: {{email}}",
+    "heading": "Change Email",
     "newEmailLabel": "New Email",
-    "submit": "Send Verification Code",
-    "requestFailed": "Failed to request email change."
+    "requestFailed": "Failed to request email change.",
+    "submit": "Send Verification Code"
   },
-  "password": {
-    "heading": "Change Password",
-    "newLabel": "New Password",
-    "confirmLabel": "Confirm Password",
-    "submit": "Update Password",
-    "mismatch": "New passwords do not match.",
-    "updated": "Password updated.",
-    "updatedToast": "Password updated",
-    "failed": "Failed."
+  "footer": {
+    "bugReport": "Spotted a bug or missing a feature?",
+    "openIssue": "Open an issue on GitHub"
   },
-  "twofa": {
-    "heading": "Two-Factor Authentication",
-    "setupFailed": "Setup failed.",
-    "enabledWithCodes": "2FA enabled. Save your backup codes below.",
-    "enabledSuccess": "2FA enabled successfully.",
-    "invalidCode": "Invalid code.",
-    "enableFailed": "Failed to enable 2FA.",
-    "disabled": "2FA disabled.",
-    "disableFailed": "Failed to disable 2FA.",
-    "regenerated": "New backup codes generated. Save them now.",
-    "regenerateFailed": "Failed to regenerate codes.",
-    "backupCodesTitle": "Backup Codes",
-    "backupCodesDescription": "Save these codes somewhere safe. Each code can only be used once to sign in if you lose your authenticator.",
-    "copyAll": "Copy All",
-    "copied": "Copied!",
-    "download": "Download",
-    "done": "Done",
-    "enabledNotice": "2FA is enabled on your account.",
-    "disableButton": "Disable 2FA",
-    "regenerating": "Regenerating...",
-    "regenerateBackupCodes": "Regenerate backup codes",
-    "scanQr": "Scan this QR code with your authenticator app:",
-    "qrAlt": "2FA QR Code",
-    "copy": "Copy",
-    "verificationCodeLabel": "Verification Code",
-    "verificationCodePlaceholder": "Enter 6-digit code",
+  "i18n": {
+    "automatic": "Automatic (browser language)",
+    "language": "Language"
+  },
+  "link": {
+    "accept": "Accept",
     "cancel": "Cancel",
-    "activate": "Activate",
-    "setupButton": "Setup 2FA"
-  },
-  "passkey": {
-    "heading": "Passkeys",
-    "defaultName": "Passkey",
-    "empty": "No passkeys registered. Add one for passwordless login.",
-    "usedOn": "Used {{date}}",
-    "neverUsed": "Never used",
+    "decline": "Decline",
+    "heading": "Account Links",
+    "incoming": "Incoming",
+    "labelUpdateFailed": "Failed to update label",
+    "linked": "Linked",
+    "pending": "Pending",
     "remove": "Remove",
-    "renameTitle": "Click to rename",
-    "namePlaceholder": "Passkey name (e.g., Phone, Laptop)",
-    "add": "Add Passkey",
-    "countUsed": "{{count}} of 10 passkeys used.",
-    "registered": "Passkey registered",
-    "registerFailed": "Passkey registration failed",
-    "removed": "Passkey removed",
-    "removeFailed": "Failed to remove passkey",
-    "renameFailed": "Failed to rename"
+    "removeFailed": "Failed to remove link",
+    "requestFailed": "Failed to send link request",
+    "requestLabel": "Link by email",
+    "respondFailed": "Failed to respond to link",
+    "sendRequest": "Send Request",
+    "share": {
+      "notes": "Daily notes",
+      "nutrition": "Nutrition",
+      "readOnlyNote": "You share with them (read-only):",
+      "todos": "Todos",
+      "updateFailed": "Failed to update sharing",
+      "weight": "Weight"
+    }
+  },
+  "macro": {
+    "autoCalculate": "Auto-calculate calories",
+    "calories": "Calories",
+    "goalPlaceholder": "Goal",
+    "heading": "Nutrition Goals",
+    "modeLimit": "Limit",
+    "modeTarget": "Target",
+    "threshold": "Threshold",
+    "unitGram": "g",
+    "unitKcal": "kcal"
+  },
+  "note": {
+    "description": "Write a daily note on the dashboard for any date.",
+    "heading": "Daily Notes",
+    "toggleFailed": "Failed to update setting"
   },
   "oidc": {
-    "heading": "Single Sign-On",
-    "unlink": "Unlink",
-    "link": "Link",
-    "unlinkConfirm": "Unlink {{label}}?",
     "accountNotFound": "Account not found",
-    "unlinked": "{{label}} unlinked",
-    "unlinkFailed": "Failed to unlink",
-    "genericError": "Something went wrong.",
     "errors": {
       "oidc_already_linked": "That sign-in provider account is already linked to another user.",
       "oidc_email_unverified": "Your sign-in provider did not confirm your email. Verify it there, then try again.",
       "oidc_link_failed": "Could not link your sign-in provider. Please try again.",
       "oidc_step_up_mismatch": "That sign-in account is not linked to your user. Sign in with the linked account to confirm."
     },
+    "genericError": "Something went wrong.",
+    "heading": "Single Sign-On",
+    "link": "Link",
     "success": {
       "oidc_linked": "Sign-in provider linked to your account.",
       "stepped_up": "Re-authenticated. You can try your action again now."
-    }
+    },
+    "unlink": "Unlink",
+    "unlinkConfirm": "Unlink {{label}}?",
+    "unlinked": "{{label}} unlinked",
+    "unlinkFailed": "Failed to unlink"
   },
-  "link": {
-    "heading": "Account Links",
-    "incoming": "Incoming",
-    "pending": "Pending",
-    "linked": "Linked",
-    "accept": "Accept",
-    "decline": "Decline",
-    "cancel": "Cancel",
+  "passkey": {
+    "add": "Add Passkey",
+    "countUsed": "{{count}} of 10 passkeys used.",
+    "countUsed_one": "{{count}} of 10 passkeys used.",
+    "countUsed_other": "{{count}} of 10 passkeys used.",
+    "defaultName": "Passkey",
+    "empty": "No passkeys registered. Add one for passwordless login.",
+    "heading": "Passkeys",
+    "namePlaceholder": "Passkey name (e.g., Phone, Laptop)",
+    "neverUsed": "Never used",
+    "registered": "Passkey registered",
+    "registerFailed": "Passkey registration failed",
     "remove": "Remove",
-    "requestLabel": "Link by email",
-    "sendRequest": "Send Request",
-    "requestFailed": "Failed to send link request",
-    "respondFailed": "Failed to respond to link",
-    "removeFailed": "Failed to remove link",
-    "labelUpdateFailed": "Failed to update label",
-    "share": {
-      "readOnlyNote": "You share with them (read-only):",
-      "nutrition": "Nutrition",
-      "weight": "Weight",
-      "todos": "Todos",
-      "notes": "Daily notes",
-      "updateFailed": "Failed to update sharing"
+    "removed": "Passkey removed",
+    "removeFailed": "Failed to remove passkey",
+    "renameFailed": "Failed to rename",
+    "renameTitle": "Click to rename",
+    "usedOn": "Used {{date}}"
+  },
+  "password": {
+    "confirmLabel": "Confirm Password",
+    "failed": "Failed.",
+    "heading": "Change Password",
+    "mismatch": "New passwords do not match.",
+    "newLabel": "New Password",
+    "submit": "Update Password",
+    "updated": "Password updated.",
+    "updatedToast": "Password updated"
+  },
+  "preferences": {
+    "heading": "Internationalization",
+    "timezone": {
+      "label": "Timezone"
+    },
+    "weightUnit": {
+      "kg": "Kilograms (kg)",
+      "label": "Weight Unit",
+      "lb": "Pounds (lb)"
     }
-  },
-  "data": {
-    "heading": "Data",
-    "exportLabel": "Export",
-    "exportDescription": "Download all your entries as a JSON backup.",
-    "exportButton": "Export JSON",
-    "importLabel": "Import",
-    "importDescription": "Restore from a JSON backup. This replaces all existing entries.",
-    "chooseFile": "Choose a file…",
-    "importButton": "Import",
-    "importSuccess": "Data imported successfully.",
-    "importFailed": "Import failed."
-  },
-  "confirmImport": {
-    "title": "Replace all entries?",
-    "descriptionPrefix": "Importing",
-    "descriptionSuffix": "will permanently delete all of your existing entries and replace them with the contents of this file. This cannot be undone.",
-    "replaceAll": "Replace all entries",
-    "cancel": "Cancel"
-  },
-  "danger": {
-    "heading": "Danger Zone",
-    "description": "Permanently delete your account and all data.",
-    "deleteAccount": "Delete Account"
-  },
-  "footer": {
-    "bugReport": "Spotted a bug or missing a feature?",
-    "openIssue": "Open an issue on GitHub"
   },
   "reportIssue": {
-    "title": "Report an Issue",
+    "acknowledgement": "I understand I'm on an older version ({{version}}) and my issue may already be reported or fixed — I've checked the open issues and still want to report it.",
     "description": "Found a bug or missing a feature? This opens a pre-filled issue on the project tracker.",
-    "yourVersion": "Your version: ",
     "latestAvailable": " — v{{latest}} is available",
     "olderVersion": "You're on an older version. Please <issues>browse the open issues</issues> first — your issue may already be reported or fixed.",
-    "acknowledgement": "I understand I'm on an older version ({{version}}) and my issue may already be reported or fixed — I've checked the open issues and still want to report it.",
-    "submit": "Report an Issue"
+    "submit": "Report an Issue",
+    "title": "Report an Issue",
+    "yourVersion": "Your version: "
   },
-  "admin": {
-    "sections": {
-      "general": {
-        "title": "General"
-      },
-      "ai": {
-        "title": "AI Features",
-        "description": "Photo-based calorie estimation. Provider keys set here are the global fallback when users don't have their own."
-      },
-      "oidc": {
-        "title": "OIDC / SSO",
-        "description": "Single sign-on via an OpenID Connect provider. Set issuer + client id + client secret to enable."
-      },
-      "passkeys": {
-        "title": "Passkeys",
-        "description": "WebAuthn passwordless login. Setting RP ID enables the feature."
-      },
-      "features": {
-        "title": "Features"
-      },
-      "smtp": {
-        "title": "SMTP",
-        "description": "Outgoing mail for password reset, email verification, etc."
-      },
-      "security": {
-        "title": "Security"
-      },
-      "legal": {
-        "title": "Legal Pages"
-      },
-      "seo": {
-        "title": "SEO / Deployment"
-      }
-    },
-    "appSettingsHeading": "Application Settings",
-    "save": "Save",
-    "deleteUserConfirm": "Delete this user?",
-    "deleteUserFailed": "Failed to delete user",
-    "usersHeading": "Users ({{count}})",
-    "searchPlaceholder": "Search by email...",
-    "verified": "Verified",
-    "unverified": "Unverified",
-    "delete": "Delete",
-    "noUsersFound": "No users found",
-    "loadingMore": "Loading more…",
-    "envBadge": "ENV",
-    "restartRequiredBadge": "🔄 Restart required",
-    "restartRequiredTitle": "Takes effect on next server restart",
-    "dangerousBadge": "⚠ Dangerous",
-    "unsavedBadge": "• unsaved",
-    "registrationDefault": "(default: open)",
-    "registrationOpen": "open — anyone can register",
-    "registrationInvite": "invite — requires an invite code",
-    "registrationDisabled": "false — registration disabled",
-    "unset": "(unset)",
-    "boolTrue": "true",
-    "boolFalse": "false",
-    "secretStored": "•••••••• (stored)",
-    "replace": "Replace",
-    "secretPlaceholder": "Enter new value",
-    "confirmPhraseInvalidatePasskeys": "INVALIDATE-PASSKEYS",
-    "confirmPhraseOrphanAiKeys": "ORPHAN-AI-KEYS",
-    "confirmPhraseGeneric": "CONFIRM",
-    "dangerousPrompt": "Changing {{envVar}} has irreversible consequences:\n\n{{help}}\n\nType {{phrase}} to confirm.",
-    "saveCancelled": "Save cancelled.",
-    "noChanges": "No changes to save.",
-    "settingsSaved": "Settings saved.",
-    "saveSettingsFailed": "Failed to save settings",
-    "inviteCodesHeading": "Invite Codes",
-    "emailOptionalPlaceholder": "Email (optional)",
-    "createInvite": "Create Invite",
-    "createInviteFailed": "Failed to create invite",
-    "deleteInviteFailed": "Failed to delete invite",
-    "usedBy": "Used by {{email}}",
-    "copyLink": "Copy Link",
+  "savedFoods": {
+    "description": "Quick-add chips on the dashboard. {{count}} saved.",
+    "description_one": "Quick-add chips on the dashboard. {{count}} saved.",
+    "description_other": "Quick-add chips on the dashboard. {{count}} saved.",
+    "heading": "Saved foods",
+    "manage": "Manage saved foods"
+  },
+  "status": {
+    "saved": "Saved",
+    "saving": "Saving..."
+  },
+  "todo": {
+    "description": "Manage your todos on the dashboard.",
+    "heading": "Todos",
+    "toggleFailed": "Failed to update setting"
+  },
+  "twofa": {
+    "activate": "Activate",
+    "backupCodesDescription": "Save these codes somewhere safe. Each code can only be used once to sign in if you lose your authenticator.",
+    "backupCodesTitle": "Backup Codes",
+    "cancel": "Cancel",
     "copied": "Copied!",
-    "expiresOn": "expires {{date}}"
+    "copy": "Copy",
+    "copyAll": "Copy All",
+    "disableButton": "Disable 2FA",
+    "disabled": "2FA disabled.",
+    "disableFailed": "Failed to disable 2FA.",
+    "done": "Done",
+    "download": "Download",
+    "enabledNotice": "2FA is enabled on your account.",
+    "enabledSuccess": "2FA enabled successfully.",
+    "enabledWithCodes": "2FA enabled. Save your backup codes below.",
+    "enableFailed": "Failed to enable 2FA.",
+    "heading": "Two-Factor Authentication",
+    "invalidCode": "Invalid code.",
+    "qrAlt": "2FA QR Code",
+    "regenerateBackupCodes": "Regenerate backup codes",
+    "regenerated": "New backup codes generated. Save them now.",
+    "regenerateFailed": "Failed to regenerate codes.",
+    "regenerating": "Regenerating...",
+    "scanQr": "Scan this QR code with your authenticator app:",
+    "setupButton": "Setup 2FA",
+    "setupFailed": "Setup failed.",
+    "verificationCodeLabel": "Verification Code",
+    "verificationCodePlaceholder": "Enter 6-digit code"
   }
 }

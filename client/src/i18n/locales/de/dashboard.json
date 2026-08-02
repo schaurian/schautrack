@@ -262,7 +262,9 @@
     "toastUpdateFailed": "Aktualisierung fehlgeschlagen",
     "toastDeleted": "{{name}} gelöscht",
     "toastRestoreFailed": "Wiederherstellung fehlgeschlagen",
-    "toastDeleteFailed": "Löschen fehlgeschlagen"
+    "toastDeleteFailed": "Löschen fehlgeschlagen",
+    "logQuantityButton_one": "{{count}}× tracken",
+    "logQuantityButton_other": "{{count}}× tracken"
   },
   "store": {
     "you": "Du"

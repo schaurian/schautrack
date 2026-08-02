@@ -45,7 +45,9 @@
   "savedFoods": {
     "heading": "Gespeicherte Lebensmittel",
     "description": "Schnellzugriff-Chips im Dashboard. {{count}} gespeichert.",
-    "manage": "Gespeicherte Lebensmittel verwalten"
+    "manage": "Gespeicherte Lebensmittel verwalten",
+    "description_one": "Schnellzugriff-Chips im Dashboard. {{count}} gespeichert.",
+    "description_other": "Schnellzugriff-Chips im Dashboard. {{count}} gespeichert."
   },
   "ai": {
     "heading": "KI-Einstellungen",
@@ -125,7 +127,9 @@
     "registerFailed": "Passkey-Registrierung fehlgeschlagen",
     "removed": "Passkey entfernt",
     "removeFailed": "Passkey konnte nicht entfernt werden",
-    "renameFailed": "Umbenennen fehlgeschlagen"
+    "renameFailed": "Umbenennen fehlgeschlagen",
+    "countUsed_one": "{{count}} von 10 Passkeys verwendet.",
+    "countUsed_other": "{{count}} von 10 Passkeys verwendet."
   },
   "oidc": {
     "heading": "Single Sign-On",
@@ -202,7 +206,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "Allgemein"
+        "title": "Allgemein",
+        "description": ""
       },
       "ai": {
         "title": "KI-Funktionen",
@@ -217,20 +222,24 @@
         "description": "Passwortlose Anmeldung per WebAuthn. Das Festlegen der RP-ID aktiviert die Funktion."
       },
       "features": {
-        "title": "Funktionen"
+        "title": "Funktionen",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Ausgehende E-Mails für Passwort-Reset, E-Mail-Bestätigung usw."
       },
       "security": {
-        "title": "Sicherheit"
+        "title": "Sicherheit",
+        "description": ""
       },
       "legal": {
-        "title": "Rechtliche Seiten"
+        "title": "Rechtliche Seiten",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Deployment"
+        "title": "SEO / Deployment",
+        "description": ""
       }
     },
     "appSettingsHeading": "Anwendungseinstellungen",
@@ -275,7 +284,9 @@
     "usedBy": "Verwendet von {{email}}",
     "copyLink": "Link kopieren",
     "copied": "Kopiert!",
-    "expiresOn": "läuft ab am {{date}}"
+    "expiresOn": "läuft ab am {{date}}",
+    "usersHeading_one": "Nutzer ({{count}})",
+    "usersHeading_other": "Nutzer ({{count}})"
   },
   "reportIssue": {
     "title": "Ein Issue melden",

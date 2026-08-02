@@ -272,7 +272,11 @@
     "toastUpdateFailed": "Nie udało się zaktualizować",
     "toastDeleted": "Usunięto {{name}}",
     "toastRestoreFailed": "Przywracanie nie powiodło się",
-    "toastDeleteFailed": "Nie udało się usunąć"
+    "toastDeleteFailed": "Nie udało się usunąć",
+    "logQuantityButton_one": "Zapisz {{count}}×",
+    "logQuantityButton_other": "Zapisz {{count}}×",
+    "logQuantityButton_few": "Zapisz {{count}}×",
+    "logQuantityButton_many": "Zapisz {{count}}×"
   },
   "store": {
     "you": "Ty"

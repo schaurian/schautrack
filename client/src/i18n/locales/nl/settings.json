@@ -45,7 +45,9 @@
   "savedFoods": {
     "heading": "Opgeslagen eten",
     "description": "Snel-toevoegen-knopjes op het dashboard. {{count}} opgeslagen.",
-    "manage": "Opgeslagen eten beheren"
+    "manage": "Opgeslagen eten beheren",
+    "description_one": "Snel-toevoegen-knopjes op het dashboard. {{count}} opgeslagen.",
+    "description_other": "Snel-toevoegen-knopjes op het dashboard. {{count}} opgeslagen."
   },
   "ai": {
     "heading": "AI-instellingen",
@@ -125,7 +127,9 @@
     "registerFailed": "Registreren van passkey mislukt",
     "removed": "Passkey verwijderd",
     "removeFailed": "Verwijderen van passkey mislukt",
-    "renameFailed": "Hernoemen mislukt"
+    "renameFailed": "Hernoemen mislukt",
+    "countUsed_one": "{{count}} van 10 passkeys gebruikt.",
+    "countUsed_other": "{{count}} van 10 passkeys gebruikt."
   },
   "oidc": {
     "heading": "Single Sign-On",
@@ -211,7 +215,8 @@
   "admin": {
     "sections": {
       "general": {
-        "title": "Algemeen"
+        "title": "Algemeen",
+        "description": ""
       },
       "ai": {
         "title": "AI-functies",
@@ -226,20 +231,24 @@
         "description": "WebAuthn-inloggen zonder wachtwoord. Het instellen van RP ID activeert deze functie."
       },
       "features": {
-        "title": "Functies"
+        "title": "Functies",
+        "description": ""
       },
       "smtp": {
         "title": "SMTP",
         "description": "Uitgaande e-mail voor wachtwoordreset, e-mailverificatie, enz."
       },
       "security": {
-        "title": "Beveiliging"
+        "title": "Beveiliging",
+        "description": ""
       },
       "legal": {
-        "title": "Juridische pagina's"
+        "title": "Juridische pagina's",
+        "description": ""
       },
       "seo": {
-        "title": "SEO / Implementatie"
+        "title": "SEO / Implementatie",
+        "description": ""
       }
     },
     "appSettingsHeading": "Applicatie-instellingen",
@@ -284,6 +293,8 @@
     "usedBy": "Gebruikt door {{email}}",
     "copyLink": "Link kopiëren",
     "copied": "Gekopieerd!",
-    "expiresOn": "verloopt op {{date}}"
+    "expiresOn": "verloopt op {{date}}",
+    "usersHeading_one": "Gebruikers ({{count}})",
+    "usersHeading_other": "Gebruikers ({{count}})"
   }
 }
