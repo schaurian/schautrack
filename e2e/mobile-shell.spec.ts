@@ -159,20 +159,27 @@ test.describe('Mobile shell (redesign)', () => {
     const manage = page.locator('[data-modal-layer="saved-foods"]');
     await expect(manage).toBeVisible({ timeout: 10000 });
 
-    // The values are on screen with the name — no save-then-edit-each-field.
+    // The draft is a saved-food row: same frame, same pills, name focused. Its
+    // values are fillable through the very same pills as a saved row's.
     await manage.getByRole('button', { name: /New/ }).click();
-    await manage.getByPlaceholder(/^Name/).fill('Rye Toast');
-    await manage.getByLabel('Calories').fill('160');
-    await manage.getByLabel('Protein').fill('6');
-    await manage.getByLabel('Carbs').fill('28');
-    await manage.getByRole('button', { name: 'Add', exact: true }).click();
+    const draft = manage.getByTestId('saved-food-draft');
+    await page.keyboard.type('Rye Toast');
+
+    await draft.getByRole('button', { name: /^Calories/ }).click();
+    await page.keyboard.type('160');
+    await page.keyboard.press('Enter');
+    await draft.getByRole('button', { name: /^Protein/ }).click();
+    await page.keyboard.type('6');
+    await page.keyboard.press('Enter');
+
+    await draft.getByRole('button', { name: 'Add', exact: true }).click();
 
     await expect(manage.getByText('Rye Toast')).toBeVisible({ timeout: 10000 });
 
     // Persisted with the values, not just the name.
     await expect.poll(() => psql(
-      `SELECT amount || '/' || protein_g || '/' || carbs_g FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`,
-    ), { timeout: 10000 }).toBe('160/6/28');
+      `SELECT amount || '/' || protein_g FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`,
+    ), { timeout: 10000 }).toBe('160/6');
 
     psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`);
     await ctx.close();

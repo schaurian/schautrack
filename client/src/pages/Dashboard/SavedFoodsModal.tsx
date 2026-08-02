@@ -9,6 +9,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
 import { MACRO_LABELS, getEnabledMacros } from '@/lib/macros';
+
+const numOrNull = (v: string | undefined) => {
+  const n = Number((v ?? '').trim());
+  return (v ?? '').trim() === '' || !Number.isFinite(n) ? null : n;
+};
 import { cn } from '@/lib/utils';
 import type { SavedFood } from '@/types';
 
@@ -18,31 +23,6 @@ interface Props {
 }
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring';
-
-const draftInputClass =
-  'bg-muted/50 border border-input rounded-md px-2 py-1 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-
-function DraftField({ label, value, onChange, onKeyDown }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        className={draftInputClass}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="0"
-      />
-    </label>
-  );
-}
 
 export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   const { t } = useTranslation('dashboard');
@@ -87,6 +67,30 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
     ? all.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
     : all;
 
+  // Shaped like a saved food so the row renders it with no special cases.
+  const draftFood: SavedFood = {
+    id: 0,
+    name: draftName,
+    emoji: draftValues.emoji || null,
+    amount: numOrNull(draftValues.amount),
+    macros: {
+      protein: numOrNull(draftValues.protein_g),
+      carbs: numOrNull(draftValues.carbs_g),
+      fat: numOrNull(draftValues.fat_g),
+      fiber: numOrNull(draftValues.fiber_g),
+      sugar: numOrNull(draftValues.sugar_g),
+    },
+    use_count: 0,
+    last_used_at: null,
+  };
+
+  // The row edits by field name; the payload wants amount / <macro>_g.
+  const handleDraftField = (field: Exclude<EditField, null>, value: string) => {
+    if (field === 'name') { setDraftName(value); return; }
+    const key = field === 'amount' || field === 'emoji' ? field : `${field}_g`;
+    setDraftValues((d) => ({ ...d, [key]: value }));
+  };
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['savedFoods'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -112,6 +116,7 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
     for (const [key, raw] of Object.entries(draftValues)) {
       const trimmed = raw.trim();
       if (!trimmed) continue;
+      if (key === 'emoji') { payload.emoji = trimmed; continue; }
       const n = Number(trimmed);
       if (!Number.isFinite(n) || n < 0) {
         addToast('error', t('savedFoods.toastInvalidValue'));
@@ -130,15 +135,6 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
     setSaving(false);
   };
 
-  const handleDraftKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') commitDraft();
-    // Cancel the inline draft on Escape without letting the Dialog catch it and
-    // close the whole modal.
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      cancelDraft();
-    }
-  };
 
   // Above the mobile add sheet (z-[200]): Quick add lives inside it, so Manage
   // is routinely opened from within the sheet and would otherwise render behind
@@ -173,43 +169,19 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
 
         <div className="flex-1 overflow-y-auto p-2">
           {creating && (
-            <div className="rounded-[10px] border border-[#0ea5e9]/40 bg-white/[0.015] mb-1.5 p-3 ring-1 ring-primary/40">
-              <input
-                ref={draftRef}
-                type="text"
-                className={draftInputClass + ' w-full mb-2'}
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                onKeyDown={handleDraftKey}
-                placeholder={t('savedFoods.draftNamePlaceholder')}
-                maxLength={80}
+            <div className="mb-1.5" data-testid="saved-food-draft">
+              <SavedFoodRow
+                food={draftFood}
+                enabledMacros={enabledMacros}
+                caloriesEnabled={caloriesEnabled}
+                onChange={invalidate}
+                draft
+                initialEditing="name"
+                onDraftChange={handleDraftField}
+                onDraftSubmit={commitDraft}
+                onDraftCancel={cancelDraft}
+                saving={saving}
               />
-              {/* Every value the food can carry, visible from the start —
-                  filling them in used to mean saving the name first and then
-                  editing each field one at a time. */}
-              <div className="grid grid-cols-3 gap-2">
-                {caloriesEnabled && (
-                  <DraftField
-                    label={t('entries.caloriesLabel')}
-                    value={draftValues.amount ?? ''}
-                    onChange={(v) => setDraftValues((d) => ({ ...d, amount: v }))}
-                    onKeyDown={handleDraftKey}
-                  />
-                )}
-                {enabledMacros.map((k) => (
-                  <DraftField
-                    key={k}
-                    label={MACRO_LABELS[k as keyof typeof MACRO_LABELS]?.label || k}
-                    value={draftValues[`${k}_g`] ?? ''}
-                    onChange={(v) => setDraftValues((d) => ({ ...d, [`${k}_g`]: v }))}
-                    onKeyDown={handleDraftKey}
-                  />
-                ))}
-              </div>
-              <div className="flex justify-end gap-2 mt-3">
-                <Button size="sm" variant="ghost" onClick={cancelDraft}>{t('savedFoods.cancelButton')}</Button>
-                <Button size="sm" variant="default" onClick={commitDraft} loading={saving}>{t('savedFoods.addButton')}</Button>
-              </div>
             </div>
           )}
 
@@ -246,16 +218,31 @@ interface RowProps {
   enabledMacros: string[];
   caloriesEnabled: boolean;
   onChange: () => void;
+  /**
+   * Draft mode: the row is an unsaved food. It renders exactly like a saved one
+   * — same frame, same pills — so adding looks like what you end up with, and
+   * the pills are fillable before the food exists. Field edits are handed to
+   * the parent instead of being written straight to the server.
+   */
+  draft?: boolean;
+  initialEditing?: EditField;
+  onDraftChange?: (field: Exclude<EditField, null>, value: string) => void;
+  onDraftSubmit?: () => void;
+  onDraftCancel?: () => void;
+  saving?: boolean;
 }
 
 // One field is edited at a time; null means display mode. "name" and "emoji"
 // edit text, "amount" edits calories, anything else is a macro key.
 type EditField = 'name' | 'emoji' | 'amount' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar' | null;
 
-function SavedFoodRow({ food, enabledMacros, caloriesEnabled, onChange }: RowProps) {
+function SavedFoodRow({
+  food, enabledMacros, caloriesEnabled, onChange,
+  draft = false, initialEditing = null, onDraftChange, onDraftSubmit, onDraftCancel, saving = false,
+}: RowProps) {
   const { t } = useTranslation('dashboard');
   const addToast = useToastStore((s) => s.addToast);
-  const [editing, setEditing] = useState<EditField>(null);
+  const [editing, setEditing] = useState<EditField>(initialEditing);
   const [editValue, setEditValue] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -267,6 +254,12 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, onChange }: RowPro
 
   const save = async (field: EditField, raw: string) => {
     if (field === null) return;
+    if (draft) {
+      // Nothing to update yet — hand the value up and stay on screen.
+      onDraftChange?.(field, raw);
+      setEditing(null);
+      return;
+    }
     const payload: SavedFoodPayload = {};
     if (field === 'name') {
       const v = raw.trim();
@@ -386,30 +379,40 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, onChange }: RowPro
           ) : (
             <button
               type="button"
-              className="bg-transparent border border-transparent px-2 py-0.5 text-[15px] font-semibold text-foreground text-left truncate w-full rounded-md transition-colors cursor-pointer hover:text-[#0ea5e9]"
+              className={cn(
+                'bg-transparent border border-transparent px-2 py-0.5 text-[15px] font-semibold text-left truncate w-full rounded-md transition-colors cursor-pointer hover:text-[#0ea5e9]',
+                food.name ? 'text-foreground' : 'text-muted-foreground/60 italic',
+              )}
               onClick={() => beginEdit('name', food.name)}
             >
-              {food.name}
+              {food.name || t('savedFoods.draftNamePlaceholder')}
             </button>
           )}
         </span>
 
-        {food.use_count > 0 && (
+        {!draft && food.use_count > 0 && (
           <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">{food.use_count}×</span>
         )}
 
-        <button
-          type="button"
-          className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
-          onClick={handleDelete}
-          disabled={busy}
-          aria-label={t('savedFoods.deleteSavedFoodAriaLabel')}
-          title={t('entries.deleteTitle')}
-        >
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6L6 18" /><path d="M6 6l12 12" />
-          </svg>
-        </button>
+        {draft ? (
+          <span className="flex items-center gap-1.5 shrink-0">
+            <Button size="sm" variant="ghost" onClick={onDraftCancel}>{t('savedFoods.cancelButton')}</Button>
+            <Button size="sm" variant="default" onClick={onDraftSubmit} loading={saving}>{t('savedFoods.addButton')}</Button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0 disabled:opacity-40"
+            onClick={handleDelete}
+            disabled={busy}
+            aria-label={t('savedFoods.deleteSavedFoodAriaLabel')}
+            title={t('entries.deleteTitle')}
+          >
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18" /><path d="M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Row 2: macro pills */}
