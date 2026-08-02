@@ -44,7 +44,7 @@ func getUserTimezone(r *http.Request, user interface{ GetTimezone() string }) st
 func sanitizeDateRange(startStr, endStr string, fallbackDays int, userTz string) (string, string) {
 	todayStr := service.FormatDateInTz(time.Now(), userTz)
 	endDate := todayStr
-	if endStr != "" && dateRe.MatchString(strings.TrimSpace(endStr)) {
+	if endStr != "" && isValidDate(strings.TrimSpace(endStr)) {
 		e := strings.TrimSpace(endStr)
 		if e <= todayStr {
 			endDate = e
@@ -53,7 +53,7 @@ func sanitizeDateRange(startStr, endStr string, fallbackDays int, userTz string)
 
 	fallbackStart := service.SubtractDaysUTC(endDate, fallbackDays-1)
 	startDate := fallbackStart
-	if startStr != "" && dateRe.MatchString(strings.TrimSpace(startStr)) {
+	if startStr != "" && isValidDate(strings.TrimSpace(startStr)) {
 		startDate = strings.TrimSpace(startStr)
 	}
 	if startDate > endDate {

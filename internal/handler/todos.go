@@ -221,7 +221,7 @@ func (h *TodosHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}

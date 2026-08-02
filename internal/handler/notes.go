@@ -33,7 +33,7 @@ func (h *NotesHandler) ToggleEnabled(w http.ResponseWriter, r *http.Request) {
 // Get handles GET /api/notes/day?date=...&user=...
 func (h *NotesHandler) Get(w http.ResponseWriter, r *http.Request) {
 	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
-	if !dateRe.MatchString(dateStr) {
+	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
