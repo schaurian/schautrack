@@ -33,7 +33,7 @@ export function Ring({ value, goal, unit, label, macroKey, status, size = 76, de
   const color = ringColor(status.statusClass, macroKey);
   const large = size >= 90;
   const strokeWidth = large ? 7 : 5.5;
-  const r = (size - strokeWidth - 4) / 2; // 4px breathing room for the glow
+  const r = (size - strokeWidth - 4) / 2;
   const circumference = 2 * Math.PI * r;
 
   // Sweep the arc in on mount (global reduced-motion CSS neutralizes it).
@@ -49,7 +49,18 @@ export function Ring({ value, goal, unit, label, macroKey, status, size = 76, de
       title={status.statusText || undefined}
     >
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
+        {/* SVG clips to its viewport by default, which cut the arc's 5px glow
+            off wherever the stroke runs closest to the edge — left and right on
+            a nearly-full ring. Painting outside is safe: nothing around it
+            clips, and the glow is decorative so it can't affect layout. */}
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          className="-rotate-90"
+          style={{ overflow: 'visible' }}
+          aria-hidden="true"
+        >
           <circle
             cx={size / 2}
             cy={size / 2}

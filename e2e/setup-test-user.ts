@@ -91,6 +91,13 @@ async function main() {
     psql(`DELETE FROM account_links WHERE requester_id IN (${ids.join(',')}) OR target_id IN (${ids.join(',')})`);
   }
 
+  // Reset the admin settings specs toggle. admin.spec flips registration mode
+  // and the barcode flag and restores them at the end — but a run killed
+  // half-way leaves them flipped, and the whole database survives between runs.
+  // A stuck enable_registration='invite' turns every registration spec into a
+  // confusing failure at the step *before* the one being tested.
+  psql(`DELETE FROM admin_settings WHERE key IN ('enable_registration', 'enable_barcode')`);
+
   // Clean up invite codes from previous test runs
   psql(`DELETE FROM invite_codes WHERE email LIKE '%@test.com' OR email LIKE '%@e2e.local'`);
 

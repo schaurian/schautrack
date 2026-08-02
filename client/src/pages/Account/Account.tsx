@@ -241,8 +241,8 @@ export default function Account() {
             row here — logging out is routine, so it shouldn't carry a button
             border that competes with Delete account right above it. */}
         <div className="break-inside-avoid">
-          <Card className="p-2 sm:p-2">
-            <Button variant="ghost" className="w-full" onClick={doLogout}>
+          <Card>
+            <Button variant="default" className="w-full" onClick={doLogout}>
               {t('account.logout')}
             </Button>
           </Card>
