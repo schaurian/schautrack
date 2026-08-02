@@ -89,3 +89,46 @@ func TestSPACompression(t *testing.T) {
 		}
 	})
 }
+
+// A hashed asset that no longer exists must 404 rather than fall back to
+// index.html. Serving HTML with a 200 for a missing chunk is what turns a
+// routine deploy — a tab still referencing the previous build's filenames —
+// into "Failed to fetch dynamically imported module", because the browser gets
+// markup where a JS module should be.
+func TestMissingAssetReturns404NotIndexHTML(t *testing.T) {
+	clientDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(clientDir, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	indexHTML := []byte("<!doctype html><title>app</title>")
+	if err := os.WriteFile(filepath.Join(clientDir, "index.html"), indexHTML, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := spaFallback(clientDir, filepath.Join(clientDir, "no-such-public"))
+
+	t.Run("missing chunk 404s", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/assets/Admin-deadbeef.js", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404 (body: %.60s)", rec.Code, rec.Body.String())
+		}
+		if ct := rec.Header().Get("Content-Type"); strings.Contains(ct, "text/html") {
+			t.Fatalf("missing asset answered with %s — a module request must not receive HTML", ct)
+		}
+	})
+
+	t.Run("client route still falls back to index.html", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 for an SPA route", rec.Code)
+		}
+		if !bytes.Equal(bytes.TrimSpace(rec.Body.Bytes()), indexHTML) {
+			t.Fatalf("SPA route did not receive index.html, got %.60s", rec.Body.String())
+		}
+	})
+}

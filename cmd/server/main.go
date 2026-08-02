@@ -453,6 +453,17 @@ func spaFallback(clientDir, publicDir string) http.Handler {
 			return
 		}
 
+		// A build asset that isn't here is gone, not a client route. Falling back
+		// to index.html would answer a dynamic import with HTML and a 200, which
+		// the browser reports as "Failed to fetch dynamically imported module" —
+		// the real cause (a tab holding an index.html from a previous deploy that
+		// references a since-replaced chunk) stays invisible. 404 says so plainly
+		// and lets the client recover.
+		if strings.HasPrefix(path, "assets/") {
+			http.NotFound(w, r)
+			return
+		}
+
 		// SPA fallback: serve index.html (must revalidate so clients pick up new asset hashes after deploys)
 		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, filepath.Join(clientDir, "index.html"))

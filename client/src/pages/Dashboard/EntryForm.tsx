@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AIUsage } from '@/types';
@@ -9,12 +9,13 @@ import { parseAmount } from '@/lib/mathParser';
 import { Button } from '@/components/ui/Button';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { useToastStore } from '@/stores/toastStore';
+import { lazyRoute } from '@/lib/lazyRoute';
 
 // Lazy-loaded so their chunks (BarcodeScanModal pulls in the heavy quagga2
 // barcode decoder) are only fetched when a user first opens a scanner, rather
 // than eagerly on every page load.
-const AIPhotoModal = lazy(() => import('./AIPhotoModal'));
-const BarcodeScanModal = lazy(() => import('./BarcodeScanModal'));
+const AIPhotoModal = lazyRoute(() => import('./AIPhotoModal'));
+const BarcodeScanModal = lazyRoute(() => import('./BarcodeScanModal'));
 
 interface Props {
   selectedDate: string;
