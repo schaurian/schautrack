@@ -245,7 +245,6 @@
     "noMatches": "Aucun résultat.",
     "emptyState": "Aucun aliment enregistré pour le moment. Utilisez le bouton « Enregistrer » du formulaire d'entrée, ou cliquez sur « + Nouveau ».",
     "changeEmojiTitle": "Changer l'emoji",
-    "trackButton": "Suivre",
     "deleteSavedFoodAriaLabel": "Supprimer l'aliment enregistré",
     "undoLabel": "Annuler",
     "chipTooltipBase": "Appuyez pour enregistrer {{name}}",

@@ -245,7 +245,6 @@
     "noMatches": "Geen resultaten.",
     "emptyState": "Nog geen opgeslagen eten. Gebruik de knop \"Opslaan\" op het formulier, of klik op \"+ Nieuw\".",
     "changeEmojiTitle": "Emoji wijzigen",
-    "trackButton": "Bijhouden",
     "deleteSavedFoodAriaLabel": "Opgeslagen eten verwijderen",
     "undoLabel": "Ongedaan maken",
     "chipTooltipBase": "Tik om {{name}} bij te houden",

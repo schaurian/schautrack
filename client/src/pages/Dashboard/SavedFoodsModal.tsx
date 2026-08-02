@@ -2,9 +2,8 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { listSavedFoods, trackSavedFood, deleteSavedFood, createSavedFood, updateSavedFood } from '@/api/savedFoods';
+import { listSavedFoods, deleteSavedFood, createSavedFood, updateSavedFood } from '@/api/savedFoods';
 import type { SavedFoodPayload } from '@/api/savedFoods';
-import { deleteEntry } from '@/api/entries';
 import { useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
@@ -16,12 +15,11 @@ import type { SavedFood } from '@/types';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  selectedDate?: string;
 }
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring';
 
-export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props) {
+export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const addToast = useToastStore((s) => s.addToast);
@@ -164,7 +162,6 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
                   food={food}
                   enabledMacros={enabledMacros}
                   caloriesEnabled={caloriesEnabled}
-                  selectedDate={selectedDate}
                   onChange={invalidate}
                 />
               ))}
@@ -181,7 +178,6 @@ interface RowProps {
   food: SavedFood;
   enabledMacros: string[];
   caloriesEnabled: boolean;
-  selectedDate?: string;
   onChange: () => void;
 }
 
@@ -189,7 +185,7 @@ interface RowProps {
 // edit text, "amount" edits calories, anything else is a macro key.
 type EditField = 'name' | 'emoji' | 'amount' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar' | null;
 
-function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onChange }: RowProps) {
+function SavedFoodRow({ food, enabledMacros, caloriesEnabled, onChange }: RowProps) {
   const { t } = useTranslation('dashboard');
   const addToast = useToastStore((s) => s.addToast);
   const [editing, setEditing] = useState<EditField>(null);
@@ -276,27 +272,6 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
     setBusy(false);
   };
 
-  const handleTrack = async () => {
-    setBusy(true);
-    try {
-      const res = await trackSavedFood(food.id, selectedDate);
-      addToast('success', t('savedFoods.toastTracked', { count: 1, name: food.name }), {
-        label: t('savedFoods.undoLabel'),
-        onClick: async () => {
-          try {
-            await deleteEntry(res.entry.id);
-            onChange();
-          } catch (err) {
-            addToast('error', err instanceof Error ? err.message : t('savedFoods.toastUndoFailed'));
-          }
-        },
-      });
-      onChange();
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : t('savedFoods.toastTrackFailed'));
-    }
-    setBusy(false);
-  };
 
   const hasPills = caloriesEnabled || enabledMacros.length > 0;
 
@@ -354,10 +329,6 @@ function SavedFoodRow({ food, enabledMacros, caloriesEnabled, selectedDate, onCh
 
         {food.use_count > 0 && (
           <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">{food.use_count}×</span>
-        )}
-
-        {selectedDate && (
-          <Button size="sm" variant="default" onClick={handleTrack} disabled={busy}>{t('savedFoods.trackButton')}</Button>
         )}
 
         <button

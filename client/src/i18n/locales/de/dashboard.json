@@ -245,7 +245,6 @@
     "noMatches": "Keine Treffer.",
     "emptyState": "Noch keine gespeicherten Lebensmittel. Nutze den Button \"Speichern\" im Eintragsformular oder klicke auf \"+ Neu\".",
     "changeEmojiTitle": "Emoji ändern",
-    "trackButton": "Tracken",
     "deleteSavedFoodAriaLabel": "Gespeichertes Lebensmittel löschen",
     "undoLabel": "Rückgängig",
     "chipTooltipBase": "Tippen, um {{name}} zu tracken",

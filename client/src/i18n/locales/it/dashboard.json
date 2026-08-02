@@ -245,7 +245,6 @@
     "noMatches": "Nessun risultato.",
     "emptyState": "Nessun cibo salvato ancora. Usa il pulsante \"Salva\" nel modulo della voce, oppure premi \"+ Nuovo\".",
     "changeEmojiTitle": "Cambia emoji",
-    "trackButton": "Traccia",
     "deleteSavedFoodAriaLabel": "Elimina cibo salvato",
     "undoLabel": "Annulla",
     "chipTooltipBase": "Tocca per registrare {{name}}",

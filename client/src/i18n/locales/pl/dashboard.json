@@ -253,7 +253,6 @@
     "noMatches": "Brak wyników.",
     "emptyState": "Nie masz jeszcze zapisanych produktów. Użyj przycisku \"Zapisz\" w formularzu wpisu lub kliknij \"+ Nowy\".",
     "changeEmojiTitle": "Zmień emoji",
-    "trackButton": "Śledź",
     "deleteSavedFoodAriaLabel": "Usuń zapisany produkt",
     "undoLabel": "Cofnij",
     "chipTooltipBase": "Dotknij, aby zapisać {{name}}",

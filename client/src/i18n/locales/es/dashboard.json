@@ -245,7 +245,6 @@
     "noMatches": "Sin resultados.",
     "emptyState": "Aún no tienes alimentos guardados. Usa el botón «Guardar» del formulario de entrada, o pulsa «+ Nuevo».",
     "changeEmojiTitle": "Cambiar emoji",
-    "trackButton": "Registrar",
     "deleteSavedFoodAriaLabel": "Eliminar alimento guardado",
     "undoLabel": "Deshacer",
     "chipTooltipBase": "Toca para registrar {{name}}",

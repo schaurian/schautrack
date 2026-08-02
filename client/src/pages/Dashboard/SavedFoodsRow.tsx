@@ -122,7 +122,6 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
       <SavedFoodsModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        selectedDate={selectedDate}
       />
     </>
   );

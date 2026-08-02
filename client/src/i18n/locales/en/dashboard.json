@@ -263,7 +263,6 @@
     "toastTrackFailed": "Failed to track",
     "toastUndoFailed": "Undo failed",
     "toastUpdateFailed": "Failed to update",
-    "trackButton": "Track",
     "undoLabel": "Undo"
   },
   "store": {
