@@ -7,10 +7,10 @@
   --font-sans: 'Noto Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Space Grotesk', 'Noto Sans', system-ui, sans-serif;
 
-  --color-background: #070d1a;
+  --color-background: #05080f;
   --color-foreground: #e5e7eb;
 
-  --color-card: #0c1320;
+  --color-card: #0e142a;
   --color-card-foreground: #e5e7eb;
 
   --color-primary: #6d8cff;
@@ -34,7 +34,7 @@
   --color-warning: #eab308;
   --color-warning-foreground: #ffffff;
 
-  --color-border: #182030;
+  --color-border: #222c42;
   --color-input: rgba(255, 255, 255, 0.08);
   --color-ring: #6d8cff;
 
@@ -67,10 +67,12 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-size: 15px;
     line-height: 1.5;
+    /* Kept clearly darker than .surface: the cards should read as raised out
+       of the page, not float on a background of the same weight. */
     background-image:
-      radial-gradient(circle at 85% 0%, rgba(168, 85, 247, 0.10), transparent 45%),
-      radial-gradient(circle at 10% 80%, rgba(14, 165, 233, 0.07), transparent 45%),
-      linear-gradient(160deg, #0d1226 0%, #111a35 55%, #0d1430 100%);
+      radial-gradient(circle at 85% 0%, rgba(168, 85, 247, 0.07), transparent 45%),
+      radial-gradient(circle at 10% 80%, rgba(14, 165, 233, 0.05), transparent 45%),
+      linear-gradient(160deg, #05080f 0%, #070c18 55%, #05070f 100%);
     background-attachment: fixed;
     min-height: 100%;
   }
@@ -181,16 +183,16 @@
   /* Surface: the app's card language (design direction "C").
      Gradient fill + hairline edge + 1px inner top highlight.
 
-     No drop shadow: the surface gradient bottoms out at #101730, which is
-     darker than the body's mid-tone (#111a35), so the cards need an explicit
-     edge rather than cast depth to stay separated. The hairline is drawn as a
-     0-blur spread shadow instead of a border so it costs no layout box. */
+     The page sits well below the card tone, so the cards can carry a real
+     drop shadow as well as the hairline. The hairline is drawn as a 0-blur
+     spread shadow instead of a border so it costs no layout box. */
   .surface {
-    background: linear-gradient(145deg, #151d3a, #101730);
+    background: linear-gradient(145deg, #141c36, #0e142a);
     border-radius: 22px;
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.07),
-      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      0 0 0 1px rgba(255, 255, 255, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      0 2px 12px rgba(0, 0, 0, 0.45);
   }
 }
 
