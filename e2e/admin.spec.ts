@@ -78,8 +78,9 @@ test.describe('Admin Panel', () => {
     await regSelect.selectOption(flipped);
 
     // Save
-    await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForTimeout(800);
+    // Application settings autosave (23ec7697 removed the Save button);
+    // wait for the shared saved indicator instead of clicking one.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 8000 });
 
     // Reload and verify the value persisted
     await page.reload();
@@ -92,8 +93,9 @@ test.describe('Admin Panel', () => {
 
     // Restore
     await reloadedSelect.selectOption(current);
-    await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForTimeout(500);
+    // Application settings autosave (23ec7697 removed the Save button);
+    // wait for the shared saved indicator instead of clicking one.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 8000 });
   });
 
   test('create invite code', async ({ page }) => {
@@ -178,8 +180,9 @@ test.describe('Admin Panel', () => {
     const flipped = current === 'true' ? 'false' : 'true';
 
     await barcodeSelect.selectOption(flipped);
-    await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForTimeout(800);
+    // Application settings autosave (23ec7697 removed the Save button);
+    // wait for the shared saved indicator instead of clicking one.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 8000 });
 
     // Reload and verify persisted
     await page.reload();
@@ -192,8 +195,9 @@ test.describe('Admin Panel', () => {
 
     // Restore
     await barcodeSelect2.selectOption(current);
-    await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForTimeout(500);
+    // Application settings autosave (23ec7697 removed the Save button);
+    // wait for the shared saved indicator instead of clicking one.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 8000 });
   });
 
   test('configure legal settings and verify they persist', async ({ page }) => {
@@ -218,8 +222,9 @@ test.describe('Admin Panel', () => {
     await endpointInput.click({ clickCount: 3 });
     await endpointInput.fill(testValue);
 
-    await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForTimeout(800);
+    // Application settings autosave (23ec7697 removed the Save button);
+    // wait for the shared saved indicator instead of clicking one.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 8000 });
 
     // Reload and verify
     await page.reload();
@@ -233,8 +238,9 @@ test.describe('Admin Panel', () => {
     // Restore original value
     await endpointInput2.click({ clickCount: 3 });
     await endpointInput2.fill(original);
-    await page.getByRole('button', { name: 'Save' }).click();
-    await page.waitForTimeout(500);
+    // Application settings autosave (23ec7697 removed the Save button);
+    // wait for the shared saved indicator instead of clicking one.
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 8000 });
   });
 
   test('delete a user with cascade and verify removal', async ({ page }) => {

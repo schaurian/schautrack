@@ -16,7 +16,8 @@
     "pendingLinkRequests": "{{n}} pending link requests",
     "logout": "Logout",
     "login": "Login",
-    "register": "Register"
+    "register": "Register",
+    "account": "Account"
   },
   "footer": {
     "tagline": "One day at a time",

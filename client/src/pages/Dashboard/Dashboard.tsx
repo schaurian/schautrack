@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
@@ -25,6 +25,7 @@ import NoteEditor from './NoteEditor';
 export default function Dashboard() {
   const { t } = useTranslation('dashboard');
   const { user, isLoading: authLoading } = useRequireAuth();
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
   const isDesktop = useIsDesktop();
   const [addOpen, setAddOpen] = useState(false);
@@ -114,14 +115,31 @@ export default function Dashboard() {
     return <div className="flex items-center justify-center py-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
   }
 
+  // Mobile browsers open the native calendar when a date input is tapped, but
+  // desktop Chrome/Firefox only open it from the input's indicator button —
+  // which is invisible on this ghost pill. Without showPicker(), clicking the
+  // pill on a desktop just focuses an input nobody can see. focus() is the
+  // fallback for browsers without showPicker, and for the NotAllowedError it
+  // throws outside a user gesture.
+  const openDatePicker = () => {
+    const el = dateInputRef.current;
+    if (!el) return;
+    try {
+      el.showPicker();
+    } catch {
+      el.focus();
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <header className="flex items-center justify-between px-1 pt-1">
         <h2 className="font-display text-[22px] font-bold tracking-tight">
           {selectedDate === dashboard.todayStr ? t('dashboard.todayLabel') : selectedDate}
         </h2>
-        {/* Ghost date pill: the real (transparent) input sits on top so the
-            native picker, keyboard entry and aria-label keep working. */}
+        {/* Ghost date pill: the real (transparent) input sits on top so keyboard
+            entry and the aria-label keep working, and onClick calls showPicker()
+            so the calendar opens on desktop too — see openDatePicker. */}
         <div className="relative inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:border-white/20 hover:text-foreground">
           <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
@@ -130,10 +148,12 @@ export default function Dashboard() {
             {formatDate(`${selectedDate}T00:00:00`, undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
           </span>
           <input
+            ref={dateInputRef}
             type="date"
             aria-label={t('entries.entryDateAriaLabel')}
             className="absolute inset-0 cursor-pointer opacity-0"
             value={selectedDate}
+            onClick={openDatePicker}
             onChange={(e) => e.target.value && selectDay(e.target.value)}
           />
         </div>

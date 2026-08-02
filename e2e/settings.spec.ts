@@ -24,7 +24,7 @@ test.describe.serial('Settings', () => {
     }
   }
 
-  test('settings page loads with user email', async ({ browser }) => {
+  test('settings page loads with preferences', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await loginAndGo(page, '/settings');

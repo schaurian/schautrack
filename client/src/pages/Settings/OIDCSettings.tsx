@@ -24,7 +24,11 @@ export default function OIDCSettings({ linked, onUpdate }: Props) {
   const oidc = authInfo.oidc;
 
   const handleLink = () => {
-    window.location.href = '/auth/oidc/login';
+    // Return to /account, where this card now lives. Without an explicit next
+    // the server falls back to "/settings" (internal/handler/oidc.go), which
+    // would land the ?error=/?success= toast on a page that no longer shows
+    // this card. safeNextPath accepts relative in-app paths.
+    window.location.href = '/auth/oidc/login?next=%2Faccount';
   };
 
   const handleUnlink = async () => {

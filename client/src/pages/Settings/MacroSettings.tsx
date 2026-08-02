@@ -5,12 +5,12 @@ import { saveMacros } from '@/api/settings';
 import { MACRO_LABELS } from '@/lib/macros';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useAutosave } from '@/hooks/useAutosave';
 
 const MACRO_KEYS = ['protein', 'carbs', 'fat', 'fiber', 'sugar'];
 
 const inputClass = 'w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const selectClass = 'rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 const MACRO_STYLES: Record<string, { label: string; border: string; bg: string }> = {
   calories: { label: 'text-macro-kcal', border: 'border-l-macro-kcal', bg: 'bg-macro-kcal/[0.04]' },
@@ -110,15 +110,17 @@ export default function MacroSettings({ user, onSave }: Props) {
                   />
                   <span className={cn('absolute right-2.5 text-[10px] tracking-wide opacity-60 pointer-events-none', style?.label)}>{unit}</span>
                 </span>
-                <select
-                  className={selectClass}
+                <SegmentedControl
+                  name={`macro-mode-${key}`}
+                  aria-label={label}
                   value={modes[key]}
-                  onChange={(e) => setModes({ ...modes, [key]: e.target.value })}
-                  tabIndex={isChecked ? 0 : -1}
-                >
-                  <option value="limit">{t('macro.modeLimit')}</option>
-                  <option value="target">{t('macro.modeTarget')}</option>
-                </select>
+                  onChange={(v) => setModes({ ...modes, [key]: v })}
+                  disabled={!isChecked}
+                  options={[
+                    { value: 'limit', label: t('macro.modeLimit') },
+                    { value: 'target', label: t('macro.modeTarget') },
+                  ]}
+                />
               </div>
             </div>
           );
@@ -148,10 +150,20 @@ export default function MacroSettings({ user, onSave }: Props) {
               <input className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
               <span className="absolute right-2.5 text-[10px] tracking-wide text-warning opacity-60 pointer-events-none">%</span>
             </span>
-            <select className={selectClass} tabIndex={-1} aria-hidden="true" style={{ opacity: 0, pointerEvents: 'none' }}>
-              <option value="limit">{t('macro.modeLimit')}</option>
-              <option value="target">{t('macro.modeTarget')}</option>
-            </select>
+            {/* Spacer matching the segmented control's width above, so the
+                threshold input lines up with the goal inputs. Was a real
+                <select> with opacity:0 — a focusable, screen-reader-visible
+                control existing purely for alignment. */}
+            <div aria-hidden="true" className="invisible">
+              <SegmentedControl
+                value="limit"
+                onChange={() => {}}
+                options={[
+                  { value: 'limit', label: t('macro.modeLimit') },
+                  { value: 'target', label: t('macro.modeTarget') },
+                ]}
+              />
+            </div>
           </div>
         </div>
       </div>

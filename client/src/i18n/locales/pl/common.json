@@ -16,7 +16,8 @@
     "pendingLinkRequests": "{{n}} oczekujących próśb o połączenie",
     "logout": "Wyloguj",
     "login": "Zaloguj",
-    "register": "Zarejestruj"
+    "register": "Zarejestruj",
+    "account": "Konto"
   },
   "footer": {
     "tagline": "Dzień po dniu",

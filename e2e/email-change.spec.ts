@@ -37,7 +37,7 @@ test.describe('Email Change', () => {
     const page = await ctx.newPage();
 
     await clearMailpit();
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
 
     const newEmail = `change-test-${Date.now()}@test.local`;
 
@@ -69,7 +69,7 @@ test.describe('Email Change', () => {
 
     // Cancel so serial state is clean for next test
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await page.waitForURL(/\/settings$/, { timeout: 10000 });
+    await page.waitForURL(/\/account$/, { timeout: 10000 });
 
     await ctx.close();
   });
@@ -80,7 +80,7 @@ test.describe('Email Change', () => {
 
     // Clear MailPit, then start the change flow to get a fresh code
     await clearMailpit();
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
 
     const newEmail = `verify-test-${Date.now()}@test.local`;
     const emailSection = page.getByText('Change Email').first();
@@ -102,8 +102,8 @@ test.describe('Email Change', () => {
     await page.getByLabel('Verification Code').fill(code);
     await page.getByRole('button', { name: 'Verify' }).click();
 
-    // After successful verification, should redirect back to settings (not /settings/email/verify)
-    await page.waitForURL(/\/settings$/, { timeout: 10000 });
+    // After successful verification, should redirect back to /account (not /settings/email/verify)
+    await page.waitForURL(/\/account$/, { timeout: 10000 });
 
     // The email should now be updated — verify via psql
     const updatedEmail = psql(`SELECT email FROM users WHERE email = '${newEmail}'`);
@@ -120,7 +120,7 @@ test.describe('Email Change', () => {
     const page = await ctx.newPage();
 
     await clearMailpit();
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
 
     // Initiate an email change
     const newEmail = `cancel-test-${Date.now()}@test.local`;
@@ -139,8 +139,8 @@ test.describe('Email Change', () => {
     // Cancel the pending change
     await page.getByRole('button', { name: 'Cancel' }).click();
 
-    // Should redirect back to settings (not /settings/email/verify)
-    await page.waitForURL(/\/settings$/, { timeout: 10000 });
+    // Should redirect back to /account (not /settings/email/verify)
+    await page.waitForURL(/\/account$/, { timeout: 10000 });
 
     // The Change Email form should be visible again (no pending indicator blocking it)
     const emailSectionAfter = page.getByText('Change Email').first();
@@ -161,7 +161,7 @@ test.describe('Email Change', () => {
     // Verify we can still navigate to settings as the isolated user
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, extraHTTPHeaders });
     const page = await ctx.newPage();
-    await loginAndGo(page, '/settings');
+    await loginAndGo(page, '/account');
     await expect(page.getByText(user.email)).toBeVisible({ timeout: 5000 });
 
     await ctx.close();

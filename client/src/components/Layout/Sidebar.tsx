@@ -1,16 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
-import { useLogout } from '@/hooks/useLogout';
 import { cn } from '@/lib/utils';
+import { NavIcon } from './navIcons';
 
 export default function Sidebar() {
   const { t } = useTranslation('common');
-  const { user, isAdmin, pendingLinkRequests } = useAuthStore();
-  const doLogout = useLogout();
+  const { isAdmin, pendingLinkRequests } = useAuthStore();
 
   const navItem = ({ isActive }: { isActive: boolean }) => cn(
-    'relative rounded-[10px] px-3 py-2 text-[15px] no-underline transition-colors',
+    'relative flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[15px] no-underline transition-colors',
     isActive ? 'bg-primary/12 font-semibold text-primary' : 'text-foreground hover:bg-surface-hover',
   );
 
@@ -26,11 +25,14 @@ export default function Sidebar() {
         </div>
       </Link>
 
+      {/* Same destinations, same order, same glyphs as the mobile BottomNav —
+          both render from navIcons. Desktop keeps the labels alongside. */}
       <nav className="flex flex-col gap-1">
-        <NavLink to="/dashboard" className={navItem}>{t('nav.today')}</NavLink>
-        <NavLink to="/plan" className={navItem}>{t('nav.plan')}</NavLink>
-        {isAdmin && <NavLink to="/admin" className={navItem}>{t('nav.admin')}</NavLink>}
+        <NavLink to="/dashboard" className={navItem}><NavIcon name="today" size={18} />{t('nav.today')}</NavLink>
+        <NavLink to="/plan" className={navItem}><NavIcon name="plan" size={18} />{t('nav.plan')}</NavLink>
+        {isAdmin && <NavLink to="/admin" className={navItem}><NavIcon name="admin" size={18} />{t('nav.admin')}</NavLink>}
         <NavLink to="/settings" className={navItem}>
+          <NavIcon name="settings" size={18} />
           {t('nav.settings')}
           {pendingLinkRequests > 0 && (
             <>
@@ -39,23 +41,14 @@ export default function Sidebar() {
             </>
           )}
         </NavLink>
+        <NavLink to="/account" className={navItem}><NavIcon name="account" size={18} />{t('nav.account')}</NavLink>
       </nav>
 
-      <div className="mt-auto flex flex-col gap-2">
-        <div className="flex min-w-0 items-center gap-2 px-1 text-sm text-muted-foreground">
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted font-bold text-primary">
-            {(user?.email?.[0] || '?').toUpperCase()}
-          </div>
-          <span className="truncate">{user?.email}</span>
-        </div>
-        <button
-          type="button"
-          onClick={doLogout}
-          className="cursor-pointer rounded-[10px] border-none bg-transparent px-3 py-2 text-left text-[15px] text-foreground transition-colors hover:bg-surface-hover"
-        >
-          {t('nav.logout')}
-        </button>
-      </div>
+      {/* Deliberately no user block at the bottom: /account is a labelled nav
+          item above, so an avatar row pointing at the same route would be a
+          second link to one destination inside a 220px column. The email is
+          shown on /account itself, and logout lives there too — it is no longer
+          a sidebar button here plus an lg:hidden row in Settings on mobile. */}
     </aside>
   );
 }

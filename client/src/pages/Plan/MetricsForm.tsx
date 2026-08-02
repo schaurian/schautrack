@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Select } from '@/components/ui/Select';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { PlanMetrics } from '@/types';
@@ -8,7 +9,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const selectClass = inputClass;
 
 const ACTIVITY_LEVELS: { value: string; labelKey: string }[] = [
   { value: 'sedentary', labelKey: 'sedentary' },
@@ -90,21 +90,21 @@ export default function MetricsForm({ metrics }: Props) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.sexLabel')}</label>
-              <select className={selectClass} value={sex} onChange={(e) => setSex(e.target.value)}>
+              <Select value={sex} onChange={(e) => setSex(e.target.value)}>
                 <option value="">{t('plan.metricsForm.selectPlaceholder')}</option>
                 <option value="male">{t('plan.metricsForm.sexMale')}</option>
                 <option value="female">{t('plan.metricsForm.sexFemale')}</option>
                 <option value="other">{t('plan.metricsForm.sexOther')}</option>
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.activityLevelLabel')}</label>
-              <select className={selectClass} value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}>
+              <Select value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}>
                 <option value="">{t('plan.metricsForm.selectPlaceholder')}</option>
                 {ACTIVITY_LEVELS.map(({ value, labelKey }) => (
                   <option key={value} value={value}>{t(`plan.metricsForm.activity.${labelKey}`)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">

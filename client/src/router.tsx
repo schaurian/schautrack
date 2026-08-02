@@ -14,6 +14,7 @@ import VerifyEmail from '@/pages/VerifyEmail/VerifyEmail';
 const Dashboard = lazy(() => import('@/pages/Dashboard/Dashboard'));
 const Plan = lazy(() => import('@/pages/Plan/Plan'));
 const Settings = lazy(() => import('@/pages/Settings/Settings'));
+const Account = lazy(() => import('@/pages/Account/Account'));
 const Admin = lazy(() => import('@/pages/Admin/Admin'));
 const Privacy = lazy(() => import('@/pages/Legal/Privacy'));
 const Terms = lazy(() => import('@/pages/Legal/Terms'));
@@ -48,6 +49,7 @@ export default function AppRouter() {
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/plan" element={<ProtectedRoute><Plan /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/delete" element={<ProtectedRoute><DeleteAccount /></ProtectedRoute>} />
         <Route path="/settings/email/verify" element={<ProtectedRoute><VerifyEmailChange /></ProtectedRoute>} />

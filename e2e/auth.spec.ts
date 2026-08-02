@@ -28,8 +28,9 @@ test.describe('Authentication', () => {
     await page.getByRole('button', { name: 'Log In' }).click();
     await page.waitForURL('/dashboard', { timeout: 15000 });
 
-    // Now logout
-    await page.getByText('Logout').click();
+    // Now logout — it lives on /account, no longer in the desktop sidebar.
+    await page.goto('/account');
+    await page.getByRole('button', { name: 'Logout' }).click();
     await expect(page).not.toHaveURL(/\/dashboard/, { timeout: 10000 });
   });
 });

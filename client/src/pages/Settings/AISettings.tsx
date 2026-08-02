@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { Select } from '@/components/ui/Select';
 import { useTranslation } from 'react-i18next';
 import type { User } from '@/types';
 import { saveAiSettings } from '@/api/settings';
@@ -8,7 +9,6 @@ import { Card } from '@/components/ui/Card';
 import { useToastStore } from '@/stores/toastStore';
 import { useAutosave } from '@/hooks/useAutosave';
 
-const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 interface Props {
   user: User;
@@ -73,12 +73,12 @@ export default function AISettings({ user, onSave }: Props) {
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('ai.provider')}</label>
-          <select value={provider} onChange={(e) => setProvider(e.target.value)} className={selectClass}>
+          <Select value={provider} onChange={(e) => setProvider(e.target.value)}>
             <option value="">{t('ai.providerDefault')}</option>
             <option value="openai">OpenAI</option>
             <option value="claude">Claude</option>
             <option value="ollama">Ollama</option>
-          </select>
+          </Select>
         </div>
         <Input label={t('ai.modelLabel')} value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('ai.modelPlaceholder')} />
         <Input label={t('ai.apiKeyLabel')} type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}

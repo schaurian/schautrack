@@ -16,7 +16,8 @@
     "pendingLinkRequests": "{{n}} richieste di collegamento in sospeso",
     "logout": "Esci",
     "login": "Accedi",
-    "register": "Registrati"
+    "register": "Registrati",
+    "account": "Account"
   },
   "footer": {
     "tagline": "Un giorno alla volta",

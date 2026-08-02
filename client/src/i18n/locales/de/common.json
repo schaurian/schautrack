@@ -16,7 +16,8 @@
     "pendingLinkRequests": "{{n}} ausstehende Verknüpfungsanfragen",
     "logout": "Abmelden",
     "login": "Anmelden",
-    "register": "Registrieren"
+    "register": "Registrieren",
+    "account": "Konto"
   },
   "footer": {
     "tagline": "Ein Tag nach dem anderen",

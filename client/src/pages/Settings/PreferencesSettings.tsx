@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { Select } from '@/components/ui/Select';
 import { useTranslation } from 'react-i18next';
 import type { User } from '@/types';
 import { savePreferences } from '@/api/settings';
@@ -6,7 +7,6 @@ import { Card } from '@/components/ui/Card';
 import { useAutosave } from '@/hooks/useAutosave';
 import i18n, { SUPPORTED_LANGUAGES } from '@/i18n';
 
-const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 interface Props {
   user: User;
@@ -47,23 +47,23 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-language" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('i18n.language')}</label>
-          <select id="pref-language" value={language} onChange={(e) => onLanguageChange(e.target.value)} className={selectClass}>
+          <Select id="pref-language" value={language} onChange={(e) => onLanguageChange(e.target.value)}>
             <option value="">{t('i18n.automatic')}</option>
             {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.endonym}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-weight-unit" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('preferences.weightUnit.label')}</label>
-          <select id="pref-weight-unit" value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lb')} className={selectClass}>
+          <Select id="pref-weight-unit" value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lb')}>
             <option value="kg">{t('preferences.weightUnit.kg')}</option>
             <option value="lb">{t('preferences.weightUnit.lb')}</option>
-          </select>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-timezone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('preferences.timezone.label')}</label>
-          <select id="pref-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
+          <Select id="pref-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
             {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       {(status === 'saving' || status === 'saved') && (

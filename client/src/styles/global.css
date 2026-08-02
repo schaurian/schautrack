@@ -178,13 +178,18 @@
 }
 
 @layer components {
-  /* Soft-depth surface: the app's card language (design direction "C").
-     Gradient fill + soft outer shadow + 1px inner top highlight. */
+  /* Surface: the app's card language (design direction "C").
+     Gradient fill + hairline edge + 1px inner top highlight.
+
+     No drop shadow: the surface gradient bottoms out at #101730, which is
+     darker than the body's mid-tone (#111a35), so the cards need an explicit
+     edge rather than cast depth to stay separated. The hairline is drawn as a
+     0-blur spread shadow instead of a border so it costs no layout box. */
   .surface {
     background: linear-gradient(145deg, #151d3a, #101730);
     border-radius: 22px;
     box-shadow:
-      0 10px 28px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.07),
       inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
 }

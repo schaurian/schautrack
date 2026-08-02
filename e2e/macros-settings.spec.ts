@@ -146,12 +146,12 @@ test.describe.serial('Macro Settings', () => {
     const goalInput = proteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(goalInput).toBeVisible({ timeout: 5000 });
 
-    // Set goal to 150 and mode to "Target", then wait for autosave
+    // Set goal to 150 and mode to "Target", then wait for autosave.
+    // Limit/Target is a SegmentedControl (radiogroup), not a <select>.
     await triggerAndWaitForMacroSave(page, async () => {
       await goalInput.click({ clickCount: 3 });
       await goalInput.fill('150');
-      const modeSelect = proteinRow.locator('select');
-      await modeSelect.selectOption('target');
+      await page.getByTestId('segmented-macro-mode-protein').getByRole('radio', { name: 'Target' }).click();
     });
 
     // Reload and verify
@@ -164,14 +164,15 @@ test.describe.serial('Macro Settings', () => {
     const reloadedGoal = reloadedProteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(reloadedGoal).toHaveValue('150', { timeout: 5000 });
 
-    const reloadedMode = reloadedProteinRow.locator('select');
-    await expect(reloadedMode).toHaveValue('target', { timeout: 3000 });
+    const reloadedMode = page.getByTestId('segmented-macro-mode-protein');
+    await expect(reloadedMode.getByRole('radio', { name: 'Target' }))
+      .toHaveAttribute('aria-checked', 'true', { timeout: 3000 });
 
     // Restore to neutral
     await triggerAndWaitForMacroSave(page, async () => {
       await reloadedGoal.click({ clickCount: 3, force: true });
       await reloadedGoal.fill('0', { force: true });
-      await reloadedMode.selectOption('limit', { force: true });
+      await reloadedMode.getByRole('radio', { name: 'Limit' }).click();
     });
 
     await ctx.close();

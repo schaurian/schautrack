@@ -16,7 +16,8 @@
     "pendingLinkRequests": "{{n}} pedidos de associação pendentes",
     "logout": "Terminar sessão",
     "login": "Iniciar sessão",
-    "register": "Registar"
+    "register": "Registar",
+    "account": "Conta"
   },
   "footer": {
     "tagline": "Um dia de cada vez",

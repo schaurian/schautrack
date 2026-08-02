@@ -62,13 +62,15 @@ test.describe('Mobile shell (redesign)', () => {
     await ctx.close();
   });
 
-  test('logout from settings returns to login', async ({ browser }) => {
+  test('account tab reaches logout in one tap', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();
     await login(page);
 
-    await page.getByRole('link', { name: 'Settings' }).click();
-    await page.waitForURL(/\/settings/, { timeout: 10000 });
+    // Account is its own tab, so /account is one tap from anywhere — it is not
+    // reached by going through Settings.
+    await page.getByRole('link', { name: 'Account' }).click();
+    await page.waitForURL(/\/account/, { timeout: 10000 });
     await page.getByRole('button', { name: 'Logout' }).click();
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     await ctx.close();
