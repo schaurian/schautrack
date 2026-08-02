@@ -7,8 +7,8 @@
  * Writes docs/screenshots/*.png. dashboard.png is the README hero and is just
  * the desktop dashboard under its historical name, so the README keeps working.
  */
-import { chromium, type Page } from '@playwright/test';
-import { mkdirSync } from 'fs';
+import { chromium, type Page, type Browser } from '@playwright/test';
+import { mkdirSync, readFileSync } from 'fs';
 
 const BASE = process.env.SCREENSHOT_BASE_URL || 'http://localhost:3001';
 const OUT = 'docs/screenshots';
@@ -59,6 +59,60 @@ async function shotThrough(page: Page, name: string, endAt: string) {
   console.log(`  ${OUT}/${name}.png${clip ? ` (cropped to ${clip.height}px)` : ''}`);
 }
 
+
+/**
+ * Compose the README hero: the desktop app with two phones in front of it.
+ *
+ * Rendered as a page and screenshotted rather than stitched with an image
+ * library — the browser is already here, and CSS gives us rounded corners,
+ * bezels and shadows for free. Both source images are inlined so the page has
+ * no external requests to wait on.
+ */
+async function composeHero(browser: Browser) {
+  const inline = (file: string) => `data:image/png;base64,${readFileSync(`${OUT}/${file}`).toString('base64')}`;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 1600px; height: 900px; background: #04060d; display: grid; place-items: center; }
+    /* Same glows as the app's own background, so the frame feels like part of it. */
+    .stage {
+      position: relative; width: 1600px; height: 900px; overflow: hidden;
+      background:
+        radial-gradient(circle at 76% 6%, rgba(168, 85, 247, 0.17), transparent 46%),
+        radial-gradient(circle at 10% 92%, rgba(14, 165, 233, 0.14), transparent 44%),
+        linear-gradient(160deg, #060a16 0%, #080e1f 55%, #05070f 100%);
+    }
+    .desktop {
+      position: absolute; right: 60px; top: 130px; width: 1010px; height: 616px;
+      overflow: hidden; border-radius: 18px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.09), 0 40px 90px rgba(0,0,0,0.7);
+    }
+    .desktop img { width: 100%; display: block; }
+    /* No fixed height: at this width the phone screenshot fits whole, so the
+       frame never cuts through a card. */
+    .phone {
+      position: absolute; width: 250px; overflow: hidden;
+      border-radius: 38px; border: 8px solid #0d1226; background: #0d1226;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.11), 0 34px 74px rgba(0,0,0,0.75);
+    }
+    .phone img { width: 100%; display: block; }
+    .phone-back { left: 70px; top: 140px; }
+    .phone-front { left: 310px; top: 285px; }
+  </style></head><body>
+    <div class="stage">
+      <div class="desktop"><img src="${inline('dashboard.png')}"></div>
+      <div class="phone phone-back"><img src="${inline('dashboard-mobile.png')}"></div>
+      <div class="phone phone-front"><img src="${inline('add-sheet-mobile.png')}"></div>
+    </div>
+  </body></html>`;
+
+  const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 });
+  await page.setContent(html, { waitUntil: 'load' });
+  await page.locator('.stage').screenshot({ path: `${OUT}/hero.png` });
+  await page.close();
+  console.log(`  ${OUT}/hero.png (composed)`);
+}
+
 (async () => {
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
@@ -98,6 +152,8 @@ async function shotThrough(page: Page, name: string, endAt: string) {
   await mobile.getByRole('button', { name: 'Add food' }).click();
   await mobile.getByRole('dialog', { name: 'Add food' }).waitFor({ timeout: 10000 });
   await shot(mobile, 'add-sheet-mobile');
+
+  await composeHero(browser);
 
   await browser.close();
 })();

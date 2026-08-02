@@ -9,7 +9,7 @@ Schautrack is a self-hostable, open-source nutrition tracker — log calories, m
 
 **Try it:** [schautrack.com](https://schautrack.com)
 
-![Dashboard](docs/screenshots/dashboard.png)
+![Schautrack on desktop and mobile](docs/screenshots/hero.png)
 
 ## Goals
 
