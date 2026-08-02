@@ -97,11 +97,14 @@ export default function SavedFoodsModal({ isOpen, onClose, selectedDate }: Props
     }
   };
 
+  // Above the mobile add sheet (z-[200]): Quick add lives inside it, so Manage
+  // is routinely opened from within the sheet and would otherwise render behind
+  // it. data-modal-layer keeps the sheet from closing on this dialog's Escape.
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[150] bg-background/80 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[150] w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border-2 border-border bg-card overflow-hidden focus:outline-none">
+        <Dialog.Overlay className="fixed inset-0 z-[300] bg-background/80 backdrop-blur-sm" />
+        <Dialog.Content data-modal-layer="saved-foods" className="fixed left-1/2 top-1/2 z-[300] w-[calc(100%-2rem)] max-w-2xl max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border-2 border-border bg-card overflow-hidden focus:outline-none">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
           <Dialog.Title className="text-base font-semibold">{t('savedFoods.modalTitle')}</Dialog.Title>
           <Dialog.Close

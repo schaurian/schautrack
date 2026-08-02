@@ -112,6 +112,41 @@ test.describe('Mobile shell (redesign)', () => {
     await ctx.close();
   });
 
+  test('managing quick foods opens on top of the add sheet', async ({ browser }) => {
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Quick Oats'`);
+    psql(`INSERT INTO saved_foods (user_id, name, amount) VALUES (${user.id}, 'Quick Oats', 180)`);
+
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
+    const page = await ctx.newPage();
+    await login(page);
+
+    await page.getByRole('button', { name: 'Add food' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Add food' });
+    await expect(sheet).toBeVisible();
+
+    await sheet.getByRole('button', { name: 'Manage', exact: true }).click();
+    const manage = page.locator('[data-modal-layer="saved-foods"]');
+    await expect(manage).toBeVisible({ timeout: 10000 });
+
+    const layering = await page.evaluate(() => {
+      const modal = document.querySelector('[data-modal-layer="saved-foods"]') as HTMLElement;
+      const sheetPanel = document.querySelector('[role="dialog"][aria-label="Add food"]') as HTMLElement;
+      return {
+        modal: Number(getComputedStyle(modal).zIndex),
+        sheet: Number(getComputedStyle(sheetPanel.parentElement as HTMLElement).zIndex),
+      };
+    });
+    expect(layering.modal).toBeGreaterThan(layering.sheet);
+
+    // Escape closes the modal only, leaving the sheet where it was.
+    await page.keyboard.press('Escape');
+    await expect(manage).toBeHidden({ timeout: 5000 });
+    await expect(sheet).toBeVisible();
+
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Quick Oats'`);
+    await ctx.close();
+  });
+
   test('sheet closes via Escape and backdrop stays consistent', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();
