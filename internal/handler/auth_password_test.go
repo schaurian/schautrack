@@ -1,14 +1,64 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"schautrack/internal/session"
 )
+
+type fakeResetTokenExecutor struct {
+	tag   pgconn.CommandTag
+	err   error
+	query string
+	args  []any
+}
+
+func (f *fakeResetTokenExecutor) Exec(_ context.Context, query string, args ...any) (pgconn.CommandTag, error) {
+	f.query = query
+	f.args = args
+	return f.tag, f.err
+}
+
+func TestConsumePasswordResetToken(t *testing.T) {
+	t.Run("consumes one current unused token", func(t *testing.T) {
+		fake := &fakeResetTokenExecutor{tag: pgconn.NewCommandTag("UPDATE 1")}
+		if err := consumePasswordResetToken(context.Background(), fake, 17, 42); err != nil {
+			t.Fatalf("consumePasswordResetToken: %v", err)
+		}
+		for _, guard := range []string{"user_id = $2", "used = FALSE", "expires_at > NOW()"} {
+			if !strings.Contains(fake.query, guard) {
+				t.Errorf("query missing guard %q: %s", guard, fake.query)
+			}
+		}
+		if len(fake.args) != 2 || fake.args[0] != 17 || fake.args[1] != 42 {
+			t.Errorf("args = %#v, want [17 42]", fake.args)
+		}
+	})
+
+	t.Run("rejects expired or already consumed token", func(t *testing.T) {
+		fake := &fakeResetTokenExecutor{tag: pgconn.NewCommandTag("UPDATE 0")}
+		err := consumePasswordResetToken(context.Background(), fake, 17, 42)
+		if !errors.Is(err, errResetTokenNoLongerValid) {
+			t.Fatalf("error = %v, want errResetTokenNoLongerValid", err)
+		}
+	})
+
+	t.Run("propagates database errors", func(t *testing.T) {
+		want := errors.New("database unavailable")
+		fake := &fakeResetTokenExecutor{err: want}
+		if err := consumePasswordResetToken(context.Background(), fake, 17, 42); !errors.Is(err, want) {
+			t.Fatalf("error = %v, want %v", err, want)
+		}
+	})
+}
 
 // newRequestWithSessionData builds a POST request whose context carries the
 // given session, and returns both the request and the session so the test can
