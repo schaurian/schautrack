@@ -34,6 +34,14 @@ const BAR_COLORS: Record<string, string> = {
   sugar: 'bg-macro-sugar',
 };
 
+/**
+ * Semantic status ('success' | 'warning' | 'danger') exposed as `data-status`
+ * so tests can assert goal status without coupling to Tailwind color classes.
+ */
+function statusName(statusClass: string) {
+  return statusClass.startsWith('macro-stat--') ? statusClass.slice('macro-stat--'.length) : undefined;
+}
+
 function statusClasses(statusClass: string) {
   if (statusClass === 'macro-stat--success') return { value: 'text-green-300', bar: 'bg-green-500' };
   if (statusClass === 'macro-stat--warning') return { value: 'text-yellow-300', bar: 'bg-amber-500' };
@@ -93,7 +101,7 @@ function HeroCalories({ total, goal, status }: { total: number; goal: number | n
   const hasStatus = !!status.statusClass;
 
   return (
-    <div className="mt-2">
+    <div className="mt-2" data-testid="hero-calories" data-status={statusName(status.statusClass)}>
       <div className="flex items-baseline gap-2.5">
         <span className={cn('text-6xl font-bold tabular-nums leading-none tracking-tight', hasStatus && sc.value)}>
           {total.toLocaleString()}
@@ -136,7 +144,7 @@ function MacroStat({ macroKey, label, total, goal, unit, status }: {
   const hasStatus = !!status.statusClass;
 
   return (
-    <div data-testid={`macro-chip-${macroKey}`}>
+    <div data-testid={`macro-chip-${macroKey}`} data-status={statusName(status.statusClass)}>
       <div className={cn('text-[10px] font-semibold uppercase tracking-wider', LABEL_COLORS[macroKey] || 'text-muted-foreground')}>
         {label}
       </div>
