@@ -1,0 +1,6 @@
+# Used when lefthook is installed; scripts/install-hooks.sh sets up the same
+# pre-push as a plain git hook for everyone else.
+pre-push:
+  jobs:
+    - name: screenshots
+      run: sh scripts/pre-push.sh
