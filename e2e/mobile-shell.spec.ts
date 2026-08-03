@@ -198,6 +198,34 @@ test.describe('Mobile shell (redesign)', () => {
     await ctx.close();
   });
 
+  test('the undo toast clears the FAB', async ({ browser }) => {
+    // Toast and FAB are both bottom-right fixed; the toast paints above the FAB
+    // (z-200 vs z-60), so at equal offsets Undo lands on top of the + button.
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
+    const page = await ctx.newPage();
+    await login(page);
+
+    await page.getByRole('button', { name: 'Add food' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add food' });
+    await dialog.locator('input[placeholder="Breakfast, snack..."]').fill('Undo overlap');
+    await dialog.locator('input[inputmode="tel"]').first().fill('123');
+    await dialog.getByRole('button', { name: 'Track' }).click();
+    await expect(page.getByText('Undo overlap')).toBeVisible({ timeout: 10000 });
+
+    await page.getByRole('button', { name: 'Delete entry' }).first().click();
+    const undo = page.getByRole('button', { name: 'Undo' });
+    await expect(undo).toBeVisible({ timeout: 10000 });
+
+    const fab = await page.getByRole('button', { name: 'Add food' }).boundingBox();
+    const toast = await page.locator('[role="status"] > div').first().boundingBox();
+    expect(fab).not.toBeNull();
+    expect(toast).not.toBeNull();
+    // The toast stack sits fully above the FAB, so Undo stays tappable.
+    expect(toast!.y + toast!.height).toBeLessThanOrEqual(fab!.y);
+
+    await ctx.close();
+  });
+
   test('account tab reaches logout in one tap', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();
