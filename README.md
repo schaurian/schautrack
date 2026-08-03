@@ -235,6 +235,10 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+## Support
+
+Schautrack is free and self-hostable, and it stays that way. If it's useful to you, you can support its development via [GitHub Sponsors](https://github.com/sponsors/schaurian) or [PayPal](https://paypal.me/schautrack).
+
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
