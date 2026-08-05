@@ -7,6 +7,11 @@ let user: { email: string; password: string; id: string };
 test.describe.serial('Todos', () => {
   test.beforeAll(() => {
     user = createIsolatedUser('todos');
+    // Suppress the welcome tour. createIsolatedUser leaves
+    // onboarding_completed_at NULL, so the tour auto-opens and its dialog
+    // intercepts the clicks these specs make. Same suppression the API and
+    // onboarding specs use.
+    psql(`UPDATE users SET onboarding_completed_at = NOW() WHERE id = ${user.id}`);
   });
 
   /** Open the tap-only time picker and choose an hour and minute chip. */
@@ -187,11 +192,15 @@ test.describe.serial('Todos', () => {
 
     await page.getByRole('button', { name: 'Add', exact: true }).click();
 
-    // Close manager (Done button)
+    // Close the manager. This has to be a real wait, not a probe: row-level
+    // Edit buttons share the name with the section toggle, so if the manager
+    // is still open the Edit.first() below opens an inline edit instead of
+    // reopening the manager, and the row's name turns into an input that
+    // hasText can no longer match.
     const doneBtn = page.getByRole('button', { name: 'Done' });
-    if (await doneBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await doneBtn.last().click();
-    }
+    await expect(doneBtn.last()).toBeVisible({ timeout: 10000 });
+    await doneBtn.last().click();
+    await expect(page.getByRole('button', { name: 'Add todo' })).toBeHidden({ timeout: 10000 });
 
     // Open manager again to verify schedule text
     await page.getByRole('button', { name: 'Edit' }).first().click();
@@ -308,11 +317,12 @@ test.describe.serial('Todos', () => {
 
     await page.getByRole('button', { name: 'Add', exact: true }).click();
 
-    // Close manager if Done button is visible
+    // Close the manager, waiting for it rather than probing — see the note in
+    // the weekday spec about Edit.first() hitting a row-level Edit.
     const doneBtn = page.getByRole('button', { name: 'Done' });
-    if (await doneBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await doneBtn.last().click();
-    }
+    await expect(doneBtn.last()).toBeVisible({ timeout: 10000 });
+    await doneBtn.last().click();
+    await expect(page.getByRole('button', { name: 'Add todo' })).toBeHidden({ timeout: 10000 });
 
     // The todo row in the list should show the time
     const todoRow = page.locator('li').filter({ hasText: 'Timed Todo' });
@@ -420,6 +430,7 @@ test.describe('Todo time picker on a phone', () => {
 
   test.beforeAll(() => {
     mobileUser = createIsolatedUser('todos-mobile');
+    psql(`UPDATE users SET onboarding_completed_at = NOW() WHERE id = ${mobileUser.id}`);
   });
 
   async function login(page: import('@playwright/test').Page, u: { email: string; password: string }) {
