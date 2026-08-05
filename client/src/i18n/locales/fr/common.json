@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} au-dessus de l'objectif",
     "remaining": "{{amount}} restant",
     "over": "{{amount}} en trop"
+  },
+  "onboarding": {
+    "back": "Retour",
+    "close": "Fermer",
+    "done": "Commencer",
+    "next": "Suivant",
+    "progress": "{{current}} sur {{total}}",
+    "steps": {
+      "day": {
+        "art": "Un anneau d'activité à côté de barres pour protéines, glucides, lipides et fibres",
+        "body": "L'anneau se remplit au fil de vos saisies. Activez protéines, glucides, lipides, fibres et sucres pour suivre les macros à côté des calories.",
+        "eyebrow": "Tableau de bord",
+        "title": "Votre journée en un coup d'œil"
+      },
+      "log": {
+        "art": "Un champ de saisie au-dessus de trois façons d'ajouter un aliment : saisie, code-barres, photo",
+        "body": "Saisissez les calories, scannez un code-barres ou prenez une photo et laissez l'IA l'estimer — au plus rapide. Ce que vous mangez souvent devient un favori en un geste.",
+        "bodyNoAi": "Saisissez les calories ou scannez un code-barres — au plus rapide. Ce que vous mangez souvent devient un favori en un geste.",
+        "eyebrow": "Tableau de bord",
+        "title": "Trois façons d'enregistrer un repas",
+        "artNoAi": "Un champ de saisie au-dessus de deux façons d'ajouter un aliment : saisie, code-barres",
+        "titleNoAi": "Deux façons d'enregistrer un repas"
+      },
+      "plan": {
+        "art": "Une courbe de poids qui descend vers un repère d'objectif",
+        "body": "Notez votre poids, choisissez une cible, et Schautrack calcule le budget calorique quotidien pour y arriver.",
+        "eyebrow": "Plan",
+        "title": "Fixez un objectif, obtenez un budget"
+      },
+      "share": {
+        "art": "Deux semaines de cases quotidiennes reliées par un lien",
+        "body": "Fixez vos objectifs, activez les tâches et notes quotidiennes, et liez des comptes pour suivre la journée de quelqu'un d'autre à côté de la vôtre.",
+        "eyebrow": "Paramètres",
+        "title": "Faites-en le vôtre"
+      },
+      "welcome": {
+        "art": "Une semaine de cases quotidiennes, aujourd'hui encore vide",
+        "body": "Schautrack garde un chiffre en vue : ce que vous avez mangé aujourd'hui. Chaque jour enregistré remplit une case.",
+        "eyebrow": "Bienvenue",
+        "title": "Un jour à la fois"
+      }
+    }
   }
 }

@@ -17,6 +17,8 @@ export interface User {
   todosEnabled: boolean;
   notesEnabled: boolean;
   bodyFatEnabled: boolean;
+  /** False until the welcome tour is dismissed — drives its first-run open. */
+  onboardingCompleted: boolean;
   hasGlobalAiKey?: boolean;
   passkeyCount: number;
   oidcLinked: boolean;

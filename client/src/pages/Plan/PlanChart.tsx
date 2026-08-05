@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { SeriesPoint, CurvePoint, HealthyRange } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
+import { niceTicks, clampBand } from '@/lib/chartScale';
 
 export interface PlanChartProps {
   series: SeriesPoint[];
@@ -50,11 +51,11 @@ function smoothPath(points: { x: number; y: number }[]): string {
   return d;
 }
 
-function evenTicks(min: number, max: number, count: number): number[] {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return [min];
-  const step = (max - min) / (count - 1);
-  return Array.from({ length: count }, (_, i) => min + step * i);
-}
+/** Y-axis ticks aimed for; the round-step snap lands within one or two of it. */
+const Y_TICK_TARGET = 6;
+
+/** Fewer ticks on the secondary body-fat axis so it stays subordinate. */
+const FAT_TICK_TARGET = 3;
 
 const fmtTickDate = (ts: number) => formatDate(ts, undefined, { month: 'short', day: 'numeric' });
 const fmtWeight = (w: number) => (Number.isInteger(w) ? String(w) : w.toFixed(1));
@@ -136,9 +137,16 @@ export default function PlanChart({
     const plan = isSpark ? [] : planCurve.map((p) => ({ t: today + p.week * 7 * DAY_MS, w: p.weight }));
 
     const tValues = [...actual.map((p) => p.t), ...plan.map((p) => p.t)];
+
+    // The vertical domain covers what the user did (actual), what they intend
+    // (plan) and where they are headed (target) — but deliberately NOT the
+    // healthy range. That range is derived from height alone, so for a heavier
+    // user it can sit tens of kg below anything ever logged; letting it stretch
+    // the axis squeezed the real trend into a sliver at the top of the frame
+    // and made the chart unreadable. It is drawn clipped to the domain instead
+    // (see bandY below), so it still shows when it is actually in view.
     const wValues = [...actual.map((p) => p.w), ...plan.map((p) => p.w)];
     if (targetWeight != null) wValues.push(targetWeight);
-    if (!isSpark && healthyRange) wValues.push(healthyRange.minKg, healthyRange.maxKg);
 
     const tMin = Math.min(...tValues);
     const tMax = Math.max(...tValues);
@@ -148,7 +156,7 @@ export default function PlanChart({
       wMin -= 1;
       wMax += 1;
     }
-    const pad = (wMax - wMin) * (isSpark ? 0.15 : 0.1);
+    const pad = (wMax - wMin) * (isSpark ? 0.15 : 0.08);
     const wMinPadded = wMin - pad;
     const wMaxPadded = wMax + pad;
 
@@ -182,11 +190,13 @@ export default function PlanChart({
         fMin = mid - MIN_SPAN / 2;
         fMax = mid + MIN_SPAN / 2;
       }
-      const fPad = (fMax - fMin) * 0.1;
+      const fPad = (fMax - fMin) * 0.08;
       const fMinPadded = fMin - fPad;
       const fMaxPadded = fMax + fPad;
       fatScale = (pct: number) => margin.top + (1 - (pct - fMinPadded) / (fMaxPadded - fMinPadded)) * plotH;
-      fatTicks = evenTicks(fMin, fMax, 3).map((v) => ({ v, y: fatScale!(v) }));
+      // Same round-step snapping as the weight axis, so the right-hand labels
+      // read 24 / 26 / 28 rather than 23.7 / 26.2 / 28.7.
+      fatTicks = niceTicks(fMinPadded, fMaxPadded, FAT_TICK_TARGET).map((v) => ({ v, y: fatScale!(v) }));
     }
 
     return {
@@ -198,9 +208,15 @@ export default function PlanChart({
       fatPtsXY: fatScale ? fatPts.map((p) => ({ x: x(p.t), y: fatScale!(p.bf) })) : [],
       fatTicks,
       targetY: targetWeight != null ? y(targetWeight) : null,
-      bandY: !isSpark && healthyRange ? { top: y(healthyRange.maxKg), bottom: y(healthyRange.minKg) } : null,
+      bandY:
+        !isSpark && healthyRange
+          ? clampBand(y(healthyRange.maxKg), y(healthyRange.minKg), margin.top, margin.top + plotH)
+          : null,
+      // Where logged history ends and projection begins. Without it the two
+      // series just change colour somewhere in the middle of the frame.
+      todayX: !isSpark && plan.length > 0 && today >= tMin && today <= tMax ? x(today) : null,
       xAxisTicks: isSpark ? [] : [tMin, (tMin + tMax) / 2, tMax].map((t) => ({ t, x: x(t) })),
-      yAxisTicks: isSpark ? [] : evenTicks(wMin, wMax, 4).map((w) => ({ w, y: y(w) })),
+      yAxisTicks: isSpark ? [] : niceTicks(wMinPadded, wMaxPadded, Y_TICK_TARGET).map((w) => ({ w, y: y(w) })),
     };
   }, [series, planCurve, targetWeight, healthyRange, isSpark, showBodyFat, size]);
 
@@ -234,7 +250,7 @@ export default function PlanChart({
     );
   }
 
-  const { margin, plotW, plotH, actualPts, planPts, fatPtsXY, fatTicks, targetY, bandY, xAxisTicks, yAxisTicks } = layout;
+  const { margin, plotW, plotH, actualPts, planPts, fatPtsXY, fatTicks, targetY, bandY, todayX, xAxisTicks, yAxisTicks } = layout;
   const actualPath = smoothPath(actualPts);
   const planPath = smoothPath(planPts);
   const fatPath = smoothPath(fatPtsXY);
@@ -265,6 +281,19 @@ export default function PlanChart({
         yAxisTicks.map(({ w, y: ty }) => (
           <line key={`grid-${w}`} x1={margin.left} x2={margin.left + plotW} y1={ty} y2={ty} className="stroke-border" strokeWidth={1} />
         ))}
+
+      {/* Today divider — separates logged history from projection */}
+      {todayX != null && (
+        <line
+          x1={todayX}
+          x2={todayX}
+          y1={margin.top}
+          y2={margin.top + plotH}
+          className="stroke-border"
+          strokeWidth={1}
+          strokeDasharray="2 3"
+        />
+      )}
 
       {/* Target-weight reference line — neutral, dashed; not a data series */}
       {targetY != null && (
@@ -337,7 +366,7 @@ export default function PlanChart({
 
       {fatTicks.map(({ v, y: ty }) => (
         <text key={`bftick-${v}`} x={margin.left + plotW + 4} y={ty} textAnchor="start" dominantBaseline="middle" className="text-macro-protein" fill="currentColor" fontSize={10} opacity={0.75}>
-          {v.toFixed(0)}%
+          {Number.isInteger(v) ? v : v.toFixed(1)}%
         </text>
       ))}
 
@@ -377,7 +406,10 @@ export default function PlanChart({
           {fatPtsXY.length >= 2 && (
             <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dotted border-macro-protein" />} label={t('plan.chart.legendBodyFat')} />
           )}
-          {healthyRange && <LegendItem swatch={<span className="inline-block h-2.5 w-3 rounded-sm bg-success/20" />} label={t('plan.chart.legendHealthyRange')} />}
+          {/* Keyed off bandY, not healthyRange: the band is clipped to the
+              domain, so when it falls entirely off-chart there is nothing for
+              this swatch to point at. */}
+          {bandY && <LegendItem swatch={<span className="inline-block h-2.5 w-3 rounded-sm bg-success/20" />} label={t('plan.chart.legendHealthyRange')} />}
         </div>
       </div>
       <div ref={wrapRef} className="p-4">{svg}</div>

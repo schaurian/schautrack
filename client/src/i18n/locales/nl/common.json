@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} boven doel",
     "remaining": "{{amount}} resterend",
     "over": "{{amount}} te veel"
+  },
+  "onboarding": {
+    "back": "Terug",
+    "close": "Sluiten",
+    "done": "Beginnen",
+    "next": "Volgende",
+    "progress": "{{current}} van {{total}}",
+    "steps": {
+      "day": {
+        "art": "Een activiteitsring naast balken voor eiwitten, koolhydraten, vet en vezels",
+        "body": "De ring vult zich terwijl je bijhoudt. Zet eiwitten, koolhydraten, vet, vezels en suiker aan om macro's naast calorieën te volgen.",
+        "eyebrow": "Dashboard",
+        "title": "Je dag in één oogopslag"
+      },
+      "log": {
+        "art": "Een invoerveld boven drie manieren om eten toe te voegen: typen, barcode, foto",
+        "body": "Typ de calorieën, scan een barcode of maak een foto en laat AI het schatten — wat het snelst gaat. Wat je vaak eet wordt een favoriet met één tik.",
+        "bodyNoAi": "Typ de calorieën of scan een barcode — wat het snelst gaat. Wat je vaak eet wordt een favoriet met één tik.",
+        "eyebrow": "Dashboard",
+        "title": "Drie manieren om een maaltijd bij te houden",
+        "artNoAi": "Een invoerveld boven twee manieren om eten toe te voegen: typen, barcode",
+        "titleNoAi": "Twee manieren om een maaltijd bij te houden"
+      },
+      "plan": {
+        "art": "Een gewichtslijn die naar een doelmarkering daalt",
+        "body": "Noteer je gewicht, kies een streefgewicht en Schautrack berekent het dagelijkse caloriebudget om er te komen.",
+        "eyebrow": "Plan",
+        "title": "Stel een doel in, krijg een budget"
+      },
+      "share": {
+        "art": "Twee weken aan dagvakjes verbonden door een koppeling",
+        "body": "Stel je doelen in, zet dagelijkse taken en notities aan, en koppel accounts om de dag van iemand anders naast die van jou te volgen.",
+        "eyebrow": "Instellingen",
+        "title": "Maak het van jou"
+      },
+      "welcome": {
+        "art": "Een week aan dagvakjes, vandaag nog leeg",
+        "body": "Schautrack houdt één getal in beeld: wat je vandaag hebt gegeten. Elke dag die je bijhoudt vult een vakje.",
+        "eyebrow": "Welkom",
+        "title": "Eén dag tegelijk"
+      }
+    }
   }
 }

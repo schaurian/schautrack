@@ -12,6 +12,7 @@ import TodoSettings from './TodoSettings';
 import NoteSettings from './NoteSettings';
 import BodyFatSettings from './BodyFatSettings';
 import SavedFoodsSettings from './SavedFoodsSettings';
+import OnboardingSettings from './OnboardingSettings';
 
 /**
  * Tracking preferences — the things tuned while using the app.
@@ -84,6 +85,11 @@ export default function Settings() {
             availableSlots={data.availableSlots}
             onUpdate={refresh}
           />
+        </div>
+        {/* Last: this is the "remind me what this app does" item, not a
+            tracking preference — it belongs where help usually sits. */}
+        <div className="break-inside-avoid">
+          <OnboardingSettings />
         </div>
       </div>
     </div>

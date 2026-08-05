@@ -186,6 +186,35 @@
     "importSuccess": "Dati importati con successo.",
     "importFailed": "Importazione non riuscita."
   },
+  "apiTokens": {
+    "atLimit": "Hai raggiunto il massimo di {{max}} token. Revocane uno per crearne un altro.",
+    "cancel": "Annulla",
+    "copied": "Copiato",
+    "copy": "Copia",
+    "copyFailed": "Impossibile copiare negli appunti: seleziona il token e copialo manualmente.",
+    "copyNow": "Copia questo token adesso. Non verrà più mostrato.",
+    "create": "Crea token",
+    "createFailed": "Impossibile creare il token",
+    "dismiss": "Fatto",
+    "empty": "Nessun token API. Creane uno per usare Schautrack da script o altre app.",
+    "expires": "scade il {{date}}",
+    "expiry30": "Scade tra 30 giorni",
+    "expiry365": "Scade tra 1 anno",
+    "expiry90": "Scade tra 90 giorni",
+    "expiryLabel": "Scadenza",
+    "expiryNever": "Non scade mai",
+    "heading": "Token API",
+    "intro": "I token di accesso personali permettono a script e altre app di leggere e scrivere i tuoi dati tramite l'API di Schautrack. Ogni token fa solo ciò che gli consenti.",
+    "namePlaceholder": "A cosa serve questo token? (es. Home Assistant)",
+    "neverUsed": "Mai usato",
+    "newToken": "Nuovo token",
+    "revoke": "Revoca",
+    "revoked": "«{{name}}» revocato",
+    "revokeFailed": "Impossibile revocare il token",
+    "scopesLabel": "Questo token può",
+    "specLink": "Vedi il riferimento dell'API.",
+    "usedOn": "Usato l'ultima volta il {{date}}"
+  },
   "confirmImport": {
     "title": "Sostituire tutte le voci?",
     "descriptionPrefix": "L'importazione di",
@@ -295,6 +324,11 @@
     "expiresOn": "scade il {{date}}",
     "usersHeading_one": "Utenti ({{count}})",
     "usersHeading_other": "Utenti ({{count}})"
+  },
+  "onboarding": {
+    "button": "Mostra il tour",
+    "description": "Una breve panoramica di ciò che fa Schautrack e di dove trovarlo.",
+    "heading": "Tour di benvenuto"
   },
   "bodyFat": {
     "heading": "Monitora il grasso corporeo",

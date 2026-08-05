@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} oltre l'obiettivo",
     "remaining": "{{amount}} rimanenti",
     "over": "{{amount}} in eccesso"
+  },
+  "onboarding": {
+    "back": "Indietro",
+    "close": "Chiudi",
+    "done": "Inizia",
+    "next": "Avanti",
+    "progress": "{{current}} di {{total}}",
+    "steps": {
+      "day": {
+        "art": "Un anello di attività accanto a barre per proteine, carboidrati, grassi e fibre",
+        "body": "L'anello si riempie mentre registri. Attiva proteine, carboidrati, grassi, fibre e zuccheri per seguire i macro accanto alle calorie.",
+        "eyebrow": "Dashboard",
+        "title": "La tua giornata a colpo d'occhio"
+      },
+      "log": {
+        "art": "Un campo di inserimento sopra tre modi per aggiungere cibo: digitare, codice a barre, foto",
+        "body": "Digita le calorie, scansiona un codice a barre oppure scatta una foto e lascia stimare all'AI — quello che è più veloce. Ciò che mangi spesso diventa un preferito da un tocco.",
+        "bodyNoAi": "Digita le calorie o scansiona un codice a barre — quello che è più veloce. Ciò che mangi spesso diventa un preferito da un tocco.",
+        "eyebrow": "Dashboard",
+        "title": "Tre modi per registrare un pasto",
+        "artNoAi": "Un campo di inserimento sopra due modi per aggiungere cibo: digitare, codice a barre",
+        "titleNoAi": "Due modi per registrare un pasto"
+      },
+      "plan": {
+        "art": "Una linea del peso che scende verso un indicatore di obiettivo",
+        "body": "Registra il peso, scegli un traguardo e Schautrack calcola il budget calorico giornaliero per arrivarci.",
+        "eyebrow": "Piano",
+        "title": "Fissa un obiettivo, ottieni un budget"
+      },
+      "share": {
+        "art": "Due settimane di quadratini giornalieri unite da un collegamento",
+        "body": "Imposta i tuoi obiettivi, attiva le cose da fare e le note giornaliere e collega gli account per seguire la giornata di qualcun altro accanto alla tua.",
+        "eyebrow": "Impostazioni",
+        "title": "Rendilo tuo"
+      },
+      "welcome": {
+        "art": "Una settimana di quadratini giornalieri, oggi ancora vuoto",
+        "body": "Schautrack tiene in vista un numero: quanto hai mangiato oggi. Ogni giorno che registri riempie un quadratino.",
+        "eyebrow": "Benvenuto",
+        "title": "Un giorno alla volta"
+      }
+    }
   }
 }

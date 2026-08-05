@@ -186,6 +186,35 @@
     "importSuccess": "Données importées avec succès.",
     "importFailed": "Échec de l'importation."
   },
+  "apiTokens": {
+    "atLimit": "Vous avez atteint le maximum de {{max}} jetons. Révoquez-en un pour en créer un autre.",
+    "cancel": "Annuler",
+    "copied": "Copié",
+    "copy": "Copier",
+    "copyFailed": "Impossible de copier dans le presse-papiers — sélectionnez le jeton et copiez-le manuellement.",
+    "copyNow": "Copiez ce jeton maintenant. Il ne sera plus affiché.",
+    "create": "Créer le jeton",
+    "createFailed": "Échec de la création du jeton",
+    "dismiss": "Terminé",
+    "empty": "Aucun jeton d'API. Créez-en un pour utiliser Schautrack depuis des scripts ou d'autres applications.",
+    "expires": "expire le {{date}}",
+    "expiry30": "Expire dans 30 jours",
+    "expiry365": "Expire dans 1 an",
+    "expiry90": "Expire dans 90 jours",
+    "expiryLabel": "Expiration",
+    "expiryNever": "N'expire jamais",
+    "heading": "Jetons d'API",
+    "intro": "Les jetons d'accès personnels permettent à des scripts et à d'autres applications de lire et d'écrire vos données via l'API Schautrack. Chaque jeton ne fait que ce que vous autorisez.",
+    "namePlaceholder": "À quoi sert ce jeton ? (p. ex. Home Assistant)",
+    "neverUsed": "Jamais utilisé",
+    "newToken": "Nouveau jeton",
+    "revoke": "Révoquer",
+    "revoked": "« {{name}} » révoqué",
+    "revokeFailed": "Échec de la révocation du jeton",
+    "scopesLabel": "Ce jeton peut",
+    "specLink": "Voir la référence de l'API.",
+    "usedOn": "Dernière utilisation le {{date}}"
+  },
   "confirmImport": {
     "title": "Remplacer toutes les entrées ?",
     "descriptionPrefix": "L'importation de",
@@ -295,6 +324,11 @@
     "expiresOn": "expire le {{date}}",
     "usersHeading_one": "Utilisateurs ({{count}})",
     "usersHeading_other": "Utilisateurs ({{count}})"
+  },
+  "onboarding": {
+    "button": "Revoir la visite",
+    "description": "Un tour rapide de ce que fait Schautrack et d'où le trouver.",
+    "heading": "Visite guidée"
   },
   "bodyFat": {
     "heading": "Suivre la masse grasse",

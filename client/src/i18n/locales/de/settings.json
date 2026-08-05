@@ -186,6 +186,35 @@
     "importSuccess": "Daten erfolgreich importiert.",
     "importFailed": "Import fehlgeschlagen."
   },
+  "apiTokens": {
+    "atLimit": "Du hast das Maximum von {{max}} Tokens erreicht. Widerrufe eines, um ein neues zu erstellen.",
+    "cancel": "Abbrechen",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "copyFailed": "Kopieren in die Zwischenablage nicht möglich – markiere das Token und kopiere es manuell.",
+    "copyNow": "Kopiere dieses Token jetzt. Es wird nicht erneut angezeigt.",
+    "create": "Token erstellen",
+    "createFailed": "Token konnte nicht erstellt werden",
+    "dismiss": "Fertig",
+    "empty": "Keine API-Tokens. Erstelle eines, um Schautrack aus Skripten oder anderen Apps zu nutzen.",
+    "expires": "läuft am {{date}} ab",
+    "expiry30": "Läuft in 30 Tagen ab",
+    "expiry365": "Läuft in 1 Jahr ab",
+    "expiry90": "Läuft in 90 Tagen ab",
+    "expiryLabel": "Ablauf",
+    "expiryNever": "Läuft nie ab",
+    "heading": "API-Tokens",
+    "intro": "Mit persönlichen Zugriffstokens können Skripte und andere Apps deine Daten über die Schautrack-API lesen und schreiben. Jedes Token kann nur das, was du erlaubst.",
+    "namePlaceholder": "Wofür ist dieses Token? (z. B. Home Assistant)",
+    "neverUsed": "Nie verwendet",
+    "newToken": "Neues Token",
+    "revoke": "Widerrufen",
+    "revoked": "„{{name}}“ widerrufen",
+    "revokeFailed": "Token konnte nicht widerrufen werden",
+    "scopesLabel": "Dieses Token darf",
+    "specLink": "Zur API-Referenz.",
+    "usedOn": "Zuletzt verwendet {{date}}"
+  },
   "confirmImport": {
     "title": "Alle Einträge ersetzen?",
     "descriptionPrefix": "Der Import von",
@@ -295,6 +324,11 @@
     "olderVersion": "Du verwendest eine ältere Version. Bitte <issues>durchsuche zuerst die offenen Issues</issues> — dein Problem wurde möglicherweise bereits gemeldet oder behoben.",
     "acknowledgement": "Mir ist bewusst, dass ich eine ältere Version ({{version}}) verwende und mein Problem möglicherweise bereits gemeldet oder behoben ist — ich habe die offenen Issues geprüft und möchte es trotzdem melden.",
     "submit": "Issue melden"
+  },
+  "onboarding": {
+    "button": "Tour anzeigen",
+    "description": "Eine kurze Führung durch das, was Schautrack kann und wo du es findest.",
+    "heading": "Willkommenstour"
   },
   "bodyFat": {
     "heading": "Körperfett tracken",
