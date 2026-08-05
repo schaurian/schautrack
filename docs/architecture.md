@@ -4,6 +4,11 @@ How Schautrack is put together, and why. Every diagram below is derived from the
 code it describes — the file references next to each are the source of truth, and
 if a diagram and the code ever disagree, the code wins and the diagram is a bug.
 
+References point at **files and symbol names, never line numbers**. Line numbers
+in prose rot within days of being written and rot silently, which is worse than
+being vague: a reader who follows a stale line number lands on unrelated code and
+has no way to tell.
+
 - [System context](#system-context)
 - [Request pipeline](#request-pipeline)
 - [Authorization layers](#authorization-layers)
@@ -28,8 +33,9 @@ failing startup.
 flowchart TB
     browser["Browser<br/>React 19 SPA"]
     android["Android app<br/>App Links / TWA"]
+    apiclient["API client<br/>scripts · integrations"]
 
-    app["Schautrack — one static Go binary<br/>chi router · JSON API · SPA and static assets"]
+    app["Schautrack — one static Go binary<br/>chi router · JSON API · public /api/v1 · SPA and static assets"]
 
     pg[("PostgreSQL 18<br/>data · sessions · event bus")]
 
@@ -39,8 +45,9 @@ flowchart TB
     off["OpenFoodFacts<br/>barcode lookup"]
     rel["GitHub / GitLab<br/>update check"]
 
-    browser -->|"HTTPS · JSON · SSE"| app
+    browser -->|"HTTPS · JSON · SSE<br/>session cookie"| app
     android -->|"HTTPS"| app
+    apiclient -->|"/api/v1<br/>Bearer stk_…"| app
 
     app -.->|"mail"| smtp
     app -.->|"OAuth2"| oidc
@@ -65,10 +72,10 @@ flowchart TB
 
 A misconfigured optional dependency never takes the process down. An invalid
 release source, for example, logs and falls back to the public GitHub repo rather
-than exiting ([`cmd/server/main.go:125-129`](../cmd/server/main.go)).
+than exiting (the `release.New` fallback in [`cmd/server/main.go`](../cmd/server/main.go)).
 
 The one thing that *does* abort startup is a failed schema migration
-([`cmd/server/main.go:62-65`](../cmd/server/main.go)) — deliberately, because
+(`InitSchemaWithRetry` in [`cmd/server/main.go`](../cmd/server/main.go)) — deliberately, because
 `/api/health` only pings the database. A half-migrated schema would keep probes
 green while every real query 500s, and with `maxUnavailable: 0` Kubernetes would
 happily retire the last healthy pod in favour of a broken one.
@@ -104,7 +111,7 @@ flowchart TD
     spa --> resp
 ```
 
-Source: [`cmd/server/main.go:132-147`](../cmd/server/main.go).
+Source: the `r.Use(...)` block in [`cmd/server/main.go`](../cmd/server/main.go).
 
 Two details worth knowing:
 
@@ -113,9 +120,9 @@ actually committed — including the 500s that `Recovery` synthesises. It is the
 only source of request rates, latencies and error counts this deployment has, so
 a 500 that never reached the log is a 500 nobody can see.
 
-**Static assets skip session loading entirely.** `SkipStaticAssets` wraps both the
-session middleware and `AttachUser`
-([`internal/middleware/static.go:57-68`](../internal/middleware/static.go)). One
+**Static assets skip session loading entirely.** `SkipStaticAssets`
+([`internal/middleware/static.go`](../internal/middleware/static.go)) wraps both
+the session middleware and `AttachUser`. One
 page load fans out to roughly a dozen asset requests, and each would otherwise
 cost a session lookup plus a full users SELECT. Authenticated `/api/` and
 `/events/` routes are never classified static, so they keep the complete
@@ -125,8 +132,24 @@ session + user pipeline.
 
 ## Authorization layers
 
-Seven independent guards **compose per route** — there is no single fixed chain
-that every request runs. Each route declares only the guards it needs, via
+There are **two independent authentication models**, and which one applies is
+decided by the URL prefix:
+
+| Surface | Authenticated by | CSRF |
+| --- | --- | --- |
+| The app's own routes (`/entries`, `/settings/*`, `/api/…`) | `schautrack.sid` **session cookie** | Required on every mutation |
+| `/api/v1/*` — the public API | `Authorization: Bearer stk_…` **only** | Not needed at all |
+
+`/api/v1` refuses to treat a cookie as authentication even when one is present,
+and that is the entire point: cookies are attached by the browser automatically,
+which is what makes CSRF possible in the first place. Because no cookie is ever
+accepted there, a request forged by a third-party page cannot carry usable
+credentials, and the whole surface needs no CSRF token, no double-submit and no
+SameSite reasoning (`RequireAPIToken` in
+[`internal/middleware/apiauth.go`](../internal/middleware/apiauth.go)).
+
+Within each model the guards **compose per route** — there is no single fixed
+chain that every request runs. Each route declares only what it needs, via
 `r.With(...)`:
 
 | Route | Guards applied |
@@ -138,6 +161,7 @@ that every request runs. Each route declares only the guards it needs, via
 | `POST /2fa/disable` | login → local auth → **step-up** → CSRF |
 | `POST /settings/export` | login → **step-up** → CSRF |
 | `POST /admin/invites` | login → admin → CSRF |
+| `GET /api/v1/entries` | rate limit (IP) → **API token** → scope `entries:read` |
 
 | Guard | Question it answers | Code |
 | --- | --- | --- |
@@ -148,6 +172,15 @@ that every request runs. Each route declares only the guards it needs, via
 | `CsrfProtection` | Does the token match the session's? | `internal/session/csrf.go` |
 | `RequireLinkAuth` | Does the target user share *this category* with me? | `internal/middleware/links.go` |
 | `RequireAdmin` | Does the email match `ADMIN_EMAIL`? | `internal/middleware/auth.go` |
+| `RequireAPIToken` | Is there a valid `stk_…` bearer token? (cookies rejected) | `internal/middleware/apiauth.go` |
+| `RequireScope` | Does that token carry the scope this route needs? | `internal/middleware/apiauth.go` |
+
+API tokens are scoped per resource and direction — `entries:read`,
+`entries:write`, `weight:*`, `todos:*`, `foods:*`, `notes:*`
+(`internal/service/apitoken.go`). `RequireScope` must be mounted **below**
+`RequireAPIToken`; reaching it without a token is a routing mistake, so it fails
+closed with 401 rather than assuming authorization. A token can never mint
+another token, which keeps a leaked token from escalating into a permanent one.
 
 **Step-up** is the interesting one. It gates changes to *authentication methods
 themselves* — password change, enabling/disabling 2FA, regenerating backup codes,
@@ -170,7 +203,7 @@ flowchart TB
 
 Note the deliberate asymmetry on passkey registration: `/passkeys/register/begin`
 requires step-up but `/passkeys/register/finish` does not
-([`cmd/server/main.go:222-223`](../cmd/server/main.go)). `/finish` is already
+(the `/passkeys/register/*` routes in [`cmd/server/main.go`](../cmd/server/main.go)). `/finish` is already
 authenticated by the signed WebAuthn challenge minted during `/begin`, and
 demanding step-up again would pop a second modal at users who simply took longer
 than the grace window to complete their platform's passkey ceremony.
@@ -179,12 +212,12 @@ than the grace window to complete their platform's passkey ceremony.
 password hash exists. A session established through OIDC is refused with 403 and
 "log in with a password to change authentication settings" — which is why
 `/auth/oidc/step-up` is the one step-up route that deliberately omits the guard
-([`cmd/server/main.go:209`](../cmd/server/main.go)): it exists precisely for users
+(the `/auth/oidc/step-up` route in [`cmd/server/main.go`](../cmd/server/main.go)): it exists precisely for users
 whose only auth method is OIDC.
 
 **Link sharing** is category-scoped and read-only in both directions. Four
 categories exist — `nutrition`, `weight`, `todos`, `notes`
-([`internal/service/links.go:12-19`](../internal/service/links.go)) — and each
+(`ShareCategories` in [`internal/service/links.go`](../internal/service/links.go)) — and each
 shared read route names the one it needs, e.g.
 `RequireLinkAuth(pool, service.ShareNutrition)` on `/entries/day`. Absent or
 unknown keys default to *off*.
@@ -228,8 +261,8 @@ sequenceDiagram
     Note over B: TanStack Query invalidates,<br/>refetches the affected views
 ```
 
-Source: [`internal/sse/broker.go:70-185`](../internal/sse/broker.go),
-[`cmd/server/main.go:79-80`](../cmd/server/main.go).
+Source: `SendEvent` / `Listen` in [`internal/sse/broker.go`](../internal/sse/broker.go),
+wired in [`cmd/server/main.go`](../cmd/server/main.go).
 
 Design points:
 
@@ -262,12 +295,12 @@ Design points:
 
 ## Data model
 
-20 tables, all created by Go migrations in
+22 tables, all created by Go migrations in
 [`internal/database/migrations.go`](../internal/database/migrations.go) —
 `db/init.sql` is intentionally empty so migrations stay the single source of
 truth.
 
-`users` is the hub: 16 of the 20 tables carry a foreign key to it. All of them
+`users` is the hub: 18 of the 22 tables carry a foreign key to it. All of them
 cascade on delete except three columns — `audit_log.user_id` and
 `invite_codes.created_by` / `used_by` — which null out instead, so the trail
 survives the account.
@@ -313,7 +346,7 @@ erDiagram
     }
 ```
 
-**Identity, auth and sharing:**
+**Identity and credentials** — how a person proves who they are:
 
 ```mermaid
 erDiagram
@@ -322,7 +355,22 @@ erDiagram
     users ||--o{ totp_backup_codes : holds
     users ||--o{ password_reset_tokens : requests
     users ||--o{ email_verification_tokens : requests
+
+    users {
+        int id PK
+        string email UK
+        string password_hash "null for OIDC-only"
+        bool totp_enabled
+    }
+```
+
+**Access and bookkeeping** — what an authenticated identity may reach:
+
+```mermaid
+erDiagram
     users ||--o{ account_links : "requester / target"
+    users ||--o{ api_tokens : "stk_… bearer tokens"
+    users ||--o{ api_idempotency : "replay guard"
     users ||--o{ ai_usage : "daily quota"
     users ||--o{ audit_log : "SET NULL"
     users ||--o{ invite_codes : "created_by / used_by · SET NULL"
@@ -330,8 +378,6 @@ erDiagram
     users {
         int id PK
         string email UK
-        string password_hash "null for OIDC-only"
-        bool totp_enabled
     }
     account_links {
         int id PK
@@ -347,7 +393,7 @@ erDiagram
 declining a request **deletes the row** rather than recording a `declined` state,
 so a decline leaves nothing behind and the same pair can try again later.
 
-Three tables are absent from both diagrams because they stand alone, with no
+Three tables are absent from all four diagrams because they stand alone, with no
 foreign keys in either direction:
 
 | Table | Holds |
@@ -404,4 +450,4 @@ abort startup rather than leaving a pod that answers probes but not queries.
 Signals are handled natively via `signal.NotifyContext`, so there is no
 `dumb-init` in the image. Shutdown marks the health endpoint as draining, then
 gives in-flight requests 30 seconds before closing the pool
-([`cmd/server/main.go:394-407`](../cmd/server/main.go)).
+(the `srv.Shutdown` block in [`cmd/server/main.go`](../cmd/server/main.go)).
