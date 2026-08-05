@@ -63,6 +63,18 @@ curl -X POST https://schautrack.com/api/v1/entries \
 Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details.
 Session cookies are not accepted on `/api/v1`, which is why it needs no CSRF token.
 
+Retrying a `POST` is safe if you send an `Idempotency-Key` — a string you generate
+once per logical operation and reuse on retry. The first request executes and its
+response is stored; retries replay it instead of logging the meal twice:
+
+```bash
+curl -X POST https://schautrack.com/api/v1/entries \
+  -H "Authorization: Bearer stk_…" \
+  -H "Idempotency-Key: breakfast-2026-08-05" \
+  -H "Content-Type: application/json" \
+  -d '{"calories": 450, "name": "Porridge"}'
+```
+
 Both artifacts are generated from `internal/openapi` by `go run ./cmd/apidocs`, and
 `go test ./...` fails if they drift from the code — including if a route exists that
 the spec does not document, or vice versa.
@@ -239,7 +251,8 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
 | `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per 15 minutes per IP |
 | `RATE_LIMIT_STRICT` | `5` | Max requests per 5-minute window per IP on sensitive endpoints (password-reset request/confirm, 2FA reset, email-change request, AI estimate) |
-| `RATE_LIMIT_API` | `120` | Max requests per minute per IP on the public API (`/api/v1`). Set well above the auth limiters: a script syncing a day of entries makes dozens of calls in a burst. |
+| `RATE_LIMIT_API` | `120` | Max requests per minute per **IP** on the public API (`/api/v1`). The outer guard: it is the only limit that can throttle an unauthenticated flood. Set well above the auth limiters — a script syncing a day of entries makes dozens of calls in a burst. |
+| `RATE_LIMIT_API_TOKEN` | `60` | Max requests per minute per **token** on `/api/v1`. The limit that matters for a legitimate client: per-IP alone means everyone behind one CGNAT shares a bucket. Both limits return `429` with `Retry-After`. |
 | `LOGIN_CAPTCHA_GLOBAL_THRESHOLD` | `3` | Failed-login count per account email or client IP (cross-session, 15-minute window) at which login demands a captcha. The per-session threshold stays fixed at 3. Raise only in test harnesses where all clients share one IP (read in `internal/handler/login_failures.go`, outside the config package). |
 | `STEP_UP_TTL` | `30m` | Grace window after fresh primary auth during which sensitive auth-method changes (delete passkey, disable 2FA, change password/email, etc.) are accepted without re-prompting. Any `time.ParseDuration` value. |
 

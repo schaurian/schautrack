@@ -4,7 +4,7 @@
     "title": "Schautrack API",
     "version": "1.0.0",
     "summary": "Read and write your Schautrack calorie, weight, todo, and food data.",
-    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` is paginated by keyset. Pass the `next_cursor` from a\nresponse back as `cursor` to fetch the next page; stop when `has_more`\nis false. Cursors are opaque — do not construct them.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n",
+    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` and `GET /weight` are paginated by keyset. Pass the\n`next_cursor` from a response back as `cursor` to fetch the next\npage; stop when `has_more` is false. Cursors are opaque — do not\nconstruct them.\n\n## Retrying safely\n\nEvery `PUT` here is idempotent by construction: the URL names the resource\nand the body states the desired state, so repeating one changes nothing.\n\n`POST` is different. If a request to create an entry times out, you cannot\nknow whether it landed. Send an `Idempotency-Key` header — any string you\ngenerate once per logical operation and reuse when retrying:\n\n```\nIdempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05\n```\n\nThe first request executes and its response is stored. Any retry with the same\nkey replays that response, with `Idempotency-Replayed: true`, instead of\nlogging the meal twice. Reusing a key with a *different* body returns `409`\nrather than silently discarding the new request. Keys are remembered for 24\nhours.\n\n## Rate limits\n\nTwo limits apply: one per IP address and one per token. Exceeding either\nreturns `429` with a `Retry-After` header giving the number of\nseconds until the window reopens. Honour it rather than retrying blindly.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n",
     "license": {
       "name": "AGPL-3.0-or-later",
       "identifier": "AGPL-3.0-or-later"
@@ -173,11 +173,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -207,6 +215,16 @@
         "description": "Needs `calories`, at least one macro, or both. When the account computes calories from macros, a supplied `calories` is replaced by the computed value.",
         "tags": [
           "Entries"
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -267,6 +285,16 @@
               }
             }
           },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -278,11 +306,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -377,11 +413,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -495,11 +539,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -585,11 +637,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -654,11 +714,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -750,11 +818,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -871,11 +947,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -966,11 +1050,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1058,11 +1150,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1172,11 +1272,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1301,11 +1409,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1391,11 +1507,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1436,6 +1560,14 @@
             "required": true,
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -1507,6 +1639,16 @@
               }
             }
           },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -1518,11 +1660,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1587,11 +1737,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1701,11 +1859,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1794,11 +1960,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1913,11 +2087,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2004,11 +2186,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2126,11 +2316,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2196,6 +2394,14 @@
               "minimum": 1,
               "maximum": 200
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` from a previous response.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2250,11 +2456,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2352,11 +2566,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2481,11 +2703,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2574,11 +2804,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -3620,7 +3858,7 @@
       },
       "WeightList": {
         "type": "object",
-        "description": "Weight readings, newest first.",
+        "description": "A page of weight readings, newest first.",
         "properties": {
           "data": {
             "type": "array",
@@ -3628,6 +3866,17 @@
             "items": {
               "$ref": "#/components/schemas/Weight"
             }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Whether another page exists."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass back as `cursor` to fetch the next page. Opaque — do not parse."
           }
         },
         "required": [
@@ -3685,11 +3934,19 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests.",
+        "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
         "content": {
           "application/problem+json": {
             "schema": {
               "$ref": "#/components/schemas/Problem"
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer"
             }
           }
         }

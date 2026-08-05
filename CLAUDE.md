@@ -210,7 +210,14 @@ unversioned and changes freely; this one is a contract.
 5. **Tokens cannot mint tokens.** Token management (`/api/tokens`) lives on the
    session surface and is step-up gated. If a token could create another token, one
    leaked read-only token would escalate to a permanent full-scope one.
-6. **PATCH bodies use `handler.Optional[T]`, never `**T`.** `encoding/json` unmarshals
+6. **Non-idempotent creates must honour `Idempotency-Key`.** `POST /entries` and
+   `POST /saved-foods/{id}/track` are wrapped in `withIdempotency`. If you add
+   another endpoint that creates something, wrap it too — a client whose request
+   times out otherwise has to choose between double-logging and losing data. The
+   key is claimed with `INSERT ... ON CONFLICT DO NOTHING` *before* the handler
+   runs, which is what makes concurrent retries safe; don't "simplify" that into
+   a check-then-insert.
+7. **PATCH bodies use `handler.Optional[T]`, never `**T`.** `encoding/json` unmarshals
    an explicit `null` into a pointer as nil — identical to an absent key — so `**T`
    silently turns "clear this field" into "change nothing". `Optional` implements
    `json.Unmarshaler`, which is called for explicit null and not called when absent.
@@ -274,6 +281,7 @@ Security / rate limiting:
 - `RATE_LIMIT_AUTH`: Max auth attempts per IP per **15-minute** window on login/register/step-up (default: `10`)
 - `RATE_LIMIT_STRICT`: Max attempts per IP per **5-minute** window on the strict limiter (forgot/reset password, 2FA reset, email-change request, AI estimate) (default: `5`)
 - `RATE_LIMIT_API`: Max requests per IP per **minute** on `/api/v1` (default: `120`). Rejections are problem+json, not the legacy JSON shape (`middleware.NewProblemRateLimiter`)
+- `RATE_LIMIT_API_TOKEN`: Max requests per **token** per minute on `/api/v1` (default: `60`, `middleware.NewTokenRateLimiter`). Two limiters run: per-IP outside the sub-router (the only thing that can throttle unauthenticated traffic) and per-token inside it, below `RequireAPIToken`. Both set `Retry-After`.
 - `STEP_UP_TTL`: Grace window after fresh primary auth during which sensitive auth-method changes are accepted without re-prompting. Any `time.ParseDuration` value (default: `30m`; read in `internal/session/store.go`)
 - `CAPTCHA_BYPASS`: **Test-only** — when `true`, any non-empty captcha answer passes. Set only in the E2E harness (`compose.test.yml`); never in production.
 
