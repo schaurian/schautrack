@@ -50,6 +50,12 @@ test.describe('API tokens', () => {
     // Start every test from zero tokens so list assertions are exact rather
     // than "contains", which would pass even if creation silently duplicated.
     psql(`DELETE FROM api_tokens WHERE user_id = ${user.id}`);
+
+    // Suppress the welcome tour. createIsolatedUser leaves
+    // onboarding_completed_at NULL, so the tour auto-opens and its dialog
+    // covers the token card — every click below would hit the overlay
+    // instead. Same suppression onboarding.spec.ts uses.
+    psql(`UPDATE users SET onboarding_completed_at = NOW() WHERE id = ${user.id}`);
   });
 
   /** Open /account and scroll the token card into view. */
