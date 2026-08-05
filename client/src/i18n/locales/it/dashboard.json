@@ -319,9 +319,11 @@
     "toastSaveFailed": "Salvataggio del peso non riuscito",
     "toastDeleteFailed": "Eliminazione del peso non riuscita",
     "bodyFatAriaLabel": "Percentuale di grasso corporeo",
-    "bodyFatNeedsWeight": "Registra prima un peso per questo giorno",
+    "bodyFatNeedsWeight": "Grasso corporeo %: registra prima un peso qui sopra e si sbloccherà.",
     "toastBodyFatTracked": "Grasso corporeo registrato",
     "toastBodyFatCleared": "Grasso corporeo rimosso",
-    "toastBodyFatSaveFailed": "Salvataggio del grasso corporeo non riuscito"
+    "toastBodyFatSaveFailed": "Salvataggio del grasso corporeo non riuscito",
+    "bodyFatHint": "Il secondo campo è la tua percentuale di grasso corporeo, se la bilancia la misura.",
+    "bodyFatPlaceholder": "% grasso"
   }
 }

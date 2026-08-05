@@ -337,9 +337,11 @@
     "toastSaveFailed": "Nie udało się zapisać wagi",
     "toastDeleteFailed": "Nie udało się usunąć wagi",
     "bodyFatAriaLabel": "Procent tkanki tłuszczowej",
-    "bodyFatNeedsWeight": "Najpierw zapisz wagę dla tego dnia",
+    "bodyFatNeedsWeight": "Tkanka tłuszczowa %: najpierw zapisz wagę powyżej, wtedy pole się odblokuje.",
     "toastBodyFatTracked": "Tkanka tłuszczowa zapisana",
     "toastBodyFatCleared": "Tkanka tłuszczowa usunięta",
-    "toastBodyFatSaveFailed": "Nie udało się zapisać tkanki tłuszczowej"
+    "toastBodyFatSaveFailed": "Nie udało się zapisać tkanki tłuszczowej",
+    "bodyFatHint": "Drugie pole to Twój procent tkanki tłuszczowej, jeśli waga go mierzy.",
+    "bodyFatPlaceholder": "% tł."
   }
 }
