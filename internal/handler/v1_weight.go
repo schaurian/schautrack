@@ -32,9 +32,11 @@ func (h *V1Handler) weightUnit(r *http.Request) string {
 
 // ListWeight handles GET /api/v1/weight, optionally bounded by from/to.
 //
-// Weight is one row per day and people weigh themselves at most daily, so even
-// a decade of data is ~3650 rows. It takes a limit but no cursor: a range
-// filter is the natural way to page through a date-keyed series.
+// Weight is the one collection here that grows without bound — todos cap at 20
+// and saved foods at 200, but weight accrues a row per day forever. It is
+// therefore cursor-paginated like entries: without one, a decade of readings
+// (~3650 rows) simply cannot be enumerated past the 200-row page cap except by
+// hand-chunking date ranges.
 func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 	from, prob := queryDate(r, "from")
 	if prob != nil {
@@ -56,6 +58,11 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, r, prob)
 		return
 	}
+	cur, prob := queryCursor(r)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
 
 	user := v1User(r)
 	where := []string{"user_id = $1"}
@@ -68,7 +75,15 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 		args = append(args, to)
 		where = append(where, fmt.Sprintf("entry_date <= $%d", len(args)))
 	}
-	args = append(args, limit)
+	if cur != nil {
+		// Strictly older than the cursor row. One row per user per day means
+		// the date alone is a total order, so no tiebreaker column is needed.
+		args = append(args, cur.Date)
+		where = append(where, fmt.Sprintf("entry_date < $%d::date", len(args)))
+	}
+	// One row beyond the page reveals whether another page exists without a
+	// second COUNT query.
+	args = append(args, limit+1)
 
 	rows, err := h.Pool.Query(r.Context(), fmt.Sprintf(
 		`SELECT entry_date, weight, created_at, updated_at FROM weight_entries
@@ -94,7 +109,19 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, r, dbFail("iterate weight", err))
 		return
 	}
-	writeV1(w, http.StatusOK, v1List[v1Weight]{Data: out})
+
+	hasMore := len(out) > limit
+	if hasMore {
+		out = out[:limit]
+	}
+	page := v1List[v1Weight]{Data: out, HasMore: &hasMore}
+	if hasMore {
+		// ID 0: the cursor encoding carries one, but weight has no surrogate
+		// key to put there and the date is already a total order.
+		next := encodeCursor(cursor{Date: out[len(out)-1].Date, ID: 1})
+		page.NextCursor = &next
+	}
+	writeV1(w, http.StatusOK, page)
 }
 
 // GetWeightV1 handles GET /api/v1/weight/{date}.

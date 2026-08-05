@@ -344,9 +344,20 @@ func main() {
 	//
 	// apiV1Limiter is per-IP and separate from the auth limiters: API clients
 	// make far more requests than a login form, but still need a ceiling.
-	v1Handler := &handler.V1Handler{Pool: pool, Broker: sseBroker, BuildVersion: cfg.BuildVersion}
-	apiV1Limiter := middleware.NewProblemRateLimiter(cfg.RateLimitAPI, time.Minute, cfg.TrustProxy)
-	r.With(apiV1Limiter.Middleware).Mount("/api/v1", v1Handler.MountAPIV1(pool))
+	// Two limiters, deliberately. The per-IP one is the outer guard: it is the
+	// only thing that can throttle an unauthenticated flood, since there is no
+	// token to bucket by until the request has been authenticated. The
+	// per-token one sits inside the sub-router, below RequireAPIToken, and is
+	// the limit that actually matters for a legitimate client — everyone behind
+	// one CGNAT would otherwise share a single bucket.
+	v1Handler := &handler.V1Handler{
+		Pool:         pool,
+		Broker:       sseBroker,
+		BuildVersion: cfg.BuildVersion,
+		TokenLimiter: middleware.NewTokenRateLimiter(cfg.RateLimitAPIToken, time.Minute, cfg.TrustProxy),
+	}
+	apiV1IPLimiter := middleware.NewProblemRateLimiter(cfg.RateLimitAPI, time.Minute, cfg.TrustProxy)
+	r.With(apiV1IPLimiter.Middleware).Mount("/api/v1", v1Handler.MountAPIV1(pool))
 
 	// Barcode
 	if cfg.EnableBarcode {
@@ -375,6 +386,7 @@ func main() {
 				return
 			case <-ticker.C:
 				handler.CleanExpiredTokens(pool)
+				handler.CleanExpiredIdempotencyKeys(pool)
 			}
 		}
 	}()

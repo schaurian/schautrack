@@ -2,7 +2,10 @@ package middleware
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,7 +14,7 @@ import (
 )
 
 type rateLimitEntry struct {
-	count    int
+	count       int
 	windowStart time.Time
 }
 
@@ -30,12 +33,26 @@ type RateLimiter struct {
 	//
 	// Read through rejectFn, never directly: a zero-value RateLimiter (which
 	// the tests build as a struct literal) leaves this nil.
-	reject func(http.ResponseWriter, *http.Request)
+	//
+	// retryAfter is how long until the caller's window resets, so the rejection
+	// can say when to come back instead of leaving the client to guess.
+	reject func(w http.ResponseWriter, r *http.Request, retryAfter time.Duration)
+
+	// keyFn chooses the bucket. Nil means bucket by client IP.
+	keyFn func(*http.Request) string
+}
+
+// bucketKey returns the rate-limit bucket for a request.
+func (rl *RateLimiter) bucketKey(r *http.Request) string {
+	if rl.keyFn != nil {
+		return rl.keyFn(r)
+	}
+	return clientIP(r, rl.trustProxy)
 }
 
 // rejectFn returns the configured rejection writer, defaulting to the legacy
 // JSON shape so a struct-literal RateLimiter still works.
-func (rl *RateLimiter) rejectFn() func(http.ResponseWriter, *http.Request) {
+func (rl *RateLimiter) rejectFn() func(http.ResponseWriter, *http.Request, time.Duration) {
 	if rl.reject != nil {
 		return rl.reject
 	}
@@ -61,14 +78,16 @@ func NewRateLimiter(max int, window time.Duration, trustProxy bool) *RateLimiter
 // the public API surface.
 func NewProblemRateLimiter(max int, window time.Duration, trustProxy bool) *RateLimiter {
 	rl := NewRateLimiter(max, window, trustProxy)
-	rl.reject = func(w http.ResponseWriter, r *http.Request) {
-		apierr.Write(w, r, apierr.TooManyRequests(
-			"You have made too many requests. Slow down and try again shortly."))
+	rl.reject = func(w http.ResponseWriter, r *http.Request, retryAfter time.Duration) {
+		setRetryAfter(w, retryAfter)
+		apierr.Write(w, r, apierr.TooManyRequests(fmt.Sprintf(
+			"You have made too many requests. Retry in %d seconds.", retryAfterSeconds(retryAfter))))
 	}
 	return rl
 }
 
-func rejectJSON(w http.ResponseWriter, _ *http.Request) {
+func rejectJSON(w http.ResponseWriter, _ *http.Request, retryAfter time.Duration) {
+	setRetryAfter(w, retryAfter)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusTooManyRequests)
 	json.NewEncoder(w).Encode(map[string]any{
@@ -78,7 +97,7 @@ func rejectJSON(w http.ResponseWriter, _ *http.Request) {
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r, rl.trustProxy)
+		ip := rl.bucketKey(r)
 
 		rl.mu.Lock()
 		entry, ok := rl.entries[ip]
@@ -89,7 +108,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			// (e.g. behind a CDN or with spoofed X-Forwarded-For headers).
 			if !ok && len(rl.entries) >= rl.maxEntries {
 				rl.mu.Unlock()
-				rl.rejectFn()(w, r)
+				rl.rejectFn()(w, r, rl.window)
 				return
 			}
 			rl.entries[ip] = &rateLimitEntry{count: 1, windowStart: now}
@@ -100,8 +119,9 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 
 		entry.count++
 		if entry.count > rl.max {
+			retryAfter := rl.window - now.Sub(entry.windowStart)
 			rl.mu.Unlock()
-			rl.rejectFn()(w, r)
+			rl.rejectFn()(w, r, retryAfter)
 			return
 		}
 		rl.mu.Unlock()
@@ -129,4 +149,39 @@ func (rl *RateLimiter) cleanup() {
 // logger derive the same, non-spoofable value from proxy headers.
 func clientIP(r *http.Request, trustProxy bool) string {
 	return clientip.FromRequest(r, trustProxy)
+}
+
+// retryAfterSeconds rounds a wait up to whole seconds, with a floor of 1 —
+// "Retry-After: 0" invites an immediate retry that is certain to fail again.
+func retryAfterSeconds(d time.Duration) int {
+	if d <= 0 {
+		return 1
+	}
+	return int(math.Max(1, math.Ceil(d.Seconds())))
+}
+
+// setRetryAfter writes the RFC 9110 §10.2.3 header telling the client when the
+// window reopens.
+func setRetryAfter(w http.ResponseWriter, d time.Duration) {
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds(d)))
+}
+
+// NewTokenRateLimiter buckets by API token rather than by client IP.
+//
+// Per-IP is the wrong granularity for an API: everyone behind one CGNAT or one
+// office NAT shares a bucket, so a single busy script throttles unrelated
+// users, and an abusive token cannot be isolated from the address it shares.
+// The token IS the identity here, so it is the right key.
+//
+// Mount BELOW RequireAPIToken. A request with no token falls back to its IP,
+// which keeps the limiter safe if it is ever mounted above authentication.
+func NewTokenRateLimiter(max int, window time.Duration, trustProxy bool) *RateLimiter {
+	rl := NewProblemRateLimiter(max, window, trustProxy)
+	rl.keyFn = func(r *http.Request) string {
+		if t := GetAPIToken(r); t != nil {
+			return "token:" + strconv.Itoa(t.ID)
+		}
+		return "ip:" + clientIP(r, trustProxy)
+	}
+	return rl
 }

@@ -103,9 +103,35 @@ zone.
 
 ## Pagination
 
-` + "`GET /entries`" + ` is paginated by keyset. Pass the ` + "`next_cursor`" + ` from a
-response back as ` + "`cursor`" + ` to fetch the next page; stop when ` + "`has_more`" + `
-is false. Cursors are opaque — do not construct them.`
+` + "`GET /entries`" + ` and ` + "`GET /weight`" + ` are paginated by keyset. Pass the
+` + "`next_cursor`" + ` from a response back as ` + "`cursor`" + ` to fetch the next
+page; stop when ` + "`has_more`" + ` is false. Cursors are opaque — do not
+construct them.
+
+## Retrying safely
+
+Every ` + "`PUT`" + ` here is idempotent by construction: the URL names the resource
+and the body states the desired state, so repeating one changes nothing.
+
+` + "`POST`" + ` is different. If a request to create an entry times out, you cannot
+know whether it landed. Send an ` + "`Idempotency-Key`" + ` header — any string you
+generate once per logical operation and reuse when retrying:
+
+` + "```" + `
+Idempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05
+` + "```" + `
+
+The first request executes and its response is stored. Any retry with the same
+key replays that response, with ` + "`Idempotency-Replayed: true`" + `, instead of
+logging the meal twice. Reusing a key with a *different* body returns ` + "`409`" + `
+rather than silently discarding the new request. Keys are remembered for 24
+hours.
+
+## Rate limits
+
+Two limits apply: one per IP address and one per token. Exceeding either
+returns ` + "`429`" + ` with a ` + "`Retry-After`" + ` header giving the number of
+seconds until the window reopens. Honour it rather than retrying blindly.`
 
 // Build assembles the OpenAPI document. version is the running build version,
 // surfaced so a reader can tell which deployment served the spec.
@@ -174,9 +200,26 @@ func sharedResponses() map[string]*Response {
 		"BadRequest":        r("The request is malformed — unparseable JSON, an unknown field, or a bad query parameter."),
 		"Unprocessable":     r("The request is well-formed but its values are rejected. `invalid_params` lists the offending fields."),
 		"Conflict":          r("The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled."),
-		"RateLimited":       r("Too many requests."),
-		"ServerError":       r("An unexpected server-side failure."),
+		"RateLimited": {
+			Description: "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
+			Content:     problemBody(),
+			Headers: map[string]Header{
+				"Retry-After": {Description: "Seconds to wait before retrying.", Schema: integer("")},
+			},
+		},
+		"ServerError": r("An unexpected server-side failure."),
 	}
+}
+
+// idempotencyParam documents the opt-in retry-safety header on the two
+// endpoints that create something.
+var idempotencyParam = Parameter{
+	Name: "Idempotency-Key", In: "header",
+	Description: "Optional. A key you generate once per logical operation and reuse when retrying. " +
+		"The first request executes and its response is stored; a retry with the same key replays " +
+		"that response instead of creating a second record, and carries `Idempotency-Replayed: true`. " +
+		"Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+	Schema: str(""),
 }
 
 func schemas() map[string]*Schema {
@@ -258,8 +301,10 @@ func schemas() map[string]*Schema {
 		"WeightInput": object("A weight reading.", map[string]*Schema{
 			"weight": withRange(number("The reading, in the account's unit."), 0.01, 1500),
 		}, "weight"),
-		"WeightList": object("Weight readings, newest first.", map[string]*Schema{
-			"data": array(ref("Weight"), "The readings."),
+		"WeightList": object("A page of weight readings, newest first.", map[string]*Schema{
+			"data":        array(ref("Weight"), "The readings."),
+			"has_more":    boolean("Whether another page exists."),
+			"next_cursor": nullStr("Pass back as `cursor` to fetch the next page. Opaque — do not parse."),
 		}, "data"),
 
 		"Todo": object("A recurring todo.", map[string]*Schema{
@@ -502,10 +547,12 @@ func paths() map[string]*PathItem {
 				Tags:        []string{"Entries"},
 				Scope:       service.ScopeEntriesWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeEntriesWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EntryInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created entry.", ref("Entry"), "URL of the created entry."),
 					"400": respRef("BadRequest"),
+					"409": respRef("Conflict"),
 					"422": respRef("Unprocessable"),
 				}, errs(nil)),
 			},
@@ -554,6 +601,7 @@ func paths() map[string]*PathItem {
 				{Name: "from", In: "query", Description: "Start of an inclusive date range.", Schema: dateStr("")},
 				{Name: "to", In: "query", Description: "End of an inclusive date range.", Schema: dateStr("")},
 				limitParam,
+				{Name: "cursor", In: "query", Description: "The `next_cursor` from a previous response.", Schema: str("")},
 			},
 			Responses: merge(map[string]*Response{
 				"200": ok200("The readings.", ref("WeightList")),
@@ -715,12 +763,12 @@ func paths() map[string]*PathItem {
 			Description: "Creates a calorie entry from the saved food and returns it. Requires `entries:write`, not `foods:write` — it writes an entry.",
 			Tags:        []string{"Saved foods"}, Scope: service.ScopeEntriesWrite,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeEntriesWrite}}},
-			Parameters:  []Parameter{idParam},
+			Parameters:  []Parameter{idParam, idempotencyParam},
 			RequestBody: &RequestBody{Content: jsonBody(ref("TrackInput"))},
 			Responses: merge(map[string]*Response{
 				"201": created201("The created entry.", ref("Entry"), "URL of the created entry."),
 				"400": respRef("BadRequest"), "404": respRef("NotFound"),
-				"422": respRef("Unprocessable"),
+				"409": respRef("Conflict"), "422": respRef("Unprocessable"),
 			}, errs(nil)),
 		}},
 
