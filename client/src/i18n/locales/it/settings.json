@@ -295,5 +295,10 @@
     "expiresOn": "scade il {{date}}",
     "usersHeading_one": "Utenti ({{count}})",
     "usersHeading_other": "Utenti ({{count}})"
+  },
+  "onboarding": {
+    "button": "Mostra il tour",
+    "description": "Una breve panoramica di ciò che fa Schautrack e di dove trovarlo.",
+    "heading": "Tour di benvenuto"
   }
 }

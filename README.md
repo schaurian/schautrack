@@ -31,6 +31,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Two-factor authentication (TOTP) with backup codes
 - Brute-force protection with CAPTCHA challenges on login, registration, and verification-email resend
 - Invite-only registration mode
+- Welcome tour on first login, replayable any time from Settings
 - Real-time updates via Server-Sent Events (SSE)
 - Docker and Kubernetes ready (~21MB image)
 - Android app on Google Play

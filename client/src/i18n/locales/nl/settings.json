@@ -295,5 +295,10 @@
     "expiresOn": "verloopt op {{date}}",
     "usersHeading_one": "Gebruikers ({{count}})",
     "usersHeading_other": "Gebruikers ({{count}})"
+  },
+  "onboarding": {
+    "button": "Rondleiding tonen",
+    "description": "Een korte rondleiding langs wat Schautrack doet en waar je het vindt.",
+    "heading": "Welkomstrondleiding"
   }
 }

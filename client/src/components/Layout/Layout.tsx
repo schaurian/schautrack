@@ -5,6 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import WelcomeTour from '@/components/Onboarding/WelcomeTour';
 
 export default function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -40,6 +41,10 @@ export default function Layout() {
         </div>
       </div>
       <BottomNav />
+      {/* Mounted once for the whole authenticated shell: the tour opens on the
+          first login wherever the user lands, and Settings replays it without
+          having to navigate anywhere. */}
+      <WelcomeTour />
     </div>
   );
 }

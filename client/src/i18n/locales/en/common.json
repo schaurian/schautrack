@@ -51,6 +51,48 @@
   "notifications": {
     "linkRequestWantsToLink": "{{email}} wants to link with you"
   },
+  "onboarding": {
+    "back": "Back",
+    "close": "Close",
+    "done": "Start tracking",
+    "next": "Next",
+    "progress": "{{current}} of {{total}}",
+    "steps": {
+      "day": {
+        "art": "An activity ring beside bars for protein, carbs, fat and fiber",
+        "body": "The ring fills as you log. Switch on protein, carbs, fat, fiber and sugar to follow your macros alongside calories.",
+        "eyebrow": "Dashboard",
+        "title": "Your day at a glance"
+      },
+      "log": {
+        "art": "An entry field above three ways to add food: type, barcode, photo",
+        "artNoAi": "An entry field above two ways to add food: type, barcode",
+        "body": "Type the calories, scan a barcode, or take a photo and let AI estimate it — whichever is fastest. Foods you eat often become one-tap favourites.",
+        "bodyNoAi": "Type the calories or scan a barcode — whichever is faster. Foods you eat often become one-tap favourites.",
+        "eyebrow": "Dashboard",
+        "title": "Three ways to log a meal",
+        "titleNoAi": "Two ways to log a meal"
+      },
+      "plan": {
+        "art": "A weight line falling toward a target marker",
+        "body": "Log your weight, pick a target, and Schautrack works out the daily calorie budget that gets you there.",
+        "eyebrow": "Plan",
+        "title": "Set a goal, get a budget"
+      },
+      "share": {
+        "art": "Two weeks of day squares joined by a link",
+        "body": "Set your goals, switch on daily todos and notes, and link accounts to follow someone else's day next to your own.",
+        "eyebrow": "Settings",
+        "title": "Make it yours"
+      },
+      "welcome": {
+        "art": "A week of day squares, today still empty",
+        "body": "Schautrack keeps one number in view: what you have eaten today. Every day you log fills in a square.",
+        "eyebrow": "Welcome",
+        "title": "One day at a time"
+      }
+    }
+  },
   "quantityStepper": {
     "decrease": "Decrease quantity",
     "increase": "Increase quantity",

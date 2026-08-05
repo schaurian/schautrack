@@ -28,6 +28,7 @@ type User struct {
 	Language            *string         `json:"language"`
 	TodosEnabled        bool            `json:"todos_enabled"`
 	NotesEnabled        bool            `json:"notes_enabled"`
+	OnboardedAt         *time.Time      `json:"onboarding_completed_at,omitempty"`
 	PreferredAIProvider *string         `json:"preferred_ai_provider"`
 	AIKey               *string         `json:"-"`
 	AIEndpoint          *string         `json:"ai_endpoint,omitempty"`

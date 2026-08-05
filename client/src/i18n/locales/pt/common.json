@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} acima do objetivo",
     "remaining": "{{amount}} restante",
     "over": "{{amount}} acima"
+  },
+  "onboarding": {
+    "back": "Voltar",
+    "close": "Fechar",
+    "done": "Começar",
+    "next": "Seguinte",
+    "progress": "{{current}} de {{total}}",
+    "steps": {
+      "day": {
+        "art": "Um anel de atividade ao lado de barras de proteína, hidratos de carbono, gordura e fibra",
+        "body": "O anel enche-se à medida que registas. Ativa proteína, hidratos de carbono, gordura, fibra e açúcar para seguir os macros ao lado das calorias.",
+        "eyebrow": "Painel",
+        "title": "O teu dia num relance"
+      },
+      "log": {
+        "art": "Um campo de entrada acima de três formas de adicionar comida: escrever, código de barras, foto",
+        "body": "Escreve as calorias, lê um código de barras ou tira uma foto e deixa a IA estimar — o que for mais rápido. O que comes com frequência fica a um toque de distância.",
+        "bodyNoAi": "Escreve as calorias ou lê um código de barras — o que for mais rápido. O que comes com frequência fica a um toque de distância.",
+        "eyebrow": "Painel",
+        "title": "Três formas de registar uma refeição",
+        "artNoAi": "Um campo de entrada acima de duas formas de adicionar comida: escrever, código de barras",
+        "titleNoAi": "Duas formas de registar uma refeição"
+      },
+      "plan": {
+        "art": "Uma linha de peso a descer para uma marca de objetivo",
+        "body": "Registra o teu peso, escolhe um objetivo e o Schautrack calcula o orçamento diário de calorias para chegar lá.",
+        "eyebrow": "Plano",
+        "title": "Define um objetivo, recebe um orçamento"
+      },
+      "share": {
+        "art": "Duas semanas de quadrados diários ligadas por uma associação",
+        "body": "Define os teus objetivos, ativa as tarefas e notas diárias e associa contas para acompanhar o dia de outra pessoa ao lado do teu.",
+        "eyebrow": "Definições",
+        "title": "Torna-o teu"
+      },
+      "welcome": {
+        "art": "Uma semana de quadrados diários, hoje ainda vazio",
+        "body": "O Schautrack mantém um número à vista: o que comeste hoje. Cada dia que registas preenche um quadrado.",
+        "eyebrow": "Bem-vindo",
+        "title": "Um dia de cada vez"
+      }
+    }
   }
 }

@@ -295,5 +295,10 @@
     "expiresOn": "expira em {{date}}",
     "usersHeading_one": "Utilizadores ({{count}})",
     "usersHeading_other": "Utilizadores ({{count}})"
+  },
+  "onboarding": {
+    "button": "Mostrar a visita",
+    "description": "Uma visita rápida ao que o Schautrack faz e onde encontrar cada coisa.",
+    "heading": "Visita de boas-vindas"
   }
 }

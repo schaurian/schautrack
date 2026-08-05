@@ -295,5 +295,10 @@
     "olderVersion": "Du verwendest eine ältere Version. Bitte <issues>durchsuche zuerst die offenen Issues</issues> — dein Problem wurde möglicherweise bereits gemeldet oder behoben.",
     "acknowledgement": "Mir ist bewusst, dass ich eine ältere Version ({{version}}) verwende und mein Problem möglicherweise bereits gemeldet oder behoben ist — ich habe die offenen Issues geprüft und möchte es trotzdem melden.",
     "submit": "Issue melden"
+  },
+  "onboarding": {
+    "button": "Tour anzeigen",
+    "description": "Eine kurze Führung durch das, was Schautrack kann und wo du es findest.",
+    "heading": "Willkommenstour"
   }
 }
