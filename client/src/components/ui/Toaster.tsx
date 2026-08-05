@@ -10,15 +10,16 @@ export default function Toaster() {
   // before toasts are inserted. Non-error toasts inherit polite; error toasts
   // override to an assertive alert.
   //
-  // On mobile the stack is offset to clear the FAB (which sits 4.5rem up and is
-  // 3.5rem tall) so an undo action never hides under the add button. Desktop has
-  // no FAB, so it stays at the bottom.
+  // The stack is offset to clear the FAB so an undo action never hides under the
+  // add button — the toast paints above it (z-200 vs z-60). Both offsets are the
+  // FAB's own bottom plus its 3.5rem height plus a 0.75rem gap: 4.5rem up on
+  // mobile (it clears the tab bar), 2rem up on desktop.
   return (
     <div
       role="status"
       aria-live="polite"
       aria-atomic="false"
-      className="fixed right-4 z-[200] flex flex-col gap-2 max-w-sm bottom-[calc(8.75rem+env(safe-area-inset-bottom))] lg:bottom-4"
+      className="fixed right-4 z-[200] flex flex-col gap-2 max-w-sm bottom-[calc(8.75rem+env(safe-area-inset-bottom))] lg:bottom-[6.25rem]"
     >
       {toasts.map((toast) => (
         <div

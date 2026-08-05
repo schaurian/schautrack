@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -36,6 +36,7 @@ test.describe('AI Photo Estimation', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await openAddFood(page);
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 10000 });
     await ctx.close();
@@ -46,11 +47,12 @@ test.describe('AI Photo Estimation', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await openAddFood(page);
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 10000 });
     await aiButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[data-modal-layer="scanner"]');
     await expect(modal).toBeVisible();
     await expect(modal.getByText('AI Calorie Estimate')).toBeVisible();
 
@@ -78,11 +80,12 @@ test.describe('AI Photo Estimation', () => {
 
     await loginAndGo(page);
 
+    await openAddFood(page);
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 10000 });
     await aiButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[data-modal-layer="scanner"]');
     await expect(modal).toBeVisible();
 
     await modal.getByRole('button', { name: 'Upload' }).click();
@@ -132,6 +135,7 @@ test.describe('AI Photo Estimation', () => {
 
     await loginAndGo(page);
 
+    await openAddFood(page);
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 10000 });
 
@@ -140,7 +144,7 @@ test.describe('AI Photo Estimation', () => {
 
     await aiButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    const modal = page.locator('[data-modal-layer="scanner"]');
     await expect(modal).toBeVisible();
 
     await modal.getByRole('button', { name: 'Upload' }).click();

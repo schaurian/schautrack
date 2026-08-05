@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/hooks/useAuth';
-import { useIsDesktop } from '@/hooks/useMediaQuery';
 import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
@@ -28,7 +27,6 @@ export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const { selectedDate, currentUserId, currentLabel, canEdit, rangePreset, rangeStart, rangeEnd, selectUser, selectDay } = useDashboardStore();
-  const isDesktop = useIsDesktop();
   const [addOpen, setAddOpen] = useState(false);
 
   // Fetch dashboard data
@@ -178,32 +176,11 @@ export default function Dashboard() {
         />
       )}
 
-      {canEdit && (isDesktop ? (
-        <section className="surface p-4">
-          <SectionLabel>{t('entries.logSectionTitle')}</SectionLabel>
-          <SavedFoodsRow selectedDate={selectedDate} />
-          <EntryForm
-            selectedDate={selectedDate}
-            caloriesEnabled={dashboard.caloriesEnabled}
-            autoCalcCalories={dashboard.autoCalcCalories}
-            enabledMacros={dashboard.enabledMacros}
-            hasAiEnabled={dashboard.hasAiEnabled}
-            aiUsage={dashboard.aiUsage}
-            aiProviderName={dashboard.aiProviderName}
-            barcodeEnabled={dashboard.barcodeEnabled}
-            onSubmit={() => {
-              // Refresh locally as well as via the entry-change SSE echo. The
-              // echo alone is not enough: it only reaches this tab if the write
-              // and the open stream were served by the same instance, so behind
-              // a load balancer the entry would often not appear until reload.
-              // TanStack dedupes the echo's invalidation into this refetch when
-              // both land together, so the cost is not a guaranteed double-fetch.
-              queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-              queryClient.invalidateQueries({ queryKey: ['day-entries'] });
-            }}
-          />
-        </section>
-      ) : (
+      {/* One add-food flow at every width: the FAB opens the sheet, which is a
+          bottom sheet on mobile and a centered dialog on desktop. Desktop used
+          to get an always-open inline form instead; two flows meant two sets of
+          behaviour to keep in step for no gain. */}
+      {canEdit && (
         <>
           <Fab aria-label={t('entries.addFood')} onClick={() => setAddOpen(true)} />
           <Sheet open={addOpen} onClose={() => setAddOpen(false)} title={t('entries.addFood')}>
@@ -217,11 +194,21 @@ export default function Dashboard() {
               aiUsage={dashboard.aiUsage}
               aiProviderName={dashboard.aiProviderName}
               barcodeEnabled={dashboard.barcodeEnabled}
-              onSubmit={() => setAddOpen(false)}
+              onSubmit={() => {
+                setAddOpen(false);
+                // Refresh locally as well as via the entry-change SSE echo. The
+                // echo alone is not enough: it only reaches this tab if the write
+                // and the open stream were served by the same instance, so behind
+                // a load balancer the entry would often not appear until reload.
+                // TanStack dedupes the echo's invalidation into this refetch when
+                // both land together, so the cost is not a guaranteed double-fetch.
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+                queryClient.invalidateQueries({ queryKey: ['day-entries'] });
+              }}
             />
           </Sheet>
         </>
-      ))}
+      )}
 
       <Timeline
         sharedViews={dashboard.sharedViews}

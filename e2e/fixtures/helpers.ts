@@ -278,6 +278,21 @@ export async function loginUser(browser: import('@playwright/test').Browser, ema
   return { context, page };
 }
 
+/**
+ * Open the add-food sheet and return its dialog locator. The entry form lives
+ * behind the FAB at every viewport width — there is no inline form on desktop —
+ * so any test that fills the form has to open the sheet first. Tracking an entry
+ * closes the sheet, so call this again before each subsequent entry.
+ */
+export async function openAddFood(page: import('@playwright/test').Page) {
+  const fab = page.getByRole('button', { name: 'Add food' });
+  await fab.waitFor({ state: 'visible', timeout: 15000 });
+  await fab.click();
+  const dialog = page.getByRole('dialog', { name: 'Add food' });
+  await dialog.waitFor({ state: 'visible', timeout: 10000 });
+  return dialog;
+}
+
 interface MailpitMessage {
   ID: string;
   From: { Address: string };

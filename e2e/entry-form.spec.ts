@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -27,6 +27,7 @@ test.describe('Entry Form', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
 
     // Fill name and a macro (works even if cal is auto-calc)
@@ -39,7 +40,10 @@ test.describe('Entry Form', () => {
     await page.locator('form button[type="submit"]').click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // Form should be cleared
+    // Tracking closes the sheet, so "cleared" now means: the next time you open
+    // it, the form is empty rather than still holding the last entry.
+    await expect(page.getByRole('dialog', { name: 'Add food' })).not.toBeVisible({ timeout: 5000 });
+    await openAddFood(page);
     await expect(nameInput).toHaveValue('');
 
     await ctx.close();
@@ -50,6 +54,7 @@ test.describe('Entry Form', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await openAddFood(page);
     const dateInput = page.locator('form input[type="date"]');
     await expect(dateInput).toBeVisible();
 
@@ -71,6 +76,7 @@ test.describe('Entry Form', () => {
     const page = await ctx.newPage();
     await loginAndGo(page);
 
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await nameInput.fill('  Spaced name  ');
     await nameInput.blur();
