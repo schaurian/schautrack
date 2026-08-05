@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
+	DatabaseURL   string
 	SessionSecret string
-	Port        string
-	AdminEmail  string
-	BuildVersion string
+	Port          string
+	AdminEmail    string
+	BuildVersion  string
 
 	// SEO
 	RobotsIndex bool
@@ -48,10 +48,11 @@ type Config struct {
 	UpdateBaseURL  string // optional host override for self-hosted GitHub/GitLab
 
 	// Rate limiting
-	RateLimitAuth   int
-	RateLimitStrict int
-	RateLimitAPI    int
-	TrustProxy      bool
+	RateLimitAuth     int
+	RateLimitStrict   int
+	RateLimitAPI      int
+	RateLimitAPIToken int
+	TrustProxy        bool
 
 	// SMTP
 	SMTPHost   string
@@ -117,6 +118,14 @@ func Load() (*Config, error) {
 		rateLimitAPI = 120
 	}
 
+	// Per-token ceiling. Lower than the per-IP one on purpose: the IP limiter
+	// has to accommodate several tokens sharing an address, while a single
+	// token has no such excuse.
+	rateLimitAPIToken, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_API_TOKEN"))
+	if rateLimitAPIToken == 0 {
+		rateLimitAPIToken = 60
+	}
+
 	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	if smtpPort == 0 {
 		smtpPort = 587
@@ -155,10 +164,11 @@ func Load() (*Config, error) {
 		UpdateRepo:     envOr("UPDATE_REPO", "schaurian/schautrack"),
 		UpdateBaseURL:  os.Getenv("UPDATE_BASE_URL"),
 
-		RateLimitAuth:   rateLimitAuth,
-		RateLimitStrict: rateLimitStrict,
-		RateLimitAPI:    rateLimitAPI,
-		TrustProxy:    os.Getenv("TRUST_PROXY") != "false", // default true for k8s/docker
+		RateLimitAuth:     rateLimitAuth,
+		RateLimitStrict:   rateLimitStrict,
+		RateLimitAPI:      rateLimitAPI,
+		RateLimitAPIToken: rateLimitAPIToken,
+		TrustProxy:        os.Getenv("TRUST_PROXY") != "false", // default true for k8s/docker
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),
 		SMTPPort:   smtpPort,
