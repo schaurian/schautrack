@@ -16,6 +16,7 @@ export interface User {
   aiDailyLimit: number | null;
   todosEnabled: boolean;
   notesEnabled: boolean;
+  bodyFatEnabled: boolean;
   hasGlobalAiKey?: boolean;
   passkeyCount: number;
   oidcLinked: boolean;
@@ -39,6 +40,8 @@ export interface WeightEntry {
   id: number;
   entry_date: string;
   weight: number;
+  /** Percent. null on days measured by a scale that only reports weight. */
+  body_fat: number | null;
   timeFormatted?: string;
   updated_at?: string;
   created_at?: string;
@@ -241,6 +244,15 @@ export interface CurvePoint {
   weight: number;
 }
 
+export interface BodyComposition {
+  date: string;
+  bodyFatPct: number;
+  /** In the user's weight unit, like every other weight on PlanResponse. */
+  leanMass: number;
+  fatMass: number;
+  category: 'essential' | 'athletic' | 'fitness' | 'average' | 'obese' | null;
+}
+
 export interface PlanComputed {
   bmr: number;
   tdee: number;
@@ -250,6 +262,7 @@ export interface PlanComputed {
   etaWeeks: number;
   etaDate: string | null;
   planCurve: CurvePoint[];
+  bmrFormula: 'mifflin_st_jeor' | 'katch_mcardle';
 }
 
 export interface PlanTrend {
@@ -263,6 +276,7 @@ export interface PlanTrend {
 export interface SeriesPoint {
   date: string;
   weight: number;
+  bodyFat?: number;
 }
 
 export interface PlanWarning {
@@ -275,6 +289,7 @@ export interface PlanResponse {
   currentWeight: number | null;
   bmi: number | null;
   bmiCategory: string | null;
+  composition: BodyComposition | null;
   healthyRange: HealthyRange | null;
   goal: WeightGoal | null;
   computed: PlanComputed | null;

@@ -12,6 +12,11 @@ export interface PlanChartProps {
   weightUnit: string;
   /** 'full' = axes + legend for the /plan page. 'spark' = minimal, for a dashboard card. */
   variant?: 'full' | 'spark';
+  /**
+   * Plot logged body-fat percentages on a second, right-hand axis. Ignored by
+   * the spark variant, which has no axes to tell the two scales apart.
+   */
+  showBodyFat?: boolean;
   className?: string;
 }
 
@@ -70,6 +75,7 @@ export default function PlanChart({
   healthyRange = null,
   weightUnit,
   variant = 'full',
+  showBodyFat = false,
   className,
 }: PlanChartProps) {
   const { t } = useTranslation('dashboard');
@@ -111,11 +117,17 @@ export default function PlanChart({
 
   const layout = useMemo(() => {
     const actual = series
-      .map((p) => ({ t: new Date(p.date).getTime(), w: p.weight }))
+      .map((p) => ({ t: new Date(p.date).getTime(), w: p.weight, bf: p.bodyFat }))
       .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.w))
       .sort((a, b) => a.t - b.t);
 
     if (actual.length < 2) return null;
+
+    // Body fat is measured less often than weight, so its points are a subset
+    // of the same timeline rather than a parallel series.
+    const fatPts = isSpark || !showBodyFat
+      ? []
+      : actual.filter((p): p is typeof p & { bf: number } => typeof p.bf === 'number' && Number.isFinite(p.bf));
 
     // Plan-curve weeks are offsets from today — map onto the same timeline as the
     // logged series. Spark keeps the domain tight to logged history (no axes to
@@ -143,7 +155,9 @@ export default function PlanChart({
     const { width, height } = size;
     const margin = isSpark
       ? { top: 3, right: 3, bottom: 3, left: 3 }
-      : { top: 10, right: 14, bottom: 26, left: 42 };
+      // The right gutter widens to hold the body-fat axis labels when there
+      // are any; otherwise it stays a hairline so the plot keeps its width.
+      : { top: 10, right: fatPts.length >= 2 ? 30 : 14, bottom: 26, left: 42 };
     const plotW = width - margin.left - margin.right;
     const plotH = height - margin.top - margin.bottom;
 
@@ -151,18 +165,39 @@ export default function PlanChart({
     const y = (w: number) =>
       margin.top + (1 - (w - wMinPadded) / (wMaxPadded - wMinPadded)) * plotH;
 
+    // Body fat gets its own scale — a percentage and a weight share no units,
+    // and forcing them onto one axis would flatten whichever has the smaller
+    // range into a meaningless straight line.
+    let fatScale: ((pct: number) => number) | null = null;
+    let fatTicks: { v: number; y: number }[] = [];
+    if (fatPts.length >= 2) {
+      let fMin = Math.min(...fatPts.map((p) => p.bf));
+      let fMax = Math.max(...fatPts.map((p) => p.bf));
+      if (fMin === fMax) {
+        fMin -= 1;
+        fMax += 1;
+      }
+      const fPad = (fMax - fMin) * 0.1;
+      const fMinPadded = fMin - fPad;
+      const fMaxPadded = fMax + fPad;
+      fatScale = (pct: number) => margin.top + (1 - (pct - fMinPadded) / (fMaxPadded - fMinPadded)) * plotH;
+      fatTicks = evenTicks(fMin, fMax, 3).map((v) => ({ v, y: fatScale!(v) }));
+    }
+
     return {
       margin,
       plotW,
       plotH,
       actualPts: actual.map((p) => ({ x: x(p.t), y: y(p.w) })),
       planPts: plan.map((p) => ({ x: x(p.t), y: y(p.w) })),
+      fatPtsXY: fatScale ? fatPts.map((p) => ({ x: x(p.t), y: fatScale!(p.bf) })) : [],
+      fatTicks,
       targetY: targetWeight != null ? y(targetWeight) : null,
       bandY: !isSpark && healthyRange ? { top: y(healthyRange.maxKg), bottom: y(healthyRange.minKg) } : null,
       xAxisTicks: isSpark ? [] : [tMin, (tMin + tMax) / 2, tMax].map((t) => ({ t, x: x(t) })),
       yAxisTicks: isSpark ? [] : evenTicks(wMin, wMax, 4).map((w) => ({ w, y: y(w) })),
     };
-  }, [series, planCurve, targetWeight, healthyRange, isSpark, size]);
+  }, [series, planCurve, targetWeight, healthyRange, isSpark, showBodyFat, size]);
 
   const chartTitle = isSpark
     ? `${t('plan.chart.sparkTitle')}${targetWeight != null ? t('plan.chart.sparkTitleTarget', { value: fmtWeight(targetWeight), unit: weightUnit }) : ''}`
@@ -194,9 +229,10 @@ export default function PlanChart({
     );
   }
 
-  const { margin, plotW, plotH, actualPts, planPts, targetY, bandY, xAxisTicks, yAxisTicks } = layout;
+  const { margin, plotW, plotH, actualPts, planPts, fatPtsXY, fatTicks, targetY, bandY, xAxisTicks, yAxisTicks } = layout;
   const actualPath = smoothPath(actualPts);
   const planPath = smoothPath(planPts);
+  const fatPath = smoothPath(fatPtsXY);
 
   const svg = (
     <svg
@@ -254,6 +290,21 @@ export default function PlanChart({
         />
       )}
 
+      {/* Logged body fat, on the right-hand % axis — dotted so it never reads
+          as a second weight line even before the legend is consulted */}
+      {fatPtsXY.length >= 2 && (
+        <path
+          d={fatPath}
+          className="text-macro-protein"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeDasharray="1 4"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+
       {/* Actual logged weight */}
       <path d={actualPath} className="text-primary" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
@@ -274,6 +325,16 @@ export default function PlanChart({
             {fmtWeight(w)}
           </text>
         ))}
+
+      {fatPtsXY.map((p, i) => (
+        <circle key={`bf-${i}`} cx={p.x} cy={p.y} r={2.5} className="fill-macro-protein" stroke="var(--color-card)" strokeWidth={1.5} />
+      ))}
+
+      {fatTicks.map(({ v, y: ty }) => (
+        <text key={`bftick-${v}`} x={margin.left + plotW + 4} y={ty} textAnchor="start" dominantBaseline="middle" className="text-macro-protein" fill="currentColor" fontSize={10} opacity={0.75}>
+          {v.toFixed(0)}%
+        </text>
+      ))}
 
       {!isSpark &&
         xAxisTicks.map(({ t, x: tx }, i) => (
@@ -307,6 +368,9 @@ export default function PlanChart({
           )}
           {targetWeight != null && (
             <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dashed border-muted-foreground/70" />} label={t('plan.chart.legendTarget')} />
+          )}
+          {fatPtsXY.length >= 2 && (
+            <LegendItem swatch={<span className="inline-block h-0 w-3 border-t-2 border-dotted border-macro-protein" />} label={t('plan.chart.legendBodyFat')} />
           )}
           {healthyRange && <LegendItem swatch={<span className="inline-block h-2.5 w-3 rounded-sm bg-success/20" />} label={t('plan.chart.legendHealthyRange')} />}
         </div>

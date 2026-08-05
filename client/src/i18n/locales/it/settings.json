@@ -29,6 +29,10 @@
     },
     "timezone": {
       "label": "Fuso orario"
+    },
+    "bodyFat": {
+      "label": "Monitora il grasso corporeo",
+      "description": "Aggiunge un campo per il grasso corporeo alla riga del peso"
     }
   },
   "todo": {

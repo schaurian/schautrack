@@ -29,6 +29,10 @@
     },
     "timezone": {
       "label": "Strefa czasowa"
+    },
+    "bodyFat": {
+      "label": "Śledź tkankę tłuszczową",
+      "description": "Dodaje pole tkanki tłuszczowej do wiersza wagi"
     }
   },
   "todo": {

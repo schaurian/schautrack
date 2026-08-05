@@ -12,18 +12,23 @@ interface Props {
   weightUnit: string;
   canEdit: boolean;
   selectedDate: string;
+  bodyFatEnabled?: boolean;
 }
 
-export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, canEdit, selectedDate }: Props) {
+export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, canEdit, selectedDate, bodyFatEnabled = false }: Props) {
   const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bodyFatRef = useRef<HTMLInputElement>(null);
 
   const entry = weightEntry || lastWeightEntry;
   const isToday = !!weightEntry;
   const displayValue = entry ? String(Number(entry.weight)) : '';
+  // Only the selected date's own reading, never the last one: a stale body fat
+  // is not a useful pre-fill, and showing one would invite saving it to today.
+  const bodyFatValue = weightEntry?.body_fat != null ? String(Number(weightEntry.body_fat)) : '';
 
   const handleSave = async () => {
     const raw = inputRef.current?.value.trim() || '';
@@ -31,11 +36,31 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     if (!num || num <= 0) return;
     setLoading(true);
     try {
+      // No body_fat key: this path only ever means "save the weight", and the
+      // server preserves whatever reading the date already has.
       await upsertWeight({ date: selectedDate, weight: num });
       queryClient.invalidateQueries({ queryKey: ['weight'] });
       addToast('success', t('weight.toastTracked'));
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('weight.toastSaveFailed'));
+    }
+    setLoading(false);
+  };
+
+  const handleSaveBodyFat = async () => {
+    // The field is disabled until the date has a weight entry, so the weight
+    // sent here is the stored one — never the previous-day pre-fill.
+    if (!weightEntry) return;
+    const raw = bodyFatRef.current?.value.trim() || '';
+    const num = raw === '' ? null : parseFloat(raw.replace(',', '.'));
+    if (num !== null && (!Number.isFinite(num) || num <= 0)) return;
+    setLoading(true);
+    try {
+      await upsertWeight({ date: selectedDate, weight: Number(weightEntry.weight), body_fat: num });
+      queryClient.invalidateQueries({ queryKey: ['weight'] });
+      addToast('success', num === null ? t('weight.toastBodyFatCleared') : t('weight.toastBodyFatTracked'));
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : t('weight.toastBodyFatSaveFailed'));
     }
     setLoading(false);
   };
@@ -55,7 +80,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      inputRef.current?.blur();
+      (e.target as HTMLInputElement).blur();
     }
   };
 
@@ -71,6 +96,12 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     }
   };
 
+  const handleBodyFatBlur = () => {
+    const raw = bodyFatRef.current?.value.trim() || '';
+    if (raw === bodyFatValue) return;
+    handleSaveBodyFat();
+  };
+
   if (!entry && !canEdit) return null;
 
   const colorClass = isToday ? 'text-green-400' : 'text-muted-foreground';
@@ -78,6 +109,12 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   const daysAgo = !isToday && entry?.entry_date
     ? Math.round((new Date(selectedDate).getTime() - new Date(entry.entry_date).getTime()) / 86400000)
     : 0;
+
+  // On your own row the preference decides. On a linked account's row it does
+  // not: they shared their weight and the reading rides along with it, so
+  // hiding it because *you* don't track body fat would drop shared data for an
+  // unrelated reason.
+  const showBodyFat = canEdit ? bodyFatEnabled : weightEntry?.body_fat != null;
 
   return (
     <section className="surface p-4">
@@ -114,6 +151,32 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
             <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
           </span>
         )}
+        {showBodyFat && (canEdit ? (
+          <span className="relative flex items-center w-24 shrink-0">
+            <input
+              ref={bodyFatRef}
+              className={`w-full rounded-md border bg-muted/50 px-3 py-2 pr-7 text-sm outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50 ${weightEntry?.body_fat != null ? 'border-green-500/40 text-green-400' : 'border-input text-foreground'}`}
+              type="text"
+              inputMode="decimal"
+              defaultValue={bodyFatValue}
+              key={`bf-${selectedDate}-${weightEntry?.id}-${weightEntry?.body_fat}`}
+              onKeyDown={handleKeyDown}
+              onBlur={handleBodyFatBlur}
+              placeholder="0.0"
+              // A body-fat reading belongs to a weight, so there is nothing to
+              // attach it to until the day has one.
+              disabled={loading || !weightEntry}
+              title={weightEntry ? undefined : t('weight.bodyFatNeedsWeight')}
+              aria-label={t('weight.bodyFatAriaLabel')}
+            />
+            <span className="absolute right-2.5 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">%</span>
+          </span>
+        ) : (
+          <span className="text-lg font-semibold tabular-nums text-muted-foreground">
+            {Number(weightEntry?.body_fat).toFixed(1)}
+            <span className="text-sm font-normal ml-1">%</span>
+          </span>
+        ))}
         {canEdit && weightEntry && (
           <button
             type="button"

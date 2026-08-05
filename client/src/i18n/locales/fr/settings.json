@@ -29,6 +29,10 @@
     },
     "timezone": {
       "label": "Fuseau horaire"
+    },
+    "bodyFat": {
+      "label": "Suivre la masse grasse",
+      "description": "Ajoute un champ de masse grasse à la ligne de poids"
     }
   },
   "todo": {

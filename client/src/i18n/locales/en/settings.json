@@ -232,6 +232,10 @@
     "updatedToast": "Password updated"
   },
   "preferences": {
+    "bodyFat": {
+      "description": "Add a body-fat field to the weight row",
+      "label": "Track Body Fat"
+    },
     "heading": "Internationalization",
     "timezone": {
       "label": "Timezone"

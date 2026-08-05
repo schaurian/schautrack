@@ -29,6 +29,10 @@
     },
     "timezone": {
       "label": "Zeitzone"
+    },
+    "bodyFat": {
+      "label": "Körperfett tracken",
+      "description": "Fügt der Gewichtszeile ein Körperfett-Feld hinzu"
     }
   },
   "todo": {

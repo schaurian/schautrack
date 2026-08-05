@@ -120,6 +120,13 @@
       "overweight": "Overweight",
       "underweight": "Underweight"
     },
+    "bodyFatCategory": {
+      "athletic": "Athletic",
+      "average": "Average",
+      "essential": "Essential",
+      "fitness": "Fitness",
+      "obese": "Obese"
+    },
     "budgetHelp": {
       "needGoal": "Set a goal above to see a recommended budget.",
       "needGoalAndMetrics": "Set a goal and complete your details above to see a recommended budget.",
@@ -143,6 +150,7 @@
       "fullTitlePlanCurveSuffix": " with the adaptive plan curve",
       "fullTitleTargetSuffix": " and a target of {{value}} {{unit}}",
       "legendActual": "Actual",
+      "legendBodyFat": "Body fat",
       "legendHealthyRange": "Healthy range",
       "legendPlan": "Plan",
       "legendTarget": "Target",
@@ -203,13 +211,17 @@
       "applyButton": "Apply as my calorie goal",
       "clampedNotice": "Clamped to a safe minimum",
       "currentGoalLabel": "Current calorie goal: {{value}} kcal/day",
+      "formulaKatch": "Based on Katch-McArdle, from {{lean}} {{unit}} of lean mass",
+      "formulaMifflin": "Based on Mifflin-St Jeor. Log a body-fat percentage for a lean-mass estimate.",
       "title": "Recommended Budget"
     },
     "status": {
       "addHeightWeight": "Add height & weight",
       "bmiLabel": "BMI",
+      "bodyFatLabel": "Body Fat",
       "currentWeightLabel": "Current Weight",
       "healthyRangeLabel": "Healthy Range",
+      "leanFatSplit": "{{lean}} {{unit}} lean · {{fat}} {{unit}} fat",
       "title": "Status"
     },
     "toastBudgetApplied": "Calorie goal updated",
@@ -296,11 +308,16 @@
     "uncheckAriaLabel": "Uncheck {{name}}"
   },
   "weight": {
+    "bodyFatAriaLabel": "Body fat percentage",
+    "bodyFatNeedsWeight": "Log a weight for this day first",
     "daysAgo_one": "1 day ago",
     "daysAgo_other": "{{count}} days ago",
     "deleteButton": "Delete",
     "deleteEntryTitle": "Delete weight entry",
     "sectionTitle": "Weight",
+    "toastBodyFatCleared": "Body fat removed",
+    "toastBodyFatSaveFailed": "Failed to save body fat",
+    "toastBodyFatTracked": "Body fat tracked",
     "toastDeleteFailed": "Failed to delete weight",
     "toastSaveFailed": "Failed to save weight",
     "toastTracked": "Weight tracked",

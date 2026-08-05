@@ -29,6 +29,10 @@
     },
     "timezone": {
       "label": "Tijdzone"
+    },
+    "bodyFat": {
+      "label": "Vetpercentage bijhouden",
+      "description": "Voegt een vetpercentageveld toe aan de gewichtsrij"
     }
   },
   "todo": {

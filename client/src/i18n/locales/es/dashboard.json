@@ -146,13 +146,17 @@
       "currentWeightLabel": "Peso actual",
       "bmiLabel": "IMC",
       "addHeightWeight": "Añade altura y peso",
-      "healthyRangeLabel": "Rango saludable"
+      "healthyRangeLabel": "Rango saludable",
+      "bodyFatLabel": "Grasa corporal",
+      "leanFatSplit": "{{lean}} {{unit}} de masa magra · {{fat}} {{unit}} de grasa"
     },
     "recommendedBudget": {
       "title": "Presupuesto recomendado",
       "currentGoalLabel": "Objetivo actual de calorías: {{value}} kcal/día",
       "clampedNotice": "Ajustado a un mínimo seguro",
-      "applyButton": "Aplicar como mi objetivo de calorías"
+      "applyButton": "Aplicar como mi objetivo de calorías",
+      "formulaKatch": "Según Katch-McArdle, a partir de {{lean}} {{unit}} de masa magra",
+      "formulaMifflin": "Según Mifflin-St Jeor. Registra un porcentaje de grasa corporal para una estimación por masa magra."
     },
     "progress": {
       "title": "Progreso",
@@ -220,7 +224,15 @@
       "legendActual": "Real",
       "legendPlan": "Plan",
       "legendTarget": "Objetivo",
-      "legendHealthyRange": "Rango saludable"
+      "legendHealthyRange": "Rango saludable",
+      "legendBodyFat": "Grasa corporal"
+    },
+    "bodyFatCategory": {
+      "essential": "Esencial",
+      "athletic": "Atlético",
+      "fitness": "En forma",
+      "average": "Medio",
+      "obese": "Obesidad"
     }
   },
   "savedFoods": {
@@ -304,6 +316,11 @@
     "deleteButton": "Eliminar",
     "toastTracked": "Peso registrado",
     "toastSaveFailed": "Error al guardar el peso",
-    "toastDeleteFailed": "Error al eliminar el peso"
+    "toastDeleteFailed": "Error al eliminar el peso",
+    "bodyFatAriaLabel": "Porcentaje de grasa corporal",
+    "bodyFatNeedsWeight": "Registra primero un peso para este día",
+    "toastBodyFatTracked": "Grasa corporal registrada",
+    "toastBodyFatCleared": "Grasa corporal eliminada",
+    "toastBodyFatSaveFailed": "Error al guardar la grasa corporal"
   }
 }

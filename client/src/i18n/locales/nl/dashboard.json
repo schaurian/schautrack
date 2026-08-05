@@ -146,13 +146,17 @@
       "currentWeightLabel": "Huidig gewicht",
       "bmiLabel": "BMI",
       "addHeightWeight": "Voeg lengte & gewicht toe",
-      "healthyRangeLabel": "Gezond bereik"
+      "healthyRangeLabel": "Gezond bereik",
+      "bodyFatLabel": "Vetpercentage",
+      "leanFatSplit": "{{lean}} {{unit}} vetvrije massa · {{fat}} {{unit}} vet"
     },
     "recommendedBudget": {
       "title": "Aanbevolen budget",
       "currentGoalLabel": "Huidig caloriedoel: {{value}} kcal/dag",
       "clampedNotice": "Beperkt tot een veilig minimum",
-      "applyButton": "Toepassen als mijn caloriedoel"
+      "applyButton": "Toepassen als mijn caloriedoel",
+      "formulaKatch": "Volgens Katch-McArdle, op basis van {{lean}} {{unit}} vetvrije massa",
+      "formulaMifflin": "Volgens Mifflin-St Jeor. Registreer een vetpercentage voor een schatting op basis van vetvrije massa."
     },
     "progress": {
       "title": "Voortgang",
@@ -220,7 +224,15 @@
       "legendActual": "Werkelijk",
       "legendPlan": "Plan",
       "legendTarget": "Streefwaarde",
-      "legendHealthyRange": "Gezond bereik"
+      "legendHealthyRange": "Gezond bereik",
+      "legendBodyFat": "Vetpercentage"
+    },
+    "bodyFatCategory": {
+      "essential": "Essentieel",
+      "athletic": "Atletisch",
+      "fitness": "Fit",
+      "average": "Gemiddeld",
+      "obese": "Obesitas"
     }
   },
   "savedFoods": {
@@ -304,6 +316,11 @@
     "deleteButton": "Verwijderen",
     "toastTracked": "Gewicht bijgehouden",
     "toastSaveFailed": "Opslaan van gewicht mislukt",
-    "toastDeleteFailed": "Verwijderen van gewicht mislukt"
+    "toastDeleteFailed": "Verwijderen van gewicht mislukt",
+    "bodyFatAriaLabel": "Vetpercentage",
+    "bodyFatNeedsWeight": "Registreer eerst een gewicht voor deze dag",
+    "toastBodyFatTracked": "Vetpercentage bijgehouden",
+    "toastBodyFatCleared": "Vetpercentage verwijderd",
+    "toastBodyFatSaveFailed": "Opslaan van vetpercentage mislukt"
   }
 }

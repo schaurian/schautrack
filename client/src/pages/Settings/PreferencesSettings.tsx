@@ -22,11 +22,15 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
   const [weightUnit, setWeightUnit] = useState(user.weightUnit);
   // '' = Automatic (browser language); a code = explicit override.
   const [language, setLanguage] = useState<string>(user.language ?? '');
+  const [bodyFatEnabled, setBodyFatEnabled] = useState(user.bodyFatEnabled);
 
-  const data = useMemo(() => ({ timezone, weightUnit, language }), [timezone, weightUnit, language]);
+  const data = useMemo(
+    () => ({ timezone, weightUnit, language, bodyFatEnabled }),
+    [timezone, weightUnit, language, bodyFatEnabled],
+  );
 
   const saveFn = useCallback(async (d: typeof data) => {
-    await savePreferences({ weight_unit: d.weightUnit, timezone: d.timezone, language: d.language });
+    await savePreferences({ weight_unit: d.weightUnit, timezone: d.timezone, language: d.language, body_fat_enabled: d.bodyFatEnabled });
     onSave();
   }, [onSave]);
 
@@ -66,6 +70,29 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
               <SelectItem value="lb">{t('preferences.weightUnit.lb')}</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        {/* Sits with the weight unit because it changes what the weight row
+            asks for, not because it is a feature area of its own. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span id="pref-body-fat-label" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('preferences.bodyFat.label')}</span>
+            <span className="text-xs text-muted-foreground">{t('preferences.bodyFat.description')}</span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={bodyFatEnabled}
+            aria-labelledby="pref-body-fat-label"
+            data-testid="pref-body-fat"
+            onClick={() => setBodyFatEnabled((v) => !v)}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              bodyFatEnabled ? 'bg-primary' : 'bg-muted'
+            }`}
+          >
+            <span className={`pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm transition-transform ${
+              bodyFatEnabled ? 'translate-x-4' : 'translate-x-0'
+            }`} />
+          </button>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="pref-timezone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('preferences.timezone.label')}</label>

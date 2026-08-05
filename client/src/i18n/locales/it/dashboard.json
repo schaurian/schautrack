@@ -146,13 +146,17 @@
       "currentWeightLabel": "Peso attuale",
       "bmiLabel": "IMC",
       "addHeightWeight": "Aggiungi altezza e peso",
-      "healthyRangeLabel": "Intervallo salutare"
+      "healthyRangeLabel": "Intervallo salutare",
+      "bodyFatLabel": "Grasso corporeo",
+      "leanFatSplit": "{{lean}} {{unit}} di massa magra · {{fat}} {{unit}} di grasso"
     },
     "recommendedBudget": {
       "title": "Budget consigliato",
       "currentGoalLabel": "Obiettivo calorico attuale: {{value}} kcal/giorno",
       "clampedNotice": "Limitato a un minimo sicuro",
-      "applyButton": "Applica come mio obiettivo calorico"
+      "applyButton": "Applica come mio obiettivo calorico",
+      "formulaKatch": "Secondo Katch-McArdle, da {{lean}} {{unit}} di massa magra",
+      "formulaMifflin": "Secondo Mifflin-St Jeor. Registra una percentuale di grasso corporeo per una stima sulla massa magra."
     },
     "progress": {
       "title": "Progresso",
@@ -220,7 +224,15 @@
       "legendActual": "Attuale",
       "legendPlan": "Piano",
       "legendTarget": "Obiettivo",
-      "legendHealthyRange": "Intervallo salutare"
+      "legendHealthyRange": "Intervallo salutare",
+      "legendBodyFat": "Grasso corporeo"
+    },
+    "bodyFatCategory": {
+      "essential": "Essenziale",
+      "athletic": "Atletico",
+      "fitness": "In forma",
+      "average": "Nella media",
+      "obese": "Obeso"
     }
   },
   "savedFoods": {
@@ -304,6 +316,11 @@
     "deleteButton": "Elimina",
     "toastTracked": "Peso registrato",
     "toastSaveFailed": "Salvataggio del peso non riuscito",
-    "toastDeleteFailed": "Eliminazione del peso non riuscita"
+    "toastDeleteFailed": "Eliminazione del peso non riuscita",
+    "bodyFatAriaLabel": "Percentuale di grasso corporeo",
+    "bodyFatNeedsWeight": "Registra prima un peso per questo giorno",
+    "toastBodyFatTracked": "Grasso corporeo registrato",
+    "toastBodyFatCleared": "Grasso corporeo rimosso",
+    "toastBodyFatSaveFailed": "Salvataggio del grasso corporeo non riuscito"
   }
 }

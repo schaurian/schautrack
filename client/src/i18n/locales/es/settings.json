@@ -29,6 +29,10 @@
     },
     "timezone": {
       "label": "Zona horaria"
+    },
+    "bodyFat": {
+      "label": "Registrar grasa corporal",
+      "description": "Añade un campo de grasa corporal a la fila de peso"
     }
   },
   "todo": {
