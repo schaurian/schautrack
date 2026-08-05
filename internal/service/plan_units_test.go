@@ -49,6 +49,7 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 			BMI:           &bmi,
 			Series:        []SeriesPoint{{Date: "2026-07-01", Weight: 91}},
 			HealthyRange:  &HealthyRange{MinKg: 59.9, MaxKg: 80.7},
+			Composition:   &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9},
 			Computed: &PlanComputed{
 				BudgetKcal:    2000,
 				RateKgPerWeek: 0.34,
@@ -99,12 +100,23 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 			t.Errorf("Trend.SlopeKgPerWeek = %v, want ≈-0.7", r.Trend.SlopeKgPerWeek)
 		}
 
+		if !almost(r.Composition.LeanMass, 150.1, 0.1) {
+			t.Errorf("Composition.LeanMass = %v, want \u2248150.1", r.Composition.LeanMass)
+		}
+		if !almost(r.Composition.FatMass, 48.3, 0.1) {
+			t.Errorf("Composition.FatMass = %v, want \u224848.3", r.Composition.FatMass)
+		}
+
 		// Unit-independent fields must be untouched.
 		if r.Computed.BudgetKcal != 2000 {
 			t.Errorf("BudgetKcal must not be converted, got %d", r.Computed.BudgetKcal)
 		}
 		if *r.BMI != 29.4 {
 			t.Errorf("BMI must not be converted, got %v", *r.BMI)
+		}
+		// A percentage is the same number in kg and lb.
+		if r.Composition.BodyFatPct != 24.3 {
+			t.Errorf("Composition.BodyFatPct must not be converted, got %v", r.Composition.BodyFatPct)
 		}
 	})
 

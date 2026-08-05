@@ -72,7 +72,7 @@ func TestBMI(t *testing.T) {
 }
 
 func TestAdaptivePlanCurve(t *testing.T) {
-	curve := AdaptivePlanCurve(130, 80, 2200, SexMale, 180, 40, ActivityModerate, 200)
+	curve := AdaptivePlanCurve(130, 80, 2200, MifflinModel(SexMale, 180, 40), ActivityModerate, 200)
 	if len(curve) < 2 || curve[0].Weight != 130 {
 		t.Fatalf("curve start wrong: %+v", curve[:1])
 	}
@@ -90,10 +90,10 @@ func TestAdaptivePlanCurve(t *testing.T) {
 func TestTrendAnalysis(t *testing.T) {
 	now := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	pts := []WeightPoint{
-		{now.AddDate(0, 0, -21), 132},
-		{now.AddDate(0, 0, -14), 131},
-		{now.AddDate(0, 0, -7), 130},
-		{now, 129},
+		{Date: now.AddDate(0, 0, -21), Weight: 132},
+		{Date: now.AddDate(0, 0, -14), Weight: 131},
+		{Date: now.AddDate(0, 0, -7), Weight: 130},
+		{Date: now, Weight: 129},
 	}
 	tr := TrendAnalysis(pts, 80, 0.75, 30, now)
 	if !tr.HasData || tr.SlopeKgPerWeek > -0.9 || tr.SlopeKgPerWeek < -1.1 {

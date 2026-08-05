@@ -752,6 +752,34 @@ func ensureWeightGoalsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+// ensureBodyFatSchema adds the optional body-fat percentage to the per-day
+// weight reading, plus the per-user opt-in that surfaces it in the UI.
+//
+// It is a column on weight_entries rather than its own table because a body-fat
+// reading comes off the same scale, on the same day, as the weight it belongs
+// to: the column inherits the one-row-per-day unique index, the delete
+// semantics, export/import, SSE and link-sharing without any new plumbing.
+//
+// The 75% ceiling is deliberately loose (the highest values ever recorded are
+// around 70%); service.ParseBodyFat enforces the same range so an out-of-bounds
+// value is a clean 400 rather than a 500 from this constraint.
+func ensureBodyFatSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS body_fat NUMERIC(4,1);
+			ALTER TABLE users ADD COLUMN IF NOT EXISTS body_fat_enabled BOOLEAN DEFAULT FALSE`); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			DO $$ BEGIN
+				ALTER TABLE weight_entries ADD CONSTRAINT weight_entries_body_fat_range
+					CHECK (body_fat IS NULL OR (body_fat > 0 AND body_fat <= 75));
+			EXCEPTION WHEN duplicate_object THEN NULL;
+			END $$`)
+		return err
+	})
+}
+
 // ensureConsentSchema records WHEN a user accepted the terms and gave the
 // explicit Art. 9(2)(a) GDPR consent for health-data processing. Art. 7(1)
 // requires the controller to be able to demonstrate consent, so the fact and
@@ -814,6 +842,7 @@ func migrationSteps() []migrationStep {
 		{"daily_notes", ensureDailyNotesSchema},
 		{"backup_codes", ensureBackupCodesSchema},
 		{"invite", ensureInviteSchema},
+		{"body_fat", ensureBodyFatSchema},
 		// Data migrations (depend on columns created by "macros")
 		{"calorie_goal_to_macro_goals", migrateCalorieGoalToMacroGoals},
 		{"auto_calc_calories", migrateAutoCalcCalories},

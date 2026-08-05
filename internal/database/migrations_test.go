@@ -107,6 +107,26 @@ func TestRunAllMigrationsIdempotentBodyProfileAndWeightGoals(t *testing.T) {
 	if !tableExists {
 		t.Error("expected weight_goals table to exist")
 	}
+
+	// ensureBodyFatSchema also adds a CHECK constraint, which is the part that
+	// would blow up on a second run without the duplicate_object guard — so the
+	// two runs above are the real assertion and these only prove it ran at all.
+	for _, c := range []struct{ table, column string }{
+		{"weight_entries", "body_fat"},
+		{"users", "body_fat_enabled"},
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = $1 AND column_name = $2
+			)`, c.table, c.column).Scan(&exists); err != nil {
+			t.Fatalf("querying information_schema.columns failed: %v", err)
+		}
+		if !exists {
+			t.Errorf("expected %s.%s column to exist", c.table, c.column)
+		}
+	}
 }
 
 func TestAccountLinksShareColumns(t *testing.T) {
