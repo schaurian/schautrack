@@ -172,7 +172,10 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
           </span>
         ) : (
           <span className="text-lg font-semibold tabular-nums text-muted-foreground">
-            {Number(weightEntry?.body_fat).toFixed(1)}
+            {/* showBodyFat already proved this branch has a reading; reading it
+                through `?.` would quietly render "NaN" if that ever stopped
+                holding, so take the value directly and let it fail loudly. */}
+            {Number(bodyFatValue).toFixed(1)}
             <span className="text-sm font-normal ml-1">%</span>
           </span>
         ))}

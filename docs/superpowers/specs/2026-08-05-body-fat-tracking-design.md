@@ -159,11 +159,16 @@ type BodyComposition struct {
 
 1. **`WeightRow` (dashboard)** — when `bodyFatEnabled`, a second, narrower input
    with a `%` suffix beside the weight input. It is **disabled until the
-   selected date has a weight entry**, with an explanatory title. That mirrors
-   the DB shape and, more importantly, avoids the trap the existing weight input
-   already guards against: the row pre-fills with the *last* weight, so
-   accepting body fat first would silently write a stale weight to today. Same
-   blur-to-save, same toast, same read-only rendering for linked users.
+   selected date has a weight entry**. That mirrors the DB shape and, more
+   importantly, avoids the trap the existing weight input already guards
+   against: the row pre-fills with the *last* weight, so accepting body fat
+   first would silently write a stale weight to today. Same blur-to-save, same
+   toast, same read-only rendering for linked users.
+
+   The disabled state needs **visible** explanation, not a `title`: shipped that
+   way first and it read as a broken grey box, since no touch device has hover.
+   The input carries a `% fat` placeholder and a caption under the row states
+   what the field is in both states.
 2. **Plan status header** — a fourth tile, **Body fat**: `24.3 %` + category
    chip, sub-line `62.3 kg lean · 20.0 kg fat`. Grid goes
    `sm:grid-cols-2 lg:grid-cols-4` when composition exists, unchanged otherwise.
@@ -235,19 +240,39 @@ selection), `internal/service/plan_units.go` (convert lean/fat mass),
 
 ## 10. Verified
 
-- `go build ./...`, `go vet ./...`, `go test ./...` — green.
-- `npm run typecheck`, `npm run build`, `npm run test` (102 client tests),
-  `npm run i18n:drift`, `npm run i18n:check` — green.
-- Full Playwright suite against `compose.test.yml`: 236 passed. The one failure
-  (`mobile-shell.spec.ts` "a new quick food is created with its values in one
-  step") **reproduces on `staging` at 9d47d796**, which in fact fails two
-  mobile-shell tests — it predates this branch.
-- Driven live with 12 weeks of seeded data: 89.5 kg at 23.9 % → 68.1 kg lean →
-  BMR 1841 → TDEE 2854 (moderate) → 2305 kcal/day at 0.5 kg/week. Mifflin for
-  the same profile gives 2329, so the formula switch is visible and correct.
-- Export/import round-trip asserted in `e2e/data-export-import.spec.ts`,
-  including the omit-when-null and auto-enable-on-import behaviours.
+Re-verified after merging three rounds of `staging` (public API v1, onboarding
+tour, the chart rework, the API capability expansion):
 
-**Deliberately not changed:** the chart draws one marker per logged day, so a
-6-month history renders as a dense band of dots. That predates this work and
-belongs to whoever revisits chart density.
+- `go build ./...`, `go vet ./...`, `go test ./...` — green.
+- `npm run typecheck`, `npm run build`, `npm run test` (121 client tests),
+  `npm run i18n:drift`, `npm run i18n:check` — green.
+- Full Playwright suite: **243 passed**. Two failures, both accounted for:
+  `passkey.spec.ts` (its `PASSKEYS_RP_ORIGINS` is pinned to port 3001 and the
+  isolated stack runs on 3011) and `mobile-shell.spec.ts:150`, which
+  **reproduces on `staging` at 9d47d796** — that base in fact fails two
+  mobile-shell tests.
+- Driven live: 89.5 kg at 23.9 % → 68.1 kg lean → BMR 1841 → TDEE 2854
+  (moderate) → 2305 kcal/day at 0.5 kg/week. Mifflin for the same profile gives
+  2329, so the formula switch is visible and correct.
+- Export/import round-trip asserted in `e2e/data-export-import.spec.ts`,
+  including omit-when-null and auto-enable-on-import.
+
+**Testing hazard worth fixing separately:** `compose.test.yml` hardcodes
+`name: schautrack-test`, so every worktree shares one Docker Compose project.
+Two sessions running e2e concurrently tear down and rebuild each other's stack,
+which produced a stale binary and vanishing columns until it was diagnosed.
+These runs used a private project name and ports, and gated on the *running*
+container (binary strings + live schema) before trusting any result.
+
+## 11. Deliberately Not Done
+
+- **`/api/v1` does not expose `body_fat`.** The public API landed mid-flight
+  with an OpenAPI spec and contract tests; adding a field means updating the
+  spec and generated docs, so it is a follow-up rather than a partial surface.
+  `PutWeightV1` passes `service.KeepBodyFat`, so a weight-only writer (a scale
+  integration) preserves a reading rather than erasing it.
+- **The demo seed logs no body fat**, so the README screenshots show the
+  Mifflin fallback and its prompt — accurate for a fresh account, but the
+  feature is not showcased.
+- **Chart marker density.** One marker per logged day means a 6-month history
+  renders as a dense band. Predates this work.
