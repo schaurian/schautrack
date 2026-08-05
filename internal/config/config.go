@@ -50,6 +50,7 @@ type Config struct {
 	// Rate limiting
 	RateLimitAuth   int
 	RateLimitStrict int
+	RateLimitAPI    int
 	TrustProxy      bool
 
 	// SMTP
@@ -108,6 +109,14 @@ func Load() (*Config, error) {
 		rateLimitStrict = 5
 	}
 
+	// Requests per IP per minute on /api/v1. Set well above the auth limiters:
+	// a script syncing a day of entries makes dozens of calls in a burst, which
+	// is normal behaviour for an API and abuse for a login form.
+	rateLimitAPI, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_API"))
+	if rateLimitAPI == 0 {
+		rateLimitAPI = 120
+	}
+
 	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	if smtpPort == 0 {
 		smtpPort = 587
@@ -148,6 +157,7 @@ func Load() (*Config, error) {
 
 		RateLimitAuth:   rateLimitAuth,
 		RateLimitStrict: rateLimitStrict,
+		RateLimitAPI:    rateLimitAPI,
 		TrustProxy:    os.Getenv("TRUST_PROXY") != "false", // default true for k8s/docker
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),
