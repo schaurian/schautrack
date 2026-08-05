@@ -249,9 +249,10 @@ returns `401` when unauthenticated.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/weight/day` | Session, link-aware | Weight entry for a given day. |
+| GET | `/weight/day` | Session, link-aware | Weight entry (weight + optional body fat) for a given day. |
 | POST | `/weight/upsert` | Session +CSRF | Create or update a weight entry for a date. |
 | POST | `/weight/{id}/delete` | Session +CSRF | Delete a weight entry. |
+| POST | `/weight/toggle-body-fat` | Session +CSRF | Enable/disable the body-fat field for the current user. |
 
 ### Todos
 
@@ -445,6 +446,7 @@ Request (all fields optional but at least one of calories/macros/weight required
   "entry_name": "Lunch",
   "entry_date": "2026-07-12",
   "weight": "72.5",
+  "body_fat": "24.3",
   "protein_g": 30,
   "carbs_g": 40,
   "fat_g": 10
@@ -454,6 +456,9 @@ Request (all fields optional but at least one of calories/macros/weight required
 - `amount` (calories) accepts a number or arithmetic string; max magnitude 9999.
 - Macro fields are `protein_g`, `carbs_g`, `fat_g`, `fiber_g`, `sugar_g`; each 0–999.
 - `entry_date` is `YYYY-MM-DD`; defaults to today in the user's timezone.
+- `body_fat` is a percentage in `(0, 75]`, only stored alongside a `weight`. It is
+  three-state: **omit** the key to leave any stored reading untouched, send `null`
+  or `""` to clear it, send a number to set it. Same semantics on `/weight/upsert`.
 - When macro auto-calc is enabled, calories are computed from macros.
 
 → `200 { "ok": true }`.

@@ -130,7 +130,7 @@ func ClearBodyMetrics(ctx context.Context, pool *pgxpool.Pool, userID int) error
 // GetWeightSeries returns the user's logged weight entries on or after sinceDate, ordered ascending.
 func GetWeightSeries(ctx context.Context, pool *pgxpool.Pool, userID int, sinceDate string) ([]WeightPoint, error) {
 	rows, err := pool.Query(ctx,
-		"SELECT entry_date, weight FROM weight_entries WHERE user_id = $1 AND entry_date >= $2 ORDER BY entry_date",
+		"SELECT entry_date, weight, body_fat FROM weight_entries WHERE user_id = $1 AND entry_date >= $2 ORDER BY entry_date",
 		userID, sinceDate)
 	if err != nil {
 		return nil, err
@@ -141,14 +141,15 @@ func GetWeightSeries(ctx context.Context, pool *pgxpool.Pool, userID int, sinceD
 	for rows.Next() {
 		var dateStr string
 		var weight float64
-		if err := rows.Scan(&dateStr, &weight); err != nil {
+		var bodyFat *float64
+		if err := rows.Scan(&dateStr, &weight, &bodyFat); err != nil {
 			continue
 		}
 		d, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			continue
 		}
-		pts = append(pts, WeightPoint{Date: d, Weight: weight})
+		pts = append(pts, WeightPoint{Date: d, Weight: weight, BodyFat: bodyFat})
 	}
 	return pts, rows.Err()
 }

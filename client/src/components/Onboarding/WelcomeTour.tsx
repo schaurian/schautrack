@@ -162,7 +162,18 @@ export default function WelcomeTour() {
         <header className="flex items-center gap-3">
           {/* Progress ring — the app's own instrument, filling as you advance. */}
           <div className="relative shrink-0" style={{ width: RING_SIZE, height: RING_SIZE }}>
-            <svg width={RING_SIZE} height={RING_SIZE} className="-rotate-90" aria-hidden="true">
+            {/* SVG clips to its viewport by default, which cut the arc's glow
+                off: the stroke's outer edge sits 2.5px from the edge and the
+                glow needs 4. Same fix as ui/Ring.tsx — painting outside is safe
+                because the glow is decorative and nothing around it clips. */}
+            <svg
+              width={RING_SIZE}
+              height={RING_SIZE}
+              viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+              className="-rotate-90"
+              style={{ overflow: 'visible' }}
+              aria-hidden="true"
+            >
               <circle
                 cx={RING_SIZE / 2}
                 cy={RING_SIZE / 2}

@@ -146,13 +146,17 @@
       "currentWeightLabel": "Aktuelles Gewicht",
       "bmiLabel": "BMI",
       "addHeightWeight": "Größe & Gewicht hinzufügen",
-      "healthyRangeLabel": "Gesunder Bereich"
+      "healthyRangeLabel": "Gesunder Bereich",
+      "bodyFatLabel": "Körperfett",
+      "leanFatSplit": "{{lean}} {{unit}} Magermasse · {{fat}} {{unit}} Fett"
     },
     "recommendedBudget": {
       "title": "Empfohlenes Budget",
       "currentGoalLabel": "Aktuelles Kalorienziel: {{value}} kcal/Tag",
       "clampedNotice": "Auf ein sicheres Minimum begrenzt",
-      "applyButton": "Als mein Kalorienziel übernehmen"
+      "applyButton": "Als mein Kalorienziel übernehmen",
+      "formulaKatch": "Nach Katch-McArdle, aus {{lean}} {{unit}} Magermasse",
+      "formulaMifflin": "Nach Mifflin-St Jeor. Trag einen Körperfettanteil ein für eine Schätzung über die Magermasse."
     },
     "progress": {
       "title": "Fortschritt",
@@ -220,7 +224,15 @@
       "legendActual": "Tatsächlich",
       "legendPlan": "Plan",
       "legendTarget": "Ziel",
-      "legendHealthyRange": "Gesunder Bereich"
+      "legendHealthyRange": "Gesunder Bereich",
+      "legendBodyFat": "Körperfett"
+    },
+    "bodyFatCategory": {
+      "essential": "Essenziell",
+      "athletic": "Athletisch",
+      "fitness": "Fit",
+      "average": "Durchschnitt",
+      "obese": "Adipositas"
     }
   },
   "savedFoods": {
@@ -282,6 +294,9 @@
     "missedDaysAgo_other": "{{count}}T",
     "streakDays_one": "{{count}}T",
     "streakDays_other": "{{count}}T",
+    "hourLabel": "Stunde",
+    "minuteLabel": "Minute",
+    "setTimeButton": "Zeit wählen",
     "timeOfDayAriaLabel": "Uhrzeit",
     "toastCreateFailed": "Todo konnte nicht erstellt werden",
     "toastUpdateFailed": "Todo konnte nicht aktualisiert werden",
@@ -305,6 +320,11 @@
     "deleteButton": "Löschen",
     "toastTracked": "Gewicht getrackt",
     "toastSaveFailed": "Gewicht konnte nicht gespeichert werden",
-    "toastDeleteFailed": "Gewicht konnte nicht gelöscht werden"
+    "toastDeleteFailed": "Gewicht konnte nicht gelöscht werden",
+    "bodyFatAriaLabel": "Körperfettanteil",
+    "bodyFatNeedsWeight": "Trag zuerst ein Gewicht für diesen Tag ein",
+    "toastBodyFatTracked": "Körperfett getrackt",
+    "toastBodyFatCleared": "Körperfett entfernt",
+    "toastBodyFatSaveFailed": "Körperfett konnte nicht gespeichert werden"
   }
 }

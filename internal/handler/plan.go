@@ -112,6 +112,22 @@ func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (servic
 		currentWeight = &w
 	}
 
+	// The latest body-fat reading may be older than the latest weight (body
+	// composition is typically measured less often), so it is looked up
+	// separately and carries the weight it was taken with.
+	var bodyFat *service.BodyFatReading
+	lastBodyFat, err := service.GetLastBodyFatEntry(ctx, h.Pool, user.ID, "")
+	if err != nil {
+		return service.PlanInputs{}, nil, unit, err
+	}
+	if lastBodyFat != nil && lastBodyFat.BodyFat != nil {
+		bodyFat = &service.BodyFatReading{
+			Date:     lastBodyFat.Date,
+			WeightKg: service.ToKg(lastBodyFat.Weight, unit),
+			Pct:      *lastBodyFat.BodyFat,
+		}
+	}
+
 	tz := getUserTimezone(r, user)
 	since := service.SubtractDaysUTC(service.FormatDateInTz(time.Now(), tz), 179)
 	series, err := service.GetWeightSeries(ctx, h.Pool, user.ID, since)
@@ -142,6 +158,7 @@ func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (servic
 
 	inputs := service.PlanInputs{
 		CurrentWeight:  currentWeight,
+		CurrentBodyFat: bodyFat,
 		HeightCm:       user.HeightCm,
 		BirthYear:      user.BirthYear,
 		Sex:            user.Sex,

@@ -34,7 +34,8 @@ test.describe('Data Export / Import', () => {
 
     // Seed test data via psql
     psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES (${user.id}, '2026-01-15', 350, 'E2E Export Meal') ON CONFLICT DO NOTHING`);
-    psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${user.id}, '2026-01-15', 72.5) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = 72.5`);
+    psql(`INSERT INTO weight_entries (user_id, entry_date, weight, body_fat) VALUES (${user.id}, '2026-01-15', 72.5, 21.4) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = 72.5, body_fat = 21.4`);
+    psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${user.id}, '2026-01-16', 72.1) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = 72.1, body_fat = NULL`);
 
     await loginAndGo(page, '/account');
 
@@ -78,10 +79,20 @@ test.describe('Data Export / Import', () => {
 
     // Verify our seeded weight is present
     const exportedWeight = data.weights.find(
-      (w: { date: string; weight: number }) => w.date === '2026-01-15'
+      (w: { date: string; weight: number; body_fat?: number }) => w.date === '2026-01-15'
     );
     expect(exportedWeight).toBeDefined();
     expect(exportedWeight.weight).toBeCloseTo(72.5);
+    expect(exportedWeight.body_fat).toBeCloseTo(21.4);
+
+    // A weight-only day omits the key entirely rather than exporting null, so
+    // a file from a user who never measures body fat looks like one from
+    // before the field existed.
+    const weightOnly = data.weights.find(
+      (w: { date: string; body_fat?: number }) => w.date === '2026-01-16'
+    );
+    expect(weightOnly).toBeDefined();
+    expect('body_fat' in weightOnly).toBe(false);
 
     await ctx.close();
   });
@@ -119,6 +130,11 @@ test.describe('Data Export / Import', () => {
         {
           date: '2026-03-10',
           weight: 68.0,
+          body_fat: 19.8,
+        },
+        {
+          date: '2026-03-11',
+          weight: 67.8,
         },
       ],
     };
@@ -163,6 +179,22 @@ test.describe('Data Export / Import', () => {
       `SELECT weight FROM weight_entries WHERE user_id = ${user.id} AND entry_date = '2026-03-10'`
     );
     expect(parseFloat(importedWeight)).toBeCloseTo(68.0);
+
+    const importedBodyFat = psql(
+      `SELECT body_fat FROM weight_entries WHERE user_id = ${user.id} AND entry_date = '2026-03-10'`
+    );
+    expect(parseFloat(importedBodyFat)).toBeCloseTo(19.8);
+
+    // A row without the key imports as NULL, not as a copy of a neighbour.
+    const noBodyFat = psql(
+      `SELECT COALESCE(body_fat::text, 'null') FROM weight_entries WHERE user_id = ${user.id} AND entry_date = '2026-03-11'`
+    );
+    expect(noBodyFat).toBe('null');
+
+    // Importing a file that carries body fat turns the opt-in on, so the
+    // restored readings are visible without hunting for a setting.
+    const enabled = psql(`SELECT body_fat_enabled FROM users WHERE id = ${user.id}`);
+    expect(enabled).toBe('t');
 
     await ctx.close();
   });

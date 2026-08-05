@@ -57,6 +57,12 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	bodyFat, ok := parseBodyFatUpdate(body)
+	if !ok {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid body fat")
+		return
+	}
+
 	// Parse macros
 	macroValues := map[string]int{}
 	for _, key := range service.MacroKeys {
@@ -136,7 +142,7 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hasWeight {
-		_, err := service.UpsertWeightEntry(r.Context(), tx, user.ID, entryDate, weightVal)
+		_, err := service.UpsertWeightEntry(r.Context(), tx, user.ID, entryDate, weightVal, bodyFat)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Failed to save weight")
 			return

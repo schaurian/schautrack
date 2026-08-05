@@ -166,7 +166,9 @@ type CurvePoint struct {
 
 // AdaptivePlanCurve simulates weekly weight at a fixed budget, recomputing TDEE
 // as weight changes (realistic decelerating curve). Stops at target or maxWeeks.
-func AdaptivePlanCurve(startW, targetW, budgetKcal float64, sex Sex, heightCm float64, ageYears int, a ActivityLevel, maxWeeks int) []CurvePoint {
+// The BMR model is injected so the curve decelerates according to whichever
+// formula produced the budget — total mass (Mifflin) or lean mass (Katch–McArdle).
+func AdaptivePlanCurve(startW, targetW, budgetKcal float64, bmrAt BMRModel, a ActivityLevel, maxWeeks int) []CurvePoint {
 	if maxWeeks <= 0 {
 		maxWeeks = 160
 	}
@@ -174,9 +176,9 @@ func AdaptivePlanCurve(startW, targetW, budgetKcal float64, sex Sex, heightCm fl
 	pts := []CurvePoint{{Week: 0, Weight: round1(startW)}}
 	w := startW
 	for wk := 1; wk <= maxWeeks; wk++ {
-		tdee := TDEE(BMR(sex, w, heightCm, ageYears), a)
-		dailyDelta := budgetKcal - tdee                 // <0 => losing
-		weeklyKg := dailyDelta * 7 / KcalPerKg          // signed kg change
+		tdee := TDEE(bmrAt(w), a)
+		dailyDelta := budgetKcal - tdee        // <0 => losing
+		weeklyKg := dailyDelta * 7 / KcalPerKg // signed kg change
 		w += weeklyKg
 		if w < 30 {
 			w = 30
@@ -193,8 +195,9 @@ func AdaptivePlanCurve(startW, targetW, budgetKcal float64, sex Sex, heightCm fl
 }
 
 type WeightPoint struct {
-	Date   time.Time
-	Weight float64
+	Date    time.Time
+	Weight  float64
+	BodyFat *float64 // percent, nil on days measured by a weight-only scale
 }
 
 type Trend struct {

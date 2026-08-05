@@ -335,5 +335,10 @@
     "button": "Pokaż przewodnik",
     "description": "Krótki przegląd tego, co robi Schautrack i gdzie to znaleźć.",
     "heading": "Przewodnik powitalny"
+  },
+  "bodyFat": {
+    "heading": "Śledź tkankę tłuszczową",
+    "description": "Zapisuj procent tkanki tłuszczowej przy każdym ważeniu. Daje masę beztłuszczową/tłuszczową i dokładniejszy budżet kaloryczny.",
+    "toggleFailed": "Nie udało się zaktualizować ustawienia"
   }
 }
