@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
 
 let user: { email: string; password: string; id: string };
 
@@ -22,7 +22,9 @@ test.describe('Barcode Extended', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Barcode button should NOT be visible
+    // Barcode button should NOT be visible. It lives in the add-food sheet, so
+    // open that first — asserting against a closed sheet would pass either way.
+    await openAddFood(page);
     const barcodeButton = page.locator('button[title="Scan barcode"]');
     await expect(barcodeButton).not.toBeVisible({ timeout: 5000 });
 
@@ -52,11 +54,13 @@ test.describe('Barcode Extended', () => {
       });
     });
 
+    await openAddFood(page);
     const barcodeButton = page.locator('button[title="Scan barcode"]');
     await expect(barcodeButton).toBeVisible({ timeout: 10000 });
     await barcodeButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    // Scoped to the scanner layer: the add-food sheet is a dialog too.
+    const modal = page.locator('[data-modal-layer="scanner"]');
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Switch to Manual tab

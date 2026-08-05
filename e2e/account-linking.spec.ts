@@ -140,8 +140,9 @@ test.describe('Account Linking', () => {
     await page.waitForTimeout(500);
 
     await page.evaluate(() => window.scrollTo(0, 0));
-    const trackButton = page.getByRole('button', { name: 'Track' });
-    await expect(trackButton).not.toBeVisible({ timeout: 3000 });
+    // A friend's day is read-only: no add-food FAB, so no way into the entry form.
+    await expect(page.getByRole('button', { name: 'Add food' })).not.toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('button', { name: 'Track' })).not.toBeVisible({ timeout: 3000 });
     await ctx.close();
   });
 

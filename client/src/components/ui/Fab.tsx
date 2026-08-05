@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils';
 
-// Floating action button — mobile only, sits above the bottom tab bar.
+// Floating action button — the add-food entry point at every width. On mobile it
+// clears the bottom tab bar; on desktop there is no tab bar, so it sits in the
+// corner.
 export function Fab({ onClick, className, 'aria-label': ariaLabel }: {
   onClick: () => void;
   className?: string;
@@ -14,7 +16,7 @@ export function Fab({ onClick, className, 'aria-label': ariaLabel }: {
       className={cn(
         'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-[60] grid size-14 cursor-pointer place-items-center rounded-2xl',
         'bg-gradient-to-br from-secondary to-primary text-primary-foreground shadow-[0_6px_24px_rgba(109,140,255,0.45)]',
-        'transition-transform active:scale-95 lg:hidden',
+        'transition-transform active:scale-95 lg:bottom-8 lg:right-8',
         className,
       )}
     >

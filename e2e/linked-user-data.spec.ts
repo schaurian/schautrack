@@ -87,8 +87,9 @@ test.describe('Linked User Data', () => {
     await expect(entries.getByText('E2E test meal')).toBeVisible({ timeout: 5000 });
     await expect(entries.getByText(String(TEST_ENTRY_AMOUNT))).toBeVisible({ timeout: 5000 });
 
-    const trackButton = page.getByRole('button', { name: 'Track' });
-    await expect(trackButton).not.toBeVisible({ timeout: 3000 });
+    // A friend's day is read-only: no add-food FAB, so no way into the entry form.
+    await expect(page.getByRole('button', { name: 'Add food' })).not.toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('button', { name: 'Track' })).not.toBeVisible({ timeout: 3000 });
 
     const deleteButton = entries.getByRole('button', { name: /delete/i });
     await expect(deleteButton).not.toBeVisible({ timeout: 2000 });

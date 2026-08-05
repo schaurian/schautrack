@@ -1,15 +1,18 @@
 import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
+import { openAddFood } from './fixtures/helpers';
 
 test.describe('Barcode Lookup', () => {
   test('manual barcode lookup populates entry form', async ({ page }) => {
     await login(page);
+    await openAddFood(page);
 
     // Click the barcode button
     await page.locator('button[title="Scan barcode"]').click();
 
-    // Modal should open
-    const modal = page.locator('[role="dialog"]');
+    // Modal should open. Scoped to the scanner layer: the add-food sheet that
+    // holds the barcode button is a dialog too.
+    const modal = page.locator('[data-modal-layer="scanner"]');
     await expect(modal).toBeVisible();
 
     // Switch to Manual tab

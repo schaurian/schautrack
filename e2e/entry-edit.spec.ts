@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -46,6 +46,7 @@ test.describe('Entry Inline Edit', () => {
   }
 
   async function createEntry(page: any, name: string) {
+    await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill(name);
     // Fill protein (always editable, even with auto-calc)
     const macroInputs = page.locator('input[inputmode="numeric"][placeholder="0"]');

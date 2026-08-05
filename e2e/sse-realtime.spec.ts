@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -33,6 +33,7 @@ test.describe('SSE Real-time Updates', () => {
     await loginAndGo(pageB);
 
     // Add an entry on page A
+    await openAddFood(pageA);
     await pageA.locator('input[placeholder="Breakfast, snack..."]').fill('SSE Test Entry');
 
     const calInput = pageA.locator('input[inputmode="tel"][placeholder="0"]').first();

@@ -13,10 +13,9 @@ import SavedFoodsModal from './SavedFoodsModal';
 interface Props {
   selectedDate: string;
   /**
-   * Called after a chip successfully tracks an entry. The mobile add sheet
-   * uses it to close itself, the same way submitting the form does — tracking
-   * a quick-add is finishing the task, so leaving the sheet up is a dead end.
-   * Desktop renders the row inline and passes nothing.
+   * Called after a chip successfully tracks an entry. The add sheet uses it to
+   * close itself, the same way submitting the form does — tracking a quick-add
+   * is finishing the task, so leaving the sheet up is a dead end.
    */
   onTracked?: () => void;
 }
