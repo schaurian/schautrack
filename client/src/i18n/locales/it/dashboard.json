@@ -294,6 +294,7 @@
     "missedDaysAgo_other": "{{count}}g",
     "streakDays_one": "{{count}}g",
     "streakDays_other": "{{count}}g",
+    "timeOfDayAriaLabel": "Ora del giorno",
     "toastCreateFailed": "Creazione dell'attività non riuscita",
     "toastUpdateFailed": "Aggiornamento dell'attività non riuscito",
     "toastDeleteFailed": "Eliminazione dell'attività non riuscita",

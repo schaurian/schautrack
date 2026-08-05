@@ -292,10 +292,10 @@ test.describe.serial('Todos', () => {
     await expect(nameInput).toBeVisible({ timeout: 5000 });
     await nameInput.fill('Timed Todo');
 
-    // Enter a time using the HH:MM input
-    const timeInput = page.locator('input[placeholder="HH:MM"]');
-    await timeInput.fill('0800');
-    await timeInput.blur(); // triggers formatting
+    // Pick a time using the native time picker
+    const timeInput = page.getByLabel('Time of day');
+    await expect(timeInput).toHaveAttribute('type', 'time');
+    await timeInput.fill('08:00');
 
     await page.getByRole('button', { name: 'Add', exact: true }).click();
 
@@ -314,6 +314,89 @@ test.describe.serial('Todos', () => {
     await page.getByRole('button', { name: 'Edit' }).first().click();
     const timedRow = page.locator('li').filter({ hasText: 'Timed Todo' });
     await timedRow.getByRole('button', { name: 'Remove' }).click();
+    await page.getByRole('button', { name: 'Done' }).last().click();
+
+    await ctx.close();
+  });
+
+  test('Clear button empties the time picker and persists the cleared time', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
+
+    // Create a todo that has a time of day
+    const addTodoBtn = page.getByText('Add a todo');
+    if (await addTodoBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await addTodoBtn.click();
+    } else {
+      await page.getByRole('button', { name: 'Edit' }).first().click();
+      await page.getByRole('button', { name: 'Add todo' }).click();
+    }
+    const nameInput = page.locator('input[placeholder="Todo name"]');
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await nameInput.fill('Clearable Todo');
+    await page.getByLabel('Time of day').fill('09:30');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+
+    // Reopen it for editing — the saved time should be loaded into the picker
+    const managerRow = page.locator('li').filter({ hasText: 'Clearable Todo' });
+    await expect(managerRow).toBeVisible({ timeout: 5000 });
+    await managerRow.getByRole('button', { name: 'Edit' }).click();
+    const timeInput = page.getByLabel('Time of day');
+    await expect(timeInput).toHaveValue('09:30');
+
+    // The Clear button must not be covered by anything. The icon this field
+    // used to render was absolutely positioned against the wrapper that also
+    // holds this button, so it landed on top of the label ("Clea🕑") and made
+    // the button look broken. Assert no unrelated element overlaps its box.
+    const clearBtn = page.getByRole('button', { name: 'Clear' });
+    await expect(clearBtn).toBeVisible();
+    const clearBox = (await clearBtn.boundingBox())!;
+    const timeBox = (await timeInput.boundingBox())!;
+    expect(timeBox.x + timeBox.width).toBeLessThanOrEqual(clearBox.x);
+
+    const overlapping = await clearBtn.evaluate((btn) => {
+      const target = btn.getBoundingClientRect();
+      return [...document.body.querySelectorAll('*')]
+        .filter((el) => el !== btn && !el.contains(btn) && !btn.contains(el))
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return (
+            r.width > 0 &&
+            r.height > 0 &&
+            r.left < target.right &&
+            r.right > target.left &&
+            r.top < target.bottom &&
+            r.bottom > target.top
+          );
+        })
+        .map((el) => `${el.tagName.toLowerCase()}:${(el.textContent ?? '').trim().slice(0, 12)}`);
+    });
+    expect(overlapping).toEqual([]);
+
+    // Clearing empties the picker and hides the button
+    await clearBtn.click();
+    await expect(timeInput).toHaveValue('');
+    await expect(clearBtn).toBeHidden();
+
+    // Saving persists the cleared time (the dashboard has another Save button,
+    // so scope to the row holding the open todo editor)
+    const editRow = page.locator('li').filter({ has: page.getByLabel('Time of day') });
+    await editRow.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Done' }).last().click();
+
+    const listRow = page.locator('li').filter({ hasText: 'Clearable Todo' });
+    await expect(listRow).toBeVisible({ timeout: 5000 });
+    await expect(listRow.getByText(/09:30/)).toBeHidden();
+    expect(
+      psql(`SELECT COALESCE(time_of_day::text, 'NULL') FROM todos WHERE user_id = :id AND name = 'Clearable Todo'`, {
+        id: user.id,
+      })
+    ).toBe('NULL');
+
+    // Clean up
+    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.locator('li').filter({ hasText: 'Clearable Todo' }).getByRole('button', { name: 'Remove' }).click();
     await page.getByRole('button', { name: 'Done' }).last().click();
 
     await ctx.close();

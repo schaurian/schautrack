@@ -17,45 +17,24 @@ function getDayLabels(t: TFunction): string[] {
   return DAY_KEYS.map((k) => t(`dashboard:todos.days.${k}`));
 }
 
-function formatTimeDigits(digits: string): string {
-  if (digits.length <= 2) return digits;
-  return digits.slice(0, 2) + ':' + digits.slice(2, 4);
-}
-
-function toTimeValue(digits: string): string {
-  if (!digits) return '';
-  const h = digits.slice(0, 2).padEnd(2, '0');
-  const m = digits.length >= 3 ? digits.slice(2, 4).padEnd(2, '0') : '00';
-  return `${h}:${m}`;
-}
-
+// A native time input: it renders the platform's time picker, emits the same
+// `HH:MM` (24h) / '' the API already expects, and needs no manual digit
+// formatting. The picker's own clock affordance replaces the icon this used to
+// overlay — that icon was absolutely positioned against the wrapper (which also
+// holds the Clear button), so it rendered on top of Clear instead of inside the
+// field.
 function TimeInput({ value, onChange, onClear }: { value: string; onChange: (v: string) => void; onClear: () => void }) {
   const { t } = useTranslation('dashboard');
-  // value is HH:MM or '', digits is raw digits only
-  const digits = value.replace(':', '');
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    onChange(raw ? formatTimeDigits(raw) : '');
-  };
-
-  const handleBlur = () => {
-    if (digits) onChange(toTimeValue(digits));
-  };
 
   return (
-    <span className="relative flex items-center gap-2">
+    <span className="flex items-center gap-2">
       <input
-        type="text"
-        inputMode="numeric"
+        type="time"
         value={value}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        placeholder="HH:MM"
-        maxLength={5}
-        className="w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring pr-7"
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={t('todos.timeOfDayAriaLabel')}
+        className="rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
       />
-      <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">🕑</span>
       {value && (
         <Button type="button" size="sm" variant="ghost" onClick={onClear}>{t('todos.clearButton')}</Button>
       )}

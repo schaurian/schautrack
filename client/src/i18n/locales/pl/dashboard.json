@@ -310,6 +310,7 @@
     "streakDays_few": "{{count}}d",
     "streakDays_many": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "timeOfDayAriaLabel": "Pora dnia",
     "toastCreateFailed": "Nie udało się utworzyć zadania",
     "toastUpdateFailed": "Nie udało się zaktualizować zadania",
     "toastDeleteFailed": "Nie udało się usunąć zadania",

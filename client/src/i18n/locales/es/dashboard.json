@@ -294,6 +294,7 @@
     "missedDaysAgo_other": "{{count}}d",
     "streakDays_one": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "timeOfDayAriaLabel": "Hora del día",
     "toastCreateFailed": "Error al crear la tarea",
     "toastUpdateFailed": "Error al actualizar la tarea",
     "toastDeleteFailed": "Error al eliminar la tarea",

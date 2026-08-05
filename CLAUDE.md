@@ -165,8 +165,8 @@ The CI automatically computes semantic versions based on commit message prefixes
 - `users`: User accounts with timezone, daily_goal, weight_unit, TOTP settings
 - `calorie_entries`: Date-based entries with amounts and optional names
 - `weight_entries`: Date-based weight tracking (unique per user per date), with an optional `body_fat` percentage
-- `account_links`: Links between users for data sharing (status: pending/accepted/declined)
-- `sessions`: PostgreSQL-backed session store
+- `account_links`: Links between users for data sharing (status: `pending` or `accepted` only — declining **deletes** the row)
+- `"session"`: PostgreSQL-backed session store. Table name is singular and quoted (reserved word)
 
 ### Account Linking
 - Maximum 3 linked accounts per user (`MAX_LINKS = 3`)
@@ -295,10 +295,15 @@ displayTz := targetUser.Timezone // or "UTC" if nil
 
 ### SSE for Real-time Updates
 - Endpoint: `/events/entries`
-- In-memory broker in `internal/sse/broker.go` manages per-user channels
+- Broker in `internal/sse/broker.go` holds per-user channels **per instance**, and
+  fans events out across instances via Postgres `LISTEN`/`NOTIFY` (channel
+  `schautrack_events`) — a user's stream and the write that should update it
+  routinely land on different replicas. Local-only delivery is the fallback when
+  Postgres is unreachable or the payload exceeds the 8000-byte NOTIFY limit
 - Sends updates when entries are added/modified/deleted
 - Client reconnects automatically on disconnect
 - Used for keeping linked user views in sync
+- See [docs/architecture.md](docs/architecture.md#realtime-updates) for the full flow
 
 ## Common Tasks
 

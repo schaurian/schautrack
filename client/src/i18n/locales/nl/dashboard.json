@@ -294,6 +294,7 @@
     "missedDaysAgo_other": "{{count}}d",
     "streakDays_one": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "timeOfDayAriaLabel": "Tijdstip",
     "toastCreateFailed": "Aanmaken van taak mislukt",
     "toastUpdateFailed": "Bijwerken van taak mislukt",
     "toastDeleteFailed": "Verwijderen van taak mislukt",
