@@ -231,6 +231,15 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | `ANDROID_PACKAGE_NAME` | `to.schauer.schautrack` | Package name published in `/.well-known/assetlinks.json` for Android App Links. |
 | `ANDROID_CERT_FINGERPRINTS` | *(empty)* | Comma-separated SHA-256 signing-cert fingerprint(s) (UPPER:CO:LON form) for App Links. **Deployment-specific** — see [Android App Links](#android-app-links). Empty disables `/.well-known/assetlinks.json`. |
 
+## Architecture
+
+Schautrack runs as a single static Go binary that serves both the JSON API and the
+compiled React bundle, with PostgreSQL as its only required dependency.
+
+See **[docs/architecture.md](docs/architecture.md)** for diagrams of the system
+context, the request pipeline, how authorization guards compose, how realtime
+updates fan out across replicas, and the data model.
+
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
