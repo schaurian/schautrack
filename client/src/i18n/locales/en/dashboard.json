@@ -290,6 +290,7 @@
     "specificDaysOption": "Specific days",
     "streakDays_one": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "timeOfDayAriaLabel": "Time of day",
     "toastCreateFailed": "Failed to create todo",
     "toastDeleteFailed": "Failed to delete todo",
     "toastUpdateFailed": "Failed to update todo",
