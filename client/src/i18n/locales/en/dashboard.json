@@ -313,7 +313,9 @@
   },
   "weight": {
     "bodyFatAriaLabel": "Body fat percentage",
-    "bodyFatNeedsWeight": "Log a weight for this day first",
+    "bodyFatHint": "The second box is your body fat %, if your scale measures it.",
+    "bodyFatNeedsWeight": "Body fat %: log a weight above first, then it unlocks.",
+    "bodyFatPlaceholder": "% fat",
     "daysAgo_one": "1 day ago",
     "daysAgo_other": "{{count}} days ago",
     "deleteButton": "Delete",

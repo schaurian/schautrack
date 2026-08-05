@@ -322,9 +322,11 @@
     "toastSaveFailed": "Error al guardar el peso",
     "toastDeleteFailed": "Error al eliminar el peso",
     "bodyFatAriaLabel": "Porcentaje de grasa corporal",
-    "bodyFatNeedsWeight": "Registra primero un peso para este día",
+    "bodyFatNeedsWeight": "Grasa corporal %: registra primero un peso arriba y se desbloqueará.",
     "toastBodyFatTracked": "Grasa corporal registrada",
     "toastBodyFatCleared": "Grasa corporal eliminada",
-    "toastBodyFatSaveFailed": "Error al guardar la grasa corporal"
+    "toastBodyFatSaveFailed": "Error al guardar la grasa corporal",
+    "bodyFatHint": "La segunda casilla es tu % de grasa corporal, si tu báscula lo mide.",
+    "bodyFatPlaceholder": "% grasa"
   }
 }

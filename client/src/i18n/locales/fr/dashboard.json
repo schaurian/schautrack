@@ -322,9 +322,11 @@
     "toastSaveFailed": "Échec de l'enregistrement du poids",
     "toastDeleteFailed": "Échec de la suppression du poids",
     "bodyFatAriaLabel": "Pourcentage de masse grasse",
-    "bodyFatNeedsWeight": "Enregistrez d'abord un poids pour ce jour",
+    "bodyFatNeedsWeight": "Masse grasse % : enregistrez d’abord un poids ci-dessus pour la débloquer.",
     "toastBodyFatTracked": "Masse grasse suivie",
     "toastBodyFatCleared": "Masse grasse supprimée",
-    "toastBodyFatSaveFailed": "Échec de l’enregistrement de la masse grasse"
+    "toastBodyFatSaveFailed": "Échec de l’enregistrement de la masse grasse",
+    "bodyFatHint": "La seconde case est votre % de masse grasse, si votre balance le mesure.",
+    "bodyFatPlaceholder": "% gras"
   }
 }

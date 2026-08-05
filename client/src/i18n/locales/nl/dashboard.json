@@ -322,9 +322,11 @@
     "toastSaveFailed": "Opslaan van gewicht mislukt",
     "toastDeleteFailed": "Verwijderen van gewicht mislukt",
     "bodyFatAriaLabel": "Vetpercentage",
-    "bodyFatNeedsWeight": "Registreer eerst een gewicht voor deze dag",
+    "bodyFatNeedsWeight": "Vetpercentage %: registreer eerst hierboven een gewicht, dan wordt het beschikbaar.",
     "toastBodyFatTracked": "Vetpercentage bijgehouden",
     "toastBodyFatCleared": "Vetpercentage verwijderd",
-    "toastBodyFatSaveFailed": "Opslaan van vetpercentage mislukt"
+    "toastBodyFatSaveFailed": "Opslaan van vetpercentage mislukt",
+    "bodyFatHint": "Het tweede vak is je vetpercentage, als je weegschaal dat meet.",
+    "bodyFatPlaceholder": "% vet"
   }
 }

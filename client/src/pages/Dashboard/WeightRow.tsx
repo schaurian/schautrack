@@ -162,11 +162,10 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
               key={`bf-${selectedDate}-${weightEntry?.id}-${weightEntry?.body_fat}`}
               onKeyDown={handleKeyDown}
               onBlur={handleBodyFatBlur}
-              placeholder="0.0"
+              placeholder={t('weight.bodyFatPlaceholder')}
               // A body-fat reading belongs to a weight, so there is nothing to
               // attach it to until the day has one.
               disabled={loading || !weightEntry}
-              title={weightEntry ? undefined : t('weight.bodyFatNeedsWeight')}
               aria-label={t('weight.bodyFatAriaLabel')}
             />
             <span className="absolute right-2.5 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">%</span>
@@ -191,6 +190,11 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
           </button>
         )}
       </div>
+      {showBodyFat && canEdit && (
+        <p className="px-1 pt-1.5 text-xs text-muted-foreground">
+          {weightEntry ? t('weight.bodyFatHint') : t('weight.bodyFatNeedsWeight')}
+        </p>
+      )}
     </section>
   );
 }

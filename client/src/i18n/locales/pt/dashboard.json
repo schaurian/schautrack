@@ -322,9 +322,11 @@
     "toastSaveFailed": "Falha ao guardar peso",
     "toastDeleteFailed": "Falha ao eliminar peso",
     "bodyFatAriaLabel": "Percentagem de gordura corporal",
-    "bodyFatNeedsWeight": "Registe primeiro um peso para este dia",
+    "bodyFatNeedsWeight": "Gordura corporal %: registe primeiro um peso acima para desbloquear.",
     "toastBodyFatTracked": "Gordura corporal registada",
     "toastBodyFatCleared": "Gordura corporal removida",
-    "toastBodyFatSaveFailed": "Falha ao guardar gordura corporal"
+    "toastBodyFatSaveFailed": "Falha ao guardar gordura corporal",
+    "bodyFatHint": "A segunda caixa é a sua % de gordura corporal, se a balança a medir.",
+    "bodyFatPlaceholder": "% gordura"
   }
 }

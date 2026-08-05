@@ -322,9 +322,11 @@
     "toastSaveFailed": "Gewicht konnte nicht gespeichert werden",
     "toastDeleteFailed": "Gewicht konnte nicht gelöscht werden",
     "bodyFatAriaLabel": "Körperfettanteil",
-    "bodyFatNeedsWeight": "Trag zuerst ein Gewicht für diesen Tag ein",
+    "bodyFatNeedsWeight": "Körperfett %: trag zuerst oben ein Gewicht ein, dann wird es freigeschaltet.",
     "toastBodyFatTracked": "Körperfett getrackt",
     "toastBodyFatCleared": "Körperfett entfernt",
-    "toastBodyFatSaveFailed": "Körperfett konnte nicht gespeichert werden"
+    "toastBodyFatSaveFailed": "Körperfett konnte nicht gespeichert werden",
+    "bodyFatHint": "Das zweite Feld ist dein Körperfettanteil in %, falls deine Waage ihn misst.",
+    "bodyFatPlaceholder": "% Fett"
   }
 }
