@@ -768,6 +768,39 @@ func ensureConsentSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+// ensureOnboardingSchema records WHEN a user dismissed the welcome tour. NULL
+// means "never seen it", which is what makes the tour open by itself on the
+// first login.
+//
+// The backfill is deliberately conditional on the column not existing yet.
+// Adding a nullable column would otherwise leave every pre-existing account at
+// NULL, so an upgrade would pop the tour in front of users who have been
+// tracking for months. Guarding on the column's absence makes the backfill run
+// exactly once, on the deploy that introduces the feature; accounts created
+// afterwards keep their NULL and do get the tour.
+func ensureOnboardingSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'users' AND column_name = 'onboarding_completed_at'
+			)`).Scan(&exists); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			ALTER TABLE users
+				ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ`); err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+		_, err := tx.Exec(ctx, `UPDATE users SET onboarding_completed_at = NOW()`)
+		return err
+	})
+}
+
 // migrationLockKey is the application-scoped pg_advisory_lock key that
 // serializes schema migrations across replicas. Multiple pods starting at
 // once (rolling deploy, scale-up) would otherwise race conflicting DDL:
@@ -810,6 +843,7 @@ func migrationSteps() []migrationStep {
 		{"body_profile", ensureBodyProfileSchema},
 		{"weight_goals", ensureWeightGoalsSchema},
 		{"consent", ensureConsentSchema},
+		{"onboarding", ensureOnboardingSchema},
 		{"todos", ensureTodosSchema},
 		{"daily_notes", ensureDailyNotesSchema},
 		{"backup_codes", ensureBackupCodesSchema},

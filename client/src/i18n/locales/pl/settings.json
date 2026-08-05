@@ -301,5 +301,10 @@
     "usersHeading_other": "Użytkownicy ({{count}})",
     "usersHeading_few": "Użytkownicy ({{count}})",
     "usersHeading_many": "Użytkownicy ({{count}})"
+  },
+  "onboarding": {
+    "button": "Pokaż przewodnik",
+    "description": "Krótki przegląd tego, co robi Schautrack i gdzie to znaleźć.",
+    "heading": "Przewodnik powitalny"
   }
 }

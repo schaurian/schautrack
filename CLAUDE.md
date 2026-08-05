@@ -18,6 +18,7 @@ This document contains important context and decisions for Claude Code when work
 - Recurring per-day todos (`handler/todos.go`, `service/todos.go`, `/api/todos`)
 - Weight tracking
 - Daily notes per date (enableable per user)
+- Welcome tour — a five-step first-login explainer, dismissible and replayable from Settings (`handler/onboarding.go`, `components/Onboarding/`, `POST /api/onboarding/complete`)
 - Account data export / import (`handler/entries_export.go`, `POST /settings/export`)
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
