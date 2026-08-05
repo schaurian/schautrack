@@ -53,7 +53,7 @@ func specRoutes() []string {
 
 // TestV1RoutesMatchSpec is the guard that keeps the documentation honest.
 //
-// The old docs/api.md drifted because nothing connected it to the routes it
+// The old docs/api-internal.md drifted because nothing connected it to the routes it
 // described. This test connects them: add a route without a spec entry, or
 // spec an endpoint that does not exist, and the build fails.
 func TestV1RoutesMatchSpec(t *testing.T) {

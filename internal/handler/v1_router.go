@@ -42,7 +42,7 @@ type V1Handler struct {
 // single artifact the OpenAPI document is checked against. TestV1RoutesMatchSpec
 // walks the router this returns and fails if it and the spec disagree in either
 // direction, which is what stops the documentation from drifting the way the
-// hand-written docs/api.md did.
+// hand-written docs/api-internal.md did.
 //
 // It is constructible with a zero-value V1Handler so that test can build the
 // route tree without a database.

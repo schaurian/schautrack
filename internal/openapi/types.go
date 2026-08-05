@@ -4,7 +4,7 @@
 // reason: it can then be checked mechanically. TestV1RoutesMatchSpec compares
 // Build().Operations() against a walk of the real chi router and fails if
 // either side has an endpoint the other does not. A YAML file has no such
-// coupling, which is precisely how the older hand-written docs/api.md drifted
+// coupling, which is precisely how the older hand-written docs/api-internal.md drifted
 // away from the routes it claimed to describe.
 //
 // Everything downstream derives from this one object: the served
