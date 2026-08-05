@@ -318,6 +318,10 @@ func main() {
 	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareNotes)).Get("/api/notes/day", notesHandler.Get)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes", notesHandler.Save)
 
+	// Welcome tour
+	onboardingHandler := &handler.OnboardingHandler{Pool: pool}
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/onboarding/complete", onboardingHandler.Complete)
+
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
 	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)

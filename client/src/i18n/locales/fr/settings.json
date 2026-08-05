@@ -324,5 +324,10 @@
     "expiresOn": "expire le {{date}}",
     "usersHeading_one": "Utilisateurs ({{count}})",
     "usersHeading_other": "Utilisateurs ({{count}})"
+  },
+  "onboarding": {
+    "button": "Revoir la visite",
+    "description": "Un tour rapide de ce que fait Schautrack et d'où le trouver.",
+    "heading": "Visite guidée"
   }
 }

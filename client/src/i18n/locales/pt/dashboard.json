@@ -282,6 +282,7 @@
     "missedDaysAgo_other": "{{count}}d",
     "streakDays_one": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "timeOfDayAriaLabel": "Hora do dia",
     "toastCreateFailed": "Falha ao criar tarefa",
     "toastUpdateFailed": "Falha ao atualizar tarefa",
     "toastDeleteFailed": "Falha ao eliminar tarefa",

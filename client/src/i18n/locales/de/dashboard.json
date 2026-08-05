@@ -282,6 +282,7 @@
     "missedDaysAgo_other": "{{count}}T",
     "streakDays_one": "{{count}}T",
     "streakDays_other": "{{count}}T",
+    "timeOfDayAriaLabel": "Uhrzeit",
     "toastCreateFailed": "Todo konnte nicht erstellt werden",
     "toastUpdateFailed": "Todo konnte nicht aktualisiert werden",
     "toastDeleteFailed": "Todo konnte nicht gelöscht werden",

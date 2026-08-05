@@ -18,6 +18,7 @@ This document contains important context and decisions for Claude Code when work
 - Recurring per-day todos (`handler/todos.go`, `service/todos.go`, `/api/todos`)
 - Weight tracking
 - Daily notes per date (enableable per user)
+- Welcome tour — a five-step first-login explainer, dismissible and replayable from Settings (`handler/onboarding.go`, `components/Onboarding/`, `POST /api/onboarding/complete`)
 - Account data export / import (`handler/entries_export.go`, `POST /settings/export`)
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
@@ -164,8 +165,8 @@ The CI automatically computes semantic versions based on commit message prefixes
 - `users`: User accounts with timezone, daily_goal, weight_unit, TOTP settings
 - `calorie_entries`: Date-based entries with amounts and optional names
 - `weight_entries`: Date-based weight tracking (unique per user per date)
-- `account_links`: Links between users for data sharing (status: pending/accepted/declined)
-- `sessions`: PostgreSQL-backed session store
+- `account_links`: Links between users for data sharing (status: `pending` or `accepted` only — declining **deletes** the row)
+- `"session"`: PostgreSQL-backed session store. Table name is singular and quoted (reserved word)
 
 ### Account Linking
 - Maximum 3 linked accounts per user (`MAX_LINKS = 3`)
@@ -348,10 +349,15 @@ displayTz := targetUser.Timezone // or "UTC" if nil
 
 ### SSE for Real-time Updates
 - Endpoint: `/events/entries`
-- In-memory broker in `internal/sse/broker.go` manages per-user channels
+- Broker in `internal/sse/broker.go` holds per-user channels **per instance**, and
+  fans events out across instances via Postgres `LISTEN`/`NOTIFY` (channel
+  `schautrack_events`) — a user's stream and the write that should update it
+  routinely land on different replicas. Local-only delivery is the fallback when
+  Postgres is unreachable or the payload exceeds the 8000-byte NOTIFY limit
 - Sends updates when entries are added/modified/deleted
 - Client reconnects automatically on disconnect
 - Used for keeping linked user views in sync
+- See [docs/architecture.md](docs/architecture.md#realtime-updates) for the full flow
 
 ## Common Tasks
 

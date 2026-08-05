@@ -31,6 +31,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Two-factor authentication (TOTP) with backup codes
 - Brute-force protection with CAPTCHA challenges on login, registration, and verification-email resend
 - Invite-only registration mode
+- Welcome tour on first login, replayable any time from Settings
 - Real-time updates via Server-Sent Events (SSE)
 - Public REST API with scoped personal access tokens — see [Public API](#public-api)
 - Docker and Kubernetes ready (~21MB image)
@@ -262,6 +263,15 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | `ROBOTS_INDEX` | `false` | Set to `true` to allow search engine indexing (default: noindex for self-hosters) |
 | `ANDROID_PACKAGE_NAME` | `to.schauer.schautrack` | Package name published in `/.well-known/assetlinks.json` for Android App Links. |
 | `ANDROID_CERT_FINGERPRINTS` | *(empty)* | Comma-separated SHA-256 signing-cert fingerprint(s) (UPPER:CO:LON form) for App Links. **Deployment-specific** — see [Android App Links](#android-app-links). Empty disables `/.well-known/assetlinks.json`. |
+
+## Architecture
+
+Schautrack runs as a single static Go binary that serves both the JSON API and the
+compiled React bundle, with PostgreSQL as its only required dependency.
+
+See **[docs/architecture.md](docs/architecture.md)** for diagrams of the system
+context, the request pipeline, how authorization guards compose, how realtime
+updates fan out across replicas, and the data model.
 
 ## Contributing
 

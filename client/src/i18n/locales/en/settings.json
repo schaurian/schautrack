@@ -231,6 +231,11 @@
     "unlinked": "{{label}} unlinked",
     "unlinkFailed": "Failed to unlink"
   },
+  "onboarding": {
+    "button": "Show the tour",
+    "description": "A short walkthrough of what Schautrack does and where to find it.",
+    "heading": "Welcome tour"
+  },
   "passkey": {
     "add": "Add Passkey",
     "countUsed": "{{count}} of 10 passkeys used.",
