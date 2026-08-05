@@ -25,17 +25,28 @@ import (
 // keeps token-minting UIs from having to explain why "write" alone 403s on a
 // GET.
 const (
-	ScopeEntriesRead  = "entries:read"
-	ScopeEntriesWrite = "entries:write"
-	ScopeWeightRead   = "weight:read"
-	ScopeWeightWrite  = "weight:write"
-	ScopeTodosRead    = "todos:read"
-	ScopeTodosWrite   = "todos:write"
-	ScopeFoodsRead    = "foods:read"
-	ScopeFoodsWrite   = "foods:write"
-	ScopeNotesRead    = "notes:read"
-	ScopeNotesWrite   = "notes:write"
-	ScopePlanRead     = "plan:read"
+	ScopeEntriesRead   = "entries:read"
+	ScopeEntriesWrite  = "entries:write"
+	ScopeWeightRead    = "weight:read"
+	ScopeWeightWrite   = "weight:write"
+	ScopeTodosRead     = "todos:read"
+	ScopeTodosWrite    = "todos:write"
+	ScopeFoodsRead     = "foods:read"
+	ScopeFoodsWrite    = "foods:write"
+	ScopeNotesRead     = "notes:read"
+	ScopeNotesWrite    = "notes:write"
+	ScopePlanRead      = "plan:read"
+	ScopeLinksRead     = "links:read"
+	ScopeSettingsRead  = "settings:read"
+	ScopeSettingsWrite = "settings:write"
+
+	// ScopeAIEstimate is deliberately its own scope, implied by nothing.
+	//
+	// Every request to it spends real money on the operator's AI provider. If
+	// it rode along with entries:write — the scope any meal-logging script
+	// needs — a token minted for "log my breakfast" could quietly run up an
+	// OpenAI bill. Granting it has to be a separate, conscious act.
+	ScopeAIEstimate = "ai:estimate"
 )
 
 // ScopeDescriptions is the closed set of grantable scopes, in the order the
@@ -54,6 +65,10 @@ var ScopeDescriptions = []struct{ Scope, Description string }{
 	{ScopeNotesRead, "Read daily notes."},
 	{ScopeNotesWrite, "Write daily notes."},
 	{ScopePlanRead, "Read the weight-loss plan, its goal, and its projections."},
+	{ScopeLinksRead, "Read data that linked accounts have shared with you."},
+	{ScopeSettingsRead, "Read account settings (goal, timezone, units, language)."},
+	{ScopeSettingsWrite, "Change account settings (goal, timezone, units, language)."},
+	{ScopeAIEstimate, "Estimate nutrition from a food photo. Costs money per call — grant sparingly."},
 }
 
 // AllScopes returns every grantable scope.

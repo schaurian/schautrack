@@ -4,7 +4,7 @@
     "title": "Schautrack API",
     "version": "1.0.0",
     "summary": "Read and write your Schautrack calorie, weight, todo, and food data.",
-    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` is paginated by keyset. Pass the `next_cursor` from a\nresponse back as `cursor` to fetch the next page; stop when `has_more`\nis false. Cursors are opaque — do not construct them.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n",
+    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` and `GET /weight` are paginated by keyset. Pass the\n`next_cursor` from a response back as `cursor` to fetch the next\npage; stop when `has_more` is false. Cursors are opaque — do not\nconstruct them.\n\n## Retrying safely\n\nEvery `PUT` here is idempotent by construction: the URL names the resource\nand the body states the desired state, so repeating one changes nothing.\n\n`POST` is different. If a request to create an entry times out, you cannot\nknow whether it landed. Send an `Idempotency-Key` header — any string you\ngenerate once per logical operation and reuse when retrying:\n\n```\nIdempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05\n```\n\nThe first request executes and its response is stored. Any retry with the same\nkey replays that response, with `Idempotency-Replayed: true`, instead of\nlogging the meal twice. Reusing a key with a *different* body returns `409`\nrather than silently discarding the new request. Keys are remembered for 24\nhours.\n\n## Rate limits\n\nTwo limits apply: one per IP address and one per token. Exceeding either\nreturns `429` with a `Retry-After` header giving the number of\nseconds until the window reopens. Honour it rather than retrying blindly.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n| `links:read` | Read data that linked accounts have shared with you. |\n| `settings:read` | Read account settings (goal, timezone, units, language). |\n| `settings:write` | Change account settings (goal, timezone, units, language). |\n| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |\n",
     "license": {
       "name": "AGPL-3.0-or-later",
       "identifier": "AGPL-3.0-or-later"
@@ -54,11 +54,264 @@
       "description": "The weight-loss plan and its projections."
     },
     {
+      "name": "Links",
+      "description": "Accounts that share data with you."
+    },
+    {
+      "name": "AI",
+      "description": "Nutrition estimation from photos."
+    },
+    {
       "name": "Meta",
       "description": "The API's own description."
     }
   ],
   "paths": {
+    "/ai/estimate": {
+      "post": {
+        "operationId": "estimateFromPhoto",
+        "summary": "Estimate nutrition from a food photo",
+        "description": "Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.",
+        "tags": [
+          "AI"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstimateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The estimate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estimate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The image exceeds the 10 MB limit.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited, or the account's daily AI allowance is used up (type `.../problems/ai-daily-limit`).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "ai:estimate"
+            ]
+          }
+        ]
+      }
+    },
+    "/barcode/{code}": {
+      "get": {
+        "operationId": "lookupBarcode",
+        "summary": "Look up a product by barcode",
+        "description": "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.",
+        "tags": [
+          "Saved foods"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "description": "An 8-13 digit barcode. The GS1 check digit is verified.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The product.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarcodeProduct"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The food database did not answer in time.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "foods:read"
+            ]
+          }
+        ]
+      }
+    },
     "/entries": {
       "get": {
         "operationId": "listEntries",
@@ -119,6 +372,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -173,11 +434,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -207,6 +476,16 @@
         "description": "Needs `calories`, at least one macro, or both. When the account computes calories from macros, a supplied `calories` is replaced by the computed value.",
         "tags": [
           "Entries"
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -267,6 +546,16 @@
               }
             }
           },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -278,11 +567,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -377,11 +674,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -495,11 +800,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -585,11 +898,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -609,6 +930,83 @@
           {
             "bearerAuth": [
               "entries:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/links": {
+      "get": {
+        "operationId": "listLinks",
+        "summary": "List linked accounts",
+        "description": "The accounts linked to yours, what each shares with you, and what you share back. Use `user_id` as the `user` parameter on a read endpoint.",
+        "tags": [
+          "Links"
+        ],
+        "responses": {
+          "200": {
+            "description": "The linked accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "links:read"
             ]
           }
         ]
@@ -654,11 +1052,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -674,6 +1080,111 @@
             }
           }
         }
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Change account settings",
+        "description": "Only settings that affect how the rest of the API behaves are writable. Authentication settings (password, 2FA, passkeys, email) are deliberately NOT — those are step-up gated in the app, and step-up is meaningless for a bearer token, so allowing them would turn one leaked token into account takeover.",
+        "tags": [
+          "Account"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "settings:write"
+            ]
+          }
+        ]
       }
     },
     "/notes/{date}": {
@@ -695,6 +1206,14 @@
               "format": "date",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
               "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -750,11 +1269,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -871,11 +1398,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -966,11 +1501,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1058,11 +1601,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1172,11 +1723,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1301,11 +1860,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1391,11 +1958,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1436,6 +2011,14 @@
             "required": true,
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -1507,6 +2090,16 @@
               }
             }
           },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -1518,11 +2111,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1587,11 +2188,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1701,11 +2310,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1749,6 +2366,14 @@
               "format": "date",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
               "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -1794,11 +2419,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -1913,11 +2546,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2004,11 +2645,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2126,11 +2775,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2196,6 +2853,22 @@
               "minimum": 1,
               "maximum": 200
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` from a previous response.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -2250,11 +2923,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2352,11 +3033,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2481,11 +3170,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2574,11 +3271,19 @@
             }
           },
           "429": {
-            "description": "Too many requests.",
+            "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }
@@ -2606,6 +3311,11 @@
   },
   "components": {
     "schemas": {
+      "BarcodeProduct": {
+        "type": "object",
+        "description": "The product as resolved from OpenFoodFacts, or a not-found result.",
+        "additionalProperties": true
+      },
       "Completion": {
         "type": "object",
         "description": "A todo's completion state on a date.",
@@ -2859,6 +3569,133 @@
             "maximum": 999
           }
         }
+      },
+      "Estimate": {
+        "type": "object",
+        "description": "The model's nutrition estimate. Shape follows the app's AI response.",
+        "additionalProperties": true
+      },
+      "EstimateInput": {
+        "type": "object",
+        "description": "A food photo to estimate.",
+        "properties": {
+          "context": {
+            "type": "string",
+            "description": "Optional hint, e.g. \"a large bowl\"."
+          },
+          "image": {
+            "type": "string",
+            "description": "The photo as a `data:image/...;base64,...` URI. Maximum 10 MB."
+          }
+        },
+        "required": [
+          "image"
+        ]
+      },
+      "Link": {
+        "type": "object",
+        "description": "A linked account, from your point of view.",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The linked account's email."
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name you gave this link, if any."
+          },
+          "shares_to_them": {
+            "type": "object",
+            "description": "What you share back with them.",
+            "properties": {
+              "notes": {
+                "type": "boolean",
+                "description": "Daily notes."
+              },
+              "nutrition": {
+                "type": "boolean",
+                "description": "Calorie entries and macros."
+              },
+              "todos": {
+                "type": "boolean",
+                "description": "Todos and completions."
+              },
+              "weight": {
+                "type": "boolean",
+                "description": "Weight readings."
+              }
+            },
+            "required": [
+              "nutrition",
+              "weight",
+              "todos",
+              "notes"
+            ]
+          },
+          "shares_with_me": {
+            "type": "object",
+            "description": "What this account shares WITH you — the only categories `?user=` will serve.",
+            "properties": {
+              "notes": {
+                "type": "boolean",
+                "description": "Daily notes."
+              },
+              "nutrition": {
+                "type": "boolean",
+                "description": "Calorie entries and macros."
+              },
+              "todos": {
+                "type": "boolean",
+                "description": "Todos and completions."
+              },
+              "weight": {
+                "type": "boolean",
+                "description": "Weight readings."
+              }
+            },
+            "required": [
+              "nutrition",
+              "weight",
+              "todos",
+              "notes"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Their IANA time zone. Their timestamps are rendered in it, not yours."
+          },
+          "user_id": {
+            "type": "integer",
+            "description": "Pass this as the `user` query parameter on a read endpoint."
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "label",
+          "shares_with_me",
+          "shares_to_them",
+          "timezone"
+        ]
+      },
+      "LinkList": {
+        "type": "object",
+        "description": "Accounts linked to yours.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "The linked accounts.",
+            "items": {
+              "$ref": "#/components/schemas/Link"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "Macros": {
         "type": "object",
@@ -3381,6 +4218,40 @@
           "type"
         ]
       },
+      "SettingsPatch": {
+        "type": "object",
+        "description": "Account settings to change. Omit a field to leave it alone.",
+        "properties": {
+          "daily_goal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Daily calorie goal. `null` clears it.",
+            "minimum": 1,
+            "maximum": 9999
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "UI language: one of en, de, es, fr, it, nl, pl, pt. `null` restores automatic."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA time zone name, e.g. `Europe/Berlin`. Decides what every bare date means."
+          },
+          "weight_unit": {
+            "type": "string",
+            "description": "Display unit. Changing it does NOT convert stored readings — they are kept as entered.",
+            "enum": [
+              "kg",
+              "lb"
+            ]
+          }
+        }
+      },
       "Todo": {
         "type": "object",
         "description": "A recurring todo.",
@@ -3620,7 +4491,7 @@
       },
       "WeightList": {
         "type": "object",
-        "description": "Weight readings, newest first.",
+        "description": "A page of weight readings, newest first.",
         "properties": {
           "data": {
             "type": "array",
@@ -3628,6 +4499,17 @@
             "items": {
               "$ref": "#/components/schemas/Weight"
             }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Whether another page exists."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass back as `cursor` to fetch the next page. Opaque — do not parse."
           }
         },
         "required": [
@@ -3685,11 +4567,19 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests.",
+        "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
         "content": {
           "application/problem+json": {
             "schema": {
               "$ref": "#/components/schemas/Problem"
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer"
             }
           }
         }

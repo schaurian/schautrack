@@ -50,11 +50,18 @@ function day(offset: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// onboarding_completed_at is set on both branches: a demo account that has
+// never dismissed the welcome tour gets it opened over the dashboard, and the
+// modal then intercepts every click the screenshot run tries to make. The
+// conflict branch matters too — the seed re-runs against a persistent test DB.
 function upsertUser(email: string): string {
   return psql(`
-    INSERT INTO users (email, password_hash, email_verified)
-    VALUES ('${email}', '${DEMO_HASH}', true)
-    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, email_verified = true
+    INSERT INTO users (email, password_hash, email_verified, onboarding_completed_at)
+    VALUES ('${email}', '${DEMO_HASH}', true, NOW())
+    ON CONFLICT (email) DO UPDATE SET
+      password_hash = EXCLUDED.password_hash,
+      email_verified = true,
+      onboarding_completed_at = COALESCE(users.onboarding_completed_at, NOW())
     RETURNING id`);
 }
 

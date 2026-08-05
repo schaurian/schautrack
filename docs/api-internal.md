@@ -1,10 +1,11 @@
-# Schautrack HTTP API Reference
+# Schautrack Internal HTTP API
 
-> **Writing an integration? You almost certainly want [`api-v1.md`](api-v1.md) instead.**
+> **Writing an integration? You want [`api-v1.md`](api-v1.md), not this file.**
 >
-> This document describes the **internal** surface: the session-cookie API that the
-> bundled React SPA and the Android app talk to. It has no version guarantee, and its
-> routes change whenever the UI needs them to.
+> This describes the **internal** surface: the session-cookie API the bundled React
+> SPA and the Android app talk to. It is hand-written, has no version guarantee, and
+> its routes change whenever the UI needs them to. It exists so contributors can
+> follow what the app itself does.
 >
 > The **public** API is `/api/v1` — bearer-token authenticated, scoped, versioned, and
 > described by an OpenAPI 3.1 document at `GET /api/v1/openapi.json`. It is the

@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"schautrack/internal/apierr"
-	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 )
 
@@ -47,29 +46,7 @@ type v1Me struct {
 // a client discovers which scopes it holds, which it must be able to do before
 // it knows whether any other call would succeed.
 func (h *V1Handler) Me(w http.ResponseWriter, r *http.Request) {
-	user := v1User(r)
-	token := middleware.GetAPIToken(r)
-
-	var out v1Me
-	out.User.ID = user.ID
-	out.User.Email = user.Email
-	out.User.Timezone = v1Tz(r)
-	out.User.WeightUnit = h.weightUnit(r)
-	out.User.DailyGoal = user.DailyGoal
-	out.User.Language = user.Language
-
-	if token != nil {
-		out.Token.ID = token.ID
-		out.Token.Name = token.Name
-		out.Token.Prefix = token.Prefix
-		out.Token.Scopes = token.Scopes
-		out.Token.ExpiresAt = token.ExpiresAt
-	}
-
-	out.Server.Version = h.BuildVersion
-	out.Server.Today = v1Today(r)
-
-	writeV1(w, http.StatusOK, out)
+	writeV1(w, http.StatusOK, h.buildMe(r, v1User(r)))
 }
 
 // --- Notes ----------------------------------------------------------------
@@ -95,7 +72,12 @@ func (h *V1Handler) GetNoteV1(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, r, prob)
 		return
 	}
-	if prob := h.requireNotesEnabled(r); prob != nil {
+	tgt, prob := h.resolveTarget(r, service.ShareNotes)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+	if prob := h.requireNotesEnabledFor(r, tgt.User.ID); prob != nil {
 		apierr.Write(w, r, prob)
 		return
 	}
@@ -103,7 +85,7 @@ func (h *V1Handler) GetNoteV1(w http.ResponseWriter, r *http.Request) {
 	out := v1Note{Date: date}
 	err := h.Pool.QueryRow(r.Context(),
 		"SELECT content, updated_at FROM daily_notes WHERE user_id = $1 AND note_date = $2",
-		v1User(r).ID, date).Scan(&out.Content, &out.UpdatedAt)
+		tgt.User.ID, date).Scan(&out.Content, &out.UpdatedAt)
 	if err != nil && err != pgx.ErrNoRows {
 		apierr.Write(w, r, dbFail("get note", err))
 		return
@@ -172,9 +154,15 @@ func (h *V1Handler) PutNoteV1(w http.ResponseWriter, r *http.Request) {
 // the account just has not turned the feature on, and saying so is what lets
 // the caller fix it.
 func (h *V1Handler) requireNotesEnabled(r *http.Request) *apierr.Problem {
+	return h.requireNotesEnabledFor(r, v1User(r).ID)
+}
+
+// requireNotesEnabledFor checks the flag on a specific account, so a read of a
+// linked account's notes reports THEIR setting rather than the caller's.
+func (h *V1Handler) requireNotesEnabledFor(r *http.Request, userID int) *apierr.Problem {
 	var enabled bool
 	if err := h.Pool.QueryRow(r.Context(),
-		"SELECT notes_enabled FROM users WHERE id = $1", v1User(r).ID).Scan(&enabled); err != nil {
+		"SELECT notes_enabled FROM users WHERE id = $1", userID).Scan(&enabled); err != nil {
 		return dbFail("check notes enabled", err)
 	}
 	if !enabled {

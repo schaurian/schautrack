@@ -63,9 +63,35 @@ zone.
 
 ## Pagination
 
-`GET /entries` is paginated by keyset. Pass the `next_cursor` from a
-response back as `cursor` to fetch the next page; stop when `has_more`
-is false. Cursors are opaque — do not construct them.
+`GET /entries` and `GET /weight` are paginated by keyset. Pass the
+`next_cursor` from a response back as `cursor` to fetch the next
+page; stop when `has_more` is false. Cursors are opaque — do not
+construct them.
+
+## Retrying safely
+
+Every `PUT` here is idempotent by construction: the URL names the resource
+and the body states the desired state, so repeating one changes nothing.
+
+`POST` is different. If a request to create an entry times out, you cannot
+know whether it landed. Send an `Idempotency-Key` header — any string you
+generate once per logical operation and reuse when retrying:
+
+```
+Idempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05
+```
+
+The first request executes and its response is stored. Any retry with the same
+key replays that response, with `Idempotency-Replayed: true`, instead of
+logging the meal twice. Reusing a key with a *different* body returns `409`
+rather than silently discarding the new request. Keys are remembered for 24
+hours.
+
+## Rate limits
+
+Two limits apply: one per IP address and one per token. Exceeding either
+returns `429` with a `Retry-After` header giving the number of
+seconds until the window reopens. Honour it rather than retrying blindly.
 
 | Scope | Grants |
 | --- | --- |
@@ -80,6 +106,10 @@ is false. Cursors are opaque — do not construct them.
 | `notes:read` | Read daily notes. |
 | `notes:write` | Write daily notes. |
 | `plan:read` | Read the weight-loss plan, its goal, and its projections. |
+| `links:read` | Read data that linked accounts have shared with you. |
+| `settings:read` | Read account settings (goal, timezone, units, language). |
+| `settings:write` | Change account settings (goal, timezone, units, language). |
+| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |
 
 
 ## Servers
@@ -94,6 +124,7 @@ is false. Cursors are opaque — do not construct them.
 | Endpoint | Scope | |
 | --- | --- | --- |
 | [`GET /me`](#getme) | — | The authenticated account and token |
+| [`PATCH /me`](#updateme) | `settings:write` | Change account settings |
 | [`GET /entries`](#listentries) | `entries:read` | List calorie entries |
 | [`POST /entries`](#createentry) | `entries:write` | Create a calorie entry |
 | [`GET /entries/{id}`](#getentry) | `entries:read` | Fetch one calorie entry |
@@ -109,6 +140,7 @@ is false. Cursors are opaque — do not construct them.
 | [`PATCH /todos/{id}`](#updatetodo) | `todos:write` | Change a todo |
 | [`DELETE /todos/{id}`](#deletetodo) | `todos:write` | Delete a todo |
 | [`PUT /todos/{id}/completions/{date}`](#settodocompletion) | `todos:write` | Mark a todo done or not done |
+| [`GET /barcode/{code}`](#lookupbarcode) | `foods:read` | Look up a product by barcode |
 | [`GET /saved-foods`](#listsavedfoods) | `foods:read` | List saved foods |
 | [`POST /saved-foods`](#createsavedfood) | `foods:write` | Create a saved food |
 | [`PATCH /saved-foods/{id}`](#updatesavedfood) | `foods:write` | Change a saved food |
@@ -117,6 +149,8 @@ is false. Cursors are opaque — do not construct them.
 | [`GET /notes/{date}`](#getnote) | `notes:read` | Fetch a day's note |
 | [`PUT /notes/{date}`](#putnote) | `notes:write` | Write a day's note |
 | [`GET /plan`](#getplan) | `plan:read` | The weight-loss plan |
+| [`GET /links`](#listlinks) | `links:read` | List linked accounts |
+| [`POST /ai/estimate`](#estimatefromphoto) | `ai:estimate` | Estimate nutrition from a food photo |
 | [`GET /openapi.json`](#getopenapi) | — | This document |
 
 ## Account
@@ -138,7 +172,29 @@ Requires a valid token but no particular scope — this is how a client discover
 | `200` | [`Me`](#me) — The account, the token, and the server. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+
+### Change account settings
+
+```http
+PATCH /api/v1/me
+```
+
+**Scope:** `settings:write`
+
+Only settings that affect how the rest of the API behaves are writable. Authentication settings (password, 2FA, passkeys, email) are deliberately NOT — those are step-up gated in the app, and step-up is meaningless for a bearer token, so allowing them would turn one leaked token into account takeover.
+
+**Request body** (required): [`SettingsPatch`](#settingspatch)
+
+| Status | Response |
+| --- | --- |
+| `200` | [`Me`](#me) — The updated account. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Entries
@@ -162,6 +218,7 @@ Newest first. Filter by a single `date`, or by a `from`/`to` range — not both.
 | `to` | query |  | End of an inclusive date range. |
 | `limit` | query |  | Maximum results to return. Values above 200 are clamped to 200. |
 | `cursor` | query |  | The `next_cursor` from a previous response. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -170,7 +227,7 @@ Newest first. Filter by a single `date`, or by a `from`/`to` range — not both.
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Create a calorie entry
@@ -183,6 +240,10 @@ POST /api/v1/entries
 
 Needs `calories`, at least one macro, or both. When the account computes calories from macros, a supplied `calories` is replaced by the computed value.
 
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
+
 **Request body** (required): [`EntryInput`](#entryinput)
 
 | Status | Response |
@@ -191,8 +252,9 @@ Needs `calories`, at least one macro, or both. When the account computes calorie
 | `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Fetch one calorie entry
@@ -214,7 +276,7 @@ GET /api/v1/entries/{id}
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Change a calorie entry
@@ -241,7 +303,7 @@ Only the fields present in the body are changed. Send `null` to clear the name o
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Delete a calorie entry
@@ -263,7 +325,7 @@ DELETE /api/v1/entries/{id}
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Weight
@@ -285,6 +347,8 @@ Newest first, optionally bounded by `from`/`to`.
 | `from` | query |  | Start of an inclusive date range. |
 | `to` | query |  | End of an inclusive date range. |
 | `limit` | query |  | Maximum results to return. Values above 200 are clamped to 200. |
+| `cursor` | query |  | The `next_cursor` from a previous response. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -293,7 +357,7 @@ Newest first, optionally bounded by `from`/`to`.
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Fetch one day's weight
@@ -315,7 +379,7 @@ GET /api/v1/weight/{date}
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Record a day's weight
@@ -342,7 +406,7 @@ Idempotent: repeating the same request is harmless, which makes it safe for a sc
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Delete a day's weight
@@ -364,7 +428,7 @@ DELETE /api/v1/weight/{date}
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Todos
@@ -386,7 +450,7 @@ The recurring todos themselves. For what is due on a given day, use `/todos/day/
 | `200` | [`TodoList`](#todolist) — The todos. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Create a todo
@@ -407,7 +471,7 @@ POST /api/v1/todos
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Todos due on a date
@@ -423,6 +487,7 @@ The todos actually scheduled for that date, with completion, streak, and missed-
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `date` | path | yes | A calendar date in the account's time zone. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -430,7 +495,7 @@ The todos actually scheduled for that date, with completion, streak, and missed-
 | `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Change a todo
@@ -455,7 +520,7 @@ PATCH /api/v1/todos/{id}
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Delete a todo
@@ -479,7 +544,7 @@ The todo is archived rather than erased, so its completion history and streaks s
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Mark a todo done or not done
@@ -506,12 +571,38 @@ States the desired result rather than toggling, so a retried request cannot sile
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Saved foods
 
 Reusable quick-add foods.
+
+### Look up a product by barcode
+
+```http
+GET /api/v1/barcode/{code}
+```
+
+**Scope:** `foods:read`
+
+Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `code` | path | yes | An 8-13 digit barcode. The GS1 check digit is verified. |
+
+| Status | Response |
+| --- | --- |
+| `200` | [`BarcodeProduct`](#barcodeproduct) — The product. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+| `504` | [`Problem`](#problem) — The food database did not answer in time. |
 
 ### List saved foods
 
@@ -533,7 +624,7 @@ Most-used first, then most-recently-used.
 | `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Create a saved food
@@ -554,7 +645,7 @@ POST /api/v1/saved-foods
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Change a saved food
@@ -580,7 +671,7 @@ PATCH /api/v1/saved-foods/{id}
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Delete a saved food
@@ -602,7 +693,7 @@ DELETE /api/v1/saved-foods/{id}
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Log a saved food as an entry
@@ -618,6 +709,7 @@ Creates a calorie entry from the saved food and returns it. Requires `entries:wr
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `id` | path | yes | The resource's identifier. |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
 
 **Request body** (optional): [`TrackInput`](#trackinput)
 
@@ -628,8 +720,9 @@ Creates a calorie entry from the saved food and returns it. Requires `entries:wr
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Notes
@@ -649,6 +742,7 @@ A day with no note returns 200 with empty content, not 404.
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `date` | path | yes | A calendar date in the account's time zone. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -657,7 +751,7 @@ A day with no note returns 200 with empty content, not 404.
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ### Write a day's note
@@ -684,7 +778,7 @@ Replaces the whole note. Writing an empty string deletes it. Returns 409 when da
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Plan
@@ -706,7 +800,56 @@ Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan
 | `200` | [`Plan`](#plan) — The plan. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
-| `429` | [`Problem`](#problem) — Too many requests. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+
+## Links
+
+Accounts that share data with you.
+
+### List linked accounts
+
+```http
+GET /api/v1/links
+```
+
+**Scope:** `links:read`
+
+The accounts linked to yours, what each shares with you, and what you share back. Use `user_id` as the `user` parameter on a read endpoint.
+
+| Status | Response |
+| --- | --- |
+| `200` | [`LinkList`](#linklist) — The linked accounts. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+
+## AI
+
+Nutrition estimation from photos.
+
+### Estimate nutrition from a food photo
+
+```http
+POST /api/v1/ai/estimate
+```
+
+**Scope:** `ai:estimate`
+
+Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.
+
+**Request body** (required): [`EstimateInput`](#estimateinput)
+
+| Status | Response |
+| --- | --- |
+| `200` | [`Estimate`](#estimate) — The estimate. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `413` | [`Problem`](#problem) — The image exceeds the 10 MB limit. |
+| `429` | [`Problem`](#problem) — Rate limited, or the account's daily AI allowance is used up (type `.../problems/ai-daily-limit`). |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
 ## Meta
@@ -728,6 +871,12 @@ Returns this OpenAPI description. The only endpoint that needs no token.
 | `200` | The OpenAPI 3.1 document. |
 
 ## Schemas
+
+### BarcodeProduct
+
+The product as resolved from OpenFoodFacts, or a not-found result.
+
+Free-form object; see `GET /api/v1/openapi.json` for the served shape.
 
 ### Completion
 
@@ -800,6 +949,42 @@ Fields to change. Omit a field to leave it alone; send `null` to clear a macro o
 | `name` | `string` or `null` |  | What was eaten. `null` clears it. |
 | `protein_g` | `integer` or `null` |  | Protein, grams. |
 | `sugar_g` | `integer` or `null` |  | Sugar, grams. |
+
+### Estimate
+
+The model's nutrition estimate. Shape follows the app's AI response.
+
+Free-form object; see `GET /api/v1/openapi.json` for the served shape.
+
+### EstimateInput
+
+A food photo to estimate.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `context` | `string` |  | Optional hint, e.g. "a large bowl". |
+| `image` | `string` | yes | The photo as a `data:image/...;base64,...` URI. Maximum 10 MB. |
+
+### Link
+
+A linked account, from your point of view.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `email` | `string` | yes | The linked account's email. |
+| `label` | `string` or `null` | yes | The name you gave this link, if any. |
+| `shares_to_them` | `object` | yes | What you share back with them. |
+| `shares_with_me` | `object` | yes | What this account shares WITH you — the only categories `?user=` will serve. |
+| `timezone` | `string` | yes | Their IANA time zone. Their timestamps are rendered in it, not yours. |
+| `user_id` | `integer` | yes | Pass this as the `user` query parameter on a read endpoint. |
+
+### LinkList
+
+Accounts linked to yours.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | array of [`Link`](#link) | yes | The linked accounts. |
 
 ### Macros
 
@@ -924,6 +1109,17 @@ When a todo recurs.
 | `days` | array of `integer` |  | Required when `type` is `weekly`. |
 | `type` | `string` | yes | `daily` every day; `weekly` on the listed days. |
 
+### SettingsPatch
+
+Account settings to change. Omit a field to leave it alone.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `daily_goal` | `integer` or `null` |  | Daily calorie goal. `null` clears it. |
+| `language` | `string` or `null` |  | UI language: one of en, de, es, fr, it, nl, pl, pt. `null` restores automatic. |
+| `timezone` | `string` |  | IANA time zone name, e.g. `Europe/Berlin`. Decides what every bare date means. |
+| `weight_unit` | `string` |  | Display unit. Changing it does NOT convert stored readings — they are kept as entered. |
+
 ### Todo
 
 A recurring todo.
@@ -1017,9 +1213,11 @@ A weight reading.
 
 ### WeightList
 
-Weight readings, newest first.
+A page of weight readings, newest first.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `data` | array of [`Weight`](#weight) | yes | The readings. |
+| `has_more` | `boolean` |  | Whether another page exists. |
+| `next_cursor` | `string` or `null` |  | Pass back as `cursor` to fetch the next page. Opaque — do not parse. |
 

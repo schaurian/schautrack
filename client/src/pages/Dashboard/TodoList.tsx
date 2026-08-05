@@ -6,6 +6,7 @@ import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo }
 import { useToastStore } from '@/stores/toastStore';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Button } from '@/components/ui/Button';
+import { TimePicker } from '@/components/ui/TimePicker';
 import type { Todo, TodoDay } from '@/types';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -17,24 +18,12 @@ function getDayLabels(t: TFunction): string[] {
   return DAY_KEYS.map((k) => t(`dashboard:todos.days.${k}`));
 }
 
-// A native time input: it renders the platform's time picker, emits the same
-// `HH:MM` (24h) / '' the API already expects, and needs no manual digit
-// formatting. The picker's own clock affordance replaces the icon this used to
-// overlay — that icon was absolutely positioned against the wrapper (which also
-// holds the Clear button), so it rendered on top of Clear instead of inside the
-// field.
 function TimeInput({ value, onChange, onClear }: { value: string; onChange: (v: string) => void; onClear: () => void }) {
   const { t } = useTranslation('dashboard');
 
   return (
     <span className="flex items-center gap-2">
-      <input
-        type="time"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={t('todos.timeOfDayAriaLabel')}
-        className="rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
-      />
+      <TimePicker value={value} onChange={onChange} onClear={onClear} label={t('todos.timeOfDayAriaLabel')} />
       {value && (
         <Button type="button" size="sm" variant="ghost" onClick={onClear}>{t('todos.clearButton')}</Button>
       )}
