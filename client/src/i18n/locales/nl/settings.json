@@ -29,10 +29,6 @@
     },
     "timezone": {
       "label": "Tijdzone"
-    },
-    "bodyFat": {
-      "label": "Vetpercentage bijhouden",
-      "description": "Voegt een vetpercentageveld toe aan de gewichtsrij"
     }
   },
   "todo": {
@@ -299,5 +295,10 @@
     "expiresOn": "verloopt op {{date}}",
     "usersHeading_one": "Gebruikers ({{count}})",
     "usersHeading_other": "Gebruikers ({{count}})"
+  },
+  "bodyFat": {
+    "heading": "Vetpercentage bijhouden",
+    "description": "Registreer bij elke weging een vetpercentage. Levert vetvrije/vetmassa en een nauwkeuriger caloriebudget.",
+    "toggleFailed": "Bijwerken van instelling mislukt"
   }
 }

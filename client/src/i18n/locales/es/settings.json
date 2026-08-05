@@ -29,10 +29,6 @@
     },
     "timezone": {
       "label": "Zona horaria"
-    },
-    "bodyFat": {
-      "label": "Registrar grasa corporal",
-      "description": "Añade un campo de grasa corporal a la fila de peso"
     }
   },
   "todo": {
@@ -299,5 +295,10 @@
     "expiresOn": "expira el {{date}}",
     "usersHeading_one": "Usuarios ({{count}})",
     "usersHeading_other": "Usuarios ({{count}})"
+  },
+  "bodyFat": {
+    "heading": "Registrar grasa corporal",
+    "description": "Registra un porcentaje de grasa corporal en cada pesaje. Aporta masa magra/grasa y un presupuesto calórico más preciso.",
+    "toggleFailed": "Error al actualizar el ajuste"
   }
 }

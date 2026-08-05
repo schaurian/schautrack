@@ -55,10 +55,9 @@ func normalizeLanguage(raw string) string {
 
 func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		WeightUnit     string `json:"weight_unit"`
-		Timezone       string `json:"timezone"`
-		Language       string `json:"language"`
-		BodyFatEnabled bool   `json:"body_fat_enabled"`
+		WeightUnit string `json:"weight_unit"`
+		Timezone   string `json:"timezone"`
+		Language   string `json:"language"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
@@ -86,22 +85,18 @@ func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 		langArg = lang
 	}
 
-	// The timezone clause is conditional — an unset or unloadable zone must
-	// leave the stored one (and its timezone_manual flag) alone rather than
-	// blanking it — so the statement is assembled instead of duplicated.
-	query := "UPDATE users SET weight_unit = $1, language = $2, body_fat_enabled = $3"
-	args := []any{unit, langArg, body.BodyFatEnabled}
 	if tz != "" {
-		query += ", timezone = $4, timezone_manual = TRUE"
-		args = append(args, tz)
-	}
-	query += fmt.Sprintf(" WHERE id = $%d", len(args)+1)
-	args = append(args, user.ID)
-
-	if _, err := h.Pool.Exec(r.Context(), query, args...); err != nil {
-		slog.Error("failed to update user preferences", "error", err)
-		ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
-		return
+		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1, timezone = $2, timezone_manual = TRUE, language = $3 WHERE id = $4", unit, tz, langArg, user.ID); err != nil {
+			slog.Error("failed to update user preferences", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
+			return
+		}
+	} else {
+		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1, language = $2 WHERE id = $3", unit, langArg, user.ID); err != nil {
+			slog.Error("failed to update user preferences", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
+			return
+		}
 	}
 	OkJSON(w)
 }

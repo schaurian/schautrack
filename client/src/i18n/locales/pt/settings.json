@@ -29,10 +29,6 @@
     },
     "timezone": {
       "label": "Fuso Horário"
-    },
-    "bodyFat": {
-      "label": "Registar gordura corporal",
-      "description": "Adiciona um campo de gordura corporal à linha do peso"
     }
   },
   "todo": {
@@ -299,5 +295,10 @@
     "expiresOn": "expira em {{date}}",
     "usersHeading_one": "Utilizadores ({{count}})",
     "usersHeading_other": "Utilizadores ({{count}})"
+  },
+  "bodyFat": {
+    "heading": "Registar gordura corporal",
+    "description": "Registe uma percentagem de gordura corporal em cada pesagem. Fornece massa magra/gorda e um orçamento calórico mais preciso.",
+    "toggleFailed": "Falha ao atualizar a definição"
   }
 }

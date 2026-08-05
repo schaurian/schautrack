@@ -10,6 +10,7 @@ import AISettings from './AISettings';
 import LinkSettings from './LinkSettings';
 import TodoSettings from './TodoSettings';
 import NoteSettings from './NoteSettings';
+import BodyFatSettings from './BodyFatSettings';
 import SavedFoodsSettings from './SavedFoodsSettings';
 
 /**
@@ -65,6 +66,9 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <NoteSettings user={data.user} onSave={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <BodyFatSettings user={data.user} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
           <SavedFoodsSettings />

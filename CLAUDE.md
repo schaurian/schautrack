@@ -17,6 +17,7 @@ This document contains important context and decisions for Claude Code when work
 - Saved foods — reusable quick-add favorites that can be tracked into entries (`handler/saved_foods.go`, `/api/saved-foods`)
 - Recurring per-day todos (`handler/todos.go`, `service/todos.go`, `/api/todos`)
 - Weight tracking
+- Body-fat percentage per weight entry (`weight_entries.body_fat`, opt-in via `users.body_fat_enabled`) — drives lean/fat mass and a Katch-McArdle BMR in the planner (`service/bodycomp.go`)
 - Daily notes per date (enableable per user)
 - Account data export / import (`handler/entries_export.go`, `POST /settings/export`)
 - Account linking to share data with other users
@@ -163,7 +164,7 @@ The CI automatically computes semantic versions based on commit message prefixes
 ### Key Tables
 - `users`: User accounts with timezone, daily_goal, weight_unit, TOTP settings
 - `calorie_entries`: Date-based entries with amounts and optional names
-- `weight_entries`: Date-based weight tracking (unique per user per date)
+- `weight_entries`: Date-based weight tracking (unique per user per date), with an optional `body_fat` percentage
 - `account_links`: Links between users for data sharing (status: pending/accepted/declined)
 - `sessions`: PostgreSQL-backed session store
 

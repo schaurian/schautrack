@@ -30,7 +30,7 @@ weight reading, and uses it where it actually changes an answer:
 | Storage | **New nullable `body_fat` column on `weight_entries`** — not a new table | Body fat comes off the same scale reading as weight, at the same cadence. A column inherits the one-row-per-day invariant, delete semantics, export/import, SSE and link-sharing for free. |
 | Requires a weight | Yes — body fat lives on a weight row (`weight` stays `NOT NULL`) | Every derived value (lean mass, fat mass, Katch–McArdle BMR) needs both. |
 | Opt-in | New `users.body_fat_enabled` flag, default `false` | Matches the existing `todos_enabled` / `notes_enabled` precedent. Most users don't own a body-composition scale; the dashboard stays clean for them. |
-| Toggle location | Inside **Preferences** (next to Weight unit), saved by the existing `POST /settings/preferences` | It is a weight-tracking preference, not its own feature area. One endpoint instead of a new one. |
+| Toggle location | Its **own settings card**, beside Todos and Daily Notes, with `POST /weight/toggle-body-fat` | First built into the Preferences card to avoid a new endpoint — but that card is headed *Internationalization* (language, weight unit, timezone), and "Track body fat" plainly is not. The toggle-card pattern already exists for exactly this. |
 | Unit | Percent, always. Never converted for kg/lb users. | A percentage is unit-independent. Derived **lean/fat mass are weights** and *do* convert. |
 | BMR formula | **Katch–McArdle when a body-fat reading exists, Mifflin–St Jeor otherwise**; the response says which was used | Automatic upgrade, no new user decision, graceful when absent. |
 | Profile completeness | **Unchanged** — `metrics.complete` still requires height + birth year + sex + activity level | Katch–McArdle needs neither sex nor height nor age, so body fat *could* unlock a budget with fewer fields. Deliberately not doing that: it would fork the "complete profile" UX for marginal gain. |
@@ -125,7 +125,7 @@ ON CONFLICT (user_id, entry_date) DO UPDATE SET
 
 ## 5. Backend
 
-No new routes. Existing endpoints gain a field:
+One new route; every other endpoint just gains a field:
 
 | Endpoint | Change |
 |---|---|
@@ -134,7 +134,7 @@ No new routes. Existing endpoints gain a field:
 | `POST /entries` | accepts optional `body_fat` alongside `weight` (API/Android parity) |
 | `GET /api/dashboard` | `weightEntry.body_fat`, `lastWeightEntry.body_fat` |
 | `GET /api/plan` | new `composition`, `computed.bmrFormula`, and `bodyFat` on each series point |
-| `POST /settings/preferences` | accepts `body_fat_enabled` |
+| `POST /weight/toggle-body-fat` | **new** — sets `users.body_fat_enabled` (mirrors `/api/notes/toggle-enabled`) |
 | `POST /settings/export` | `body_fat` on each exported weight row |
 | `POST /settings/import` | parses `body_fat`; **auto-enables the flag** when any imported row has one, so imported data is immediately editable |
 | `GET /api/me`, `GET /api/settings` | `bodyFatEnabled` on the user object |
@@ -174,8 +174,8 @@ type BodyComposition struct {
    right-hand % axis**, distinct hue, dotted (secondary encoding, per `dataviz`),
    with a legend entry. Skipped on the `spark` variant, which has no axes to
    disambiguate two scales.
-5. **`PreferencesSettings`** — "Track body fat" toggle under Weight unit,
-   autosaved with the rest of the card.
+5. **`BodyFatSettings`** — a "Track Body Fat" card beside Todos and Daily
+   Notes, same heading + description + switch shape as those.
 
 All strings via `react-i18next`, added to **all 8 locales** (de, en, es, fr, it,
 nl, pl, pt).
@@ -225,9 +225,29 @@ selection), `internal/service/plan_units.go` (convert lean/fat mass),
 **Frontend** — `client/src/types/index.ts`, `client/src/api/weight.ts`,
 `client/src/api/settings.ts`, `client/src/pages/Dashboard/WeightRow.tsx`,
 `client/src/pages/Dashboard/Dashboard.tsx`,
-`client/src/pages/Settings/PreferencesSettings.tsx`,
+`client/src/pages/Settings/BodyFatSettings.tsx` (new),
+`client/src/pages/Settings/Settings.tsx`,
 `client/src/pages/Plan/Plan.tsx`, `client/src/pages/Plan/PlanChart.tsx`,
 `client/src/i18n/locales/*/{dashboard,settings}.json` (8 locales).
 
 **Docs** — `README.md`, `CLAUDE.md`, `docs/api.md`,
 `docs/manual-test-checklist.md`.
+
+## 10. Verified
+
+- `go build ./...`, `go vet ./...`, `go test ./...` — green.
+- `npm run typecheck`, `npm run build`, `npm run test` (102 client tests),
+  `npm run i18n:drift`, `npm run i18n:check` — green.
+- Full Playwright suite against `compose.test.yml`: 236 passed. The one failure
+  (`mobile-shell.spec.ts` "a new quick food is created with its values in one
+  step") **reproduces on `staging` at 9d47d796**, which in fact fails two
+  mobile-shell tests — it predates this branch.
+- Driven live with 12 weeks of seeded data: 89.5 kg at 23.9 % → 68.1 kg lean →
+  BMR 1841 → TDEE 2854 (moderate) → 2305 kcal/day at 0.5 kg/week. Mifflin for
+  the same profile gives 2329, so the formula switch is visible and correct.
+- Export/import round-trip asserted in `e2e/data-export-import.spec.ts`,
+  including the omit-when-null and auto-enable-on-import behaviours.
+
+**Deliberately not changed:** the chart draws one marker per logged day, so a
+6-month history renders as a dense band of dots. That predates this work and
+belongs to whoever revisits chart density.

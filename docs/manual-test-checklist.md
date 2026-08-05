@@ -59,6 +59,12 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Verify only one weight entry per day (overwrite behavior)
 - [x] [A] Delete a weight entry
 - [x] [A] Switch weight unit (kg/lbs), verify display
+- [x] [A] Enable "Track Body Fat" in settings, verify the field appears on the weight row
+- [x] [A] Body-fat field is disabled until the day has a weight entry
+- [x] [A] Log a body-fat percentage; verify it persists and survives a weight-only save
+- [x] [A] Clear a body-fat percentage by emptying the field
+- [x] [A] Plan page shows body fat, category, and the lean/fat split
+- [ ] Plan chart draws the body-fat line on its own right-hand % axis (visual)
 
 ## AI Photo Estimation
 
@@ -130,8 +136,8 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Set/clear personal AI key and endpoint
 - [ ] Change AI provider (OpenAI / Claude / Ollama), verify AI still works (requires real keys)
 - [ ] Custom AI model override
-- [x] [A] Export data (JSON) — includes entries, weights, settings
-- [x] [A] Import data (JSON) — verify entries and weights restored
+- [x] [A] Export data (JSON) — includes entries, weights (with body fat), settings
+- [x] [A] Import data (JSON) — verify entries and weights (with body fat) restored
 - [x] [A] Toggle notes enabled/disabled
 - [x] [A] Toggle todos enabled/disabled
 - [x] [A] Preferences: change weight unit (autosaves)

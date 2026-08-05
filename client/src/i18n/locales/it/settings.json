@@ -29,10 +29,6 @@
     },
     "timezone": {
       "label": "Fuso orario"
-    },
-    "bodyFat": {
-      "label": "Monitora il grasso corporeo",
-      "description": "Aggiunge un campo per il grasso corporeo alla riga del peso"
     }
   },
   "todo": {
@@ -299,5 +295,10 @@
     "expiresOn": "scade il {{date}}",
     "usersHeading_one": "Utenti ({{count}})",
     "usersHeading_other": "Utenti ({{count}})"
+  },
+  "bodyFat": {
+    "heading": "Monitora il grasso corporeo",
+    "description": "Registra una percentuale di grasso corporeo a ogni pesata. Fornisce massa magra/grassa e un budget calorico più preciso.",
+    "toggleFailed": "Aggiornamento dell’impostazione non riuscito"
   }
 }

@@ -251,6 +251,7 @@ func main() {
 	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareWeight)).Get("/weight/day", weightHandler.WeightDay)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/upsert", weightHandler.WeightUpsert)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/{id}/delete", weightHandler.WeightDelete)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/weight/toggle-body-fat", weightHandler.ToggleBodyFatEnabled)
 
 	// Plan routes (weight-loss planner)
 	planHandler := &handler.PlanHandler{Pool: pool, Broker: sseBroker}

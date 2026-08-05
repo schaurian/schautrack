@@ -29,10 +29,6 @@
     },
     "timezone": {
       "label": "Strefa czasowa"
-    },
-    "bodyFat": {
-      "label": "Śledź tkankę tłuszczową",
-      "description": "Dodaje pole tkanki tłuszczowej do wiersza wagi"
     }
   },
   "todo": {
@@ -305,5 +301,10 @@
     "usersHeading_other": "Użytkownicy ({{count}})",
     "usersHeading_few": "Użytkownicy ({{count}})",
     "usersHeading_many": "Użytkownicy ({{count}})"
+  },
+  "bodyFat": {
+    "heading": "Śledź tkankę tłuszczową",
+    "description": "Zapisuj procent tkanki tłuszczowej przy każdym ważeniu. Daje masę beztłuszczową/tłuszczową i dokładniejszy budżet kaloryczny.",
+    "toggleFailed": "Nie udało się zaktualizować ustawienia"
   }
 }

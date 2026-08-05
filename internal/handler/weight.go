@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,6 +19,25 @@ import (
 type WeightHandler struct {
 	Pool   *pgxpool.Pool
 	Broker *sse.Broker
+}
+
+// ToggleBodyFatEnabled handles POST /weight/toggle-body-fat. The flag only
+// governs whether the UI offers the field — the upsert endpoints accept a
+// body_fat regardless, so an import or an API client is never blocked by a
+// preference the user has not visited.
+func (h *WeightHandler) ToggleBodyFatEnabled(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Enabled any `json:"enabled"`
+	}
+	ReadJSON(r, &body)
+	enabled := body.Enabled == true || body.Enabled == "true"
+	user := middleware.GetCurrentUser(r)
+	if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET body_fat_enabled = $1 WHERE id = $2", enabled, user.ID); err != nil {
+		slog.Error("failed to toggle body fat enabled", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not save setting.")
+		return
+	}
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "enabled": enabled})
 }
 
 // parseBodyFatUpdate maps the optional body_fat field of a decoded JSON body

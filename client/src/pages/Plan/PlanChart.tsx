@@ -173,9 +173,14 @@ export default function PlanChart({
     if (fatPts.length >= 2) {
       let fMin = Math.min(...fatPts.map((p) => p.bf));
       let fMax = Math.max(...fatPts.map((p) => p.bf));
-      if (fMin === fMax) {
-        fMin -= 1;
-        fMax += 1;
+      // Hold the axis to a minimum span. Auto-scaling alone would stretch a
+      // half-point of scale noise across the full plot height and read as a
+      // collapse in body fat — the misreading a second axis most invites.
+      const MIN_SPAN = 5;
+      if (fMax - fMin < MIN_SPAN) {
+        const mid = (fMin + fMax) / 2;
+        fMin = mid - MIN_SPAN / 2;
+        fMax = mid + MIN_SPAN / 2;
       }
       const fPad = (fMax - fMin) * 0.1;
       const fMinPadded = fMin - fPad;

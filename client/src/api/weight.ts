@@ -24,3 +24,10 @@ export function upsertWeight(data: { date: string; weight: number; body_fat?: nu
 export function deleteWeight(id: number) {
   return api<{ ok: boolean }>(`/weight/${id}/delete`, { method: 'POST' });
 }
+
+export function toggleBodyFatEnabled(enabled: boolean) {
+  return api<{ ok: boolean; enabled: boolean }>('/weight/toggle-body-fat', {
+    method: 'POST',
+    body: JSON.stringify({ enabled }),
+  });
+}

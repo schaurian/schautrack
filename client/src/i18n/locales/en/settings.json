@@ -103,6 +103,11 @@
     "providerDefault": "Default",
     "settingsCleared": "AI settings cleared"
   },
+  "bodyFat": {
+    "description": "Log a body-fat percentage with each weigh-in. Powers lean/fat mass and a more accurate calorie budget.",
+    "heading": "Track Body Fat",
+    "toggleFailed": "Failed to update setting"
+  },
   "confirmImport": {
     "cancel": "Cancel",
     "descriptionPrefix": "Importing",
@@ -232,10 +237,6 @@
     "updatedToast": "Password updated"
   },
   "preferences": {
-    "bodyFat": {
-      "description": "Add a body-fat field to the weight row",
-      "label": "Track Body Fat"
-    },
     "heading": "Internationalization",
     "timezone": {
       "label": "Timezone"

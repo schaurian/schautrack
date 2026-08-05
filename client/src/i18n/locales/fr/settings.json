@@ -29,10 +29,6 @@
     },
     "timezone": {
       "label": "Fuseau horaire"
-    },
-    "bodyFat": {
-      "label": "Suivre la masse grasse",
-      "description": "Ajoute un champ de masse grasse à la ligne de poids"
     }
   },
   "todo": {
@@ -299,5 +295,10 @@
     "expiresOn": "expire le {{date}}",
     "usersHeading_one": "Utilisateurs ({{count}})",
     "usersHeading_other": "Utilisateurs ({{count}})"
+  },
+  "bodyFat": {
+    "heading": "Suivre la masse grasse",
+    "description": "Enregistrez un pourcentage de masse grasse à chaque pesée. Fournit la masse maigre/grasse et un budget calorique plus précis.",
+    "toggleFailed": "Échec de la mise à jour du paramètre"
   }
 }
