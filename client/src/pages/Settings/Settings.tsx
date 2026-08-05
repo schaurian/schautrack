@@ -10,6 +10,7 @@ import AISettings from './AISettings';
 import LinkSettings from './LinkSettings';
 import TodoSettings from './TodoSettings';
 import NoteSettings from './NoteSettings';
+import BodyFatSettings from './BodyFatSettings';
 import SavedFoodsSettings from './SavedFoodsSettings';
 import OnboardingSettings from './OnboardingSettings';
 
@@ -59,13 +60,16 @@ export default function Settings() {
           <MacroSettings user={data.user} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
-          <PreferencesSettings user={data.user} timezones={data.timezones} onSave={refresh} />
-        </div>
-        <div className="break-inside-avoid">
           <TodoSettings user={data.user} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
           <NoteSettings user={data.user} onSave={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <BodyFatSettings user={data.user} onSave={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <PreferencesSettings user={data.user} timezones={data.timezones} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
           <SavedFoodsSettings />

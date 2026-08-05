@@ -44,6 +44,27 @@ func ParseWeight(input string) ParseWeightResult {
 	return ParseWeightResult{Ok: true, Value: math.Round(val*100) / 100}
 }
 
+// MaxBodyFatPct bounds an accepted body-fat reading. It is deliberately loose —
+// the highest percentages ever recorded are around 70 — and matches the
+// weight_entries_body_fat_range CHECK so an out-of-bounds value fails as a 400
+// here rather than a 500 from the database.
+const MaxBodyFatPct = 75.0
+
+// ParseBodyFat parses a body-fat percentage, accepting the same comma-decimal
+// and stringified-number inputs as ParseWeight. Rounds to one decimal to match
+// the NUMERIC(4,1) column.
+func ParseBodyFat(input string) (float64, bool) {
+	input = strings.TrimSpace(input)
+	if input == "" || len(input) > 12 {
+		return 0, false
+	}
+	val, err := strconv.ParseFloat(strings.Replace(input, ",", ".", 1), 64)
+	if err != nil || val <= 0 || val > MaxBodyFatPct || math.IsInf(val, 0) || math.IsNaN(val) {
+		return 0, false
+	}
+	return math.Round(val*10) / 10, true
+}
+
 func SubtractDaysUTC(dateStr string, days int) string {
 	t, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {

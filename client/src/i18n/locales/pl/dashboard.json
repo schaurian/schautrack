@@ -152,13 +152,17 @@
       "currentWeightLabel": "Aktualna waga",
       "bmiLabel": "BMI",
       "addHeightWeight": "Dodaj wzrost i wagę",
-      "healthyRangeLabel": "Zdrowy zakres"
+      "healthyRangeLabel": "Zdrowy zakres",
+      "bodyFatLabel": "Tkanka tłuszczowa",
+      "leanFatSplit": "{{lean}} {{unit}} masy beztłuszczowej · {{fat}} {{unit}} tłuszczu"
     },
     "recommendedBudget": {
       "title": "Zalecany budżet",
       "currentGoalLabel": "Aktualny cel kaloryczny: {{value}} kcal/dzień",
       "clampedNotice": "Ograniczono do bezpiecznego minimum",
-      "applyButton": "Zastosuj jako mój cel kaloryczny"
+      "applyButton": "Zastosuj jako mój cel kaloryczny",
+      "formulaKatch": "Według Katch-McArdle, na podstawie {{lean}} {{unit}} masy beztłuszczowej",
+      "formulaMifflin": "Według Mifflin-St Jeor. Zapisz procent tkanki tłuszczowej, aby oszacować na podstawie masy beztłuszczowej."
     },
     "progress": {
       "title": "Postęp",
@@ -228,7 +232,15 @@
       "legendActual": "Rzeczywista",
       "legendPlan": "Plan",
       "legendTarget": "Cel",
-      "legendHealthyRange": "Zdrowy zakres"
+      "legendHealthyRange": "Zdrowy zakres",
+      "legendBodyFat": "Tkanka tłuszczowa"
+    },
+    "bodyFatCategory": {
+      "essential": "Niezbędna",
+      "athletic": "Sportowa",
+      "fitness": "Dobra forma",
+      "average": "Przeciętna",
+      "obese": "Otyłość"
     }
   },
   "savedFoods": {
@@ -298,6 +310,9 @@
     "streakDays_few": "{{count}}d",
     "streakDays_many": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "hourLabel": "Godzina",
+    "minuteLabel": "Minuta",
+    "setTimeButton": "Wybierz godzinę",
     "timeOfDayAriaLabel": "Pora dnia",
     "toastCreateFailed": "Nie udało się utworzyć zadania",
     "toastUpdateFailed": "Nie udało się zaktualizować zadania",
@@ -323,6 +338,11 @@
     "deleteButton": "Usuń",
     "toastTracked": "Waga zapisana",
     "toastSaveFailed": "Nie udało się zapisać wagi",
-    "toastDeleteFailed": "Nie udało się usunąć wagi"
+    "toastDeleteFailed": "Nie udało się usunąć wagi",
+    "bodyFatAriaLabel": "Procent tkanki tłuszczowej",
+    "bodyFatNeedsWeight": "Najpierw zapisz wagę dla tego dnia",
+    "toastBodyFatTracked": "Tkanka tłuszczowa zapisana",
+    "toastBodyFatCleared": "Tkanka tłuszczowa usunięta",
+    "toastBodyFatSaveFailed": "Nie udało się zapisać tkanki tłuszczowej"
   }
 }

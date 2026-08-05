@@ -132,6 +132,11 @@
     "specLink": "View the API reference.",
     "usedOn": "Last used {{date}}"
   },
+  "bodyFat": {
+    "description": "Log a body-fat percentage with each weigh-in. Powers lean/fat mass and a more accurate calorie budget.",
+    "heading": "Track Body Fat",
+    "toggleFailed": "Failed to update setting"
+  },
   "confirmImport": {
     "cancel": "Cancel",
     "descriptionPrefix": "Importing",

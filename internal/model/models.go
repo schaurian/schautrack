@@ -28,6 +28,7 @@ type User struct {
 	Language            *string         `json:"language"`
 	TodosEnabled        bool            `json:"todos_enabled"`
 	NotesEnabled        bool            `json:"notes_enabled"`
+	BodyFatEnabled      bool            `json:"body_fat_enabled"`
 	OnboardedAt         *time.Time      `json:"onboarding_completed_at,omitempty"`
 	PreferredAIProvider *string         `json:"preferred_ai_provider"`
 	AIKey               *string         `json:"-"`
@@ -63,6 +64,7 @@ type WeightEntry struct {
 	UserID    int       `json:"user_id"`
 	EntryDate string    `json:"entry_date"`
 	Weight    float64   `json:"weight"`
+	BodyFat   *float64  `json:"body_fat"` // percent, nil when not measured
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

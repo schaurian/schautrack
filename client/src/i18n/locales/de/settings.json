@@ -329,5 +329,10 @@
     "button": "Tour anzeigen",
     "description": "Eine kurze Führung durch das, was Schautrack kann und wo du es findest.",
     "heading": "Willkommenstour"
+  },
+  "bodyFat": {
+    "heading": "Körperfett tracken",
+    "description": "Erfasse bei jedem Wiegen den Körperfettanteil. Liefert Mager-/Fettmasse und ein genaueres Kalorienbudget.",
+    "toggleFailed": "Einstellung konnte nicht aktualisiert werden"
   }
 }

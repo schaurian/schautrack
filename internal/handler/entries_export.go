@@ -54,7 +54,7 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	defer entries.Close()
 
 	weights, err := h.Pool.Query(r.Context(),
-		"SELECT entry_date, weight FROM weight_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC LIMIT 100000",
+		"SELECT entry_date, weight, body_fat FROM weight_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC LIMIT 100000",
 		user.ID)
 	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Export failed")
@@ -102,14 +102,21 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	for weights.Next() {
 		var date string
 		var weight float64
-		if err := weights.Scan(&date, &weight); err != nil {
+		var bodyFat *float64
+		if err := weights.Scan(&date, &weight, &bodyFat); err != nil {
 			slog.Error("failed to scan weight row in export", "error", err)
 			continue
 		}
 		if !first {
 			fmt.Fprint(w, ",")
 		}
-		wj, _ := json.Marshal(map[string]any{"date": date, "weight": weight})
+		row := map[string]any{"date": date, "weight": weight}
+		// Omitted rather than exported as null, so an export from before body
+		// fat existed and one from a user who never measures it look identical.
+		if bodyFat != nil {
+			row["body_fat"] = *bodyFat
+		}
+		wj, _ := json.Marshal(row)
 		w.Write(wj)
 		first = false
 	}
@@ -183,8 +190,9 @@ type importEntry struct {
 
 // importWeight is a single weight entry that survived import validation.
 type importWeight struct {
-	date   string
-	weight float64
+	date    string
+	weight  float64
+	bodyFat *float64
 }
 
 // importData is the fully validated payload extracted from an import file:
@@ -310,7 +318,16 @@ func parseImportData(parsed map[string]any) importData {
 			if !wr.Ok {
 				continue
 			}
-			weightToInsert = append(weightToInsert, importWeight{date: dateStr, weight: wr.Value})
+			// An unparseable body fat drops just that field — the weight is
+			// still worth restoring, matching how a bad macro drops a macro
+			// rather than the whole entry.
+			var bodyFat *float64
+			if raw, exists := wEntry["body_fat"]; exists && raw != nil {
+				if pct, ok := service.ParseBodyFat(fmt.Sprintf("%v", raw)); ok {
+					bodyFat = &pct
+				}
+			}
+			weightToInsert = append(weightToInsert, importWeight{date: dateStr, weight: wr.Value, bodyFat: bodyFat})
 		}
 	}
 
@@ -456,13 +473,21 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 	// clause) because a batch queues raw SQL.
 	if len(weightToInsert) > 0 {
 		batch := &pgx.Batch{}
+		importedBodyFat := false
 		for _, we := range weightToInsert {
 			batch.Queue(`
-				INSERT INTO weight_entries (user_id, entry_date, weight)
-				VALUES ($1, $2, $3)
+				INSERT INTO weight_entries (user_id, entry_date, weight, body_fat)
+				VALUES ($1, $2, $3, $4)
 				ON CONFLICT (user_id, entry_date)
-					DO UPDATE SET weight = EXCLUDED.weight, updated_at = NOW()`,
-				user.ID, we.date, we.weight)
+					DO UPDATE SET weight = EXCLUDED.weight, body_fat = EXCLUDED.body_fat, updated_at = NOW()`,
+				user.ID, we.date, we.weight, we.bodyFat)
+			importedBodyFat = importedBodyFat || we.bodyFat != nil
+		}
+		// Turn the opt-in on when the file actually carries body fat, so the
+		// restored readings are visible and editable straight away instead of
+		// sitting in the database behind a preference the user never set.
+		if importedBodyFat {
+			batch.Queue("UPDATE users SET body_fat_enabled = TRUE WHERE id = $1", user.ID)
 		}
 		if err := execBatch(r.Context(), tx, batch); err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Import failed.")

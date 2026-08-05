@@ -8,14 +8,18 @@ import (
 )
 
 // PlanDisclaimer is surfaced verbatim to the client alongside every plan payload.
-const PlanDisclaimer = "This plan is an estimate based on standard formulas (Mifflin-St Jeor) and general activity guidelines. " +
+const PlanDisclaimer = "This plan is an estimate based on standard formulas (Mifflin-St Jeor, or Katch-McArdle when a body-fat reading is available) and general activity guidelines. " +
 	"It is not medical advice — consult a healthcare professional before starting any weight-loss or weight-gain program, " +
 	"especially if you have underlying health conditions."
 
 // PlanInputs is everything AssemblePlan needs, gathered by the handler from the
 // DB. AssemblePlan itself performs no I/O and does not read the wall clock.
 type PlanInputs struct {
-	CurrentWeight  *float64 // nil if no weight logged
+	CurrentWeight *float64 // nil if no weight logged
+	// CurrentBodyFat is the most recent body-fat reading and the weight it was
+	// taken with — both, because lean mass is only meaningful against the
+	// weight measured at the same time, which may predate CurrentWeight.
+	CurrentBodyFat *BodyFatReading
 	HeightCm       *float64
 	BirthYear      *int
 	Sex            *string
@@ -24,6 +28,14 @@ type PlanInputs struct {
 	Series         []WeightPoint
 	CurrentCalGoal *int
 	Now            time.Time
+}
+
+// BodyFatReading is one measured body-fat percentage with the weight and date
+// it was recorded against.
+type BodyFatReading struct {
+	Date     string
+	WeightKg float64
+	Pct      float64
 }
 
 type PlanMetrics struct {
@@ -48,7 +60,29 @@ type PlanComputed struct {
 	ETAWeeks      float64      `json:"etaWeeks"`
 	ETADate       *string      `json:"etaDate"`
 	PlanCurve     []CurvePoint `json:"planCurve"`
+	// BMRFormula names the estimator behind BMR: "katch_mcardle" when a
+	// body-fat reading was available, "mifflin_st_jeor" otherwise. Surfaced so
+	// the UI can say which one produced the budget instead of the accuracy
+	// upgrade being invisible.
+	BMRFormula string `json:"bmrFormula"`
 }
+
+// BodyComposition is the derived view of one body-fat reading. LeanMass and
+// FatMass are weights and therefore converted to the user's display unit
+// alongside every other weight in the payload; BodyFatPct is a percentage and
+// is never converted.
+type BodyComposition struct {
+	Date       string  `json:"date"`
+	BodyFatPct float64 `json:"bodyFatPct"`
+	LeanMass   float64 `json:"leanMass"`
+	FatMass    float64 `json:"fatMass"`
+	Category   *string `json:"category"` // nil when sex is unknown
+}
+
+const (
+	BMRFormulaMifflin = "mifflin_st_jeor"
+	BMRFormulaKatch   = "katch_mcardle"
+)
 
 type PlanTrend struct {
 	SlopeKgPerWeek float64 `json:"slopeKgPerWeek"`
@@ -59,8 +93,9 @@ type PlanTrend struct {
 }
 
 type SeriesPoint struct {
-	Date   string  `json:"date"`
-	Weight float64 `json:"weight"`
+	Date    string   `json:"date"`
+	Weight  float64  `json:"weight"`
+	BodyFat *float64 `json:"bodyFat,omitempty"`
 }
 
 // PlanResponse is the fully-computed GET /plan payload.
@@ -69,6 +104,7 @@ type PlanResponse struct {
 	CurrentWeight      *float64          `json:"currentWeight"`
 	BMI                *float64          `json:"bmi"`
 	BMICategory        *string           `json:"bmiCategory"`
+	Composition        *BodyComposition  `json:"composition"`
 	HealthyRange       *HealthyRange     `json:"healthyRange"`
 	Goal               *model.WeightGoal `json:"goal"`
 	Computed           *PlanComputed     `json:"computed"`
@@ -104,7 +140,27 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 	}
 
 	for _, p := range in.Series {
-		out.Series = append(out.Series, SeriesPoint{Date: p.Date.Format("2006-01-02"), Weight: p.Weight})
+		out.Series = append(out.Series, SeriesPoint{Date: p.Date.Format("2006-01-02"), Weight: p.Weight, BodyFat: p.BodyFat})
+	}
+
+	// Composition needs only a body-fat reading — no height, age or sex — so it
+	// is derived before (and independently of) the metrics-complete gate below.
+	if r := in.CurrentBodyFat; r != nil {
+		lean := LeanBodyMass(r.WeightKg, r.Pct)
+		if lean > 0 {
+			comp := &BodyComposition{
+				Date:       r.Date,
+				BodyFatPct: r.Pct,
+				LeanMass:   round1(lean),
+				FatMass:    round1(FatMass(r.WeightKg, r.Pct)),
+			}
+			if in.Sex != nil {
+				if cat := BodyFatCategory(Sex(*in.Sex), r.Pct); cat != "" {
+					comp.Category = &cat
+				}
+			}
+			out.Composition = comp
+		}
 	}
 
 	if in.HeightCm != nil && in.CurrentWeight != nil {
@@ -164,7 +220,19 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 		baseWeight = *in.CurrentWeight
 	}
 
-	bmr := BMR(sex, baseWeight, heightCm, ageYears)
+	// A measured body fat beats an estimate from height/age/sex: Katch–McArdle
+	// works off lean mass, which is what actually burns the calories. Anchor it
+	// on baseWeight (not the reading's own weight) so the projection starts
+	// where the plan does; the percentage is carried over on the assumption
+	// that composition has not swung since it was measured.
+	bmrModel := MifflinModel(sex, heightCm, ageYears)
+	formula := BMRFormulaMifflin
+	if r := in.CurrentBodyFat; r != nil && LeanBodyMass(baseWeight, r.Pct) > 0 {
+		bmrModel = KatchMcArdleModel(baseWeight, r.Pct)
+		formula = BMRFormulaKatch
+	}
+
+	bmr := bmrModel(baseWeight)
 	tdee := TDEE(bmr, activity)
 	floor := CalorieFloor(sex)
 	budget, clamped := RecommendedBudget(tdee, rate, dir, floor)
@@ -176,7 +244,7 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 		etaDate = &d
 	}
 
-	curve := AdaptivePlanCurve(baseWeight, goal.TargetWeight, float64(budget), sex, heightCm, ageYears, activity, 0)
+	curve := AdaptivePlanCurve(baseWeight, goal.TargetWeight, float64(budget), bmrModel, activity, 0)
 
 	out.Computed = &PlanComputed{
 		BMR:           round1(bmr),
@@ -187,6 +255,7 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 		ETAWeeks:      etaWeeks,
 		ETADate:       etaDate,
 		PlanCurve:     curve,
+		BMRFormula:    formula,
 	}
 
 	if clamped {

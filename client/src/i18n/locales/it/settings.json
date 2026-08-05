@@ -329,5 +329,10 @@
     "button": "Mostra il tour",
     "description": "Una breve panoramica di ciò che fa Schautrack e di dove trovarlo.",
     "heading": "Tour di benvenuto"
+  },
+  "bodyFat": {
+    "heading": "Monitora il grasso corporeo",
+    "description": "Registra una percentuale di grasso corporeo a ogni pesata. Fornisce massa magra/grassa e un budget calorico più preciso.",
+    "toggleFailed": "Aggiornamento dell’impostazione non riuscito"
   }
 }

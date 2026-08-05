@@ -222,6 +222,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		timeFormatted := service.FormatTimeInTz(weightEntry.UpdatedAt, userTz)
 		viewWeight = map[string]any{
 			"id": weightEntry.ID, "entry_date": weightEntry.Date, "weight": weightEntry.Weight,
+			"body_fat":   weightEntry.BodyFat,
 			"created_at": weightEntry.CreatedAt, "updated_at": weightEntry.UpdatedAt,
 			"timeFormatted": timeFormatted,
 		}

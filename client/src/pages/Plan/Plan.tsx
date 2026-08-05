@@ -18,6 +18,17 @@ const BMI_CATEGORY_CLASSES: Record<string, string> = {
   obese: 'bg-destructive/10 border-destructive/35 text-red-300',
 };
 
+// Body-fat bands read like BMI's: the two healthy middles are green, the two
+// edges are cautionary. "essential" is a warning rather than a success — it is
+// the floor the body needs to function, not a target.
+const BODY_FAT_CATEGORY_CLASSES: Record<string, string> = {
+  essential: 'bg-warning/10 border-warning/35 text-yellow-300',
+  athletic: 'bg-success/10 border-success/35 text-green-300',
+  fitness: 'bg-success/10 border-success/35 text-green-300',
+  average: 'bg-warning/10 border-warning/35 text-yellow-300',
+  obese: 'bg-destructive/10 border-destructive/35 text-red-300',
+};
+
 export default function Plan() {
   const { t } = useTranslation('dashboard');
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -30,6 +41,14 @@ export default function Plan() {
     normal: t('plan.bmiCategory.normal'),
     overweight: t('plan.bmiCategory.overweight'),
     obese: t('plan.bmiCategory.obese'),
+  };
+
+  const BODY_FAT_CATEGORY_LABELS: Record<string, string> = {
+    essential: t('plan.bodyFatCategory.essential'),
+    athletic: t('plan.bodyFatCategory.athletic'),
+    fitness: t('plan.bodyFatCategory.fitness'),
+    average: t('plan.bodyFatCategory.average'),
+    obese: t('plan.bodyFatCategory.obese'),
   };
 
   const TREND_STATUS: Record<string, { label: string; classes: string }> = {
@@ -68,6 +87,7 @@ export default function Plan() {
   };
 
   const bmiCategoryClass = data.bmiCategory ? BMI_CATEGORY_CLASSES[data.bmiCategory] : null;
+  const composition = data.composition;
   const trend = data.trend?.status ? TREND_STATUS[data.trend.status] : null;
 
   // Percent toward goal — works for both loss and gain goals since the sign
@@ -93,7 +113,7 @@ export default function Plan() {
         <div className="px-4 pt-4 pb-1">
           <h3 className="font-display text-[13px] font-bold tracking-wide text-[#c3ccdd]">{t('plan.status.title')}</h3>
         </div>
-        <div className="p-4 grid gap-4 sm:grid-cols-3">
+        <div className={cn('p-4 grid gap-4', composition ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3')}>
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.currentWeightLabel')}</div>
             <div className="text-xl font-bold tabular-nums">
@@ -116,6 +136,26 @@ export default function Plan() {
               <div className="text-sm text-muted-foreground">{t('plan.status.addHeightWeight')}</div>
             )}
           </div>
+          {composition && (
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.bodyFatLabel')}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold tabular-nums">{composition.bodyFatPct.toFixed(1)}<span className="text-sm text-muted-foreground font-normal ml-0.5">%</span></span>
+                {composition.category && (
+                  <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', BODY_FAT_CATEGORY_CLASSES[composition.category])}>
+                    {BODY_FAT_CATEGORY_LABELS[composition.category] || composition.category}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t('plan.status.leanFatSplit', {
+                  lean: composition.leanMass.toFixed(1),
+                  fat: composition.fatMass.toFixed(1),
+                  unit: weightUnit,
+                })}
+              </div>
+            </div>
+          )}
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.healthyRangeLabel')}</div>
             {data.healthyRange ? (
@@ -155,6 +195,13 @@ export default function Plan() {
               {data.computed.budgetClamped && (
                 <div className="text-xs text-yellow-400 mt-1">{t('plan.recommendedBudget.clampedNotice')}</div>
               )}
+              {/* Name the estimator: switching to Katch-McArdle is the payoff
+                  for logging body fat, and it would otherwise be invisible. */}
+              <div className="text-xs text-muted-foreground mt-1">
+                {data.computed.bmrFormula === 'katch_mcardle' && composition
+                  ? t('plan.recommendedBudget.formulaKatch', { lean: composition.leanMass.toFixed(1), unit: weightUnit })
+                  : t('plan.recommendedBudget.formulaMifflin')}
+              </div>
             </div>
             <Button onClick={handleApplyBudget} loading={applying}>{t('plan.recommendedBudget.applyButton')}</Button>
           </div>
@@ -168,6 +215,7 @@ export default function Plan() {
         series={data.series}
         planCurve={data.computed?.planCurve ?? []}
         targetWeight={data.goal?.target_weight ?? null}
+        showBodyFat
         healthyRange={data.healthyRange}
         weightUnit={weightUnit}
       />

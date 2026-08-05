@@ -86,3 +86,46 @@ func TestParseWeightTooLong(t *testing.T) {
 	}
 }
 
+func TestParseBodyFat(t *testing.T) {
+	valid := []struct {
+		input string
+		value float64
+	}{
+		{"24.3", 24.3},
+		{"18", 18},
+		{"  31.5  ", 31.5},
+		{"22,7", 22.7},  // European comma decimal, like ParseWeight
+		{"24.36", 24.4}, // rounded to the NUMERIC(4,1) column
+		{"24.34", 24.3},
+		{"75", 75}, // exactly at MaxBodyFatPct
+		{"0.1", 0.1},
+	}
+	for _, tt := range valid {
+		got, ok := ParseBodyFat(tt.input)
+		if !ok {
+			t.Errorf("ParseBodyFat(%q) = not ok, want %v", tt.input, tt.value)
+			continue
+		}
+		if got != tt.value {
+			t.Errorf("ParseBodyFat(%q) = %v, want %v", tt.input, got, tt.value)
+		}
+	}
+
+	invalid := []struct{ input, desc string }{
+		{"", "empty"},
+		{"   ", "whitespace only"},
+		{"abc", "non-numeric"},
+		{"0", "zero"},
+		{"-5", "negative"},
+		{"75.1", "just above the 75% ceiling"},
+		{"100", "a percentage no body can reach"},
+		{"NaN", "NaN string"},
+		{"Inf", "infinity string"},
+		{"1234567890123", "longer than 12 chars"},
+	}
+	for _, tt := range invalid {
+		if got, ok := ParseBodyFat(tt.input); ok {
+			t.Errorf("ParseBodyFat(%q) [%s] = %v, want not ok", tt.input, tt.desc, got)
+		}
+	}
+}

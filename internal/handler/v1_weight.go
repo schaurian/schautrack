@@ -184,7 +184,10 @@ func (h *V1Handler) PutWeightV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := service.UpsertWeightEntry(r.Context(), h.Pool, user.ID, date, parsed.Value)
+	// KeepBodyFat: v1 does not expose the optional body-fat reading yet, and a
+	// weight-only writer (typically a smart-scale integration) must not erase
+	// one recorded in the app for the same day.
+	entry, err := service.UpsertWeightEntry(r.Context(), h.Pool, user.ID, date, parsed.Value, service.KeepBodyFat)
 	if err != nil {
 		apierr.Write(w, r, dbFail("upsert weight", err))
 		return

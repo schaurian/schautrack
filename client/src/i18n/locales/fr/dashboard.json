@@ -146,13 +146,17 @@
       "currentWeightLabel": "Poids actuel",
       "bmiLabel": "IMC",
       "addHeightWeight": "Ajoutez taille et poids",
-      "healthyRangeLabel": "Plage saine"
+      "healthyRangeLabel": "Plage saine",
+      "bodyFatLabel": "Masse grasse",
+      "leanFatSplit": "{{lean}} {{unit}} de masse maigre · {{fat}} {{unit}} de masse grasse"
     },
     "recommendedBudget": {
       "title": "Budget recommandé",
       "currentGoalLabel": "Objectif calorique actuel : {{value}} kcal/jour",
       "clampedNotice": "Limité à un minimum sûr",
-      "applyButton": "Appliquer comme objectif calorique"
+      "applyButton": "Appliquer comme objectif calorique",
+      "formulaKatch": "Selon Katch-McArdle, à partir de {{lean}} {{unit}} de masse maigre",
+      "formulaMifflin": "Selon Mifflin-St Jeor. Enregistrez un pourcentage de masse grasse pour une estimation par masse maigre."
     },
     "progress": {
       "title": "Progression",
@@ -220,7 +224,15 @@
       "legendActual": "Réel",
       "legendPlan": "Plan",
       "legendTarget": "Cible",
-      "legendHealthyRange": "Plage saine"
+      "legendHealthyRange": "Plage saine",
+      "legendBodyFat": "Masse grasse"
+    },
+    "bodyFatCategory": {
+      "essential": "Essentielle",
+      "athletic": "Athlétique",
+      "fitness": "En forme",
+      "average": "Moyenne",
+      "obese": "Obésité"
     }
   },
   "savedFoods": {
@@ -282,6 +294,9 @@
     "missedDaysAgo_other": "{{count}} j",
     "streakDays_one": "{{count}} j",
     "streakDays_other": "{{count}} j",
+    "hourLabel": "Heure",
+    "minuteLabel": "Minute",
+    "setTimeButton": "Choisir l'heure",
     "timeOfDayAriaLabel": "Heure de la journée",
     "toastCreateFailed": "Échec de la création de la tâche",
     "toastUpdateFailed": "Échec de la mise à jour de la tâche",
@@ -305,6 +320,11 @@
     "deleteButton": "Supprimer",
     "toastTracked": "Poids suivi",
     "toastSaveFailed": "Échec de l'enregistrement du poids",
-    "toastDeleteFailed": "Échec de la suppression du poids"
+    "toastDeleteFailed": "Échec de la suppression du poids",
+    "bodyFatAriaLabel": "Pourcentage de masse grasse",
+    "bodyFatNeedsWeight": "Enregistrez d'abord un poids pour ce jour",
+    "toastBodyFatTracked": "Masse grasse suivie",
+    "toastBodyFatCleared": "Masse grasse supprimée",
+    "toastBodyFatSaveFailed": "Échec de l’enregistrement de la masse grasse"
   }
 }

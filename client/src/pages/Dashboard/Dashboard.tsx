@@ -268,6 +268,7 @@ export default function Dashboard() {
           weightUnit={dashboard.weightUnit}
           canEdit={canEdit}
           selectedDate={selectedDate}
+          bodyFatEnabled={!!user?.bodyFatEnabled}
         />
       )}
 

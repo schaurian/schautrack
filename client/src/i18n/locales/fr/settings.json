@@ -329,5 +329,10 @@
     "button": "Revoir la visite",
     "description": "Un tour rapide de ce que fait Schautrack et d'où le trouver.",
     "heading": "Visite guidée"
+  },
+  "bodyFat": {
+    "heading": "Suivre la masse grasse",
+    "description": "Enregistrez un pourcentage de masse grasse à chaque pesée. Fournit la masse maigre/grasse et un budget calorique plus précis.",
+    "toggleFailed": "Échec de la mise à jour du paramètre"
   }
 }

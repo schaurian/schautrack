@@ -329,5 +329,10 @@
     "button": "Mostrar a visita",
     "description": "Uma visita rápida ao que o Schautrack faz e onde encontrar cada coisa.",
     "heading": "Visita de boas-vindas"
+  },
+  "bodyFat": {
+    "heading": "Registar gordura corporal",
+    "description": "Registe uma percentagem de gordura corporal em cada pesagem. Fornece massa magra/gorda e um orçamento calórico mais preciso.",
+    "toggleFailed": "Falha ao atualizar a definição"
   }
 }

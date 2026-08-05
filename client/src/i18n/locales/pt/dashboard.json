@@ -146,13 +146,17 @@
       "currentWeightLabel": "Peso Atual",
       "bmiLabel": "IMC",
       "addHeightWeight": "Adicionar altura e peso",
-      "healthyRangeLabel": "Intervalo Saudável"
+      "healthyRangeLabel": "Intervalo Saudável",
+      "bodyFatLabel": "Gordura Corporal",
+      "leanFatSplit": "{{lean}} {{unit}} de massa magra · {{fat}} {{unit}} de gordura"
     },
     "recommendedBudget": {
       "title": "Orçamento Recomendado",
       "currentGoalLabel": "Objetivo calórico atual: {{value}} kcal/dia",
       "clampedNotice": "Ajustado a um mínimo seguro",
-      "applyButton": "Aplicar como o meu objetivo calórico"
+      "applyButton": "Aplicar como o meu objetivo calórico",
+      "formulaKatch": "Segundo Katch-McArdle, a partir de {{lean}} {{unit}} de massa magra",
+      "formulaMifflin": "Segundo Mifflin-St Jeor. Registe uma percentagem de gordura corporal para uma estimativa por massa magra."
     },
     "progress": {
       "title": "Progresso",
@@ -220,7 +224,15 @@
       "legendActual": "Real",
       "legendPlan": "Plano",
       "legendTarget": "Meta",
-      "legendHealthyRange": "Intervalo saudável"
+      "legendHealthyRange": "Intervalo saudável",
+      "legendBodyFat": "Gordura corporal"
+    },
+    "bodyFatCategory": {
+      "essential": "Essencial",
+      "athletic": "Atlético",
+      "fitness": "Em forma",
+      "average": "Médio",
+      "obese": "Obesidade"
     }
   },
   "savedFoods": {
@@ -282,6 +294,9 @@
     "missedDaysAgo_other": "{{count}}d",
     "streakDays_one": "{{count}}d",
     "streakDays_other": "{{count}}d",
+    "hourLabel": "Hora",
+    "minuteLabel": "Minuto",
+    "setTimeButton": "Escolher hora",
     "timeOfDayAriaLabel": "Hora do dia",
     "toastCreateFailed": "Falha ao criar tarefa",
     "toastUpdateFailed": "Falha ao atualizar tarefa",
@@ -305,6 +320,11 @@
     "deleteButton": "Eliminar",
     "toastTracked": "Peso registado",
     "toastSaveFailed": "Falha ao guardar peso",
-    "toastDeleteFailed": "Falha ao eliminar peso"
+    "toastDeleteFailed": "Falha ao eliminar peso",
+    "bodyFatAriaLabel": "Percentagem de gordura corporal",
+    "bodyFatNeedsWeight": "Registe primeiro um peso para este dia",
+    "toastBodyFatTracked": "Gordura corporal registada",
+    "toastBodyFatCleared": "Gordura corporal removida",
+    "toastBodyFatSaveFailed": "Falha ao guardar gordura corporal"
   }
 }

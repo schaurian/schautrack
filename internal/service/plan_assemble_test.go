@@ -205,6 +205,127 @@ func TestAssemblePlan(t *testing.T) {
 		}
 	})
 
+	t.Run("a body-fat reading yields composition and switches BMR to Katch-McArdle", func(t *testing.T) {
+		// 100kg at 30% body fat -> 70kg lean -> 370 + 21.6*70 = 1882 BMR.
+		// Mifflin for the same person (180cm, 40, male) is 1930, so the
+		// assertion below cannot pass by accident if the formula never switched.
+		birthYear := now.Year() - 40
+		sex := "male"
+		activity := "sedentary"
+		goal := &model.WeightGoal{
+			ID: 7, UserID: 1, StartWeight: 100, StartDate: "2026-07-01",
+			TargetWeight: 85, PaceMode: "rate", RateKgPerWeek: f64(0.5), Status: "active",
+		}
+		in := PlanInputs{
+			CurrentWeight:  f64(100),
+			CurrentBodyFat: &BodyFatReading{Date: "2026-07-18", WeightKg: 100, Pct: 30},
+			HeightCm:       f64(180), BirthYear: &birthYear, Sex: &sex, ActivityLevel: &activity,
+			Goal: goal, Now: now,
+		}
+		out := AssemblePlan(in)
+
+		if out.Composition == nil {
+			t.Fatal("expected composition to be derived from the body-fat reading")
+		}
+		if out.Composition.BodyFatPct != 30 {
+			t.Errorf("bodyFatPct = %v, want 30", out.Composition.BodyFatPct)
+		}
+		if !almost(out.Composition.LeanMass, 70, 0.05) {
+			t.Errorf("leanMass = %v, want 70", out.Composition.LeanMass)
+		}
+		if !almost(out.Composition.FatMass, 30, 0.05) {
+			t.Errorf("fatMass = %v, want 30", out.Composition.FatMass)
+		}
+		if out.Composition.Category == nil || *out.Composition.Category != "obese" {
+			t.Errorf("category = %v, want \"obese\" (male, 30%%)", out.Composition.Category)
+		}
+		if out.Composition.Date != "2026-07-18" {
+			t.Errorf("composition date = %q, want the reading's own date", out.Composition.Date)
+		}
+
+		if out.Computed == nil {
+			t.Fatal("expected a computed plan")
+		}
+		if out.Computed.BMRFormula != BMRFormulaKatch {
+			t.Errorf("bmrFormula = %q, want %q", out.Computed.BMRFormula, BMRFormulaKatch)
+		}
+		if !almost(out.Computed.BMR, 1882, 0.05) {
+			t.Errorf("bmr = %v, want 1882 (Katch-McArdle on 70kg lean), not 2035 (Mifflin)", out.Computed.BMR)
+		}
+	})
+
+	t.Run("without a body-fat reading BMR stays on Mifflin-St Jeor", func(t *testing.T) {
+		birthYear := now.Year() - 40
+		sex := "male"
+		activity := "sedentary"
+		goal := &model.WeightGoal{
+			ID: 8, UserID: 1, StartWeight: 100, StartDate: "2026-07-01",
+			TargetWeight: 85, PaceMode: "rate", RateKgPerWeek: f64(0.5), Status: "active",
+		}
+		in := PlanInputs{
+			CurrentWeight: f64(100),
+			HeightCm:      f64(180), BirthYear: &birthYear, Sex: &sex, ActivityLevel: &activity,
+			Goal: goal, Now: now,
+		}
+		out := AssemblePlan(in)
+
+		if out.Composition != nil {
+			t.Errorf("expected no composition without a reading, got %+v", out.Composition)
+		}
+		if out.Computed == nil {
+			t.Fatal("expected a computed plan")
+		}
+		if out.Computed.BMRFormula != BMRFormulaMifflin {
+			t.Errorf("bmrFormula = %q, want %q", out.Computed.BMRFormula, BMRFormulaMifflin)
+		}
+		// 10*100 + 6.25*180 - 5*40 + 5 = 1930
+		if !almost(out.Computed.BMR, 1930, 0.05) {
+			t.Errorf("bmr = %v, want 1930", out.Computed.BMR)
+		}
+	})
+
+	t.Run("composition without a goal or sex still resolves what it can", func(t *testing.T) {
+		// No goal, no body metrics at all: composition needs only the reading,
+		// so it must survive every gate that stops Computed from being built.
+		in := PlanInputs{
+			CurrentWeight:  f64(80),
+			CurrentBodyFat: &BodyFatReading{Date: "2026-07-19", WeightKg: 80, Pct: 20},
+			Now:            now,
+		}
+		out := AssemblePlan(in)
+
+		if out.Composition == nil {
+			t.Fatal("expected composition without a goal or body metrics")
+		}
+		if !almost(out.Composition.LeanMass, 64, 0.05) {
+			t.Errorf("leanMass = %v, want 64", out.Composition.LeanMass)
+		}
+		if out.Composition.Category != nil {
+			t.Errorf("category = %v, want nil when sex is unknown", *out.Composition.Category)
+		}
+		if out.Computed != nil {
+			t.Error("expected no computed plan without a goal")
+		}
+	})
+
+	t.Run("body fat rides along on the weight series", func(t *testing.T) {
+		series := []WeightPoint{
+			{Date: now.AddDate(0, 0, -1), Weight: 81, BodyFat: f64(25.4)},
+			{Date: now, Weight: 80}, // weight-only day, e.g. a scale without composition
+		}
+		out := AssemblePlan(PlanInputs{Series: series, Now: now})
+
+		if len(out.Series) != 2 {
+			t.Fatalf("series length = %d, want 2", len(out.Series))
+		}
+		if out.Series[0].BodyFat == nil || *out.Series[0].BodyFat != 25.4 {
+			t.Errorf("series[0].bodyFat = %v, want 25.4", out.Series[0].BodyFat)
+		}
+		if out.Series[1].BodyFat != nil {
+			t.Errorf("series[1].bodyFat = %v, want nil on a weight-only day", *out.Series[1].BodyFat)
+		}
+	})
+
 	t.Run("series and disclaimer are always populated", func(t *testing.T) {
 		series := []WeightPoint{{Date: now, Weight: 80}}
 		out := AssemblePlan(PlanInputs{Series: series, Now: now})

@@ -329,5 +329,10 @@
     "button": "Rondleiding tonen",
     "description": "Een korte rondleiding langs wat Schautrack doet en waar je het vindt.",
     "heading": "Welkomstrondleiding"
+  },
+  "bodyFat": {
+    "heading": "Vetpercentage bijhouden",
+    "description": "Registreer bij elke weging een vetpercentage. Levert vetvrije/vetmassa en een nauwkeuriger caloriebudget.",
+    "toggleFailed": "Bijwerken van instelling mislukt"
   }
 }
