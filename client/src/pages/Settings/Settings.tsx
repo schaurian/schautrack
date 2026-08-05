@@ -60,9 +60,6 @@ export default function Settings() {
           <MacroSettings user={data.user} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
-          <PreferencesSettings user={data.user} timezones={data.timezones} onSave={refresh} />
-        </div>
-        <div className="break-inside-avoid">
           <TodoSettings user={data.user} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
@@ -70,6 +67,9 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <BodyFatSettings user={data.user} onSave={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <PreferencesSettings user={data.user} timezones={data.timezones} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
           <SavedFoodsSettings />
