@@ -138,7 +138,12 @@ export default function ApiTokenSettings() {
         {freshToken && (
           <div className="rounded-md border border-primary/40 bg-primary/5 p-3 flex flex-col gap-2">
             <p className="text-sm font-medium text-foreground">{t('apiTokens.copyNow')}</p>
-            <code className="block w-full break-all rounded bg-muted/60 px-2 py-2 text-xs text-foreground select-all">
+            {/* Distinguishable from the `stk_abc123…` prefix chips in the list
+                below, which would otherwise be ambiguous to select. */}
+            <code
+              data-testid="api-token-secret"
+              className="block w-full break-all rounded bg-muted/60 px-2 py-2 text-xs text-foreground select-all"
+            >
               {freshToken}
             </code>
             <div className="flex gap-2">
