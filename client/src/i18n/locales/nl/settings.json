@@ -186,6 +186,35 @@
     "importSuccess": "Gegevens succesvol geïmporteerd.",
     "importFailed": "Importeren mislukt."
   },
+  "apiTokens": {
+    "atLimit": "Je hebt het maximum van {{max}} tokens bereikt. Trek er een in om een nieuwe te maken.",
+    "cancel": "Annuleren",
+    "copied": "Gekopieerd",
+    "copy": "Kopiëren",
+    "copyFailed": "Kopiëren naar het klembord is mislukt — selecteer het token en kopieer het handmatig.",
+    "copyNow": "Kopieer dit token nu. Het wordt niet opnieuw getoond.",
+    "create": "Token aanmaken",
+    "createFailed": "Token aanmaken mislukt",
+    "dismiss": "Klaar",
+    "empty": "Geen API-tokens. Maak er een om Schautrack vanuit scripts of andere apps te gebruiken.",
+    "expires": "verloopt op {{date}}",
+    "expiry30": "Verloopt over 30 dagen",
+    "expiry365": "Verloopt over 1 jaar",
+    "expiry90": "Verloopt over 90 dagen",
+    "expiryLabel": "Vervaldatum",
+    "expiryNever": "Verloopt nooit",
+    "heading": "API-tokens",
+    "intro": "Met persoonlijke toegangstokens kunnen scripts en andere apps je gegevens lezen en schrijven via de Schautrack-API. Elk token doet alleen wat jij toestaat.",
+    "namePlaceholder": "Waar is dit token voor? (bijv. Home Assistant)",
+    "neverUsed": "Nog nooit gebruikt",
+    "newToken": "Nieuw token",
+    "revoke": "Intrekken",
+    "revoked": "'{{name}}' ingetrokken",
+    "revokeFailed": "Token intrekken mislukt",
+    "scopesLabel": "Dit token mag",
+    "specLink": "Bekijk de API-referentie.",
+    "usedOn": "Laatst gebruikt op {{date}}"
+  },
   "confirmImport": {
     "title": "Alle items vervangen?",
     "descriptionPrefix": "Het importeren van",
@@ -295,5 +324,10 @@
     "expiresOn": "verloopt op {{date}}",
     "usersHeading_one": "Gebruikers ({{count}})",
     "usersHeading_other": "Gebruikers ({{count}})"
+  },
+  "onboarding": {
+    "button": "Rondleiding tonen",
+    "description": "Een korte rondleiding langs wat Schautrack doet en waar je het vindt.",
+    "heading": "Welkomstrondleiding"
   }
 }

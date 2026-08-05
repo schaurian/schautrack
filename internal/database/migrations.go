@@ -665,6 +665,46 @@ func ensureSavedFoodsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureAPITokensSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		// token_hash is the SHA-256 of the raw token and is UNIQUE: that index
+		// is both the authentication lookup path (equality on 32 bytes) and the
+		// guarantee that a revoked secret can never be re-minted.
+		//
+		// Rows are kept after revocation rather than deleted, so revoked_at is
+		// nullable and every query filters on it explicitly.
+		if _, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS api_tokens (
+				id           SERIAL PRIMARY KEY,
+				user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				token_hash   BYTEA NOT NULL UNIQUE,
+				prefix       TEXT NOT NULL,
+				scopes       TEXT[] NOT NULL,
+				expires_at   TIMESTAMPTZ,
+				last_used_at TIMESTAMPTZ,
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				revoked_at   TIMESTAMPTZ
+			)`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			DO $$ BEGIN
+				ALTER TABLE api_tokens ADD CONSTRAINT api_tokens_scopes_not_empty
+					CHECK (cardinality(scopes) > 0);
+			EXCEPTION WHEN duplicate_object THEN NULL;
+			END $$`); err != nil {
+			return err
+		}
+		// Partial index over live tokens only — the management list and the
+		// per-user cap both filter on exactly this predicate.
+		_, err := tx.Exec(ctx, `
+			CREATE INDEX IF NOT EXISTS api_tokens_user_active_idx
+				ON api_tokens (user_id, created_at DESC) WHERE revoked_at IS NULL`)
+		return err
+	})
+}
+
 func ensureAuditLogSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
 		// user_id is nullable + ON DELETE SET NULL so audit history survives
@@ -768,6 +808,39 @@ func ensureConsentSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+// ensureOnboardingSchema records WHEN a user dismissed the welcome tour. NULL
+// means "never seen it", which is what makes the tour open by itself on the
+// first login.
+//
+// The backfill is deliberately conditional on the column not existing yet.
+// Adding a nullable column would otherwise leave every pre-existing account at
+// NULL, so an upgrade would pop the tour in front of users who have been
+// tracking for months. Guarding on the column's absence makes the backfill run
+// exactly once, on the deploy that introduces the feature; accounts created
+// afterwards keep their NULL and do get the tour.
+func ensureOnboardingSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'users' AND column_name = 'onboarding_completed_at'
+			)`).Scan(&exists); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			ALTER TABLE users
+				ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ`); err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+		_, err := tx.Exec(ctx, `UPDATE users SET onboarding_completed_at = NOW()`)
+		return err
+	})
+}
+
 // migrationLockKey is the application-scoped pg_advisory_lock key that
 // serializes schema migrations across replicas. Multiple pods starting at
 // once (rolling deploy, scale-up) would otherwise race conflicting DDL:
@@ -806,10 +879,12 @@ func migrationSteps() []migrationStep {
 		{"oidc_accounts", ensureOIDCAccountsSchema},
 		{"passkeys", ensurePasskeysSchema},
 		{"audit_log", ensureAuditLogSchema},
+		{"api_tokens", ensureAPITokensSchema},
 		{"saved_foods", ensureSavedFoodsSchema},
 		{"body_profile", ensureBodyProfileSchema},
 		{"weight_goals", ensureWeightGoalsSchema},
 		{"consent", ensureConsentSchema},
+		{"onboarding", ensureOnboardingSchema},
 		{"todos", ensureTodosSchema},
 		{"daily_notes", ensureDailyNotesSchema},
 		{"backup_codes", ensureBackupCodesSchema},

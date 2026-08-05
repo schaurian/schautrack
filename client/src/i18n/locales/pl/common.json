@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} powyżej celu",
     "remaining": "{{amount}} pozostało",
     "over": "{{amount}} powyżej"
+  },
+  "onboarding": {
+    "back": "Wstecz",
+    "close": "Zamknij",
+    "done": "Zaczynajmy",
+    "next": "Dalej",
+    "progress": "{{current}} z {{total}}",
+    "steps": {
+      "day": {
+        "art": "Pierścień aktywności obok pasków białka, węglowodanów, tłuszczu i błonnika",
+        "body": "Pierścień wypełnia się w miarę zapisywania. Włącz białko, węglowodany, tłuszcz, błonnik i cukier, aby śledzić makro obok kalorii.",
+        "eyebrow": "Panel",
+        "title": "Twój dzień na pierwszy rzut oka"
+      },
+      "log": {
+        "art": "Pole wpisu nad trzema sposobami dodania jedzenia: wpisanie, kod kreskowy, zdjęcie",
+        "body": "Wpisz kalorie, zeskanuj kod kreskowy albo zrób zdjęcie i pozwól AI je oszacować — jak szybciej. To, co jesz często, staje się ulubionym na jedno dotknięcie.",
+        "bodyNoAi": "Wpisz kalorie albo zeskanuj kod kreskowy — jak szybciej. To, co jesz często, staje się ulubionym na jedno dotknięcie.",
+        "eyebrow": "Panel",
+        "title": "Trzy sposoby na zapisanie posiłku",
+        "artNoAi": "Pole wpisu nad dwoma sposobami dodania jedzenia: wpisanie, kod kreskowy",
+        "titleNoAi": "Dwa sposoby na zapisanie posiłku"
+      },
+      "plan": {
+        "art": "Linia wagi opadająca w stronę znacznika celu",
+        "body": "Zapisuj wagę, wybierz cel, a Schautrack wyliczy dzienny budżet kalorii, który cię tam doprowadzi.",
+        "eyebrow": "Plan",
+        "title": "Ustaw cel, otrzymaj budżet"
+      },
+      "share": {
+        "art": "Dwa tygodnie dziennych pól połączonych łącznikiem",
+        "body": "Ustaw swoje cele, włącz codzienne zadania i notatki oraz połącz konta, aby widzieć dzień kogoś innego obok swojego.",
+        "eyebrow": "Ustawienia",
+        "title": "Dostosuj do siebie"
+      },
+      "welcome": {
+        "art": "Tydzień dziennych pól, dzisiejsze wciąż puste",
+        "body": "Schautrack trzyma na widoku jedną liczbę: ile zjadłeś dzisiaj. Każdy zapisany dzień wypełnia jedno pole.",
+        "eyebrow": "Witamy",
+        "title": "Dzień po dniu"
+      }
+    }
   }
 }

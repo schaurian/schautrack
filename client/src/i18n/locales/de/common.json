@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} über dem Ziel",
     "remaining": "{{amount}} übrig",
     "over": "{{amount}} über"
+  },
+  "onboarding": {
+    "back": "Zurück",
+    "close": "Schließen",
+    "done": "Los geht's",
+    "next": "Weiter",
+    "progress": "{{current}} von {{total}}",
+    "steps": {
+      "day": {
+        "art": "Ein Aktivitätsring neben Balken für Protein, Kohlenhydrate, Fett und Ballaststoffe",
+        "body": "Der Ring füllt sich, während du erfasst. Schalte Protein, Kohlenhydrate, Fett, Ballaststoffe und Zucker dazu, um Makros neben den Kalorien zu verfolgen.",
+        "eyebrow": "Dashboard",
+        "title": "Dein Tag auf einen Blick"
+      },
+      "log": {
+        "art": "Ein Eingabefeld über drei Wegen, Essen hinzuzufügen: tippen, Barcode, Foto",
+        "body": "Kalorien eintippen, Barcode scannen oder ein Foto machen und die KI schätzen lassen — wie es am schnellsten geht. Was du oft isst, wird zum Favoriten mit einem Tipp.",
+        "bodyNoAi": "Kalorien eintippen oder Barcode scannen — wie es schneller geht. Was du oft isst, wird zum Favoriten mit einem Tipp.",
+        "eyebrow": "Dashboard",
+        "title": "Drei Wege, eine Mahlzeit zu erfassen",
+        "artNoAi": "Ein Eingabefeld über zwei Wegen, Essen hinzuzufügen: tippen, Barcode",
+        "titleNoAi": "Zwei Wege, eine Mahlzeit zu erfassen"
+      },
+      "plan": {
+        "art": "Eine Gewichtslinie, die zu einer Zielmarke fällt",
+        "body": "Trag dein Gewicht ein, wähle ein Ziel, und Schautrack berechnet das tägliche Kalorienbudget, das dich hinbringt.",
+        "eyebrow": "Plan",
+        "title": "Ziel setzen, Budget bekommen"
+      },
+      "share": {
+        "art": "Zwei Wochen aus Tageskästchen, durch eine Verknüpfung verbunden",
+        "body": "Setze deine Ziele, schalte tägliche Todos und Notizen ein und verknüpfe Konten, um den Tag einer anderen Person neben deinem zu sehen.",
+        "eyebrow": "Einstellungen",
+        "title": "Mach es zu deinem"
+      },
+      "welcome": {
+        "art": "Eine Woche aus Tageskästchen, heute noch leer",
+        "body": "Schautrack hält eine Zahl im Blick: was du heute gegessen hast. Jeder Tag, den du erfasst, füllt ein Kästchen.",
+        "eyebrow": "Willkommen",
+        "title": "Ein Tag nach dem anderen"
+      }
+    }
   }
 }

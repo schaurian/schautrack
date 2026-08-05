@@ -80,5 +80,47 @@
     "overTarget": "{{amount}} por encima del objetivo",
     "remaining": "{{amount}} restante",
     "over": "{{amount}} de más"
+  },
+  "onboarding": {
+    "back": "Atrás",
+    "close": "Cerrar",
+    "done": "Empezar",
+    "next": "Siguiente",
+    "progress": "{{current}} de {{total}}",
+    "steps": {
+      "day": {
+        "art": "Un anillo de actividad junto a barras de proteínas, carbohidratos, grasa y fibra",
+        "body": "El anillo se llena a medida que registras. Activa proteínas, carbohidratos, grasas, fibra y azúcar para seguir los macros junto a las calorías.",
+        "eyebrow": "Panel",
+        "title": "Tu día de un vistazo"
+      },
+      "log": {
+        "art": "Un campo de entrada sobre tres formas de añadir comida: escribir, código de barras, foto",
+        "body": "Escribe las calorías, escanea un código de barras o haz una foto y deja que la IA la estime, lo que sea más rápido. Lo que comes a menudo se convierte en un favorito de un toque.",
+        "bodyNoAi": "Escribe las calorías o escanea un código de barras, lo que sea más rápido. Lo que comes a menudo se convierte en un favorito de un toque.",
+        "eyebrow": "Panel",
+        "title": "Tres formas de registrar una comida",
+        "artNoAi": "Un campo de entrada sobre dos formas de añadir comida: escribir, código de barras",
+        "titleNoAi": "Dos formas de registrar una comida"
+      },
+      "plan": {
+        "art": "Una línea de peso que baja hacia una marca de objetivo",
+        "body": "Registra tu peso, elige un objetivo y Schautrack calcula el presupuesto diario de calorías para llegar.",
+        "eyebrow": "Plan",
+        "title": "Marca un objetivo, recibe un presupuesto"
+      },
+      "share": {
+        "art": "Dos semanas de cuadros diarios unidas por un vínculo",
+        "body": "Fija tus objetivos, activa las tareas y notas diarias, y vincula cuentas para seguir el día de otra persona junto al tuyo.",
+        "eyebrow": "Ajustes",
+        "title": "Hazlo tuyo"
+      },
+      "welcome": {
+        "art": "Una semana de cuadros diarios, hoy aún vacío",
+        "body": "Schautrack mantiene un número a la vista: lo que has comido hoy. Cada día que registras rellena un cuadro.",
+        "eyebrow": "Bienvenida",
+        "title": "Un día a la vez"
+      }
+    }
   }
 }

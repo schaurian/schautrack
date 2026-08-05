@@ -16,6 +16,8 @@ export interface User {
   aiDailyLimit: number | null;
   todosEnabled: boolean;
   notesEnabled: boolean;
+  /** False until the welcome tour is dismissed — drives its first-run open. */
+  onboardingCompleted: boolean;
   hasGlobalAiKey?: boolean;
   passkeyCount: number;
   oidcLinked: boolean;

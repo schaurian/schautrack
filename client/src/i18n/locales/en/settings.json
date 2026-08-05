@@ -103,6 +103,35 @@
     "providerDefault": "Default",
     "settingsCleared": "AI settings cleared"
   },
+  "apiTokens": {
+    "atLimit": "You have reached the maximum of {{max}} tokens. Revoke one to create another.",
+    "cancel": "Cancel",
+    "copied": "Copied",
+    "copy": "Copy",
+    "copyFailed": "Could not copy to the clipboard — select the token and copy it manually.",
+    "copyNow": "Copy this token now. It will not be shown again.",
+    "create": "Create token",
+    "createFailed": "Failed to create the token",
+    "dismiss": "Done",
+    "empty": "No API tokens. Create one to use Schautrack from scripts or other apps.",
+    "expires": "expires {{date}}",
+    "expiry30": "Expires in 30 days",
+    "expiry365": "Expires in 1 year",
+    "expiry90": "Expires in 90 days",
+    "expiryLabel": "Expiry",
+    "expiryNever": "Never expires",
+    "heading": "API tokens",
+    "intro": "Personal access tokens let scripts and other apps read and write your data through the Schautrack API. Each token only does what you allow.",
+    "namePlaceholder": "What is this token for? (e.g. Home Assistant)",
+    "neverUsed": "Never used",
+    "newToken": "New token",
+    "revoke": "Revoke",
+    "revoked": "Revoked \"{{name}}\"",
+    "revokeFailed": "Failed to revoke the token",
+    "scopesLabel": "This token may",
+    "specLink": "View the API reference.",
+    "usedOn": "Last used {{date}}"
+  },
   "confirmImport": {
     "cancel": "Cancel",
     "descriptionPrefix": "Importing",
@@ -201,6 +230,11 @@
     "unlinkConfirm": "Unlink {{label}}?",
     "unlinked": "{{label}} unlinked",
     "unlinkFailed": "Failed to unlink"
+  },
+  "onboarding": {
+    "button": "Show the tour",
+    "description": "A short walkthrough of what Schautrack does and where to find it.",
+    "heading": "Welcome tour"
   },
   "passkey": {
     "add": "Add Passkey",

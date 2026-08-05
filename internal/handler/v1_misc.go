@@ -1,0 +1,218 @@
+package handler
+
+import (
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"schautrack/internal/apierr"
+	"schautrack/internal/middleware"
+	"schautrack/internal/service"
+)
+
+// --- /me ------------------------------------------------------------------
+
+// v1Me describes the authenticated principal: who the token belongs to, what
+// it may do, and the account settings a client needs in order to interpret the
+// other endpoints correctly.
+//
+// Timezone and weight_unit are here because they are not decoration — without
+// them a client cannot tell what "today" means for this user or what unit a
+// weight reading is in.
+type v1Me struct {
+	User struct {
+		ID         int     `json:"id"`
+		Email      string  `json:"email"`
+		Timezone   string  `json:"timezone"`
+		WeightUnit string  `json:"weight_unit"`
+		DailyGoal  *int    `json:"daily_goal"`
+		Language   *string `json:"language"`
+	} `json:"user"`
+	Token struct {
+		ID        int        `json:"id"`
+		Name      string     `json:"name"`
+		Prefix    string     `json:"prefix"`
+		Scopes    []string   `json:"scopes"`
+		ExpiresAt *time.Time `json:"expires_at"`
+	} `json:"token"`
+	Server struct {
+		Version string `json:"version"`
+		Today   string `json:"today"`
+	} `json:"server"`
+}
+
+// Me handles GET /api/v1/me. It requires a valid token but no scope: it is how
+// a client discovers which scopes it holds, which it must be able to do before
+// it knows whether any other call would succeed.
+func (h *V1Handler) Me(w http.ResponseWriter, r *http.Request) {
+	user := v1User(r)
+	token := middleware.GetAPIToken(r)
+
+	var out v1Me
+	out.User.ID = user.ID
+	out.User.Email = user.Email
+	out.User.Timezone = v1Tz(r)
+	out.User.WeightUnit = h.weightUnit(r)
+	out.User.DailyGoal = user.DailyGoal
+	out.User.Language = user.Language
+
+	if token != nil {
+		out.Token.ID = token.ID
+		out.Token.Name = token.Name
+		out.Token.Prefix = token.Prefix
+		out.Token.Scopes = token.Scopes
+		out.Token.ExpiresAt = token.ExpiresAt
+	}
+
+	out.Server.Version = h.BuildVersion
+	out.Server.Today = v1Today(r)
+
+	writeV1(w, http.StatusOK, out)
+}
+
+// --- Notes ----------------------------------------------------------------
+
+// v1Note is one day's note.
+type v1Note struct {
+	Date      string     `json:"date"`
+	Content   string     `json:"content"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// maxNoteLen bounds a note body.
+const maxNoteLen = 10000
+
+// GetNoteV1 handles GET /api/v1/notes/{date}.
+//
+// A date with no note returns 200 with empty content, not 404: "no note today"
+// is a normal state of an existing day, not a missing resource, and making
+// callers branch on 404 for the common case would be hostile.
+func (h *V1Handler) GetNoteV1(w http.ResponseWriter, r *http.Request) {
+	date, prob := pathDate(r)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+	if prob := h.requireNotesEnabled(r); prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+
+	out := v1Note{Date: date}
+	err := h.Pool.QueryRow(r.Context(),
+		"SELECT content, updated_at FROM daily_notes WHERE user_id = $1 AND note_date = $2",
+		v1User(r).ID, date).Scan(&out.Content, &out.UpdatedAt)
+	if err != nil && err != pgx.ErrNoRows {
+		apierr.Write(w, r, dbFail("get note", err))
+		return
+	}
+	writeV1(w, http.StatusOK, out)
+}
+
+type v1NoteInput struct {
+	Content string `json:"content"`
+}
+
+// PutNoteV1 handles PUT /api/v1/notes/{date} — an idempotent whole-content
+// replace. Writing an empty string deletes the note.
+func (h *V1Handler) PutNoteV1(w http.ResponseWriter, r *http.Request) {
+	date, prob := pathDate(r)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+	if prob := h.requireNotesEnabled(r); prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+	var in v1NoteInput
+	if prob := decodeV1(w, r, &in); prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+	if len(in.Content) > maxNoteLen {
+		apierr.Write(w, r, apierr.Unprocessable("The note is too long.",
+			apierr.InvalidParam{Name: "content", Reason: "must be at most 10000 characters"}))
+		return
+	}
+
+	user := v1User(r)
+	content := strings.TrimSpace(in.Content)
+	if content == "" {
+		if _, err := h.Pool.Exec(r.Context(),
+			"DELETE FROM daily_notes WHERE user_id = $1 AND note_date = $2", user.ID, date); err != nil {
+			apierr.Write(w, r, dbFail("delete note", err))
+			return
+		}
+		h.broadcastEntries(user.ID)
+		writeV1(w, http.StatusOK, v1Note{Date: date})
+		return
+	}
+
+	out := v1Note{Date: date}
+	if err := h.Pool.QueryRow(r.Context(), `
+		INSERT INTO daily_notes (user_id, note_date, content) VALUES ($1, $2, $3)
+		ON CONFLICT (user_id, note_date)
+			DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()
+		RETURNING content, updated_at`, user.ID, date, content,
+	).Scan(&out.Content, &out.UpdatedAt); err != nil {
+		apierr.Write(w, r, dbFail("save note", err))
+		return
+	}
+
+	h.broadcastEntries(user.ID)
+	writeV1(w, http.StatusOK, out)
+}
+
+// requireNotesEnabled rejects note access when the user has the feature off.
+//
+// 409 rather than 404: the endpoint exists and the token is allowed to use it;
+// the account just has not turned the feature on, and saying so is what lets
+// the caller fix it.
+func (h *V1Handler) requireNotesEnabled(r *http.Request) *apierr.Problem {
+	var enabled bool
+	if err := h.Pool.QueryRow(r.Context(),
+		"SELECT notes_enabled FROM users WHERE id = $1", v1User(r).ID).Scan(&enabled); err != nil {
+		return dbFail("check notes enabled", err)
+	}
+	if !enabled {
+		return apierr.Conflict("Daily notes are not enabled for this account. Enable them in Settings first.")
+	}
+	return nil
+}
+
+// --- Plan -----------------------------------------------------------------
+
+// GetPlanV1 handles GET /api/v1/plan.
+//
+// The plan is a computed projection — goal, budget, curve, trend — assembled by
+// service.AssemblePlan from body metrics and weight history. It delegates to
+// PlanHandler.buildPlanInputs so the API and the UI cannot drift into computing
+// two different plans from the same data.
+//
+// Read-only on purpose. Setting a weight goal is a considered decision with
+// real health implications, so it stays in the UI where the app can show what
+// the numbers mean; scripts read the plan, they do not silently rewrite it.
+//
+// One deliberate difference from the UI's GET /api/plan: that endpoint flips a
+// reached goal to "achieved" as a side effect. This one does not. A `plan:read`
+// token must not mutate state — the response still reports goalReachedNow
+// truthfully, and the app performs the transition on its next load.
+func (h *V1Handler) GetPlanV1(w http.ResponseWriter, r *http.Request) {
+	ph := &PlanHandler{Pool: h.Pool, Broker: h.Broker}
+	inputs, goal, unit, err := ph.buildPlanInputs(r, v1User(r))
+	if err != nil {
+		apierr.Write(w, r, dbFail("build plan inputs", err))
+		return
+	}
+
+	resp := service.AssemblePlan(inputs)
+	// AssemblePlan works in kg; echo the goal back in the user's own unit and
+	// convert the rest of the weight-valued fields, exactly as the UI does.
+	resp.Goal = goal
+	service.ConvertPlanResponseToDisplayUnit(&resp, unit)
+
+	writeV1(w, http.StatusOK, resp)
+}

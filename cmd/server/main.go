@@ -318,9 +318,34 @@ func main() {
 	r.With(middleware.RequireLogin, middleware.RequireLinkAuth(pool, service.ShareNotes)).Get("/api/notes/day", notesHandler.Get)
 	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/notes", notesHandler.Save)
 
+	// Welcome tour
+	onboardingHandler := &handler.OnboardingHandler{Pool: pool}
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/onboarding/complete", onboardingHandler.Complete)
+
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
 	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)
+
+	// Personal access token management. Session-authenticated, NOT part of
+	// /api/v1: a token must never be able to mint another token, or one leaked
+	// read-only token could be escalated into a permanent full-scope one.
+	// Minting is step-up gated like every other credential change; revoking
+	// deliberately is not, so the kill switch is always one click away.
+	apiTokensHandler := &handler.APITokensHandler{Pool: pool, TrustProxy: cfg.TrustProxy}
+	r.With(middleware.RequireLogin).Get("/api/tokens", apiTokensHandler.List)
+	r.With(middleware.RequireLogin, stepUp, session.CsrfProtection).Post("/api/tokens", apiTokensHandler.Create)
+	r.With(middleware.RequireLogin, session.CsrfProtection).Post("/api/tokens/{id}/delete", apiTokensHandler.Revoke)
+
+	// Public API v1 — bearer-token authenticated, RFC 9457 errors, described by
+	// GET /api/v1/openapi.json. Mounted as a self-contained sub-router so the
+	// whole surface has exactly one definition (see handler.MountAPIV1), which
+	// is what the route-parity test checks the OpenAPI document against.
+	//
+	// apiV1Limiter is per-IP and separate from the auth limiters: API clients
+	// make far more requests than a login form, but still need a ceiling.
+	v1Handler := &handler.V1Handler{Pool: pool, Broker: sseBroker, BuildVersion: cfg.BuildVersion}
+	apiV1Limiter := middleware.NewProblemRateLimiter(cfg.RateLimitAPI, time.Minute, cfg.TrustProxy)
+	r.With(apiV1Limiter.Middleware).Mount("/api/v1", v1Handler.MountAPIV1(pool))
 
 	// Barcode
 	if cfg.EnableBarcode {

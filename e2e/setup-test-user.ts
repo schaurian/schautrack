@@ -68,6 +68,16 @@ function cleanupTestData(email: string) {
 }
 
 async function main() {
+  // The welcome tour opens by itself for any account that has never dismissed
+  // it (onboarding_completed_at IS NULL), which would drop a modal over the
+  // dashboard in every spec that seeds a user with a bare INSERT — and in the
+  // registration specs, which create theirs through the UI. Defaulting the
+  // column here treats "seeded for a test" as "already onboarded" without
+  // touching a single spec. onboarding.spec.ts sets the column back to NULL for
+  // its own user, so the real first-login behaviour is still exercised.
+  psql(`ALTER TABLE users ALTER COLUMN onboarding_completed_at SET DEFAULT NOW()`);
+  psql(`UPDATE users SET onboarding_completed_at = NOW() WHERE onboarding_completed_at IS NULL`);
+
   // Main test user
   ensureUser('test@test.com', 'test1234test', { features: true });
   cleanupTestData('test@test.com');

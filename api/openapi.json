@@ -1,0 +1,3734 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Schautrack API",
+    "version": "1.0.0",
+    "summary": "Read and write your Schautrack calorie, weight, todo, and food data.",
+    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` is paginated by keyset. Pass the `next_cursor` from a\nresponse back as `cursor` to fetch the next page; stop when `has_more`\nis false. Cursors are opaque — do not construct them.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n",
+    "license": {
+      "name": "AGPL-3.0-or-later",
+      "identifier": "AGPL-3.0-or-later"
+    },
+    "contact": {
+      "name": "Schautrack",
+      "url": "https://schautrack.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://schautrack.com/api/v1",
+      "description": "Production"
+    },
+    {
+      "url": "https://staging.schautrack.com/api/v1",
+      "description": "Staging"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Account",
+      "description": "Who the token belongs to and what it may do."
+    },
+    {
+      "name": "Entries",
+      "description": "Calorie entries and their macros."
+    },
+    {
+      "name": "Weight",
+      "description": "Daily weight readings."
+    },
+    {
+      "name": "Todos",
+      "description": "Recurring todos and their completions."
+    },
+    {
+      "name": "Saved foods",
+      "description": "Reusable quick-add foods."
+    },
+    {
+      "name": "Notes",
+      "description": "One free-text note per day."
+    },
+    {
+      "name": "Plan",
+      "description": "The weight-loss plan and its projections."
+    },
+    {
+      "name": "Meta",
+      "description": "The API's own description."
+    }
+  ],
+  "paths": {
+    "/entries": {
+      "get": {
+        "operationId": "listEntries",
+        "summary": "List calorie entries",
+        "description": "Newest first. Filter by a single `date`, or by a `from`/`to` range — not both. Paginated by keyset.",
+        "tags": [
+          "Entries"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Return entries for this single day.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start of an inclusive date range.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End of an inclusive date range.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum results to return. Values above 200 are clamped to 200.",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` from a previous response.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of entries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "entries:read"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createEntry",
+        "summary": "Create a calorie entry",
+        "description": "Needs `calories`, at least one macro, or both. When the account computes calories from macros, a supplied `calories` is replaced by the computed value.",
+        "tags": [
+          "Entries"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created entry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URL of the created entry.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "entries:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/entries/{id}": {
+      "get": {
+        "operationId": "getEntry",
+        "summary": "Fetch one calorie entry",
+        "tags": [
+          "Entries"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "entries:read"
+            ]
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateEntry",
+        "summary": "Change a calorie entry",
+        "description": "Only the fields present in the body are changed. Send `null` to clear the name or a macro.",
+        "tags": [
+          "Entries"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated entry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "entries:write"
+            ]
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteEntry",
+        "summary": "Delete a calorie entry",
+        "tags": [
+          "Entries"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted. No body."
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "entries:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "The authenticated account and token",
+        "description": "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
+        "tags": [
+          "Account"
+        ],
+        "responses": {
+          "200": {
+            "description": "The account, the token, and the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notes/{date}": {
+      "get": {
+        "operationId": "getNote",
+        "summary": "Fetch a day's note",
+        "description": "A day with no note returns 200 with empty content, not 404.",
+        "tags": [
+          "Notes"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The note.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "notes:read"
+            ]
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putNote",
+        "summary": "Write a day's note",
+        "description": "Replaces the whole note. Writing an empty string deletes it. Returns 409 when daily notes are not enabled for the account.",
+        "tags": [
+          "Notes"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The stored note.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "notes:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenAPI",
+        "summary": "This document",
+        "description": "Returns this OpenAPI description. The only endpoint that needs no token.",
+        "tags": [
+          "Meta"
+        ],
+        "responses": {
+          "200": {
+            "description": "The OpenAPI 3.1 document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/plan": {
+      "get": {
+        "operationId": "getPlan",
+        "summary": "The weight-loss plan",
+        "description": "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.",
+        "tags": [
+          "Plan"
+        ],
+        "responses": {
+          "200": {
+            "description": "The plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "plan:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/saved-foods": {
+      "get": {
+        "operationId": "listSavedFoods",
+        "summary": "List saved foods",
+        "description": "Most-used first, then most-recently-used.",
+        "tags": [
+          "Saved foods"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum results to return. Values above 200 are clamped to 200.",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The saved foods.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFoodList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "foods:read"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createSavedFood",
+        "summary": "Create a saved food",
+        "tags": [
+          "Saved foods"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedFoodInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created food.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFood"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URL of the created food.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "foods:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/saved-foods/{id}": {
+      "patch": {
+        "operationId": "updateSavedFood",
+        "summary": "Change a saved food",
+        "tags": [
+          "Saved foods"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedFoodPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated food.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFood"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "foods:write"
+            ]
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteSavedFood",
+        "summary": "Delete a saved food",
+        "tags": [
+          "Saved foods"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted. No body."
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "foods:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/saved-foods/{id}/track": {
+      "post": {
+        "operationId": "trackSavedFood",
+        "summary": "Log a saved food as an entry",
+        "description": "Creates a calorie entry from the saved food and returns it. Requires `entries:write`, not `foods:write` — it writes an entry.",
+        "tags": [
+          "Saved foods"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created entry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URL of the created entry.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "entries:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/todos": {
+      "get": {
+        "operationId": "listTodos",
+        "summary": "List todo definitions",
+        "description": "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.",
+        "tags": [
+          "Todos"
+        ],
+        "responses": {
+          "200": {
+            "description": "The todos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "todos:read"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createTodo",
+        "summary": "Create a todo",
+        "tags": [
+          "Todos"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created todo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URL of the created todo.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "todos:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/todos/day/{date}": {
+      "get": {
+        "operationId": "listTodosForDay",
+        "summary": "Todos due on a date",
+        "description": "The todos actually scheduled for that date, with completion, streak, and missed-since. Timed todos come first in time order.",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The todos due that day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoDayList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "todos:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/todos/{id}": {
+      "patch": {
+        "operationId": "updateTodo",
+        "summary": "Change a todo",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated todo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "todos:write"
+            ]
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteTodo",
+        "summary": "Delete a todo",
+        "description": "The todo is archived rather than erased, so its completion history and streaks survive. It disappears from every read endpoint either way.",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted. No body."
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "todos:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/todos/{id}/completions/{date}": {
+      "put": {
+        "operationId": "setTodoCompletion",
+        "summary": "Mark a todo done or not done",
+        "description": "States the desired result rather than toggling, so a retried request cannot silently undo itself.",
+        "tags": [
+          "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The resource's identifier.",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting completion state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Completion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "todos:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/weight": {
+      "get": {
+        "operationId": "listWeight",
+        "summary": "List weight readings",
+        "description": "Newest first, optionally bounded by `from`/`to`.",
+        "tags": [
+          "Weight"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start of an inclusive date range.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End of an inclusive date range.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum results to return. Values above 200 are clamped to 200.",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The readings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "weight:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/weight/{date}": {
+      "get": {
+        "operationId": "getWeight",
+        "summary": "Fetch one day's weight",
+        "tags": [
+          "Weight"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The reading.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Weight"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "weight:read"
+            ]
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putWeight",
+        "summary": "Record a day's weight",
+        "description": "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.",
+        "tags": [
+          "Weight"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeightInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The reading was replaced.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Weight"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The reading was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Weight"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URL of the reading.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "weight:write"
+            ]
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteWeight",
+        "summary": "Delete a day's weight",
+        "tags": [
+          "Weight"
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "A calendar date in the account's time zone.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-08-05"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted. No body."
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or the token is unknown, revoked, or expired.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server-side failure.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [
+              "weight:write"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Completion": {
+        "type": "object",
+        "description": "A todo's completion state on a date.",
+        "properties": {
+          "completed": {
+            "type": "boolean",
+            "description": "The resulting state."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The date.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "todo_id": {
+            "type": "integer",
+            "description": "The todo."
+          }
+        },
+        "required": [
+          "todo_id",
+          "date",
+          "completed"
+        ]
+      },
+      "CompletionInput": {
+        "type": "object",
+        "description": "The desired completion state.",
+        "properties": {
+          "completed": {
+            "type": "boolean",
+            "description": "`true` marks it done on this date, `false` clears it."
+          }
+        },
+        "required": [
+          "completed"
+        ]
+      },
+      "Entry": {
+        "type": "object",
+        "description": "A calorie entry.",
+        "properties": {
+          "calories": {
+            "type": "integer",
+            "description": "Energy in kilocalories. May be negative to record a correction."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the entry was recorded (UTC)."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day this entry belongs to, in the account's time zone.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "id": {
+            "type": "integer",
+            "description": "Server-assigned identifier."
+          },
+          "local_time": {
+            "type": "string",
+            "description": "`created_at` rendered as HH:MM in the account's time zone."
+          },
+          "macros": {
+            "$ref": "#/components/schemas/Macros"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What was eaten. Up to 120 bytes."
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "calories",
+          "name",
+          "macros",
+          "created_at",
+          "local_time"
+        ]
+      },
+      "EntryInput": {
+        "type": "object",
+        "description": "A new calorie entry. Supply `calories`, at least one macro, or both.",
+        "properties": {
+          "calories": {
+            "type": "integer",
+            "description": "Energy in kilocalories.",
+            "minimum": -9999,
+            "maximum": 9999
+          },
+          "carbs_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Carbohydrates, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Defaults to today in the account's time zone.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "fat_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fat, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "fiber_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fibre, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "name": {
+            "type": "string",
+            "description": "What was eaten."
+          },
+          "protein_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Protein, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "sugar_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Sugar, grams.",
+            "minimum": 0,
+            "maximum": 999
+          }
+        }
+      },
+      "EntryList": {
+        "type": "object",
+        "description": "A page of entries.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "The entries, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Whether another page exists."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass back as `cursor` to fetch the next page. Opaque — do not parse."
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "EntryPatch": {
+        "type": "object",
+        "description": "Fields to change. Omit a field to leave it alone; send `null` to clear a macro or the name.",
+        "properties": {
+          "calories": {
+            "type": "integer",
+            "description": "Energy in kilocalories. Rejected while the account computes calories from macros.",
+            "minimum": -9999,
+            "maximum": 9999
+          },
+          "carbs_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Carbohydrates, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Move the entry to another day.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "fat_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fat, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "fiber_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fibre, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What was eaten. `null` clears it."
+          },
+          "protein_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Protein, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "sugar_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Sugar, grams.",
+            "minimum": 0,
+            "maximum": 999
+          }
+        }
+      },
+      "Macros": {
+        "type": "object",
+        "description": "Macronutrients in grams. `null` means the macro was not recorded, which is distinct from a recorded zero.",
+        "properties": {
+          "carbs_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Carbohydrates, grams."
+          },
+          "fat_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fat, grams."
+          },
+          "fiber_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fibre, grams."
+          },
+          "protein_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Protein, grams."
+          },
+          "sugar_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Sugar, grams."
+          }
+        },
+        "required": [
+          "protein_g",
+          "carbs_g",
+          "fat_g",
+          "fiber_g",
+          "sugar_g"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "description": "The authenticated account and token.",
+        "properties": {
+          "server": {
+            "type": "object",
+            "description": "The server answering.",
+            "properties": {
+              "today": {
+                "type": "string",
+                "format": "date",
+                "description": "Today's date in the account's time zone.",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "example": "2026-08-05"
+              },
+              "version": {
+                "type": "string",
+                "description": "The running build version."
+              }
+            },
+            "required": [
+              "version",
+              "today"
+            ]
+          },
+          "token": {
+            "type": "object",
+            "description": "The token that authenticated this request.",
+            "properties": {
+              "expires_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When it stops working. `null` means never."
+              },
+              "id": {
+                "type": "integer",
+                "description": "Token identifier."
+              },
+              "name": {
+                "type": "string",
+                "description": "The label given when it was created."
+              },
+              "prefix": {
+                "type": "string",
+                "description": "The token's non-secret prefix."
+              },
+              "scopes": {
+                "type": "array",
+                "description": "Everything this token may do.",
+                "items": {
+                  "type": "string",
+                  "description": "A granted scope."
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "prefix",
+              "scopes",
+              "expires_at"
+            ]
+          },
+          "user": {
+            "type": "object",
+            "description": "The account this token belongs to.",
+            "properties": {
+              "daily_goal": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Daily calorie goal, if set."
+              },
+              "email": {
+                "type": "string",
+                "description": "Account email."
+              },
+              "id": {
+                "type": "integer",
+                "description": "Account identifier."
+              },
+              "language": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "UI language, if set."
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA time zone. Determines what `today` and every bare date mean."
+              },
+              "weight_unit": {
+                "type": "string",
+                "description": "The unit weight readings are stored in.",
+                "enum": [
+                  "kg",
+                  "lb"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "timezone",
+              "weight_unit",
+              "daily_goal",
+              "language"
+            ]
+          }
+        },
+        "required": [
+          "user",
+          "token",
+          "server"
+        ]
+      },
+      "Note": {
+        "type": "object",
+        "description": "One day's free-text note.",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The note. Empty when no note is set."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was last written (UTC). `null` when there is no note."
+          }
+        },
+        "required": [
+          "date",
+          "content",
+          "updated_at"
+        ]
+      },
+      "NoteInput": {
+        "type": "object",
+        "description": "The note's full content. Writing an empty string deletes it.",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Up to 10000 characters.",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "Plan": {
+        "type": "object",
+        "description": "The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Weight-valued fields are in the account's unit.",
+        "additionalProperties": true
+      },
+      "Problem": {
+        "type": "object",
+        "description": "An RFC 9457 problem details object.",
+        "properties": {
+          "detail": {
+            "type": "string",
+            "description": "Human-readable explanation specific to this occurrence."
+          },
+          "instance": {
+            "type": "string",
+            "description": "The request path that produced it."
+          },
+          "invalid_params": {
+            "type": "array",
+            "description": "Present on validation failures.",
+            "items": {
+              "type": "object",
+              "description": "A rejected field.",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The field's name."
+                },
+                "reason": {
+                  "type": "string",
+                  "description": "Why it was rejected."
+                }
+              },
+              "required": [
+                "name",
+                "reason"
+              ]
+            }
+          },
+          "required_scope": {
+            "type": "string",
+            "description": "Present on 403s: the scope the token is missing."
+          },
+          "status": {
+            "type": "integer",
+            "description": "The HTTP status code."
+          },
+          "title": {
+            "type": "string",
+            "description": "Short, human-readable summary of the problem type."
+          },
+          "type": {
+            "type": "string",
+            "description": "Stable URI identifying the problem type. Branch on this."
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ]
+      },
+      "SavedFood": {
+        "type": "object",
+        "description": "A reusable quick-add food.",
+        "properties": {
+          "calories": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Energy per unit, kilocalories."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was created (UTC)."
+          },
+          "emoji": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional emoji shown next to the name."
+          },
+          "id": {
+            "type": "integer",
+            "description": "Server-assigned identifier."
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was last tracked."
+          },
+          "macros": {
+            "$ref": "#/components/schemas/Macros"
+          },
+          "name": {
+            "type": "string",
+            "description": "Food name. Unique per account, case-insensitively."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was last changed (UTC)."
+          },
+          "use_count": {
+            "type": "integer",
+            "description": "How many units have been tracked from this food."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "emoji",
+          "calories",
+          "macros",
+          "use_count",
+          "last_used_at",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "SavedFoodInput": {
+        "type": "object",
+        "description": "A new saved food.",
+        "properties": {
+          "calories": {
+            "type": "integer",
+            "description": "Energy per unit, kilocalories.",
+            "minimum": -9999,
+            "maximum": 9999
+          },
+          "carbs_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Carbohydrates, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Optional emoji, up to 16 bytes."
+          },
+          "fat_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fat, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "fiber_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fibre, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "name": {
+            "type": "string",
+            "description": "Food name, up to 80 bytes. Must be unique for the account."
+          },
+          "protein_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Protein, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "sugar_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Sugar, grams.",
+            "minimum": 0,
+            "maximum": 999
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SavedFoodList": {
+        "type": "object",
+        "description": "Saved foods, most-used first.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "The foods.",
+            "items": {
+              "$ref": "#/components/schemas/SavedFood"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SavedFoodPatch": {
+        "type": "object",
+        "description": "Fields to change. `null` clears a nullable field.",
+        "properties": {
+          "calories": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Energy per unit.",
+            "minimum": -9999,
+            "maximum": 9999
+          },
+          "carbs_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Carbohydrates, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "emoji": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` clears the emoji."
+          },
+          "fat_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fat, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "fiber_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Fibre, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "name": {
+            "type": "string",
+            "description": "Food name."
+          },
+          "protein_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Protein, grams.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "sugar_g": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Sugar, grams.",
+            "minimum": 0,
+            "maximum": 999
+          }
+        }
+      },
+      "Schedule": {
+        "type": "object",
+        "description": "When a todo recurs.",
+        "properties": {
+          "days": {
+            "type": "array",
+            "description": "Required when `type` is `weekly`.",
+            "items": {
+              "type": "integer",
+              "description": "Day of week, 0 = Sunday.",
+              "minimum": 0,
+              "maximum": 6
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "`daily` every day; `weekly` on the listed days.",
+            "enum": [
+              "daily",
+              "weekly"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "Todo": {
+        "type": "object",
+        "description": "A recurring todo.",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was created (UTC)."
+          },
+          "id": {
+            "type": "integer",
+            "description": "Server-assigned identifier."
+          },
+          "name": {
+            "type": "string",
+            "description": "What to do."
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/Schedule"
+          },
+          "sort_order": {
+            "type": "integer",
+            "description": "Display order."
+          },
+          "time_of_day": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional HH:MM the todo is due at."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "schedule",
+          "time_of_day",
+          "sort_order",
+          "created_at"
+        ]
+      },
+      "TodoDay": {
+        "type": "object",
+        "description": "A todo as it applies to one date.",
+        "properties": {
+          "completed": {
+            "type": "boolean",
+            "description": "Whether it is done on this date."
+          },
+          "id": {
+            "type": "integer",
+            "description": "The todo's identifier."
+          },
+          "missed_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The first scheduled day missed, if the streak is broken."
+          },
+          "name": {
+            "type": "string",
+            "description": "What to do."
+          },
+          "streak": {
+            "type": "integer",
+            "description": "Consecutive scheduled days completed, ending on this date."
+          },
+          "time_of_day": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "HH:MM it is due at, if set."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "time_of_day",
+          "completed",
+          "streak",
+          "missed_since"
+        ]
+      },
+      "TodoDayList": {
+        "type": "object",
+        "description": "Todos scheduled for a date.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "Timed todos first, in time order, then untimed.",
+            "items": {
+              "$ref": "#/components/schemas/TodoDay"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TodoInput": {
+        "type": "object",
+        "description": "A new todo.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What to do. Up to 100 bytes."
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/Schedule"
+          },
+          "time_of_day": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional HH:MM."
+          }
+        },
+        "required": [
+          "name",
+          "schedule"
+        ]
+      },
+      "TodoList": {
+        "type": "object",
+        "description": "Todo definitions.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "The todos, in display order.",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TodoPatch": {
+        "type": "object",
+        "description": "Fields to change.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What to do."
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/Schedule"
+          },
+          "time_of_day": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` clears the time."
+          }
+        }
+      },
+      "TrackInput": {
+        "type": "object",
+        "description": "How to log this food.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Defaults to today in the account's time zone.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "How many units to log.",
+            "minimum": 1,
+            "maximum": 99
+          }
+        }
+      },
+      "Weight": {
+        "type": "object",
+        "description": "A weight reading. One per account per day.",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When first recorded (UTC)."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day this reading belongs to.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "unit": {
+            "type": "string",
+            "description": "The account's weight unit. Readings are stored as entered and never converted.",
+            "enum": [
+              "kg",
+              "lb"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When last changed (UTC)."
+          },
+          "weight": {
+            "type": "number",
+            "description": "The reading, in `unit`."
+          }
+        },
+        "required": [
+          "date",
+          "weight",
+          "unit",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "WeightInput": {
+        "type": "object",
+        "description": "A weight reading.",
+        "properties": {
+          "weight": {
+            "type": "number",
+            "description": "The reading, in the account's unit.",
+            "minimum": 0.01,
+            "maximum": 1500
+          }
+        },
+        "required": [
+          "weight"
+        ]
+      },
+      "WeightList": {
+        "type": "object",
+        "description": "Weight readings, newest first.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "The readings.",
+            "items": {
+              "$ref": "#/components/schemas/Weight"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "stk_\u003c43 base64url characters\u003e",
+        "description": "A personal access token from Settings → API tokens. Send it as `Authorization: Bearer stk_…`."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "InsufficientScope": {
+        "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "No such resource, or it belongs to another account.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "An unexpected server-side failure.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "No token, or the token is unknown, revoked, or expired.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unprocessable": {
+        "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

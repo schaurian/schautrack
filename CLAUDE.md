@@ -18,6 +18,7 @@ This document contains important context and decisions for Claude Code when work
 - Recurring per-day todos (`handler/todos.go`, `service/todos.go`, `/api/todos`)
 - Weight tracking
 - Daily notes per date (enableable per user)
+- Welcome tour — a five-step first-login explainer, dismissible and replayable from Settings (`handler/onboarding.go`, `components/Onboarding/`, `POST /api/onboarding/complete`)
 - Account data export / import (`handler/entries_export.go`, `POST /settings/export`)
 - Account linking to share data with other users
 - Timezone-aware entry timestamps
@@ -185,6 +186,59 @@ The CI automatically computes semantic versions based on commit message prefixes
 - **Custom endpoints:** Users can override default API endpoints for proxies or self-hosted deployments
 - **Rate limiting:** Global API key usage can be capped per user per day (configurable via `AI_DAILY_LIMIT`; unlimited by default)
 
+## Public API (`/api/v1`)
+
+A versioned, bearer-token-authenticated REST API for scripts and third-party
+integrations. Separate from the session-cookie surface the SPA uses — that one is
+unversioned and changes freely; this one is a contract.
+
+### Invariants — do not break these
+
+1. **`/api/v1` accepts bearer tokens ONLY.** A session cookie must never authenticate
+   a v1 request. This is what lets the whole surface skip CSRF protection: no ambient
+   credential means no forgeable request. `TestV1CookiesAreNotAccepted` asserts it.
+2. **The route table and the OpenAPI document must agree.** `handler.MountAPIV1` is the
+   only place v1 routes are declared; `internal/openapi.Build()` is the only place they
+   are described. `TestV1RoutesMatchSpec` walks the real chi router and fails if either
+   side has an endpoint the other lacks. Adding a route means adding a spec entry.
+3. **Errors are RFC 9457 problem details** (`application/problem+json`), built via
+   `internal/apierr`. Never `ErrorJSON` on a v1 route — that is the legacy
+   `{"ok": false}` shape and belongs to the SPA surface only.
+4. **Regenerate the docs after any API change:** `go run ./cmd/apidocs`. It writes
+   `api/openapi.json` and `docs/api-v1.md`, both committed. `go test ./...` fails when
+   they are stale, so CI catches a forgotten regeneration.
+5. **Tokens cannot mint tokens.** Token management (`/api/tokens`) lives on the
+   session surface and is step-up gated. If a token could create another token, one
+   leaked read-only token would escalate to a permanent full-scope one.
+6. **PATCH bodies use `handler.Optional[T]`, never `**T`.** `encoding/json` unmarshals
+   an explicit `null` into a pointer as nil — identical to an absent key — so `**T`
+   silently turns "clear this field" into "change nothing". `Optional` implements
+   `json.Unmarshaler`, which is called for explicit null and not called when absent.
+   See `v1_optional_test.go`; this was a real shipped bug.
+
+### Layout
+
+```
+internal/apierr/            RFC 9457 problem details (own package: middleware needs it too)
+internal/openapi/           the OpenAPI 3.1 document, built as typed Go values
+internal/handler/v1_*.go    the v1 handlers; v1_router.go holds the whole route table
+internal/handler/api_tokens.go  session-authed token management
+internal/middleware/apiauth.go  RequireAPIToken + RequireScope
+internal/service/apitoken.go    scopes, minting, hashing, lookup
+cmd/apidocs/                regenerates api/openapi.json + docs/api-v1.md
+```
+
+### Scopes
+
+`resource:action` form; a `:write` scope implies the matching `:read`
+(`service.ScopeSatisfies`). The grantable set is `service.ScopeDescriptions` — the
+single source of truth for the spec, the generated docs, and the token UI's checkbox
+list. Adding a scope there makes it appear in all three.
+
+Tokens are `stk_` + 32 random bytes base64url, stored as a bare SHA-256 digest.
+**Not argon2id, deliberately:** the secret is 256 uniform random bits, so there is
+nothing for a KDF to slow down, and argon2 would add ~50 ms of CPU to every request.
+
 ## Environment Variables
 
 > Canonical, exhaustive table with all defaults lives in `README.md`. `internal/config/config.go` is the source of truth for what the process reads; a few knobs (`ENABLE_LEGAL`, `STEP_UP_TTL`, `CAPTCHA_BYPASS`) are read outside the config package and are noted below.
@@ -219,6 +273,7 @@ Security / rate limiting:
 - `TRUST_PROXY`: Trust `X-Forwarded-For`/`X-Real-Ip` headers for rate limiting (default: `true`, set `false` for direct-access deployments without a reverse proxy)
 - `RATE_LIMIT_AUTH`: Max auth attempts per IP per **15-minute** window on login/register/step-up (default: `10`)
 - `RATE_LIMIT_STRICT`: Max attempts per IP per **5-minute** window on the strict limiter (forgot/reset password, 2FA reset, email-change request, AI estimate) (default: `5`)
+- `RATE_LIMIT_API`: Max requests per IP per **minute** on `/api/v1` (default: `120`). Rejections are problem+json, not the legacy JSON shape (`middleware.NewProblemRateLimiter`)
 - `STEP_UP_TTL`: Grace window after fresh primary auth during which sensitive auth-method changes are accepted without re-prompting. Any `time.ParseDuration` value (default: `30m`; read in `internal/session/store.go`)
 - `CAPTCHA_BYPASS`: **Test-only** — when `true`, any non-empty captcha answer passes. Set only in the E2E harness (`compose.test.yml`); never in production.
 

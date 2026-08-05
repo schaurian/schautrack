@@ -190,6 +190,35 @@
     "importSuccess": "Dane zaimportowane pomyślnie.",
     "importFailed": "Import nie powiódł się."
   },
+  "apiTokens": {
+    "atLimit": "Osiągnięto maksimum {{max}} tokenów. Unieważnij jeden, aby utworzyć kolejny.",
+    "cancel": "Anuluj",
+    "copied": "Skopiowano",
+    "copy": "Kopiuj",
+    "copyFailed": "Nie udało się skopiować do schowka — zaznacz token i skopiuj go ręcznie.",
+    "copyNow": "Skopiuj ten token teraz. Nie zostanie pokazany ponownie.",
+    "create": "Utwórz token",
+    "createFailed": "Nie udało się utworzyć tokena",
+    "dismiss": "Gotowe",
+    "empty": "Brak tokenów API. Utwórz token, aby korzystać ze Schautrack ze skryptów lub innych aplikacji.",
+    "expires": "wygasa {{date}}",
+    "expiry30": "Wygasa za 30 dni",
+    "expiry365": "Wygasa za 1 rok",
+    "expiry90": "Wygasa za 90 dni",
+    "expiryLabel": "Wygaśnięcie",
+    "expiryNever": "Nigdy nie wygasa",
+    "heading": "Tokeny API",
+    "intro": "Osobiste tokeny dostępu pozwalają skryptom i innym aplikacjom odczytywać i zapisywać Twoje dane przez API Schautrack. Każdy token robi tylko to, na co pozwolisz.",
+    "namePlaceholder": "Do czego służy ten token? (np. Home Assistant)",
+    "neverUsed": "Nigdy nie użyto",
+    "newToken": "Nowy token",
+    "revoke": "Unieważnij",
+    "revoked": "Unieważniono „{{name}}”",
+    "revokeFailed": "Nie udało się unieważnić tokena",
+    "scopesLabel": "Ten token może",
+    "specLink": "Zobacz dokumentację API.",
+    "usedOn": "Ostatnio użyto {{date}}"
+  },
   "confirmImport": {
     "title": "Zastąpić wszystkie wpisy?",
     "descriptionPrefix": "Import",
@@ -301,5 +330,10 @@
     "usersHeading_other": "Użytkownicy ({{count}})",
     "usersHeading_few": "Użytkownicy ({{count}})",
     "usersHeading_many": "Użytkownicy ({{count}})"
+  },
+  "onboarding": {
+    "button": "Pokaż przewodnik",
+    "description": "Krótki przegląd tego, co robi Schautrack i gdzie to znaleźć.",
+    "heading": "Przewodnik powitalny"
   }
 }
