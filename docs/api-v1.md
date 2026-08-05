@@ -106,6 +106,10 @@ seconds until the window reopens. Honour it rather than retrying blindly.
 | `notes:read` | Read daily notes. |
 | `notes:write` | Write daily notes. |
 | `plan:read` | Read the weight-loss plan, its goal, and its projections. |
+| `links:read` | Read data that linked accounts have shared with you. |
+| `settings:read` | Read account settings (goal, timezone, units, language). |
+| `settings:write` | Change account settings (goal, timezone, units, language). |
+| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |
 
 
 ## Servers
@@ -120,6 +124,7 @@ seconds until the window reopens. Honour it rather than retrying blindly.
 | Endpoint | Scope | |
 | --- | --- | --- |
 | [`GET /me`](#getme) | — | The authenticated account and token |
+| [`PATCH /me`](#updateme) | `settings:write` | Change account settings |
 | [`GET /entries`](#listentries) | `entries:read` | List calorie entries |
 | [`POST /entries`](#createentry) | `entries:write` | Create a calorie entry |
 | [`GET /entries/{id}`](#getentry) | `entries:read` | Fetch one calorie entry |
@@ -135,6 +140,7 @@ seconds until the window reopens. Honour it rather than retrying blindly.
 | [`PATCH /todos/{id}`](#updatetodo) | `todos:write` | Change a todo |
 | [`DELETE /todos/{id}`](#deletetodo) | `todos:write` | Delete a todo |
 | [`PUT /todos/{id}/completions/{date}`](#settodocompletion) | `todos:write` | Mark a todo done or not done |
+| [`GET /barcode/{code}`](#lookupbarcode) | `foods:read` | Look up a product by barcode |
 | [`GET /saved-foods`](#listsavedfoods) | `foods:read` | List saved foods |
 | [`POST /saved-foods`](#createsavedfood) | `foods:write` | Create a saved food |
 | [`PATCH /saved-foods/{id}`](#updatesavedfood) | `foods:write` | Change a saved food |
@@ -143,6 +149,8 @@ seconds until the window reopens. Honour it rather than retrying blindly.
 | [`GET /notes/{date}`](#getnote) | `notes:read` | Fetch a day's note |
 | [`PUT /notes/{date}`](#putnote) | `notes:write` | Write a day's note |
 | [`GET /plan`](#getplan) | `plan:read` | The weight-loss plan |
+| [`GET /links`](#listlinks) | `links:read` | List linked accounts |
+| [`POST /ai/estimate`](#estimatefromphoto) | `ai:estimate` | Estimate nutrition from a food photo |
 | [`GET /openapi.json`](#getopenapi) | — | This document |
 
 ## Account
@@ -167,6 +175,28 @@ Requires a valid token but no particular scope — this is how a client discover
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
+### Change account settings
+
+```http
+PATCH /api/v1/me
+```
+
+**Scope:** `settings:write`
+
+Only settings that affect how the rest of the API behaves are writable. Authentication settings (password, 2FA, passkeys, email) are deliberately NOT — those are step-up gated in the app, and step-up is meaningless for a bearer token, so allowing them would turn one leaked token into account takeover.
+
+**Request body** (required): [`SettingsPatch`](#settingspatch)
+
+| Status | Response |
+| --- | --- |
+| `200` | [`Me`](#me) — The updated account. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+
 ## Entries
 
 Calorie entries and their macros.
@@ -188,6 +218,7 @@ Newest first. Filter by a single `date`, or by a `from`/`to` range — not both.
 | `to` | query |  | End of an inclusive date range. |
 | `limit` | query |  | Maximum results to return. Values above 200 are clamped to 200. |
 | `cursor` | query |  | The `next_cursor` from a previous response. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -317,6 +348,7 @@ Newest first, optionally bounded by `from`/`to`.
 | `to` | query |  | End of an inclusive date range. |
 | `limit` | query |  | Maximum results to return. Values above 200 are clamped to 200. |
 | `cursor` | query |  | The `next_cursor` from a previous response. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -455,6 +487,7 @@ The todos actually scheduled for that date, with completion, streak, and missed-
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `date` | path | yes | A calendar date in the account's time zone. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -544,6 +577,32 @@ States the desired result rather than toggling, so a retried request cannot sile
 ## Saved foods
 
 Reusable quick-add foods.
+
+### Look up a product by barcode
+
+```http
+GET /api/v1/barcode/{code}
+```
+
+**Scope:** `foods:read`
+
+Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `code` | path | yes | An 8-13 digit barcode. The GS1 check digit is verified. |
+
+| Status | Response |
+| --- | --- |
+| `200` | [`BarcodeProduct`](#barcodeproduct) — The product. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+| `504` | [`Problem`](#problem) — The food database did not answer in time. |
 
 ### List saved foods
 
@@ -683,6 +742,7 @@ A day with no note returns 200 with empty content, not 404.
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `date` | path | yes | A calendar date in the account's time zone. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -743,6 +803,55 @@ Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
+## Links
+
+Accounts that share data with you.
+
+### List linked accounts
+
+```http
+GET /api/v1/links
+```
+
+**Scope:** `links:read`
+
+The accounts linked to yours, what each shares with you, and what you share back. Use `user_id` as the `user` parameter on a read endpoint.
+
+| Status | Response |
+| --- | --- |
+| `200` | [`LinkList`](#linklist) — The linked accounts. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+
+## AI
+
+Nutrition estimation from photos.
+
+### Estimate nutrition from a food photo
+
+```http
+POST /api/v1/ai/estimate
+```
+
+**Scope:** `ai:estimate`
+
+Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.
+
+**Request body** (required): [`EstimateInput`](#estimateinput)
+
+| Status | Response |
+| --- | --- |
+| `200` | [`Estimate`](#estimate) — The estimate. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
+| `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
+| `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `413` | [`Problem`](#problem) — The image exceeds the 10 MB limit. |
+| `429` | [`Problem`](#problem) — Rate limited, or the account's daily AI allowance is used up (type `.../problems/ai-daily-limit`). |
+| `500` | [`Problem`](#problem) — An unexpected server-side failure. |
+
 ## Meta
 
 The API's own description.
@@ -762,6 +871,12 @@ Returns this OpenAPI description. The only endpoint that needs no token.
 | `200` | The OpenAPI 3.1 document. |
 
 ## Schemas
+
+### BarcodeProduct
+
+The product as resolved from OpenFoodFacts, or a not-found result.
+
+Free-form object; see `GET /api/v1/openapi.json` for the served shape.
 
 ### Completion
 
@@ -834,6 +949,42 @@ Fields to change. Omit a field to leave it alone; send `null` to clear a macro o
 | `name` | `string` or `null` |  | What was eaten. `null` clears it. |
 | `protein_g` | `integer` or `null` |  | Protein, grams. |
 | `sugar_g` | `integer` or `null` |  | Sugar, grams. |
+
+### Estimate
+
+The model's nutrition estimate. Shape follows the app's AI response.
+
+Free-form object; see `GET /api/v1/openapi.json` for the served shape.
+
+### EstimateInput
+
+A food photo to estimate.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `context` | `string` |  | Optional hint, e.g. "a large bowl". |
+| `image` | `string` | yes | The photo as a `data:image/...;base64,...` URI. Maximum 10 MB. |
+
+### Link
+
+A linked account, from your point of view.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `email` | `string` | yes | The linked account's email. |
+| `label` | `string` or `null` | yes | The name you gave this link, if any. |
+| `shares_to_them` | `object` | yes | What you share back with them. |
+| `shares_with_me` | `object` | yes | What this account shares WITH you — the only categories `?user=` will serve. |
+| `timezone` | `string` | yes | Their IANA time zone. Their timestamps are rendered in it, not yours. |
+| `user_id` | `integer` | yes | Pass this as the `user` query parameter on a read endpoint. |
+
+### LinkList
+
+Accounts linked to yours.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | array of [`Link`](#link) | yes | The linked accounts. |
 
 ### Macros
 
@@ -957,6 +1108,17 @@ When a todo recurs.
 | --- | --- | --- | --- |
 | `days` | array of `integer` |  | Required when `type` is `weekly`. |
 | `type` | `string` | yes | `daily` every day; `weekly` on the listed days. |
+
+### SettingsPatch
+
+Account settings to change. Omit a field to leave it alone.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `daily_goal` | `integer` or `null` |  | Daily calorie goal. `null` clears it. |
+| `language` | `string` or `null` |  | UI language: one of en, de, es, fr, it, nl, pl, pt. `null` restores automatic. |
+| `timezone` | `string` |  | IANA time zone name, e.g. `Europe/Berlin`. Decides what every bare date means. |
+| `weight_unit` | `string` |  | Display unit. Changing it does NOT convert stored readings — they are kept as entered. |
 
 ### Todo
 

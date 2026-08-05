@@ -21,6 +21,14 @@ type V1Handler struct {
 	// server it is talking to.
 	BuildVersion string
 
+	// Barcode and AIEstimate are the app's own handlers, injected rather than
+	// reimplemented so the API and the UI cannot disagree about what a barcode
+	// resolves to or how an estimate is billed. Nil when the feature is
+	// disabled (ENABLE_BARCODE=false) or unconfigured (no AI provider), in
+	// which case the route answers 404 rather than 500.
+	Barcode    http.HandlerFunc
+	AIEstimate http.HandlerFunc
+
 	// TokenLimiter throttles per API token. It is applied inside the
 	// authenticated group, since the token it buckets by does not exist until
 	// RequireAPIToken has run. Nil disables it, which is what the route-parity
@@ -51,9 +59,20 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 			r.Use(h.TokenLimiter.Middleware)
 		}
 
-		// /me needs no scope beyond a valid token — it is how a client
-		// discovers which scopes it actually holds.
+		// GET /me needs no scope beyond a valid token — it is how a client
+		// discovers which scopes it actually holds. Writing settings is a
+		// different matter and is scoped.
 		r.Get("/me", h.Me)
+		r.With(middleware.RequireScope(service.ScopeSettingsWrite)).Patch("/me", h.UpdateMeV1)
+
+		r.With(middleware.RequireScope(service.ScopeLinksRead)).Get("/links", h.ListLinksV1)
+
+		// Barcode lookup is food data, so it rides on foods:read rather than
+		// getting a scope of its own.
+		r.With(middleware.RequireScope(service.ScopeFoodsRead)).Get("/barcode/{code}", h.BarcodeV1)
+
+		// Its own scope, implied by nothing: every call spends real money.
+		r.With(middleware.RequireScope(service.ScopeAIEstimate)).Post("/ai/estimate", h.EstimateV1)
 
 		r.Route("/entries", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/", h.ListEntries)

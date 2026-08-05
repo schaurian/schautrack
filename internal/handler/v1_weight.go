@@ -64,9 +64,13 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := v1User(r)
+	tgt, prob := h.resolveTarget(r, service.ShareWeight)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
 	where := []string{"user_id = $1"}
-	args := []any{user.ID}
+	args := []any{tgt.User.ID}
 	if from != "" {
 		args = append(args, from)
 		where = append(where, fmt.Sprintf("entry_date >= $%d", len(args)))
@@ -95,7 +99,11 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	unit := h.weightUnit(r)
+	// A linked account's readings are in THEIR unit, not the caller's.
+	unit := tgt.User.WeightUnit
+	if unit == "" {
+		unit = "kg"
+	}
 	out := []v1Weight{}
 	for rows.Next() {
 		e := v1Weight{Unit: unit}

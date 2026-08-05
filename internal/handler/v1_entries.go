@@ -98,9 +98,13 @@ func (h *V1Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := v1User(r)
+	tgt, prob := h.resolveTarget(r, service.ShareNutrition)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
 	where := []string{"user_id = $1"}
-	args := []any{user.ID}
+	args := []any{tgt.User.ID}
 	add := func(clause string, v any) {
 		args = append(args, v)
 		where = append(where, fmt.Sprintf(clause, len(args)))
@@ -136,7 +140,7 @@ func (h *V1Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	tz := v1Tz(r)
+	tz := tgt.tz()
 	entries := []v1Entry{}
 	for rows.Next() {
 		e, err := scanEntry(rows, tz)

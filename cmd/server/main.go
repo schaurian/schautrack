@@ -349,10 +349,20 @@ func main() {
 	// per-token one sits inside the sub-router, below RequireAPIToken, and is
 	// the limit that actually matters for a legitimate client — everyone behind
 	// one CGNAT would otherwise share a single bucket.
+	// The barcode and AI handlers are the app's own, injected rather than
+	// reimplemented: one lookup path, one billing path, no chance of the API
+	// and the UI disagreeing. Left nil when the feature is off, which makes the
+	// v1 route answer 404 instead of 500.
+	var v1Barcode http.HandlerFunc
+	if cfg.EnableBarcode {
+		v1Barcode = handler.Barcode(cfg)
+	}
 	v1Handler := &handler.V1Handler{
 		Pool:         pool,
 		Broker:       sseBroker,
 		BuildVersion: cfg.BuildVersion,
+		Barcode:      v1Barcode,
+		AIEstimate:   aiHandler.Estimate,
 		TokenLimiter: middleware.NewTokenRateLimiter(cfg.RateLimitAPIToken, time.Minute, cfg.TrustProxy),
 	}
 	apiV1IPLimiter := middleware.NewProblemRateLimiter(cfg.RateLimitAPI, time.Minute, cfg.TrustProxy)
