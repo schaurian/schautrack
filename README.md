@@ -34,51 +34,9 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Invite-only registration mode
 - Welcome tour on first login, replayable any time from Settings
 - Real-time updates via Server-Sent Events (SSE)
-- Public REST API with scoped personal access tokens — see [Public API](#public-api)
+- Public REST API with scoped personal access tokens ([docs](docs/api-v1.md))
 - Docker and Kubernetes ready (~21MB image)
 - Android app on Google Play
-
-## Public API
-
-Schautrack has a versioned public API at `/api/v1` for scripts and integrations —
-logging a meal from a shortcut, pushing readings from a smart scale, pulling your
-data into a dashboard.
-
-- **Reference:** [`docs/api-v1.md`](docs/api-v1.md)
-- **Machine-readable:** `GET /api/v1/openapi.json` (OpenAPI 3.1, no token needed) —
-  point Scalar, Bruno, Insomnia, or `openapi-generator` at it. Also committed at
-  [`api/openapi.json`](api/openapi.json).
-
-Create a token under **Settings → Account → API tokens**. Tokens are scoped, can
-be given an expiry, and can be revoked at any time. The secret is shown once.
-
-```bash
-curl -H "Authorization: Bearer stk_…" https://schautrack.com/api/v1/me
-
-curl -X POST https://schautrack.com/api/v1/entries \
-  -H "Authorization: Bearer stk_…" \
-  -H "Content-Type: application/json" \
-  -d '{"calories": 450, "name": "Porridge", "protein_g": 12}'
-```
-
-Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details.
-Session cookies are not accepted on `/api/v1`, which is why it needs no CSRF token.
-
-Retrying a `POST` is safe if you send an `Idempotency-Key` — a string you generate
-once per logical operation and reuse on retry. The first request executes and its
-response is stored; retries replay it instead of logging the meal twice:
-
-```bash
-curl -X POST https://schautrack.com/api/v1/entries \
-  -H "Authorization: Bearer stk_…" \
-  -H "Idempotency-Key: breakfast-2026-08-05" \
-  -H "Content-Type: application/json" \
-  -d '{"calories": 450, "name": "Porridge"}'
-```
-
-Both artifacts are generated from `internal/openapi` by `go run ./cmd/apidocs`, and
-`go test ./...` fails if they drift from the code — including if a route exists that
-the spec does not document, or vice versa.
 
 ## Android App
 
@@ -277,6 +235,48 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 | `ROBOTS_INDEX` | `false` | Set to `true` to allow search engine indexing (default: noindex for self-hosters) |
 | `ANDROID_PACKAGE_NAME` | `to.schauer.schautrack` | Package name published in `/.well-known/assetlinks.json` for Android App Links. |
 | `ANDROID_CERT_FINGERPRINTS` | *(empty)* | Comma-separated SHA-256 signing-cert fingerprint(s) (UPPER:CO:LON form) for App Links. **Deployment-specific** — see [Android App Links](#android-app-links). Empty disables `/.well-known/assetlinks.json`. |
+
+## Public API
+
+Schautrack has a versioned public API at `/api/v1` for scripts and integrations —
+logging a meal from a shortcut, pushing readings from a smart scale, pulling your
+data into a dashboard.
+
+- **Reference:** [`docs/api-v1.md`](docs/api-v1.md)
+- **Machine-readable:** `GET /api/v1/openapi.json` (OpenAPI 3.1, no token needed) —
+  point Scalar, Bruno, Insomnia, or `openapi-generator` at it. Also committed at
+  [`api/openapi.json`](api/openapi.json).
+
+Create a token under **Settings → Account → API tokens**. Tokens are scoped, can
+be given an expiry, and can be revoked at any time. The secret is shown once.
+
+```bash
+curl -H "Authorization: Bearer stk_…" https://schautrack.com/api/v1/me
+
+curl -X POST https://schautrack.com/api/v1/entries \
+  -H "Authorization: Bearer stk_…" \
+  -H "Content-Type: application/json" \
+  -d '{"calories": 450, "name": "Porridge", "protein_g": 12}'
+```
+
+Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details.
+Session cookies are not accepted on `/api/v1`, which is why it needs no CSRF token.
+
+Retrying a `POST` is safe if you send an `Idempotency-Key` — a string you generate
+once per logical operation and reuse on retry. The first request executes and its
+response is stored; retries replay it instead of logging the meal twice:
+
+```bash
+curl -X POST https://schautrack.com/api/v1/entries \
+  -H "Authorization: Bearer stk_…" \
+  -H "Idempotency-Key: breakfast-2026-08-05" \
+  -H "Content-Type: application/json" \
+  -d '{"calories": 450, "name": "Porridge"}'
+```
+
+Both artifacts are generated from `internal/openapi` by `go run ./cmd/apidocs`, and
+`go test ./...` fails if they drift from the code — including if a route exists that
+the spec does not document, or vice versa.
 
 ## Architecture
 

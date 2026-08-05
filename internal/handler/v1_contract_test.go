@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"schautrack/internal/openapi"
+	"schautrack/internal/service"
 )
 
 // The response structs are marshalled and checked against the schemas the
@@ -247,5 +248,87 @@ func TestValidatorAcceptsFreeForm(t *testing.T) {
 	doc := openapi.Build("")
 	if err := doc.ValidateJSON("Plan", []byte(`{"metrics":{"heightCm":180},"anything":[1,2,3]}`)); err != nil {
 		t.Errorf("Plan is documented as free-form but was rejected: %v", err)
+	}
+}
+
+func TestLinkMatchesSchema(t *testing.T) {
+	all := map[string]bool{"nutrition": true, "weight": true, "todos": true, "notes": true}
+	none := map[string]bool{"nutrition": false, "weight": false, "todos": false, "notes": false}
+	checkSchema(t, "Link", v1Link{
+		UserID: 7, Email: "friend@example.com", Label: ptr("Alex"),
+		SharesWithMe: all, SharesToThem: none, Timezone: "Europe/Berlin",
+	})
+	// An unlabelled link sharing nothing — the shape a pending-but-accepted
+	// link with all categories off takes.
+	checkSchema(t, "Link", v1Link{
+		UserID: 8, Email: "other@example.com", Label: nil,
+		SharesWithMe: none, SharesToThem: none, Timezone: "UTC",
+	})
+}
+
+func TestLinkListMatchesSchema(t *testing.T) {
+	all := map[string]bool{"nutrition": true, "weight": true, "todos": true, "notes": true}
+	checkSchema(t, "LinkList", v1List[v1Link]{Data: []v1Link{{
+		UserID: 7, Email: "friend@example.com", Label: ptr("Alex"),
+		SharesWithMe: all, SharesToThem: all, Timezone: "Europe/Berlin",
+	}}})
+}
+
+// decodeShareFlags must always emit exactly the four known categories: a
+// response that omitted one would read as "not shared" to a client that
+// checks for the key, and one that invented a category would be undocumented
+// surface.
+func TestDecodeShareFlagsIsTotal(t *testing.T) {
+	cases := map[string]string{
+		"empty":              ``,
+		"null":               `null`,
+		"partial":            `{"weight":true}`,
+		"unknown categories": `{"weight":true,"telepathy":true}`,
+		"all":                `{"nutrition":true,"weight":true,"todos":true,"notes":true}`,
+	}
+	for name, raw := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := decodeShareFlags([]byte(raw))
+			if len(got) != 4 {
+				t.Errorf("got %d categories, want exactly 4: %v", len(got), got)
+			}
+			for _, c := range []string{"nutrition", "weight", "todos", "notes"} {
+				if _, ok := got[c]; !ok {
+					t.Errorf("category %q missing", c)
+				}
+			}
+			if _, ok := got["telepathy"]; ok {
+				t.Error("an unknown category leaked into the response")
+			}
+		})
+	}
+}
+
+// TestAIScopeIsNotImplied is the money guard, asserted rather than assumed.
+// If ai:estimate ever became implied by another scope, a token minted to log
+// breakfast could quietly run up the operator's AI bill.
+func TestAIScopeIsNotImplied(t *testing.T) {
+	for _, granted := range service.AllScopes() {
+		if granted == service.ScopeAIEstimate {
+			continue
+		}
+		if service.ScopeSatisfies([]string{granted}, service.ScopeAIEstimate) {
+			t.Errorf("scope %q implies %q — it must be granted deliberately and alone",
+				granted, service.ScopeAIEstimate)
+		}
+	}
+}
+
+// Settings writes must not be reachable from a read-only token.
+func TestSettingsWriteIsNotImpliedByReads(t *testing.T) {
+	readOnly := []string{
+		service.ScopeEntriesRead, service.ScopeWeightRead, service.ScopeTodosRead,
+		service.ScopeFoodsRead, service.ScopeNotesRead, service.ScopePlanRead,
+		service.ScopeLinksRead, service.ScopeSettingsRead,
+	}
+	for _, s := range readOnly {
+		if service.ScopeSatisfies([]string{s}, service.ScopeSettingsWrite) {
+			t.Errorf("read scope %q implies settings:write", s)
+		}
 	}
 }

@@ -158,6 +158,8 @@ func Build(version string) *Document {
 			{Name: "Saved foods", Description: "Reusable quick-add foods."},
 			{Name: "Notes", Description: "One free-text note per day."},
 			{Name: "Plan", Description: "The weight-loss plan and its projections."},
+			{Name: "Links", Description: "Accounts that share data with you."},
+			{Name: "AI", Description: "Nutrition estimation from photos."},
 			{Name: "Meta", Description: "The API's own description."},
 		},
 		Components: Components{
@@ -213,6 +215,15 @@ func sharedResponses() map[string]*Response {
 
 // idempotencyParam documents the opt-in retry-safety header on the two
 // endpoints that create something.
+// linkedUserParam lets a read endpoint return a linked account's data.
+var linkedUserParam = Parameter{
+	Name: "user", In: "query",
+	Description: "Read a linked account's data instead of your own. Pass the `user_id` from " +
+		"`GET /links`. Requires the `links:read` scope AND that the account shares this " +
+		"category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+	Schema: integer(""),
+}
+
 var idempotencyParam = Parameter{
 	Name: "Idempotency-Key", In: "header",
 	Description: "Optional. A key you generate once per logical operation and reuse when retrying. " +
@@ -412,6 +423,50 @@ func schemas() map[string]*Schema {
 			AdditionalProperties: true,
 		},
 
+		"Link": object("A linked account, from your point of view.", map[string]*Schema{
+			"user_id": integer("Pass this as the `user` query parameter on a read endpoint."),
+			"email":   str("The linked account's email."),
+			"label":   nullStr("The name you gave this link, if any."),
+			"shares_with_me": object("What this account shares WITH you — the only categories `?user=` will serve.", map[string]*Schema{
+				"nutrition": boolean("Calorie entries and macros."),
+				"weight":    boolean("Weight readings."),
+				"todos":     boolean("Todos and completions."),
+				"notes":     boolean("Daily notes."),
+			}, "nutrition", "weight", "todos", "notes"),
+			"shares_to_them": object("What you share back with them.", map[string]*Schema{
+				"nutrition": boolean("Calorie entries and macros."),
+				"weight":    boolean("Weight readings."),
+				"todos":     boolean("Todos and completions."),
+				"notes":     boolean("Daily notes."),
+			}, "nutrition", "weight", "todos", "notes"),
+			"timezone": str("Their IANA time zone. Their timestamps are rendered in it, not yours."),
+		}, "user_id", "email", "label", "shares_with_me", "shares_to_them", "timezone"),
+		"LinkList": object("Accounts linked to yours.", map[string]*Schema{
+			"data": array(ref("Link"), "The linked accounts."),
+		}, "data"),
+
+		"SettingsPatch": object("Account settings to change. Omit a field to leave it alone.", map[string]*Schema{
+			"daily_goal":  withRange(nullInt("Daily calorie goal. `null` clears it."), 1, 9999),
+			"timezone":    str("IANA time zone name, e.g. `Europe/Berlin`. Decides what every bare date means."),
+			"weight_unit": {Type: "string", Enum: []any{"kg", "lb"}, Description: "Display unit. Changing it does NOT convert stored readings — they are kept as entered."},
+			"language":    nullStr("UI language: one of en, de, es, fr, it, nl, pl, pt. `null` restores automatic."),
+		}),
+
+		"EstimateInput": object("A food photo to estimate.", map[string]*Schema{
+			"image":   str("The photo as a `data:image/...;base64,...` URI. Maximum 10 MB."),
+			"context": str("Optional hint, e.g. \"a large bowl\"."),
+		}, "image"),
+		"Estimate": {
+			Type:                 "object",
+			Description:          "The model's nutrition estimate. Shape follows the app's AI response.",
+			AdditionalProperties: true,
+		},
+		"BarcodeProduct": {
+			Type:                 "object",
+			Description:          "The product as resolved from OpenFoodFacts, or a not-found result.",
+			AdditionalProperties: true,
+		},
+
 		"Problem": object("An RFC 9457 problem details object.", map[string]*Schema{
 			"type":     str("Stable URI identifying the problem type. Branch on this."),
 			"title":    str("Short, human-readable summary of the problem type."),
@@ -511,13 +566,31 @@ func paths() map[string]*PathItem {
 			},
 		}},
 
-		"/me": {Get: &Operation{
-			OperationID: "getMe",
-			Summary:     "The authenticated account and token",
-			Description: "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
-			Tags:        []string{"Account"},
-			Responses:   merge(map[string]*Response{"200": ok200("The account, the token, and the server.", ref("Me"))}, errs(nil)),
-		}},
+		"/me": {
+			Get: &Operation{
+				OperationID: "getMe",
+				Summary:     "The authenticated account and token",
+				Description: "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
+				Tags:        []string{"Account"},
+				Responses:   merge(map[string]*Response{"200": ok200("The account, the token, and the server.", ref("Me"))}, errs(nil)),
+			},
+			Patch: &Operation{
+				OperationID: "updateMe",
+				Summary:     "Change account settings",
+				Description: "Only settings that affect how the rest of the API behaves are writable. " +
+					"Authentication settings (password, 2FA, passkeys, email) are deliberately NOT — those are " +
+					"step-up gated in the app, and step-up is meaningless for a bearer token, so allowing them " +
+					"would turn one leaked token into account takeover.",
+				Tags:        []string{"Account"},
+				Scope:       service.ScopeSettingsWrite,
+				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeSettingsWrite}}},
+				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("SettingsPatch"))},
+				Responses: merge(map[string]*Response{
+					"200": ok200("The updated account.", ref("Me")),
+					"400": respRef("BadRequest"), "422": respRef("Unprocessable"),
+				}, errs(nil)),
+			},
+		},
 
 		"/entries": {
 			Get: &Operation{
@@ -533,6 +606,7 @@ func paths() map[string]*PathItem {
 					{Name: "to", In: "query", Description: "End of an inclusive date range.", Schema: dateStr("")},
 					limitParam,
 					{Name: "cursor", In: "query", Description: "The `next_cursor` from a previous response.", Schema: str("")},
+					linkedUserParam,
 				},
 				Responses: merge(map[string]*Response{
 					"200": ok200("A page of entries.", ref("EntryList")),
@@ -602,6 +676,7 @@ func paths() map[string]*PathItem {
 				{Name: "to", In: "query", Description: "End of an inclusive date range.", Schema: dateStr("")},
 				limitParam,
 				{Name: "cursor", In: "query", Description: "The `next_cursor` from a previous response.", Schema: str("")},
+				linkedUserParam,
 			},
 			Responses: merge(map[string]*Response{
 				"200": ok200("The readings.", ref("WeightList")),
@@ -668,7 +743,7 @@ func paths() map[string]*PathItem {
 			Description: "The todos actually scheduled for that date, with completion, streak, and missed-since. Timed todos come first in time order.",
 			Tags:        []string{"Todos"}, Scope: service.ScopeTodosRead,
 			Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
-			Parameters: []Parameter{dateParam},
+			Parameters: []Parameter{dateParam, linkedUserParam},
 			Responses: merge(map[string]*Response{
 				"200": ok200("The todos due that day.", ref("TodoDayList")),
 				"400": respRef("BadRequest"),
@@ -778,7 +853,7 @@ func paths() map[string]*PathItem {
 				Description: "A day with no note returns 200 with empty content, not 404.",
 				Tags:        []string{"Notes"}, Scope: service.ScopeNotesRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeNotesRead}}},
-				Parameters: []Parameter{dateParam},
+				Parameters: []Parameter{dateParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The note.", ref("Note")),
 					"400": respRef("BadRequest"), "409": respRef("Conflict"),
@@ -798,6 +873,59 @@ func paths() map[string]*PathItem {
 				}, errs(nil)),
 			},
 		},
+
+		"/links": {Get: &Operation{
+			OperationID: "listLinks", Summary: "List linked accounts",
+			Description: "The accounts linked to yours, what each shares with you, and what you share back. " +
+				"Use `user_id` as the `user` parameter on a read endpoint.",
+			Tags: []string{"Links"}, Scope: service.ScopeLinksRead,
+			Security:  []SecurityRequirement{{"bearerAuth": {service.ScopeLinksRead}}},
+			Responses: merge(map[string]*Response{"200": ok200("The linked accounts.", ref("LinkList"))}, errs(nil)),
+		}},
+
+		"/barcode/{code}": {Get: &Operation{
+			OperationID: "lookupBarcode", Summary: "Look up a product by barcode",
+			Description: "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. " +
+				"Returns 404 when barcode lookup is disabled on the server.",
+			Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
+			Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
+			Parameters: []Parameter{{
+				Name: "code", In: "path", Required: true,
+				Description: "An 8-13 digit barcode. The GS1 check digit is verified.",
+				Schema:      str(""),
+			}},
+			Responses: merge(map[string]*Response{
+				"200": ok200("The product.", ref("BarcodeProduct")),
+				"400": respRef("BadRequest"),
+				"404": respRef("NotFound"),
+				"422": respRef("Unprocessable"),
+				"504": {Description: "The food database did not answer in time.", Content: problemBody()},
+			}, errs(nil)),
+		}},
+
+		"/ai/estimate": {Post: &Operation{
+			OperationID: "estimateFromPhoto", Summary: "Estimate nutrition from a food photo",
+			Description: "Requires the `ai:estimate` scope, which no other scope implies — every call " +
+				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
+				"daily AI limit applies here exactly as it does in the app. Returns 404 when no AI " +
+				"provider is configured.",
+			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
+			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
+			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},
+			Responses: merge(map[string]*Response{
+				"200": ok200("The estimate.", ref("Estimate")),
+				"400": respRef("BadRequest"), "404": respRef("NotFound"),
+				"413": {Description: "The image exceeds the 10 MB limit.", Content: problemBody()},
+				"429": {
+					Description: "Rate limited, or the account's daily AI allowance is used up " +
+						"(type `.../problems/ai-daily-limit`).",
+					Content: problemBody(),
+					Headers: map[string]Header{
+						"Retry-After": {Description: "Seconds to wait before retrying.", Schema: integer("")},
+					},
+				},
+			}, errs(nil)),
+		}},
 
 		"/plan": {Get: &Operation{
 			OperationID: "getPlan", Summary: "The weight-loss plan",

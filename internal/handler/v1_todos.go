@@ -88,11 +88,15 @@ func (h *V1Handler) TodosForDayV1(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, r, prob)
 		return
 	}
-	user := v1User(r)
+	tgt, prob := h.resolveTarget(r, service.ShareTodos)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
 
 	rows, err := h.Pool.Query(r.Context(),
 		"SELECT id, name, schedule, time_of_day FROM todos WHERE user_id = $1 AND archived = FALSE ORDER BY sort_order, id",
-		user.ID)
+		tgt.User.ID)
 	if err != nil {
 		apierr.Write(w, r, dbFail("list todos for day", err))
 		return
