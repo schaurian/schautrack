@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -28,6 +28,7 @@ test.describe('Entry with Macros', () => {
     await loginAndGo(page);
 
     // Wait for form to fully render before checking for macro inputs
+    await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').waitFor({ state: 'visible', timeout: 10000 });
 
     // Check if macro inputs are visible (user needs macros enabled)

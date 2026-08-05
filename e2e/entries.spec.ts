@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
 
 let user: { email: string; password: string; id: string };
 
@@ -13,6 +13,7 @@ test.describe('Entry Tracking', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await nameInput.fill('Test meal');
@@ -32,6 +33,7 @@ test.describe('Entry Tracking', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for the entry form to render
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await nameInput.fill('Math test meal');
@@ -50,6 +52,7 @@ test.describe('Entry Tracking', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await nameInput.fill('Total test');
@@ -72,6 +75,7 @@ test.describe('Entry Tracking', () => {
     const todayDot = page.locator(`button[aria-label^="${today}"]`);
     await expect(todayDot).toBeVisible({ timeout: 10000 });
 
+    await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Over Goal');
     await page.locator('input[inputmode="tel"]').first().fill('2500');
     await page.getByRole('button', { name: 'Track' }).click();
@@ -90,6 +94,7 @@ test.describe('Entry Tracking', () => {
 
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await page.locator('form input[type="date"]').first().fill(yesterday);

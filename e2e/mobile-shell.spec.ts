@@ -50,7 +50,7 @@ test.describe('Mobile shell (redesign)', () => {
   });
 
   test('tracking a quick-add chip closes the sheet', async ({ browser }) => {
-    // Quick add only exists inside the sheet on mobile, and tracking a chip
+    // Quick add only exists inside the sheet, and tracking a chip
     // completes the task — so the sheet must go down, exactly as it does when
     // the form is submitted.
     psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Chip Food'`);
@@ -149,6 +149,11 @@ test.describe('Mobile shell (redesign)', () => {
 
   test('a new quick food is created with its values in one step', async ({ browser }) => {
     psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`);
+    // The quick-add row (and with it Manage) is not rendered at all for a user
+    // with no saved foods, so seed one to get in. Without this the test only
+    // passed when a sibling test's food happened to exist at the same time.
+    psql(`INSERT INTO saved_foods (user_id, name, amount) VALUES (${user.id}, 'Seed Food', 100)
+          ON CONFLICT DO NOTHING`);
 
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: MOBILE_VIEWPORT });
     const page = await ctx.newPage();
@@ -181,7 +186,7 @@ test.describe('Mobile shell (redesign)', () => {
       `SELECT amount || '/' || protein_g FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`,
     ), { timeout: 10000 }).toBe('160/6');
 
-    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name = 'Rye Toast'`);
+    psql(`DELETE FROM saved_foods WHERE user_id = ${user.id} AND name IN ('Rye Toast', 'Seed Food')`);
     await ctx.close();
   });
 

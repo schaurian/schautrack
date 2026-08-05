@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createIsolatedUser } from './fixtures/helpers';
+import { createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -19,12 +19,14 @@ test.describe('AI Photo Modal', () => {
     await page.getByRole('button', { name: 'Log In' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
 
+    await openAddFood(page);
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 15000 });
 
     await aiButton.click();
 
-    const modal = page.locator('[role="dialog"]');
+    // Scoped to the AI layer: the add-food sheet holding the button is a dialog too.
+    const modal = page.locator('[data-modal-layer="scanner"]');
     await expect(modal).toBeVisible();
     await expect(modal.getByText('AI Calorie Estimate')).toBeVisible();
 

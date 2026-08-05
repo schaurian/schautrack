@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
 
 let user: { email: string; password: string; id: string };
 
@@ -18,6 +18,7 @@ test.describe('Entry Cards', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for the form
+    await openAddFood(page);
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
 

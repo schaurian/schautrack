@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
 
 // SSE propagation for linked users:
 // User B views User A's data via the share card. When User A adds an entry (via the app UI),
@@ -49,7 +49,7 @@ test.describe('Linked User SSE Propagation', () => {
       // Load both dashboards
       await pageA.goto('/dashboard');
       await pageA.waitForLoadState('domcontentloaded');
-      await expect(pageA.locator('input[placeholder="Breakfast, snack..."]')).toBeVisible({ timeout: 10000 });
+      await expect(pageA.getByRole('button', { name: 'Add food' })).toBeVisible({ timeout: 10000 });
 
       await pageB.goto('/dashboard');
       await pageB.waitForLoadState('domcontentloaded');
@@ -77,6 +77,7 @@ test.describe('Linked User SSE Propagation', () => {
 
       // Now User A adds an entry via the UI (this fires the SSE event)
       const entryName = `SSE Linked Entry ${Date.now()}`;
+      await openAddFood(pageA);
       await pageA.locator('input[placeholder="Breakfast, snack..."]').fill(entryName);
       await pageA.locator('input[inputmode="tel"]').first().fill('444');
       await pageA.getByRole('button', { name: 'Track' }).click();

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -33,6 +33,7 @@ test.describe.serial('Macro Threshold', () => {
     await expect(todayDot).toBeVisible({ timeout: 15000 });
 
     // Track 1150 kcal: over_threshold because 150*100 > 1000*10 (15000 > 10000)
+    await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Big meal');
     await page.locator('input[inputmode="tel"]').first().fill('1150');
     await page.getByRole('button', { name: 'Track' }).click();
@@ -72,6 +73,7 @@ test.describe.serial('Macro Threshold', () => {
     await expect(todayDot).toBeVisible({ timeout: 15000 });
 
     // Track 1050 kcal: over=50, 50*100=5000, 1000*10=10000 → 5000 < 10000 → "over" (warning), not "over_threshold"
+    await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Moderate meal');
     await page.locator('input[inputmode="tel"]').first().fill('1050');
     await page.getByRole('button', { name: 'Track' }).click();
@@ -113,6 +115,7 @@ test.describe.serial('Macro Threshold', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
+    await openAddFood(page);
     await expect(page.locator('input[placeholder="Breakfast, snack..."]')).toBeVisible({ timeout: 10000 });
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('High protein');

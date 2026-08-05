@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -44,6 +44,7 @@ test.describe('Share Card', () => {
     expect(initialLabel).toMatch(/no entries/);
 
     // Add an entry
+    await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Share card test');
     await page.locator('input[inputmode="tel"]').first().fill('400');
     await page.getByRole('button', { name: 'Track' }).click();
