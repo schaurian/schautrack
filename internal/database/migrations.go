@@ -705,6 +705,44 @@ func ensureAPITokensSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+func ensureAPIIdempotencySchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		// Replay cache for Idempotency-Key on the public API's create
+		// endpoints. Without it, a client whose POST times out has no safe
+		// move: retrying may double-log a meal, not retrying may lose it.
+		//
+		// request_fingerprint is a digest of the method, path, and body. A key
+		// reused with a DIFFERENT request is a client bug (a recycled key), and
+		// replaying the first response would silently discard the second
+		// request — so that case is rejected rather than replayed.
+		//
+		// response_status = 0 marks "in flight": the row is claimed before the
+		// handler runs, so two concurrent retries cannot both execute.
+		if _, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS api_idempotency (
+				id                  BIGSERIAL PRIMARY KEY,
+				user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				idempotency_key     TEXT NOT NULL,
+				request_fingerprint BYTEA NOT NULL,
+				response_status     INTEGER NOT NULL DEFAULT 0,
+				response_body       BYTEA,
+				response_location   TEXT,
+				created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			CREATE UNIQUE INDEX IF NOT EXISTS api_idempotency_user_key_idx
+				ON api_idempotency (user_id, idempotency_key)`); err != nil {
+			return err
+		}
+		// Supports the retention sweep that drops expired rows.
+		_, err := tx.Exec(ctx,
+			`CREATE INDEX IF NOT EXISTS api_idempotency_created_idx ON api_idempotency (created_at)`)
+		return err
+	})
+}
+
 func ensureAuditLogSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
 		// user_id is nullable + ON DELETE SET NULL so audit history survives
@@ -880,6 +918,7 @@ func migrationSteps() []migrationStep {
 		{"passkeys", ensurePasskeysSchema},
 		{"audit_log", ensureAuditLogSchema},
 		{"api_tokens", ensureAPITokensSchema},
+		{"api_idempotency", ensureAPIIdempotencySchema},
 		{"saved_foods", ensureSavedFoodsSchema},
 		{"body_profile", ensureBodyProfileSchema},
 		{"weight_goals", ensureWeightGoalsSchema},

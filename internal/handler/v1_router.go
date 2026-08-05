@@ -20,6 +20,12 @@ type V1Handler struct {
 	// BuildVersion is surfaced by GET /api/v1/me so a client can report which
 	// server it is talking to.
 	BuildVersion string
+
+	// TokenLimiter throttles per API token. It is applied inside the
+	// authenticated group, since the token it buckets by does not exist until
+	// RequireAPIToken has run. Nil disables it, which is what the route-parity
+	// test relies on to build the tree without dependencies.
+	TokenLimiter *middleware.RateLimiter
 }
 
 // MountAPIV1 builds the /api/v1 sub-router.
@@ -41,6 +47,9 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAPIToken(pool))
+		if h.TokenLimiter != nil {
+			r.Use(h.TokenLimiter.Middleware)
+		}
 
 		// /me needs no scope beyond a valid token — it is how a client
 		// discovers which scopes it actually holds.
@@ -48,7 +57,7 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		r.Route("/entries", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/", h.ListEntries)
-			r.With(middleware.RequireScope(service.ScopeEntriesWrite)).Post("/", h.CreateEntryV1)
+			r.With(middleware.RequireScope(service.ScopeEntriesWrite)).Post("/", h.withIdempotency(h.CreateEntryV1))
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/{id}", h.GetEntryV1)
 			r.With(middleware.RequireScope(service.ScopeEntriesWrite)).Patch("/{id}", h.UpdateEntryV1)
 			r.With(middleware.RequireScope(service.ScopeEntriesWrite)).Delete("/{id}", h.DeleteEntryV1)
@@ -83,7 +92,7 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 			// entries:write, not foods:write. Scoping it by the resource in the
 			// URL rather than by the resource it mutates would let a
 			// foods-only token write entries.
-			r.With(middleware.RequireScope(service.ScopeEntriesWrite)).Post("/{id}/track", h.TrackSavedFoodV1)
+			r.With(middleware.RequireScope(service.ScopeEntriesWrite)).Post("/{id}/track", h.withIdempotency(h.TrackSavedFoodV1))
 		})
 
 		r.Route("/notes", func(r chi.Router) {
