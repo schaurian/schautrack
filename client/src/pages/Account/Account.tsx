@@ -18,6 +18,7 @@ import PasswordSettings from '../Settings/PasswordSettings';
 import TwoFactorSettings from '../Settings/TwoFactorSettings';
 import PasskeySettings from '../Settings/PasskeySettings';
 import OIDCSettings from '../Settings/OIDCSettings';
+import ApiTokenSettings from '../Settings/ApiTokenSettings';
 import ReportIssueCard from '../Settings/ReportIssueCard';
 
 /**
@@ -153,6 +154,13 @@ export default function Account() {
             </div>
           </>
         )}
+
+        {/* API tokens sit outside the local-auth block: they are credentials
+            for the public API, and an OIDC-only account needs them just as
+            much as a password account does. */}
+        <div className="break-inside-avoid">
+          <ApiTokenSettings />
+        </div>
 
         <div className="break-inside-avoid">
           <Card>
