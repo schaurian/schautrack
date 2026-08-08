@@ -230,6 +230,17 @@ unversioned and changes freely; this one is a contract.
    silently turns "clear this field" into "change nothing". `Optional` implements
    `json.Unmarshaler`, which is called for explicit null and not called when absent.
    See `v1_optional_test.go`; this was a real shipped bug.
+8. **The served spec's `servers` entry is this instance, never a hardcoded host.**
+   `openapi.Build(version, baseURL)` emits exactly one server, `<BASE_URL>/api/v1`
+   (relative `/api/v1` when `BASE_URL` is unset). Swagger UI's "Try it out" sends the
+   caller's `stk_…` token to `servers[0]`, so a hardcoded host means a self-hoster's
+   token goes to someone else's server. The built document is cached **per handler**
+   (`V1Handler.spec`), not process-wide, so one instance's host cannot be served to
+   another, and nothing request-derived may enter it. `cmd/apidocs` deliberately pins
+   `openapi.CanonicalBaseURL` so the committed artifacts stay byte-stable.
+   By contrast the `internal/apierr` `type` URIs (`https://schautrack.com/problems/…`)
+   are **stable identifiers, not endpoints**: every instance emits the same ones on
+   purpose, so clients can compare problem types across hosts. Do not "fix" those.
 
 ### Layout
 
@@ -269,7 +280,7 @@ Server / general:
 
 SEO:
 - `ROBOTS_INDEX`: Set to `true` to allow search-engine indexing (default: noindex)
-- `BASE_URL`: Base URL for SEO meta tags and the OIDC redirect fallback (auto-detected from request if unset)
+- `BASE_URL`: Base URL for SEO meta tags, the OIDC redirect fallback, and the `servers` entry of the served OpenAPI document (auto-detected from request if unset; the OpenAPI document falls back to the relative `/api/v1` instead, which clients resolve against this instance)
 
 Legal / support:
 - `SUPPORT_EMAIL`: Contact email for support pages
@@ -289,7 +300,7 @@ Security / rate limiting:
 - `RATE_LIMIT_AUTH`: Max auth attempts per IP per **15-minute** window on login/register/step-up (default: `10`)
 - `RATE_LIMIT_STRICT`: Max attempts per IP per **5-minute** window on the strict limiter (forgot/reset password, 2FA reset, email-change request, AI estimate) (default: `5`)
 - `RATE_LIMIT_API`: Max requests per IP per **minute** on `/api/v1` (default: `120`). Rejections are problem+json, not the legacy JSON shape (`middleware.NewProblemRateLimiter`)
-- `RATE_LIMIT_API_TOKEN`: Max requests per **token** per minute on `/api/v1` (default: `60`, `middleware.NewTokenRateLimiter`). Two limiters run: per-IP outside the sub-router (the only thing that can throttle unauthenticated traffic) and per-token inside it, below `RequireAPIToken`. Both set `Retry-After`.
+- `RATE_LIMIT_API_TOKEN`: Max requests per **token** per minute on `/api/v1` (default: `60`, `middleware.NewTokenRateLimiter`). Three limiters run: per-IP outside the sub-router (the only thing that can throttle unauthenticated traffic), per-token inside it below `RequireAPIToken`, and — on `POST /ai/estimate` and `GET /barcode/{code}` only — a per-**account** limiter sized to the operation (`middleware.NewUserRateLimiter`, `V1Handler.AILimiter`/`BarcodeLimiter`), because those two reuse the app's expensive handlers and would otherwise be reachable 60x faster through a token than through the UI. Per account, not per token: tokens are free to mint. All set `Retry-After` and reject with problem+json.
 - `STEP_UP_TTL`: Grace window after fresh primary auth during which sensitive auth-method changes are accepted without re-prompting. Any `time.ParseDuration` value (default: `30m`; read in `internal/session/store.go`)
 - `CAPTCHA_BYPASS`: **Test-only** — when `true`, any non-empty captcha answer passes. Set only in the E2E harness (`compose.test.yml`); never in production.
 

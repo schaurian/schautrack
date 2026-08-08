@@ -39,7 +39,7 @@ var idempotencyRejectingPosts = map[string]bool{
 func specIdempotentRoutes(t *testing.T) map[string]bool {
 	t.Helper()
 	out := map[string]bool{}
-	for path, item := range openapi.Build("test").Paths {
+	for path, item := range openapi.Build("test", "").Paths {
 		for method, op := range item.Operations() {
 			for _, p := range op.Parameters {
 				if p.In == "header" && p.Name == "Idempotency-Key" {

@@ -8,6 +8,7 @@ import {
   type ScopeInfo,
 } from '@/api/apiTokens';
 import { Button } from '@/components/ui/Button';
+import { isAtTokenLimit, isTokenExpired } from '@/lib/apiTokenLimits';
 import { useToastStore } from '@/stores/toastStore';
 
 /**
@@ -110,7 +111,10 @@ export default function ApiTokenSettings() {
 
   if (!loaded) return null;
 
-  const atLimit = tokens.length >= max;
+  // Only live tokens count, exactly as the server's cap does. Gating on
+  // tokens.length instead hid the "New token" button from anyone whose expired
+  // tokens padded the list to `max`, for tokens the server would have minted.
+  const atLimit = isAtTokenLimit(tokens, max);
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
 
   return (
@@ -166,30 +170,54 @@ export default function ApiTokenSettings() {
 
         {tokens.length > 0 && (
           <div className="flex flex-col divide-y divide-divider">
-            {tokens.map((tok) => (
-              <div key={tok.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm text-foreground">{tok.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    <code>{tok.prefix}…</code>
-                    {' · '}
-                    {tok.scopes.join(', ')}
+            {tokens.map((tok) => {
+              // An expired token authenticates nothing, so it has to read as
+              // dead: greyed name, an "expired" badge, and the date in the
+              // destructive colour rather than the same neutral grey a live
+              // token's expiry uses.
+              const expired = isTokenExpired(tok);
+              return (
+                <div key={tok.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className={`truncate text-sm ${expired ? 'text-muted-foreground' : 'text-foreground'}`}
+                    >
+                      {tok.name}
+                      {expired && (
+                        <span className="ml-2 rounded border border-destructive/40 px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-destructive">
+                          {t('apiTokens.expiredBadge')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <code>{tok.prefix}…</code>
+                      {' · '}
+                      {tok.scopes.join(', ')}
+                    </div>
                   </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
+                    {tok.last_used_at
+                      ? t('apiTokens.usedOn', { date: fmtDate(tok.last_used_at) })
+                      : t('apiTokens.neverUsed')}
+                    {tok.expires_at && ' · '}
+                    {tok.expires_at &&
+                      (expired ? (
+                        <span className="text-destructive">
+                          {t('apiTokens.expiredOn', { date: fmtDate(tok.expires_at) })}
+                        </span>
+                      ) : (
+                        t('apiTokens.expires', { date: fmtDate(tok.expires_at) })
+                      ))}
+                  </span>
+                  <button
+                    className="text-xs text-destructive hover:text-destructive/80 cursor-pointer bg-transparent border-0 p-1 transition-colors"
+                    onClick={() => handleRevoke(tok)}
+                  >
+                    {t('apiTokens.revoke')}
+                  </button>
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
-                  {tok.last_used_at
-                    ? t('apiTokens.usedOn', { date: fmtDate(tok.last_used_at) })
-                    : t('apiTokens.neverUsed')}
-                  {tok.expires_at && ` · ${t('apiTokens.expires', { date: fmtDate(tok.expires_at) })}`}
-                </span>
-                <button
-                  className="text-xs text-destructive hover:text-destructive/80 cursor-pointer bg-transparent border-0 p-1 transition-colors"
-                  onClick={() => handleRevoke(tok)}
-                >
-                  {t('apiTokens.revoke')}
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

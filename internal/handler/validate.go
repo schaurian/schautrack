@@ -1,7 +1,12 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
+	"net/mail"
+	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -11,6 +16,126 @@ const (
 	minDateYear = 1900
 	maxDateYear = 2200
 )
+
+// Credential bounds shared by every path that creates or changes a user's
+// email address or password.
+const (
+	// MaxEmailBytes is the RFC 5321 maximum reverse-path/forward-path length
+	// (64-byte local part + "@" + 255-byte domain). Anything longer cannot be
+	// delivered to, and would take an oversized key in the users.email UNIQUE
+	// btree index.
+	MaxEmailBytes = 320
+
+	// MinPasswordRunes is the minimum password length in *runes*, not bytes.
+	// The user-facing message says "characters", so it must count characters:
+	// with a byte count, a 4-character CJK passphrase (12 bytes) passed while
+	// a 9-character ASCII one did not.
+	MinPasswordRunes = 10
+
+	// MaxPasswordBytes caps the password at hashing time. argon2id has no
+	// intrinsic length limit, so without a cap a client can make the server
+	// Blake2b-hash a multi-megabyte string on every write — a cheap CPU-burn
+	// vector. The bound is in bytes because hashing cost is byte-driven.
+	MaxPasswordBytes = 1024
+)
+
+// Sentinel errors returned by validateEmail / validatePassword. Callers
+// surface err.Error() directly to the client, so the strings are written as
+// user-facing messages.
+var (
+	errEmailRequired = errors.New("Email is required.")
+	errEmailTooLong  = fmt.Errorf("Email address must be at most %d characters.", MaxEmailBytes)
+	errEmailInvalid  = errors.New("Please enter a valid email address.")
+
+	errPasswordRequired   = errors.New("Password is required.")
+	errPasswordTooShort   = fmt.Errorf("Password must be at least %d characters.", MinPasswordRunes)
+	errPasswordTooLong    = fmt.Errorf("Password must be at most %d bytes.", MaxPasswordBytes)
+	errPasswordWhitespace = errors.New("Password cannot consist only of whitespace.")
+)
+
+// validateEmail normalizes and validates a user-supplied email address,
+// returning the canonical form to store (trimmed and lowercased).
+//
+// It is the single gate in front of every write that creates or changes a
+// user's email: credential registration, OIDC auto-provisioning, and the
+// email-change request. A validator that guards only one of those is not a
+// validator — registering with a good address and then changing it would
+// bypass the check entirely.
+//
+// It deliberately does NOT gate reads or logins. Accounts created before this
+// existed may hold addresses that fail here; they must keep being able to log
+// in, reset their password, and be looked up by email.
+//
+// Rules, and why:
+//
+//   - Trim + lowercase first, so "  A@B.com " and "a@b.com" are the same
+//     account (users.email is UNIQUE and compared with =, not case-insensitively).
+//   - Reject anything longer than MaxEmailBytes (RFC 5321).
+//   - Reject any control character or interior whitespace. mail.ParseAddress
+//     already rejects "a@b.com\nBcc: x@y.com", but SMTP header injection is
+//     exactly the class of bug that must not depend on a stdlib implementation
+//     detail, so it is checked explicitly.
+//   - Parse with net/mail, matching validEmail in admin_settings.go.
+//   - Require a *bare* address: no display name and byte-identical to the
+//     input. mail.ParseAddress happily accepts "Foo <a@b.com>" (display-name
+//     form) and `"a b"@c.com` (quoted local part, which it un-quotes to
+//     "a b@c.com" — a stored address containing a space). Neither is a bare
+//     mailbox, both would let two rows denote the same mailbox while passing
+//     the UNIQUE constraint, and both are what an injection attempt looks
+//     like. Rejected.
+//
+// Deliberately accepted: a dotless domain such as "a@b". It is RFC-valid and
+// deliverable on the intranet/self-hosted deployments this app supports, and
+// validEmail accepts it too.
+func validateEmail(raw string) (string, error) {
+	email := strings.ToLower(strings.TrimSpace(raw))
+	if email == "" {
+		return "", errEmailRequired
+	}
+	if len(email) > MaxEmailBytes {
+		return "", errEmailTooLong
+	}
+	// After trimming, any remaining space/control byte is interior — a CR/LF
+	// header-injection attempt, a NUL, or a malformed address.
+	if strings.ContainsFunc(email, func(r rune) bool {
+		return r == utf8.RuneError || r < 0x20 || r == 0x7f || unicode.IsSpace(r)
+	}) {
+		return "", errEmailInvalid
+	}
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", errEmailInvalid
+	}
+	if addr.Name != "" || addr.Address != email {
+		return "", errEmailInvalid
+	}
+	return email, nil
+}
+
+// validatePassword enforces the password policy on every write that sets a
+// password: registration, password reset, and the change-password setting.
+//
+// Like validateEmail it gates writes only. Login must keep accepting whatever
+// an existing account was created with, so verifyPassword never calls this.
+//
+// The whitespace-only rejection is a rejection, not a trim: trimming would
+// silently change the secret the user typed.
+func validatePassword(password string) error {
+	if password == "" {
+		return errPasswordRequired
+	}
+	// Cheapest check first: bail on an oversized body before touching it.
+	if len(password) > MaxPasswordBytes {
+		return errPasswordTooLong
+	}
+	if strings.TrimSpace(password) == "" {
+		return errPasswordWhitespace
+	}
+	if utf8.RuneCountInString(password) < MinPasswordRunes {
+		return errPasswordTooShort
+	}
+	return nil
+}
 
 // truncateUTF8 caps s at maxBytes bytes without splitting a multi-byte UTF-8
 // rune. Byte-index slicing (s[:n]) can cut an emoji or other multi-byte rune
