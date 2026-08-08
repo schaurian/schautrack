@@ -345,8 +345,12 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var macrosEnabledAny, macroGoalsAny any
-	json.Unmarshal(user.MacrosEnabled, &macrosEnabledAny)
-	json.Unmarshal(user.MacroGoals, &macroGoalsAny)
+	// Decoding a json/jsonb column this process wrote. A NULL or empty column
+	// yields an error and leaves the destination at its zero value, which is
+	// exactly the intended fallback (an unset setting reads as empty), so the
+	// error is discarded deliberately rather than by omission.
+	_ = json.Unmarshal(user.MacrosEnabled, &macrosEnabledAny)
+	_ = json.Unmarshal(user.MacroGoals, &macroGoalsAny)
 	if macrosEnabledAny == nil {
 		macrosEnabledAny = map[string]any{}
 	}

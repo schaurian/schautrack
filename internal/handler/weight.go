@@ -29,7 +29,10 @@ func (h *WeightHandler) ToggleBodyFatEnabled(w http.ResponseWriter, r *http.Requ
 	var body struct {
 		Enabled any `json:"enabled"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 	enabled := body.Enabled == true || body.Enabled == "true"
 	user := middleware.GetCurrentUser(r)
 	if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET body_fat_enabled = $1 WHERE id = $2", enabled, user.ID); err != nil {

@@ -1,0 +1,125 @@
+version: "2"
+
+# The CI job already enforces `gofmt -l` and `go vet ./...` separately, and both
+# stay there: they are the two checks worth running before the tests, and they
+# must not depend on this file parsing correctly.
+#
+# What this adds on top is the class neither catches — code that compiles, vets
+# clean, and is still wrong: an error dropped on the floor, a response body
+# never closed, a function nobody calls any more.
+
+linters:
+  # `standard` is errcheck + govet + ineffassign + staticcheck + unused.
+  default: standard
+
+  enable:
+    # Every one of these is here because the repo actually does the thing it
+    # catches, not for completeness.
+    - bodyclose # http.Response.Body leaks: barcode lookups + release checks
+    - copyloopvar # loop-variable capture, now that Go 1.22+ changed semantics
+    - durationcheck # time.Duration multiplied by a Duration — silently ns²
+    - errorlint # == on errors; breaks the moment anything wraps them
+    - makezero # append to a make([]T, n) slice, producing n leading zeros
+    - sqlclosecheck # rows/stmt never closed
+    - usetesting # t.Context()/t.Chdir over the hand-rolled equivalents
+
+  # Two linters were considered and deliberately left off:
+  #
+  #   nilerr — fires three times on session.Store.Load, where returning a fresh
+  #   session when the cookie lookup errors is the whole design: an unreadable
+  #   or expired cookie must yield a new anonymous session, not a 500. The
+  #   linter cannot tell that apart from a swallowed error, and silencing it
+  #   per-site would put three nolint directives on correct code.
+  #
+  #   noctx — ten findings, eight of them in tests where an unbounded request
+  #   to a local httptest server is fine. The one real finding (the SMTP dial
+  #   in service/email.go having no context, so a black-holed SMTP host hangs
+  #   the sending goroutine) is worth fixing, but it is a behaviour change to
+  #   the email path and belongs in its own reviewed commit, not smuggled in
+  #   under a lint config.
+
+  settings:
+    errcheck:
+      exclude-functions:
+        # Deferred rollback after a successful commit returns ErrTxClosed by
+        # design; the transaction is already resolved either way. Not covered
+        # by the std-error-handling preset below, which only knows `Close`.
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+        # Writes to the client. By the time these fail the status line is long
+        # sent and the body is partly on the wire; the only honest response to
+        # a disconnected client is to stop, which returning already does.
+        # net/http itself logs the connection error, so nothing is lost.
+        - (*encoding/json.Encoder).Encode
+        - (net/http.ResponseWriter).Write
+
+  exclusions:
+    generated: lax
+    # Covers the `.Close` / `.Flush` / `fmt.Print*` family — deferred cleanup
+    # whose failure is unactionable because the resource is being discarded
+    # regardless. Using the maintained preset rather than hand-listing every
+    # concrete Closer type keeps this from rotting each time a new one appears.
+    presets:
+      - std-error-handling
+    rules:
+      # These sentinels are the API's user-facing copy, surfaced verbatim to
+      # the client — see the comment above the var block in validate.go. Go's
+      # "no capital, no trailing period" convention is about error prose that
+      # gets wrapped and concatenated, which is the opposite of what these are.
+      - path: internal/handler/validate\.go
+        linters: [staticcheck]
+        text: "ST1005"
+
+      # This test deliberately parses the package's own source to assert a
+      # structural property of it. go/packages, the suggested replacement, does
+      # not apply: the test wants the raw AST of files on disk, not a loaded
+      # and type-checked package, and pulling in a type-checker to replace ten
+      # lines of parser call would make the test slower and no more correct.
+      - path: internal/middleware/links_test\.go
+        linters: [staticcheck]
+        text: "SA1019.*ParseDir"
+
+      # Test helpers routinely ignore errors from setup they have just asserted
+      # on, and a test that drops a real error fails on the assertion anyway.
+      - path: _test\.go
+        linters: [errcheck]
+
+      # All six findings in tests are false positives, in two flavours, and
+      # both are shapes bodyclose structurally cannot see through:
+      #
+      #   * v1_bodylimit_test.go closes via `t.Cleanup(func() {
+      #     resp.Body.Close() })` inside the shared `post` helper. The close is
+      #     real, it is just deferred into a closure the analysis does not
+      #     follow.
+      #   * store_test.go returns `httptest.ResponseRecorder.Result()`, whose
+      #     Body is a NopCloser over an in-memory buffer. There is no
+      #     connection to leak and Close does nothing.
+      #
+      # bodyclose stays enabled for non-test code, which is where a leaked
+      # response body actually exhausts the connection pool.
+      - path: _test\.go
+        linters: [bodyclose]
+
+      # `recover()` yields an `any`, not an `error`, so errors.Is does not even
+      # typecheck against it without an intervening assertion. Identity
+      # comparison is also precisely what net/http itself does with this
+      # sentinel (`err != ErrAbortHandler` in conn.serve), and an abort is
+      # panicked as the bare value — there is no wrapping for errors.Is to see
+      # through. Rewriting these would add an assertion that can only ever
+      # succeed, in the panic path, to satisfy a linter that is right in
+      # general and wrong here.
+      - path: internal/middleware/recovery(_test)?\.go
+        linters: [errorlint]
+        source: "ErrAbortHandler"
+
+issues:
+  # golangci-lint defaults to reporting at most 50 issues per linter and 3
+  # occurrences of the same issue. Both are display caps, not analysis limits:
+  # with them in place the run prints a plausible-looking summary while
+  # silently hiding the rest, which is exactly how a gate ends up green over
+  # code it never showed anyone. Report everything.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt

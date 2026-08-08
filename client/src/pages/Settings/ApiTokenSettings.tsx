@@ -129,7 +129,7 @@ export default function ApiTokenSettings() {
         <p className="text-sm text-muted-foreground">
           {t('apiTokens.intro')}{' '}
           <a
-            href="/api/v1/openapi.json"
+            href="/api/v1/docs"
             target="_blank"
             rel="noreferrer"
             className="text-primary hover:underline"

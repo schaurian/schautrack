@@ -47,3 +47,16 @@ func (h *V1Handler) OpenAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	w.Write(h.spec.bytes)
 }
+
+// Docs handles GET /api/v1/docs — the reference page a person reads, rendered
+// from the same document OpenAPI serves. Public and cached for exactly the
+// reasons OpenAPI is (see above): no user data, nothing request-derived, and
+// the `servers` URL belongs to this handler's BaseURL alone.
+func (h *V1Handler) Docs(w http.ResponseWriter, r *http.Request) {
+	h.docs.once.Do(func() {
+		h.docs.bytes = []byte(openapi.Build(h.BuildVersion, h.BaseURL).HTML())
+	})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.Write(h.docs.bytes)
+}

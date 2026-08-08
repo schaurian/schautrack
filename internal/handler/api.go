@@ -54,8 +54,12 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 		}
 
 		var macrosEnabled, macroGoals any
-		json.Unmarshal(user.MacrosEnabled, &macrosEnabled)
-		json.Unmarshal(user.MacroGoals, &macroGoals)
+		// Decoding a json/jsonb column this process wrote. A NULL or empty column
+		// yields an error and leaves the destination at its zero value, which is
+		// exactly the intended fallback (an unset setting reads as empty), so the
+		// error is discarded deliberately rather than by omission.
+		_ = json.Unmarshal(user.MacrosEnabled, &macrosEnabled)
+		_ = json.Unmarshal(user.MacroGoals, &macroGoals)
 
 		if macrosEnabled == nil {
 			macrosEnabled = map[string]any{}
@@ -74,10 +78,16 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 		globalProviderResult := settingsCache.GetEffectiveSetting(r.Context(), "ai_provider", cfg.AIProvider)
 		hasGlobalAiConfig := hasGlobalAiKey || (globalProviderResult.Value != nil && *globalProviderResult.Value != "")
 
+		// Best-effort on purpose: this is the notification badge count. Failing
+		// the whole /api/me payload — which the app needs to render at all —
+		// because a badge could not be computed trades a working page for an
+		// empty one. Zero is the honest fallback, but it must be visible.
 		var pendingLinkRequests int
-		pool.QueryRow(r.Context(),
+		if err := pool.QueryRow(r.Context(),
 			"SELECT count(*) FROM account_links WHERE target_id = $1 AND status = 'pending'",
-			user.ID).Scan(&pendingLinkRequests)
+			user.ID).Scan(&pendingLinkRequests); err != nil {
+			slog.Error("counting pending link requests for the badge", "error", err)
+		}
 
 		passkeyCount, _ := service.CountPasskeys(r.Context(), pool, user.ID)
 		oidcCount, _ := service.CountOIDCAccounts(r.Context(), pool, user.ID)
@@ -127,8 +137,12 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 		sess := session.GetSession(r)
 
 		var macrosEnabled, macroGoals any
-		json.Unmarshal(user.MacrosEnabled, &macrosEnabled)
-		json.Unmarshal(user.MacroGoals, &macroGoals)
+		// Decoding a json/jsonb column this process wrote. A NULL or empty column
+		// yields an error and leaves the destination at its zero value, which is
+		// exactly the intended fallback (an unset setting reads as empty), so the
+		// error is discarded deliberately rather than by omission.
+		_ = json.Unmarshal(user.MacrosEnabled, &macrosEnabled)
+		_ = json.Unmarshal(user.MacroGoals, &macroGoals)
 		if macrosEnabled == nil {
 			macrosEnabled = map[string]any{}
 		}
@@ -220,13 +234,6 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 
 		JSON(w, http.StatusOK, resp)
 	}
-}
-
-func nilStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
 
 func getTimezones() []string {

@@ -58,8 +58,12 @@ type LinkUser struct {
 func (lu LinkUser) AsMacroUser() MacroUser {
 	me := make(map[string]any)
 	mg := make(map[string]any)
-	json.Unmarshal(lu.MacrosEnabled, &me)
-	json.Unmarshal(lu.MacroGoals, &mg)
+	// Decoding a json/jsonb column this process wrote. A NULL or empty column
+	// yields an error and leaves the destination at its zero value, which is
+	// exactly the intended fallback (an unset setting reads as empty), so the
+	// error is discarded deliberately rather than by omission.
+	_ = json.Unmarshal(lu.MacrosEnabled, &me)
+	_ = json.Unmarshal(lu.MacroGoals, &mg)
 	return MacroUser{MacrosEnabled: me, MacroGoals: mg, DailyGoal: lu.DailyGoal, GoalThreshold: lu.GoalThreshold}
 }
 

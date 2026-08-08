@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -118,8 +117,8 @@ func (h *V1Handler) resolveTarget(r *http.Request, category string) (target, *ap
 		return target{User: user, IsSelf: true}, nil
 	}
 
-	id, err := strconv.Atoi(raw)
-	if err != nil || id <= 0 {
+	id, ok := model.ParseID(raw)
+	if !ok {
 		return target{}, apierr.BadRequest(`"user" must be the user_id of a linked account, from GET /api/v1/links.`)
 	}
 	if id == user.ID {
@@ -132,7 +131,7 @@ func (h *V1Handler) resolveTarget(r *http.Request, category string) (target, *ap
 	}
 
 	var shared bool
-	err = h.Pool.QueryRow(r.Context(), `
+	err := h.Pool.QueryRow(r.Context(), `
 		SELECT COALESCE(
 			(CASE WHEN requester_id = $2 THEN requester_shares ELSE target_shares END ->> $3)::boolean,
 			false)

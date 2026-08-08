@@ -97,7 +97,10 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 	var body struct {
 		Captcha string `json:"captcha"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 
 	sess := session.GetSession(r)
 	email := sess.GetString("verifyEmail")
@@ -367,6 +370,13 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		map[string]any{"deleted_user_id": user.ID, "email": user.Email})
 
 	sess := session.GetSession(r)
-	h.SessionStore.Destroy(w, r, sess)
+	// Unlike logout, this one stays best-effort: the account row is already
+	// gone, so a surviving session row names a user that no longer exists and
+	// authenticates nothing. Answering 500 here would tell the caller the
+	// deletion failed when it succeeded, which is worse than a stale row the
+	// prune loop will collect.
+	if err := h.SessionStore.Destroy(w, r, sess); err != nil {
+		slog.Error("failed to destroy the session after account deletion", "error", err)
+	}
 	OkJSON(w)
 }

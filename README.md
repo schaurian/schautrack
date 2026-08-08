@@ -246,7 +246,8 @@ Schautrack has a versioned public API at `/api/v1` for scripts and integrations 
 logging a meal from a shortcut, pushing readings from a smart scale, pulling your
 data into a dashboard.
 
-- **Reference:** [`docs/api-v1.md`](docs/api-v1.md)
+- **Reference:** `GET /api/v1/docs` — rendered by every instance from its own
+  spec, no token needed. Also generated as [`docs/api-v1.md`](docs/api-v1.md).
 - **Machine-readable:** `GET /api/v1/openapi.json` (OpenAPI 3.1, no token needed) —
   point Scalar, Bruno, Insomnia, or `openapi-generator` at it. Also committed at
   [`api/openapi.json`](api/openapi.json).

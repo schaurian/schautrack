@@ -53,8 +53,8 @@ const apiDescription = `The Schautrack public API.
 
 ## Authentication
 
-Every endpoint except ` + "`/openapi.json`" + ` requires a **personal access token**,
-sent as a bearer token:
+Every endpoint except ` + "`/openapi.json`" + ` and ` + "`/docs`" + ` requires a
+**personal access token**, sent as a bearer token:
 
 ` + "```" + `
 Authorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -883,11 +883,26 @@ func paths() map[string]*PathItem {
 		"/openapi.json": {Get: &Operation{
 			OperationID: "getOpenAPI",
 			Summary:     "This document",
-			Description: "Returns this OpenAPI description. The only endpoint that needs no token.",
+			Description: "Returns this OpenAPI description. Needs no token.",
 			Tags:        []string{"Meta"},
 			Security:    []SecurityRequirement{{}},
 			Responses: map[string]*Response{
 				"200": ok200("The OpenAPI 3.1 document.", &Schema{Type: "object", AdditionalProperties: true}),
+			},
+		}},
+
+		"/docs": {Get: &Operation{
+			OperationID: "getDocs",
+			Summary:     "This document, rendered for humans",
+			Description: "The same description as `/openapi.json`, rendered as a self-contained HTML " +
+				"reference page. Needs no token.",
+			Tags:     []string{"Meta"},
+			Security: []SecurityRequirement{{}},
+			Responses: map[string]*Response{
+				"200": {
+					Description: "The API reference page.",
+					Content:     map[string]MediaType{"text/html": {Schema: str("")}},
+				},
 			},
 		}},
 

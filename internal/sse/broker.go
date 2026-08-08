@@ -240,10 +240,26 @@ func (b *Broker) BroadcastLinkSharesChange(linkID, userID int, shares map[string
 	})
 }
 
+// userIDKey is the context key carrying the authenticated user ID into
+// ServeHTTP. It is an unexported zero-width struct type rather than a string:
+// a bare string key lives in the same namespace as every other package's
+// string keys, so any dependency storing "sseUserID" — for its own unrelated
+// purpose — would silently satisfy the type assertion below and hand this
+// handler someone else's user ID. A private type cannot collide by
+// construction.
+type userIDKey struct{}
+
+// WithUserID returns a context carrying the user ID that ServeHTTP will stream
+// events for. Callers must use this rather than setting the key themselves,
+// which is the point of keeping the key type unexported.
+func WithUserID(ctx context.Context, userID int) context.Context {
+	return context.WithValue(ctx, userIDKey{}, userID)
+}
+
 // ServeHTTP is the SSE endpoint handler.
 func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("sseUserID").(int)
+	userID, ok := r.Context().Value(userIDKey{}).(int)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return

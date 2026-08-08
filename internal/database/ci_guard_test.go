@@ -3,6 +3,8 @@ package database
 import (
 	"os"
 	"testing"
+
+	"schautrack/internal/dbtest"
 )
 
 // TestIntegrationTestsRunInCI is the tripwire for the `services: postgres`
@@ -19,11 +21,18 @@ import (
 // automated proof that migrations survive the re-run they get on every
 // container start.
 //
-// GitHub Actions always sets CI=true, so this fails there and nowhere else:
-// a plain local `go test ./...` (CI unset) is unaffected and the integration
-// tests keep skipping as before.
+// GitHub Actions always sets CI=true, so this fails there and nowhere else.
+//
+// It asks dbtest.Resolved() rather than reading TEST_DATABASE_URL directly,
+// because there are now two ways the integration tests can get a database: the
+// `services: postgres` block, or the container internal/dbtest starts when the
+// variable is unset. The property worth guarding was never "this specific
+// environment variable is set" — it was "the integration tests are actually
+// running", and that is what Resolved reports. Checking the variable would now
+// fail CI in the one case where everything is in fact working.
 func TestIntegrationTestsRunInCI(t *testing.T) {
-	if os.Getenv("CI") != "" && os.Getenv("TEST_DATABASE_URL") == "" {
-		t.Fatal("TEST_DATABASE_URL must be set in CI; integration tests are silently skipping")
+	if os.Getenv("CI") != "" && !dbtest.Resolved() {
+		t.Fatal("no database available in CI (neither TEST_DATABASE_URL nor a dbtest container); " +
+			"integration tests are silently skipping")
 	}
 }

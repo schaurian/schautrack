@@ -19,6 +19,10 @@ import (
 type fakeDB struct {
 	mu    sync.Mutex
 	execs []string
+	// execErr, when set, makes every Exec fail. Used to prove what Destroy
+	// does on a database error, which is the whole reason logout has to check
+	// its return value.
+	execErr error
 	// row, when set, backs QueryRow's Scan (used to simulate an existing
 	// session row). When nil, QueryRow behaves like a missing row.
 	row func(dest ...any) error
@@ -28,7 +32,7 @@ func (f *fakeDB) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTa
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.execs = append(f.execs, strings.Join(strings.Fields(sql), " "))
-	return pgconn.CommandTag{}, nil
+	return pgconn.CommandTag{}, f.execErr
 }
 
 func (f *fakeDB) QueryRow(_ context.Context, _ string, _ ...any) pgx.Row {

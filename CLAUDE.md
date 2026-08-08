@@ -246,7 +246,9 @@ unversioned and changes freely; this one is a contract.
 
 ```
 internal/apierr/            RFC 9457 problem details (own package: middleware needs it too)
-internal/openapi/           the OpenAPI 3.1 document, built as typed Go values
+internal/openapi/           the OpenAPI 3.1 document, built as typed Go values; renders as
+                            Markdown (docs/api-v1.md) and as the served GET /api/v1/docs
+                            HTML page (zero-JS, CSP-clean)
 internal/handler/v1_*.go    the v1 handlers; v1_router.go holds the whole route table
 internal/handler/api_tokens.go  session-authed token management
 internal/middleware/apiauth.go  RequireAPIToken + RequireScope

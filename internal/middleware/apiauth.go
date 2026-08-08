@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -49,7 +50,7 @@ func RequireAPIToken(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 
 			token, err := service.AuthenticateAPIToken(r.Context(), pool, raw)
 			if err != nil {
-				if err != service.ErrTokenInvalid {
+				if !errors.Is(err, service.ErrTokenInvalid) {
 					slog.Error("api token lookup failed", "error", err)
 					apierr.Write(w, r, apierr.Internal("Could not verify the token."))
 					return

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -44,7 +45,7 @@ func GetActiveGoal(ctx context.Context, pool *pgxpool.Pool, userID int) (*model.
 		userID)
 	g, err := scanWeightGoal(row)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

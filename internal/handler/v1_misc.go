@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -154,7 +155,7 @@ func (h *V1Handler) GetNoteV1(w http.ResponseWriter, r *http.Request) {
 	err := h.Pool.QueryRow(r.Context(),
 		"SELECT content, updated_at FROM daily_notes WHERE user_id = $1 AND note_date = $2",
 		tgt.User.ID, date).Scan(&out.Content, &out.UpdatedAt)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		apierr.Write(w, r, dbFail("get note", err))
 		return
 	}
