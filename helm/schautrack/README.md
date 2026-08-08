@@ -219,6 +219,44 @@ Behind an ingress, `config.trustProxy` must stay at its default (`true`) or
 every request will share one bucket keyed by the ingress controller's IP, and
 the per-IP limits below become effectively global.
 
+### Opting out of the update check
+
+By default the application asks GitHub (`api.github.com`) once an hour for the
+newest published release, so the footer can tell you your instance is out of
+date. That is the only unsolicited outbound request the application makes. If
+you would rather it made none — a privacy-sensitive deployment, or an
+air-gapped cluster where the call can only ever fail — turn it off:
+
+```yaml
+config:
+  updateCheck:
+    enabled: false
+```
+
+`enabled: false` is the *only* value that changes anything: the application
+reads `UPDATE_CHECK_ENABLED != "false"`, so anything else (including leaving it
+empty) means "on". `--set config.updateCheck.enabled=false` works too — the
+chart renders the boolean as the string `"false"` the application expects.
+
+Turning the check off does **not** remove the "Report an Issue" links; those
+are built from static configuration and keep working. Only the version lookup
+is skipped, and the footer stops claiming an update is available.
+
+The alternative to disabling it is to point it somewhere you control — a
+self-hosted GitHub Enterprise or GitLab mirror of the repository:
+
+```yaml
+config:
+  updateCheck:
+    provider: gitlab
+    repo: infra/mirrors/schautrack
+    baseUrl: https://gitlab.example.com
+```
+
+For GitHub Enterprise the API is assumed at `<baseUrl>/api/v3`, for GitLab at
+`<baseUrl>/api/v4`. Set all three together: `provider` alone would query
+GitLab for `schaurian/schautrack`, which does not exist there.
+
 ## Parameters
 
 ### Global
@@ -274,6 +312,31 @@ Both API limits reject with `429` and a `Retry-After` header.
 
 The barcode-lookup limiter (30 per minute) is not configurable in this release;
 see [issue #366](https://github.com/schaurian/schautrack/issues/366).
+
+### CAPTCHA
+
+| Parameter | Env var | Description | Default |
+|-----------|---------|-------------|---------|
+| `config.captcha.globalThreshold` | `LOGIN_CAPTCHA_GLOBAL_THRESHOLD` | Failed logins per account email or per client IP (cross-session, 15-minute window) before login demands a CAPTCHA. The per-session threshold is fixed at 3 and unaffected. Raise only where clients legitimately share one source IP (a test harness, or an egress NAT in front of many users) — otherwise the shared-IP counter CAPTCHA-gates unrelated sessions. `0` or less is ignored by the application, so it means "default". | `""` (`3`) |
+
+`CAPTCHA_BYPASS` is intentionally **not** exposed by this chart and should stay
+that way. It is a test-only escape hatch that makes CAPTCHA verification accept
+any non-empty answer, removing all brute-force protection from login and
+registration; it is set only by the end-to-end test harness
+(`compose.test.yml`).
+
+### Update check
+
+All optional; an empty value omits the environment variable and leaves the
+application's default in force. See
+[Opting out of the update check](#opting-out-of-the-update-check).
+
+| Parameter | Env var | Description | Default |
+|-----------|---------|-------------|---------|
+| `config.updateCheck.enabled` | `UPDATE_CHECK_ENABLED` | Set `false` to skip the hourly outbound release lookup — recommended for privacy-sensitive or air-gapped installs. Disable-only: the application reads `!= "false"`, so no other value has any effect. "Report an Issue" links keep working. | `""` (`true`) |
+| `config.updateCheck.provider` | `UPDATE_PROVIDER` | Release host to query: `github` or `gitlab`. An unknown value is logged and falls back. | `""` (`github`) |
+| `config.updateCheck.repo` | `UPDATE_REPO` | `owner/repo` (GitLab also accepts nested `group/subgroup/project`) | `""` (`schaurian/schautrack`) |
+| `config.updateCheck.baseUrl` | `UPDATE_BASE_URL` | Host override for self-hosted GitHub Enterprise (API at `<baseUrl>/api/v3`) or GitLab (`<baseUrl>/api/v4`) | `""` (provider's public host) |
 
 ### AI
 
@@ -383,7 +446,22 @@ see [issue #366](https://github.com/schaurian/schautrack/issues/366).
 ## Upgrading
 
 The chart follows semantic versioning; no breaking changes have been released
-through the current `0.3.x` series. `helm upgrade` in place is safe.
+through the current `0.4.x` series. `helm upgrade` in place is safe.
+
+### 0.4.0
+
+- Exposed the update check (`config.updateCheck.enabled`, `.provider`, `.repo`,
+  `.baseUrl`), so the privacy opt-out the application documents is finally
+  reachable from the chart. Setting `config.updateCheck.enabled: false` stops
+  the hourly request to `api.github.com`.
+- Exposed `config.captcha.globalThreshold`
+  (`LOGIN_CAPTCHA_GLOBAL_THRESHOLD`).
+- With this release every environment variable the application reads is
+  settable from the chart, except `BUILD_VERSION` (baked into the image at
+  build time) and `CAPTCHA_BYPASS` (test-only, deliberately unreachable).
+- All new values default to empty, which omits the environment variable and
+  leaves the application's own default in force — upgrading from `0.3.x`
+  changes no behaviour.
 
 ### 0.3.0
 
