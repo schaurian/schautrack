@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Generated from values.yaml. Objects whose keys the templates enumerate are closed (additionalProperties: false) so a mistyped key fails at install time instead of silently rendering nothing (#400). Kubernetes-shaped blocks \u2014 resources, nodeSelector, tolerations, affinity, the security contexts, podAnnotations, ingress annotations \u2014 and the postgresql subchart stay open, because the chart forwards them verbatim and closing them would reject valid input.",
+  "description": "Generated from values.yaml. Objects whose keys the templates enumerate are closed (additionalProperties: false) so a mistyped key fails at install time instead of silently rendering nothing (#400). Kubernetes-shaped blocks \u2014 resources, nodeSelector, tolerations, affinity, the security contexts, podAnnotations, ingress annotations, livenessProbe, readinessProbe (app and postgresql.*) \u2014 and the postgresql subchart stay open, because the chart forwards them verbatim (via toYaml) and closing them would reject valid input, e.g. switching from httpGet to tcpSocket or exec.",
   "properties": {
     "affinity": {
       "properties": {},
@@ -343,6 +343,10 @@
       },
       "type": "object"
     },
+    "livenessProbe": {
+      "properties": {},
+      "type": "object"
+    },
     "nameOverride": {
       "type": [
         "string",
@@ -501,6 +505,10 @@
           },
           "type": "object"
         },
+        "livenessProbe": {
+          "properties": {},
+          "type": "object"
+        },
         "persistence": {
           "properties": {
             "accessMode": {
@@ -559,6 +567,10 @@
           },
           "type": "object"
         },
+        "readinessProbe": {
+          "properties": {},
+          "type": "object"
+        },
         "resources": {
           "properties": {},
           "type": "object"
@@ -586,6 +598,10 @@
           "type": "object"
         }
       },
+      "type": "object"
+    },
+    "readinessProbe": {
+      "properties": {},
       "type": "object"
     },
     "replicaCount": {

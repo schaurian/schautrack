@@ -97,3 +97,41 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Render a livenessProbe/readinessProbe-shaped value (or any nested map of
+maps/lists/scalars) as YAML, indented so block sequences line up two spaces
+past their parent key — e.g. exec.command's list items sit under "command:",
+not flush with it.
+
+This exists instead of the usual `toYaml $val | nindent N` because Helm's
+toYaml (sigs.k8s.io/yaml -> yaml.v2) always renders a sequence that's a value
+inside a map flush with its key, never indented past it. That's valid YAML
+and Kubernetes doesn't care, but it means switching this chart's probes from
+a hardcoded block to a values-driven `toYaml` call would have silently
+reformatted the exec.command list the postgres probe ships by default —
+semantically identical, byte-for-byte different. Recursing key-by-key here
+and only ever handing a *bare* list to `nindent` (never a map containing one)
+keeps the default output identical to what this chart hardcoded before
+probes were overridable, while still accepting any override shape
+(httpGet/tcpSocket/exec/grpc + timing fields) uniformly.
+
+Usage: {{ include "schautrack.renderProbe" (dict "block" .Values.livenessProbe "indent" 12) }}
+`indent` is the absolute column the top-level keys of `.block` start at.
+*/}}
+{{- define "schautrack.renderProbe" -}}
+{{- $indent := .indent -}}
+{{- range $k, $v := .block }}
+{{- if kindIs "slice" $v }}
+{{ printf "%*s" $indent "" }}{{ $k }}:
+{{- range $v }}
+{{ printf "%*s" (add $indent 2) "" }}- {{ . }}
+{{- end }}
+{{- else if kindIs "map" $v }}
+{{ printf "%*s" $indent "" }}{{ $k }}:
+{{- include "schautrack.renderProbe" (dict "block" $v "indent" (add $indent 2)) }}
+{{- else }}
+{{ printf "%*s" $indent "" }}{{ $k }}: {{ $v }}
+{{- end }}
+{{- end }}
+{{- end -}}

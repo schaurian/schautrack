@@ -392,6 +392,8 @@ application's default in force. See
 | `postgresql.auth.database` | Database name | `schautrack` |
 | `postgresql.auth.username` | Database user | `schautrack` |
 | `postgresql.auth.password` | Database password (**required**) | `""` |
+| `postgresql.livenessProbe` | Liveness probe for the postgres container. See note below. | `exec: pg_isready -U schautrack -d schautrack`, `initialDelaySeconds: 30`, `periodSeconds: 10` |
+| `postgresql.readinessProbe` | Readiness probe for the postgres container. See note below. | `exec: pg_isready -U schautrack -d schautrack`, `initialDelaySeconds: 5`, `periodSeconds: 5` |
 | `postgresql.persistence.enabled` | Enable persistence | `true` |
 | `postgresql.persistence.existingClaim` | Use existing PVC (ignores other persistence options if set) | `""` |
 | `postgresql.persistence.size` | PVC size | `5Gi` |
@@ -400,6 +402,13 @@ application's default in force. See
 | `postgresql.persistence.annotations` | PVC annotations (e.g., for Velero backups) | `{}` |
 | `postgresql.persistence.labels` | PVC labels | `{}` |
 | `postgresql.resources` | Resource requests/limits | `{}` |
+
+> **Note:** the default probe commands above are literal strings baked in at
+> chart-author time — they check the *default* `schautrack`/`schautrack`
+> database/user, not whatever you set `postgresql.auth.database` /
+> `postgresql.auth.username` to. If you change either of those, override
+> `postgresql.livenessProbe`/`postgresql.readinessProbe` to match, the same
+> way you would set `httpGet`/`tcpSocket`/`exec` on the app probes above.
 
 ### External Database
 
@@ -424,6 +433,31 @@ application's default in force. See
 | `ingress.hosts` | Ingress hosts | `[]` |
 | `ingress.tls` | TLS configuration | `[]` |
 
+### Probes
+
+Both blocks are rendered verbatim (`toYaml`) into the container's
+`livenessProbe`/`readinessProbe`, so any valid Pod probe shape works —
+`httpGet` (the default), `tcpSocket`, or `exec` — plus the usual timing
+fields (`timeoutSeconds`, `failureThreshold`, `successThreshold`). Setting
+either value replaces the whole probe, not just the field you touched.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `livenessProbe` | Liveness probe for the app container | `httpGet /api/health` on port `http`, `initialDelaySeconds: 10`, `periodSeconds: 30` |
+| `readinessProbe` | Readiness probe for the app container | `httpGet /api/health` on port `http`, `initialDelaySeconds: 5`, `periodSeconds: 10` |
+
+Example — switch to a TCP check (e.g. behind a proxy that doesn't speak the
+app's health-check semantics, or during debugging when `/api/health` itself
+is suspect):
+
+```yaml
+livenessProbe:
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+```
+
 ### Resources and Scheduling
 
 | Parameter | Description | Default |
@@ -447,7 +481,22 @@ application's default in force. See
 ## Upgrading
 
 The chart follows semantic versioning; no breaking changes have been released
-through the current `0.4.x` series. `helm upgrade` in place is safe.
+through the current `0.5.x` series. `helm upgrade` in place is safe.
+
+### 0.5.0
+
+- Exposed `livenessProbe` and `readinessProbe` (app container) and
+  `postgresql.livenessProbe` / `postgresql.readinessProbe` (postgres
+  container). Previously these were hardcoded in the templates and
+  unreachable from values. Since `0.4.0` added `values.schema.json` with
+  `additionalProperties: false` at the root, passing them from a values file
+  or an ArgoCD `Application` CR was worse than a no-op: it failed schema
+  validation with a fatal install/upgrade error instead of being silently
+  ignored.
+- All four default to exactly what the chart hardcoded before, rendered via
+  `toYaml` — upgrading from `0.4.x` changes no running probe. See
+  [Probes](#probes) for the override shape and a note on the postgres probe's
+  default command not tracking `postgresql.auth.*`.
 
 ### 0.4.0
 

@@ -54,21 +54,9 @@ spec:
             - name: PGTZ
               value: UTC
           livenessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            {{- include "schautrack.renderProbe" (dict "block" .Values.postgresql.livenessProbe "indent" 12) }}
           readinessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            {{- include "schautrack.renderProbe" (dict "block" .Values.postgresql.readinessProbe "indent" 12) }}
           {{- if .Values.postgresql.persistence.enabled }}
           volumeMounts:
             - name: data
