@@ -122,9 +122,11 @@ schautrack/
 - Runs as non-root `appuser`
 
 ### Kubernetes / Health Checks
+- **Liveness endpoint:** `GET /api/livez` - shallow, unconditional 200 whenever the HTTP server can serve; never touches the database or any other dependency (`handler.Livez`)
 - **Health endpoint:** `GET /api/health` - checks database connectivity, returns 200 with app info or 503 on failure
-- **Liveness probe:** Use HTTP GET to `/api/health` - restarts container if app is unresponsive
+- **Liveness probe:** Use HTTP GET to `/api/livez` - restarts container if the process itself is wedged
 - **Readiness probe:** Use HTTP GET to `/api/health` - removes pod from service if DB connection fails
+- **Why the split matters:** liveness must never depend on an external service. If liveness pinged the database like readiness does, a single Postgres blip would fail the check on every replica at once and kubelet would restart them all simultaneously — a recoverable dependency outage becoming a cluster-wide crashloop that slows recovery instead of helping it. Readiness pulling a pod out of the Service on the same failure is the correct, non-destructive response.
 - **Deployment strategy:** RollingUpdate with `maxUnavailable: 0` ensures zero-downtime deployments (old pod stays until new pod is ready)
 - **Helm chart:** Includes probes and strategy by default
 
