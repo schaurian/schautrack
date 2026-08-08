@@ -101,12 +101,31 @@ type savedFoodInput struct {
 	macros     map[string]*int // only keys present in body are populated
 }
 
+// Every field below reads through optionalString (entries_helpers.go), which
+// separates "key absent" from "key holding a JSON null" by inspecting the
+// interface before coercing it. This function used to coerce first, with
+// fmt.Sprintf("%v", v), which renders a null as the four characters <nil>, and
+// then compare against that string to recover the null it had just destroyed.
+//
+// The name path did not even do that, which is #341's live bug: POST
+// /api/saved-foods with {"name": null} produced the name "<nil>", and because
+// those four characters are a non-empty string it sailed past the "Name is
+// required" check and created a saved food literally called <nil>. The same
+// shape as #303 on the entries handler, fixed the same way.
+//
+// saved_foods.name is NOT NULL, so there is no "clear the name" state to route
+// a null into: null joins "" and "   " as a 400. The nullable fields keep the
+// clearing behaviour they had. A literal "<nil>" is now taken at face value —
+// stored verbatim as a name or emoji, rejected as an unparseable amount or
+// macro, matching what #338 settled on for the entry amount and macros.
 func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput, int, string) {
 	out := &savedFoodInput{macros: map[string]*int{}}
 
-	if v, ok := body["name"]; ok {
+	if name, present := optionalString(body, "name"); present {
 		out.hasName = true
-		out.name = truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), MaxSavedFoodName)
+		if name != nil {
+			out.name = truncateUTF8(*name, MaxSavedFoodName)
+		}
 		if out.name == "" {
 			return nil, http.StatusBadRequest, "Name is required"
 		}
@@ -114,24 +133,21 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 		return nil, http.StatusBadRequest, "Name is required"
 	}
 
-	if v, ok := body["emoji"]; ok {
+	if emoji, present := optionalString(body, "emoji"); present {
 		out.hasEmoji = true
-		raw := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if raw == "" || raw == "<nil>" {
-			out.emoji = nil
-		} else {
-			raw = truncateUTF8(raw, MaxSavedFoodEmoji)
+		if emoji != nil && *emoji != "" {
+			raw := truncateUTF8(*emoji, MaxSavedFoodEmoji)
 			out.emoji = &raw
 		}
 	}
 
-	if v, ok := body["amount"]; ok && v != nil {
+	// An explicit null amount is deliberately *not* a clear: it leaves
+	// hasAmount false, so Update omits the column entirely. Only an empty
+	// string clears it. Preserved from before the refactor.
+	if amount, present := optionalString(body, "amount"); present && amount != nil {
 		out.hasAmount = true
-		raw := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if raw == "" || raw == "<nil>" {
-			out.amount = nil
-		} else {
-			parsed := service.ParseAmount(raw, MaxEntryCalories)
+		if *amount != "" {
+			parsed := service.ParseAmount(*amount, MaxEntryCalories)
 			if !parsed.Ok {
 				return nil, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)
 			}
@@ -141,21 +157,15 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 	}
 
 	for _, key := range service.MacroKeys {
-		field := key + "_g"
-		v, ok := body[field]
-		if !ok {
+		raw, present := optionalString(body, key+"_g")
+		if !present {
 			continue
 		}
-		if v == nil {
+		if raw == nil || *raw == "" {
 			out.macros[key] = nil
 			continue
 		}
-		raw := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if raw == "" || raw == "<nil>" {
-			out.macros[key] = nil
-			continue
-		}
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.Atoi(*raw)
 		if err != nil || n < 0 || n > MaxEntryMacro {
 			return nil, http.StatusBadRequest, fmt.Sprintf("Macro values must be between 0 and %d", MaxEntryMacro)
 		}
