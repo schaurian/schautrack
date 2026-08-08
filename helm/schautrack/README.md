@@ -409,6 +409,19 @@ application's default in force. See
 > `postgresql.auth.username` to. If you change either of those, override
 > `postgresql.livenessProbe`/`postgresql.readinessProbe` to match, the same
 > way you would set `httpGet`/`tcpSocket`/`exec` on the app probes above.
+>
+> The default handler here is `exec`, not `httpGet` — so switching this
+> probe follows the same [null-out rule](#probes) but with a different key.
+> For example, to use a TCP check instead:
+> ```yaml
+> postgresql:
+>   livenessProbe:
+>     exec: null   # required — clears the default handler
+>     tcpSocket:
+>       port: postgresql
+>     initialDelaySeconds: 30
+>     periodSeconds: 10
+> ```
 
 ### External Database
 
@@ -435,28 +448,39 @@ application's default in force. See
 
 ### Probes
 
-Both blocks are rendered verbatim (`toYaml`) into the container's
-`livenessProbe`/`readinessProbe`, so any valid Pod probe shape works —
-`httpGet` (the default), `tcpSocket`, or `exec` — plus the usual timing
-fields (`timeoutSeconds`, `failureThreshold`, `successThreshold`). Setting
-either value replaces the whole probe, not just the field you touched.
+Both blocks are rendered into the container's `livenessProbe`/
+`readinessProbe`, so any valid Pod probe shape works — `httpGet` (the
+default), `tcpSocket`, `exec`, or `grpc` — plus the usual timing fields
+(`timeoutSeconds`, `failureThreshold`, `successThreshold`).
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `livenessProbe` | Liveness probe for the app container | `httpGet /api/health` on port `http`, `initialDelaySeconds: 10`, `periodSeconds: 30` |
 | `readinessProbe` | Readiness probe for the app container | `httpGet /api/health` on port `http`, `initialDelaySeconds: 5`, `periodSeconds: 10` |
 
-Example — switch to a TCP check (e.g. behind a proxy that doesn't speak the
-app's health-check semantics, or during debugging when `/api/health` itself
-is suspect):
+**Setting a value merges with the default, it does not replace it.** Helm
+deep-merges a values file on top of the chart's defaults key by key, so
+adding `tcpSocket:` to `livenessProbe` does **not** clear the default
+`httpGet:` — you end up with both set, which is an invalid probe (Kubernetes
+allows exactly one handler) that fails at apply time. Null out the handler
+you're replacing explicitly:
 
 ```yaml
+# Switch to a TCP check (e.g. behind a proxy that doesn't speak the app's
+# health-check semantics, or during debugging when /api/health is suspect).
 livenessProbe:
+  httpGet: null   # required — see note above
   tcpSocket:
     port: http
   initialDelaySeconds: 10
   periodSeconds: 30
 ```
+
+The chart validates this at render time: `helm template`/`helm install`
+fails immediately, naming the probe and the conflicting keys, if a probe
+ends up with zero handlers or more than one — instead of producing a
+manifest that only fails later, at `kubectl apply` or an ArgoCD sync,
+possibly mid-rollout.
 
 ### Resources and Scheduling
 
@@ -493,10 +517,16 @@ through the current `0.5.x` series. `helm upgrade` in place is safe.
   or an ArgoCD `Application` CR was worse than a no-op: it failed schema
   validation with a fatal install/upgrade error instead of being silently
   ignored.
-- All four default to exactly what the chart hardcoded before, rendered via
-  `toYaml` — upgrading from `0.4.x` changes no running probe. See
-  [Probes](#probes) for the override shape and a note on the postgres probe's
-  default command not tracking `postgresql.auth.*`.
+- All four default to exactly what the chart hardcoded before — upgrading
+  from `0.4.x` changes no running probe. See [Probes](#probes) for the
+  override shape and a note on the postgres probe's default command not
+  tracking `postgresql.auth.*`.
+- `helm template`/`helm install` now fails fast, naming the probe and the
+  conflicting keys, if a probe override ends up with zero or more than one
+  handler (`httpGet`/`tcpSocket`/`exec`/`grpc`) set — most commonly from
+  forgetting to null out the default handler when switching probe kind (see
+  [Probes](#probes)). Kubernetes would otherwise reject the object at apply
+  time instead of at render time, possibly mid-rollout.
 
 ### 0.4.0
 

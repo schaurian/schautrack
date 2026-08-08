@@ -54,9 +54,9 @@ spec:
             - name: PGTZ
               value: UTC
           livenessProbe:
-            {{- include "schautrack.renderProbe" (dict "block" .Values.postgresql.livenessProbe "indent" 12) }}
+            {{- include "schautrack.renderProbe" (dict "block" .Values.postgresql.livenessProbe "indent" 12 "name" "postgresql.livenessProbe") }}
           readinessProbe:
-            {{- include "schautrack.renderProbe" (dict "block" .Values.postgresql.readinessProbe "indent" 12) }}
+            {{- include "schautrack.renderProbe" (dict "block" .Values.postgresql.readinessProbe "indent" 12 "name" "postgresql.readinessProbe") }}
           {{- if .Values.postgresql.persistence.enabled }}
           volumeMounts:
             - name: data
