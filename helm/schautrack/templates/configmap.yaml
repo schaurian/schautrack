@@ -54,6 +54,30 @@ data:
   {{- if .Values.config.enableRegistration }}
   ENABLE_REGISTRATION: {{ .Values.config.enableRegistration | quote }}
   {{- end }}
+  {{- with .Values.config.updateCheck }}
+  {{- /*
+    UPDATE_CHECK_ENABLED is a disable-only flag: the app reads it as
+    `os.Getenv("UPDATE_CHECK_ENABLED") != "false"`, so only the exact string
+    "false" turns the check off and *any* other value (including "") leaves it
+    on. A plain `{{- if .enabled }}` would therefore drop the one value that
+    has to reach the ConfigMap. The `kindIs "bool"` arm emits whenever the
+    value is a real boolean — true or false — while the bare `.enabled` arm
+    covers strings from --set-string; an unset value is neither, so the key is
+    omitted and the app default (on) applies.
+  */}}
+  {{- if or (kindIs "bool" .enabled) .enabled }}
+  UPDATE_CHECK_ENABLED: {{ .enabled | quote }}
+  {{- end }}
+  {{- if .provider }}
+  UPDATE_PROVIDER: {{ .provider | quote }}
+  {{- end }}
+  {{- if .repo }}
+  UPDATE_REPO: {{ .repo | quote }}
+  {{- end }}
+  {{- if .baseUrl }}
+  UPDATE_BASE_URL: {{ .baseUrl | quote }}
+  {{- end }}
+  {{- end }}
   {{- if .Values.config.trustProxy }}
   TRUST_PROXY: {{ .Values.config.trustProxy | quote }}
   {{- end }}
@@ -69,6 +93,17 @@ data:
   {{- end }}
   {{- if .apiToken }}
   RATE_LIMIT_API_TOKEN: {{ .apiToken | quote }}
+  {{- end }}
+  {{- end }}
+  {{- with .Values.config.captcha }}
+  {{- /*
+    The app ignores a non-positive LOGIN_CAPTCHA_GLOBAL_THRESHOLD (it requires
+    `n > 0`), so 0 correctly means "use the default" and truthiness is the
+    right guard here — unlike UPDATE_CHECK_ENABLED above.
+    CAPTCHA_BYPASS is deliberately absent; see values.yaml.
+  */}}
+  {{- if .globalThreshold }}
+  LOGIN_CAPTCHA_GLOBAL_THRESHOLD: {{ .globalThreshold | quote }}
   {{- end }}
   {{- end }}
   {{- if .Values.config.robotsIndex }}
