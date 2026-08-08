@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"schautrack/internal/apierr"
+	"schautrack/internal/model"
 )
 
 // FuzzDecodeCursor drives the keyset pagination cursor through both
@@ -75,7 +76,12 @@ func FuzzDecodeCursor(f *testing.F) {
 		// these are round-trippable — encodeCursor has no validation of its
 		// own, and a caller that fabricates an invalid one is out of contract.
 		c := cursor{Date: date, ID: id}
-		if !isValidDate(c.Date) || c.ID <= 0 {
+		// model.MaxID bounds the round-trippable domain for the same reason
+		// c.ID <= 0 does: a cursor id names a row, every id column is int4, so
+		// an id beyond that names nothing the encoder could have produced. It
+		// is now rejected at decode rather than reaching pgx, which used to
+		// turn a fabricated cursor into a 500.
+		if !isValidDate(c.Date) || c.ID <= 0 || c.ID > model.MaxID {
 			return
 		}
 		back, err := decodeCursor(encodeCursor(c))

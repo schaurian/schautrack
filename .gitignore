@@ -17,3 +17,7 @@ blob-report/
 /server
 
 .superpowers/
+
+# Schemathesis contract-test report
+contract-report.xml
+.schemathesis/
