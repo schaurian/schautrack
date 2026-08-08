@@ -2,9 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
+	"schautrack/internal/model"
 	"schautrack/internal/openapi"
 	"schautrack/internal/service"
 )
@@ -43,8 +45,18 @@ func checkSchema(t *testing.T, schemaName string, v any) {
 		t.Fatalf("marshal %s: %v", schemaName, err)
 	}
 	if err := openapi.Build("", "").ValidateJSON(schemaName, raw); err != nil {
-		t.Errorf("%v\n\nserialized as: %s", err, raw)
+		t.Errorf("%v\n\nserialized as: %s", err, abbreviate(raw, 1500))
 	}
+}
+
+// abbreviate keeps a failure's context readable. The error names the offending
+// field; the payload is there to show what was actually sent, and a plan with a
+// 160-week curve buries the useful part under kilobytes of it.
+func abbreviate(raw []byte, max int) string {
+	if len(raw) <= max {
+		return string(raw)
+	}
+	return fmt.Sprintf("%s… (%d bytes total)", raw[:max], len(raw))
 }
 
 func TestEntryMatchesSchema(t *testing.T) {
@@ -215,6 +227,148 @@ func TestProblemMatchesSchema(t *testing.T) {
 	})
 }
 
+// planSeries is a weight history ending on fixedTime, with enough readings far
+// enough apart for TrendAnalysis to fit a line rather than bail out.
+func planSeries() []service.WeightPoint {
+	day := func(n int) time.Time { return fixedTime.AddDate(0, 0, -n) }
+	bodyFat := 24.5
+	return []service.WeightPoint{
+		{Date: day(28), Weight: 92.0},
+		{Date: day(21), Weight: 91.1},
+		{Date: day(14), Weight: 90.4, BodyFat: &bodyFat},
+		{Date: day(7), Weight: 89.2},
+		{Date: day(0), Weight: 88.4},
+	}
+}
+
+func activeGoal() *model.WeightGoal {
+	return &model.WeightGoal{
+		ID: 3, UserID: 1, StartWeight: 92, StartDate: "2026-07-08",
+		TargetWeight: 80, PaceMode: "rate", RateKgPerWeek: ptr(0.5),
+		ActivityLevel: ptr("moderate"), Status: "active",
+		CreatedAt: fixedTime, UpdatedAt: fixedTime,
+	}
+}
+
+// TestPlanMatchesSchema is the one this file most needed and longest lacked.
+// /plan carries the largest payload in the API and the one that changes most
+// often, and until the Plan schema was written down it was documented as a
+// free-form object — so it validated against anything, and three fields
+// (composition, computed.bmrFormula, series[].bodyFat) shipped undocumented.
+//
+// The payload is assembled by service.AssemblePlan rather than written out as a
+// literal here, deliberately: a literal only proves the schema matches the
+// literal. Running the real assembler means renaming a json tag on any plan
+// struct, or adding a field and not documenting it, fails this test.
+func TestPlanMatchesSchema(t *testing.T) {
+	full := service.PlanInputs{
+		CurrentWeight:  ptr(88.4),
+		CurrentBodyFat: &service.BodyFatReading{Date: "2026-07-22", WeightKg: 90.4, Pct: 24.5},
+		HeightCm:       ptr(180.0),
+		BirthYear:      ptr(1990),
+		Sex:            ptr("male"),
+		ActivityLevel:  ptr("moderate"),
+		Goal:           activeGoal(),
+		Series:         planSeries(),
+		CurrentCalGoal: ptr(2100),
+		Now:            fixedTime,
+	}
+
+	dateGoal := activeGoal()
+	dateGoal.PaceMode, dateGoal.RateKgPerWeek, dateGoal.TargetDate = "date", nil, ptr("2027-02-01")
+
+	// No sex: composition is still derived (it needs only a body-fat reading)
+	// but carries no category, and the metrics are incomplete so there is no
+	// budget. Every nullable field in one payload.
+	noSex := full
+	noSex.Sex, noSex.Goal = nil, nil
+
+	// A pace this aggressive for this profile trips three of the four warning
+	// codes at once: the budget lands under the floor, the rate exceeds 1% of
+	// body weight, and the target is in the underweight BMI band.
+	clamped := service.PlanInputs{
+		CurrentWeight: ptr(55.0), HeightCm: ptr(160.0), BirthYear: ptr(1986),
+		Sex: ptr("female"), ActivityLevel: ptr("sedentary"),
+		Goal: &model.WeightGoal{
+			ID: 4, UserID: 2, StartWeight: 55, StartDate: "2026-08-01",
+			TargetWeight: 45, PaceMode: "rate", RateKgPerWeek: ptr(1.0),
+			Status: "active", CreatedAt: fixedTime, UpdatedAt: fixedTime,
+		},
+		Series: planSeries(), Now: fixedTime,
+	}
+
+	// The fourth code, from the other direction: a gain goal whose target is in
+	// the obese BMI band.
+	gain := service.PlanInputs{
+		CurrentWeight: ptr(60.0), HeightCm: ptr(160.0), BirthYear: ptr(1986),
+		Sex: ptr("other"), ActivityLevel: ptr("very_active"),
+		Goal: &model.WeightGoal{
+			ID: 5, UserID: 3, StartWeight: 60, StartDate: "2026-08-01",
+			TargetWeight: 90, PaceMode: "rate", RateKgPerWeek: ptr(0.25),
+			Status: "active", CreatedAt: fixedTime, UpdatedAt: fixedTime,
+		},
+		Series: planSeries(), Now: fixedTime,
+	}
+
+	// A goal with no body metrics behind it: trend is computed, computed is not.
+	goalOnly := service.PlanInputs{
+		CurrentWeight: ptr(88.4), Goal: activeGoal(),
+		Series: planSeries(), Now: fixedTime,
+	}
+
+	dated := full
+	dated.Goal = dateGoal
+
+	cases := map[string]service.PlanInputs{
+		"everything populated":     full,
+		"goal paced by date":       dated,
+		"no sex, no goal":          noSex,
+		"clamped budget":           clamped,
+		"gain goal":                gain,
+		"goal without metrics":     goalOnly,
+		"nothing logged at all":    {Now: fixedTime},
+		"metrics but no readings":  {HeightCm: ptr(180.0), BirthYear: ptr(1990), Sex: ptr("male"), ActivityLevel: ptr("moderate"), Now: fixedTime},
+		"readings but no goal yet": {CurrentWeight: ptr(88.4), Series: planSeries(), Now: fixedTime},
+	}
+
+	for name, in := range cases {
+		t.Run(name, func(t *testing.T) {
+			checkSchema(t, "Plan", service.AssemblePlan(in))
+		})
+	}
+
+	// The handler converts every weight-valued field before writing. A field
+	// the converter reaches but the schema does not describe would show up
+	// here and nowhere else.
+	t.Run("converted to pounds", func(t *testing.T) {
+		resp := service.AssemblePlan(full)
+		service.ConvertPlanResponseToDisplayUnit(&resp, "lb")
+		checkSchema(t, "Plan", resp)
+	})
+}
+
+// TestPlanWarningsAreDocumented pins the enum: every warning the assembler can
+// emit must be one the schema lists, or a client switching on `code` hits a
+// value the document never mentioned.
+func TestPlanWarningsAreDocumented(t *testing.T) {
+	doc := openapi.Build("", "")
+	schema := doc.Components.Schemas["PlanWarning"]
+	documented := map[string]bool{}
+	for _, v := range schema.Properties["code"].Enum {
+		documented[v.(string)] = true
+	}
+
+	// The codes the assembler can produce, from plan_assemble.go.
+	for _, code := range []string{"budget_clamped", "aggressive_rate", "target_underweight", "target_obese"} {
+		if !documented[code] {
+			t.Errorf("warning code %q is emitted but not documented", code)
+		}
+	}
+	if len(documented) != 4 {
+		t.Errorf("the schema documents %d warning codes, the assembler emits 4", len(documented))
+	}
+}
+
 // TestValidatorRejectsDrift proves the validator would actually fail — a
 // contract test that cannot fail is worse than none, because it reads as
 // coverage.
@@ -231,6 +385,14 @@ func TestValidatorRejectsDrift(t *testing.T) {
 		{"undocumented extra field", "Note", `{"date":"2026-08-05","content":"x","updated_at":null,"secret_internal_flag":true}`},
 		{"null in a non-nullable field", "Note", `{"date":null,"content":"x","updated_at":null}`},
 		{"value outside the enum", "Weight", `{"date":"2026-08-05","weight":80,"unit":"stone","created_at":"2026-08-05T07:12:00Z","updated_at":"2026-08-05T07:12:00Z"}`},
+		// Plan was exempt from all of the above until its schema was written
+		// down; these are the three drifts that actually shipped, plus the
+		// undeclared-key case the old additionalProperties waiver allowed.
+		{"undocumented plan field", "PlanComputed", `{"bmr":1700,"tdee":2635,"budgetKcal":2085,"budgetClamped":false,"rateKgPerWeek":0.5,"etaWeeks":16.8,"etaDate":"2026-11-29","planCurve":[],"bmrFormula":"katch_mcardle","secretMultiplier":1.5}`},
+		{"missing plan sub-object", "Plan", `{"metrics":{"heightCm":180,"birthYear":1990,"sex":"male","activityLevel":"moderate","complete":true}}`},
+		{"renamed composition field", "BodyComposition", `{"date":"2026-07-22","bodyFatPercent":24.5,"leanMass":68.3,"fatMass":22.1,"category":"average"}`},
+		{"unknown bmr formula", "PlanComputed", `{"bmr":1700,"tdee":2635,"budgetKcal":2085,"budgetClamped":false,"rateKgPerWeek":0.5,"etaWeeks":16.8,"etaDate":null,"planCurve":[],"bmrFormula":"harris_benedict"}`},
+		{"nullable ref given a wrong object", "Plan", `{"metrics":{"heightCm":null,"birthYear":null,"sex":null,"activityLevel":null,"complete":false},"currentWeight":null,"bmi":null,"bmiCategory":null,"composition":{"date":"2026-07-22"},"healthyRange":null,"goal":null,"computed":null,"trend":null,"currentCalorieGoal":null,"series":[],"warnings":[],"disclaimer":"x"}`},
 	}
 
 	for _, c := range cases {
@@ -242,12 +404,19 @@ func TestValidatorRejectsDrift(t *testing.T) {
 	}
 }
 
-// TestValidatorAcceptsFreeForm checks the deliberately open Plan schema is not
-// rejected for carrying undeclared keys.
+// TestValidatorAcceptsFreeForm checks the schemas that are still deliberately
+// open are not rejected for carrying undeclared keys. Both relay a shape this
+// API does not own — the AI model's answer and OpenFoodFacts' product record —
+// so pinning their fields would document someone else's contract.
+//
+// Plan used to be on this list. It was not free-form by intent, only by
+// omission, which is exactly why it drifted.
 func TestValidatorAcceptsFreeForm(t *testing.T) {
 	doc := openapi.Build("", "")
-	if err := doc.ValidateJSON("Plan", []byte(`{"metrics":{"heightCm":180},"anything":[1,2,3]}`)); err != nil {
-		t.Errorf("Plan is documented as free-form but was rejected: %v", err)
+	for _, name := range []string{"Estimate", "BarcodeProduct"} {
+		if err := doc.ValidateJSON(name, []byte(`{"whatever":[1,2,3],"nested":{"x":true}}`)); err != nil {
+			t.Errorf("%s is documented as free-form but was rejected: %v", name, err)
+		}
 	}
 }
 
