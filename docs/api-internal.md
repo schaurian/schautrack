@@ -318,7 +318,7 @@ returns `401` when unauthenticated.
 | POST | `/settings/email/verify` | Session +Local +CSRF | Verify the new email with a code. |
 | POST | `/settings/email/cancel` | Session +Local +CSRF | Cancel a pending email change. |
 | POST | `/settings/export` | Session +StepUp +CSRF | Export all account data. |
-| POST | `/settings/import` | Session +StepUp +CSRF | Import account data. |
+| POST | `/settings/import` | Session +StepUp +CSRF | Import account data. Send `dry_run=true` to parse and report without writing — the real import DELETEs existing entries first. Responds `{ok, dry_run, message, skipped:{total, reported, rows:[{kind, index, date?, reason}]}}`; `reason` is one of `not_an_object`, `invalid_date`, `invalid_amount`, `invalid_weight`, `row_limit`, and `rows` is capped while `total` is not. |
 | POST | `/delete` | Session +StepUp +CSRF | Delete the account. |
 
 ### Account links

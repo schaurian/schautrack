@@ -212,6 +212,50 @@ type importData struct {
 	// the import succeeded (#351).
 	skippedEntries int
 	skippedWeights int
+
+	// skipped names the dropped rows: which one, and why. The counts above
+	// say a partial import happened; this says what to fix (#409). With a
+	// 500-row export and seven bad amounts, "7 rows" is enough to know
+	// something is wrong and not enough to do anything about it — and the
+	// import DELETEs the user's existing entries first, so there is no second
+	// chance to diff against the original.
+	//
+	// Capped at maxReportedSkips so a hostile file cannot turn a 10,000-row
+	// rejection into a 10,000-element response; skippedEntries/skippedWeights
+	// remain the true totals.
+	skipped []skippedRow
+}
+
+// maxReportedSkips bounds the per-row detail. Fifty is well past the point
+// where a human is reading individual rows and still small enough that the
+// response stays a response.
+const maxReportedSkips = 50
+
+// skippedRow is one dropped import row. Reason is a stable code rather than
+// prose so a client can group or translate it; the wire shape is documented on
+// the ImportResult schema.
+type skippedRow struct {
+	// Kind is "entry" or "weight" — the two arrays are indexed separately, so
+	// an index alone would be ambiguous.
+	Kind string `json:"kind"`
+	// Index is the row's position in its array in the uploaded file, so the
+	// user can go straight to it.
+	Index int `json:"index"`
+	// Date is the row's date when it had a readable one. Absent when the date
+	// itself is why the row was dropped.
+	Date string `json:"date,omitempty"`
+	// Reason is one of: not_an_object, invalid_date, invalid_amount,
+	// invalid_weight, row_limit.
+	Reason string `json:"reason"`
+}
+
+// record appends a skip, up to the cap. Callers still bump the counters, so
+// the totals stay accurate past it.
+func (d *importData) record(kind string, index int, date, reason string) {
+	if len(d.skipped) >= maxReportedSkips {
+		return
+	}
+	d.skipped = append(d.skipped, skippedRow{Kind: kind, Index: index, Date: date, Reason: reason})
 }
 
 // isEmpty reports whether the import carries nothing worth writing. Import
@@ -253,17 +297,23 @@ func parseImportData(parsed map[string]any) importData {
 	}
 
 	// Parse entries
+	//
+	// rec collects the per-row detail as we go; the counters stay the source of
+	// truth for the totals, because rec stops appending at maxReportedSkips.
+	var rec importData
 	var toInsert []importEntry
 	var skippedEntries int
 	if entries, ok := parsed["entries"].([]any); ok {
 		for i, e := range entries {
 			if len(toInsert) >= 10000 {
 				skippedEntries += len(entries) - i
+				rec.record("entry", i, "", "row_limit")
 				break
 			}
 			entry, ok := e.(map[string]any)
 			if !ok {
 				skippedEntries++
+				rec.record("entry", i, "", "not_an_object")
 				continue
 			}
 			dateStr := ""
@@ -273,12 +323,16 @@ func parseImportData(parsed map[string]any) importData {
 				dateStr = v
 			}
 			if !isValidDate(dateStr) {
+				// No date reported: the date is why this row was dropped, and
+				// echoing an unparseable one back would suggest it was read.
 				skippedEntries++
+				rec.record("entry", i, "", "invalid_date")
 				continue
 			}
 			amountResult := service.ParseAmount(fmt.Sprintf("%v", entry["amount"]), MaxEntryCalories)
 			if !amountResult.Ok || amountResult.Value == 0 {
 				skippedEntries++
+				rec.record("entry", i, dateStr, "invalid_amount")
 				continue
 			}
 			var name *string
@@ -316,11 +370,13 @@ func parseImportData(parsed map[string]any) importData {
 		for i, w := range weights {
 			if len(weightToInsert) >= 10000 {
 				skippedWeights += len(weights) - i
+				rec.record("weight", i, "", "row_limit")
 				break
 			}
 			wEntry, ok := w.(map[string]any)
 			if !ok {
 				skippedWeights++
+				rec.record("weight", i, "", "not_an_object")
 				continue
 			}
 			dateStr := ""
@@ -331,11 +387,13 @@ func parseImportData(parsed map[string]any) importData {
 			}
 			if !isValidDate(dateStr) {
 				skippedWeights++
+				rec.record("weight", i, "", "invalid_date")
 				continue
 			}
 			wr := service.ParseWeight(fmt.Sprintf("%v", wEntry["weight"]))
 			if !wr.Ok {
 				skippedWeights++
+				rec.record("weight", i, dateStr, "invalid_weight")
 				continue
 			}
 			// An unparseable body fat drops just that field — the weight is
@@ -366,6 +424,7 @@ func parseImportData(parsed map[string]any) importData {
 		hasUserSettings: hasUserSettings,
 		skippedEntries:  skippedEntries,
 		skippedWeights:  skippedWeights,
+		skipped:         rec.skipped,
 	}
 }
 
@@ -383,6 +442,62 @@ func parseImportData(parsed map[string]any) importData {
 // to the response: Account.tsx renders `message` verbatim, so it reaches the
 // user with no client, OpenAPI or i18n change. Per-row diagnostics (which rows,
 // and why) would need a real response-shape change and are filed as #409.
+// importParts renders the "N entries and M weight records" fragment. Shared so
+// the dry run and the real import cannot describe the same file differently —
+// the whole point of a rehearsal is that it predicts the performance.
+//
+// hasUserSettings is not included here: the dry run reports it identically via
+// its own caller, and threading a fourth boolean through would obscure that
+// these two lists must stay in step.
+func importParts(entries, weights int) []string {
+	var parts []string
+	if entries > 0 {
+		parts = append(parts, fmt.Sprintf("%d entries", entries))
+	}
+	if weights > 0 {
+		parts = append(parts, fmt.Sprintf("%d weight records", weights))
+	}
+	return parts
+}
+
+// isTruthyFormValue reads a multipart flag. Accepts the spellings an HTML form
+// and a scripted client each produce, rather than only Go's strconv set.
+func isTruthyFormValue(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
+// importSkippedPayload renders the per-row diagnostics.
+//
+// total is reported separately from the list because the list is capped: a
+// file with 10,000 unreadable rows reports all 10,000 in `total` and the first
+// maxReportedSkips in `rows`, so the number is never quietly wrong and the
+// response never grows with a hostile file.
+func importSkippedPayload(d importData) map[string]any {
+	rows := d.skipped
+	if rows == nil {
+		rows = []skippedRow{}
+	}
+	return map[string]any{
+		"total":    d.skippedEntries + d.skippedWeights,
+		"reported": len(rows),
+		"rows":     rows,
+	}
+}
+
+// dryRunParts mirrors what the real import reports, including user settings, so
+// the rehearsal and the performance describe the same file identically.
+func dryRunParts(entries []importEntry, weights []importWeight, hasUserSettings bool) []string {
+	parts := importParts(len(entries), len(weights))
+	if hasUserSettings {
+		parts = append(parts, "user settings")
+	}
+	return parts
+}
+
 func importMessage(parts []string, skipped int) string {
 	msg := fmt.Sprintf("Imported %s.", strings.Join(parts, " and "))
 	if skipped > 0 {
@@ -432,6 +547,29 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 	if data.isEmpty() {
 		ErrorJSON(w, http.StatusBadRequest, "No valid entries found in import file.")
+		return
+	}
+
+	// Dry run: report exactly what a real import would do, and write nothing
+	// (#409).
+	//
+	// This matters more than the per-row detail below it. The import DELETEs
+	// the account's existing entries before inserting, so by the time a user
+	// reads "Skipped 7 rows" the data those rows would have replaced is
+	// already gone — there is nothing left to diff the file against. A dry run
+	// is the only way to find that out while it is still fixable.
+	//
+	// Deliberately placed after isEmpty: a file with nothing importable is a
+	// 400 whether or not this is a rehearsal, and answering "nothing would be
+	// written" with 200 would read as success.
+	if isTruthyFormValue(r.FormValue("dry_run")) {
+		JSON(w, http.StatusOK, map[string]any{
+			"ok":      true,
+			"dry_run": true,
+			"message": importMessage(dryRunParts(toInsert, weightToInsert, hasUserSettings),
+				data.skippedEntries+data.skippedWeights) + " Nothing was written.",
+			"skipped": importSkippedPayload(data),
+		})
 		return
 	}
 
@@ -548,16 +686,15 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var parts []string
-	if len(toInsert) > 0 {
-		parts = append(parts, fmt.Sprintf("%d entries", len(toInsert)))
-	}
-	if len(weightToInsert) > 0 {
-		parts = append(parts, fmt.Sprintf("%d weight records", len(weightToInsert)))
-	}
+	parts := importParts(len(toInsert), len(weightToInsert))
 	if hasUserSettings {
 		parts = append(parts, "user settings")
 	}
 
-	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": importMessage(parts, data.skippedEntries+data.skippedWeights)})
+	JSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"dry_run": false,
+		"message": importMessage(parts, data.skippedEntries+data.skippedWeights),
+		"skipped": importSkippedPayload(data),
+	})
 }
