@@ -634,9 +634,12 @@ func paths() map[string]*PathItem {
 		"/entries/{id}": {
 			Get: &Operation{
 				OperationID: "getEntry", Summary: "Fetch one calorie entry",
+				Description: "Pass the same `user` you listed with: an id from `GET /entries?user=42` " +
+					"belongs to account 42, so fetching it needs `?user=42` too. Without it the lookup " +
+					"is scoped to your own account and returns 404.",
 				Tags: []string{"Entries"}, Scope: service.ScopeEntriesRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeEntriesRead}}},
-				Parameters: []Parameter{idParam},
+				Parameters: []Parameter{idParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The entry.", ref("Entry")),
 					"400": respRef("BadRequest"), "404": respRef("NotFound"),
@@ -686,9 +689,13 @@ func paths() map[string]*PathItem {
 		"/weight/{date}": {
 			Get: &Operation{
 				OperationID: "getWeight", Summary: "Fetch one day's weight",
+				Description: "Pass the same `user` you listed with — a date from `GET /weight?user=42` " +
+					"is a reading on account 42, and without `?user=42` this looks in your own " +
+					"readings and returns 404. `unit` is always the unit of whoever the reading " +
+					"belongs to; readings are never converted.",
 				Tags: []string{"Weight"}, Scope: service.ScopeWeightRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeWeightRead}}},
-				Parameters: []Parameter{dateParam},
+				Parameters: []Parameter{dateParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The reading.", ref("Weight")),
 					"400": respRef("BadRequest"), "404": respRef("NotFound"),
@@ -721,10 +728,15 @@ func paths() map[string]*PathItem {
 		"/todos": {
 			Get: &Operation{
 				OperationID: "listTodos", Summary: "List todo definitions",
-				Description: "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.",
-				Tags:        []string{"Todos"}, Scope: service.ScopeTodosRead,
-				Security:  []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
-				Responses: merge(map[string]*Response{"200": ok200("The todos.", ref("TodoList"))}, errs(nil)),
+				Description: "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`. " +
+					"Accepts `user` under the same `todos` share category as that endpoint.",
+				Tags: []string{"Todos"}, Scope: service.ScopeTodosRead,
+				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
+				Parameters: []Parameter{linkedUserParam},
+				Responses: merge(map[string]*Response{
+					"200": ok200("The todos.", ref("TodoList")),
+					"400": respRef("BadRequest"),
+				}, errs(nil)),
 			},
 			Post: &Operation{
 				OperationID: "createTodo", Summary: "Create a todo",
@@ -789,8 +801,12 @@ func paths() map[string]*PathItem {
 		"/saved-foods": {
 			Get: &Operation{
 				OperationID: "listSavedFoods", Summary: "List saved foods",
-				Description: "Most-used first, then most-recently-used.",
-				Tags:        []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
+				Description: "Most-used first, then most-recently-used.\n\n" +
+					"**Your own foods only, deliberately.** This endpoint does not accept `user`: " +
+					"account linking shares nutrition, weight, todos, and notes, and saved foods are " +
+					"none of those, so there is no share category that could authorize reading " +
+					"another account's. Passing `user` is ignored.",
+				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
 				Parameters: []Parameter{limitParam},
 				Responses: merge(map[string]*Response{
@@ -929,8 +945,14 @@ func paths() map[string]*PathItem {
 
 		"/plan": {Get: &Operation{
 			OperationID: "getPlan", Summary: "The weight-loss plan",
-			Description: "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.",
-			Tags:        []string{"Plan"}, Scope: service.ScopePlanRead,
+			Description: "Read-only. Unlike the app's own plan endpoint, this one never writes — a " +
+				"`plan:read` token cannot change state, so a goal that has been reached is reported " +
+				"but not transitioned.\n\n" +
+				"**Your own plan only, deliberately.** This endpoint does not accept `user`: the plan " +
+				"is a projection over body metrics and a weight goal, and account linking has no " +
+				"share category covering either. A linked account's weight readings are readable " +
+				"via `GET /weight?user=`; the plan built from them is not.",
+			Tags: []string{"Plan"}, Scope: service.ScopePlanRead,
 			Security:  []SecurityRequirement{{"bearerAuth": {service.ScopePlanRead}}},
 			Responses: merge(map[string]*Response{"200": ok200("The plan.", ref("Plan"))}, errs(nil)),
 		}},
