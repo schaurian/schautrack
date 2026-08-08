@@ -422,7 +422,9 @@ displayTz := targetUser.Timezone // or "UTC" if nil
   with a sibling `<label>`, never a wrapping one: Radix renders a button, and a `<label>`
   around a button associates with nothing and can double-fire the click. Copy the pattern
   in `pages/Settings/AISettings.tsx`, and give the trigger a `data-testid` so
-  `e2e/fixtures/select.ts` can drive it. Issue #456 tracks a CI guard for this.
+  `e2e/fixtures/select.ts` can drive it. Enforced by `TestClientUsesTheSharedSelect`
+  in `internal/ui/client_controls_test.go`, which fails the build on a raw
+  `<select>` outside `components/ui/`.
 - Prefer the `components/ui` primitives (`Input`, `Button`, `Card`, `SegmentedControl`)
   over hand-writing their class strings. Copies drift — the ~15 existing copies of the
   `Input` class string have already diverged on padding and focus rings.
