@@ -9,7 +9,11 @@ import (
 )
 
 func TestParseAmountSimpleNumbers(t *testing.T) {
-	tests := []struct{ input string; ok bool; value int }{
+	tests := []struct {
+		input string
+		ok    bool
+		value int
+	}{
 		{"123", true, 123},
 		{"0", true, 0},
 		{"999", true, 999},
@@ -23,7 +27,10 @@ func TestParseAmountSimpleNumbers(t *testing.T) {
 }
 
 func TestParseAmountDecimalRounding(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"123.7", 124},
 		{"123.2", 123},
 		{"123.5", 124},
@@ -37,7 +44,10 @@ func TestParseAmountDecimalRounding(t *testing.T) {
 }
 
 func TestParseAmountArithmetic(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"100 + 50", 150},
 		{"200 - 30", 170},
 		{"10 * 5", 50},
@@ -52,7 +62,10 @@ func TestParseAmountArithmetic(t *testing.T) {
 }
 
 func TestParseAmountParentheses(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"(10 + 20) * 3", 90},
 		{"10 + (20 * 3)", 70},
 		{"((10 + 5) * 2) - 5", 25},
@@ -66,7 +79,10 @@ func TestParseAmountParentheses(t *testing.T) {
 }
 
 func TestParseAmountAlternativeSymbols(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"10 × 5", 50},
 		{"10 x 5", 50},
 		{"100 ÷ 4", 25},
@@ -83,7 +99,10 @@ func TestParseAmountAlternativeSymbols(t *testing.T) {
 }
 
 func TestParseAmountCommas(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"1,000", 1000},
 		{"1,234 + 500", 1734},
 	}
@@ -144,7 +163,10 @@ func TestParseAmountDivisionByZero(t *testing.T) {
 }
 
 func TestParseAmountNegative(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"-10", -10},
 		{"10 + (-5)", 5},
 		{"-(10 + 5)", -15},
@@ -158,7 +180,10 @@ func TestParseAmountNegative(t *testing.T) {
 }
 
 func TestParseAmountComplex(t *testing.T) {
-	tests := []struct{ input string; value int }{
+	tests := []struct {
+		input string
+		value int
+	}{
 		{"100 + 50 * 2 - 10", 190},
 		{"(100 + 50) * 2 - 10", 290},
 		{"100 / (2 + 3) * 4", 80},
@@ -172,7 +197,12 @@ func TestParseAmountComplex(t *testing.T) {
 }
 
 func TestParseAmountMaxAbs(t *testing.T) {
-	tests := []struct{ input string; maxAbs int; ok bool; value int }{
+	tests := []struct {
+		input  string
+		maxAbs int
+		ok     bool
+		value  int
+	}{
 		{"9999", 9999, true, 9999},
 		{"-9999", 9999, true, -9999},
 		{"10000", 9999, false, 0},
@@ -492,7 +522,10 @@ func TestParseAmountSharedCases(t *testing.T) {
 }
 
 func TestSafeMathEvalPrecedence(t *testing.T) {
-	tests := []struct{ expr string; want float64 }{
+	tests := []struct {
+		expr string
+		want float64
+	}{
 		{"2+3*4", 14},
 		{"(2+3)*4", 20},
 		{"2*3+4", 10},

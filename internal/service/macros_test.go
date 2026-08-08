@@ -150,7 +150,10 @@ func TestComputeDotStatus(t *testing.T) {
 }
 
 func TestWorstDotStatus(t *testing.T) {
-	tests := []struct{ input []string; want string }{
+	tests := []struct {
+		input []string
+		want  string
+	}{
 		{nil, "none"},
 		{[]string{"under"}, "under"},
 		{[]string{"under", "over", "over_threshold"}, "over_threshold"},

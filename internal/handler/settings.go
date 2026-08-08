@@ -26,10 +26,10 @@ import (
 )
 
 type SettingsHandler struct {
-	Pool              *pgxpool.Pool
-	Broker            *sse.Broker
+	Pool               *pgxpool.Pool
+	Broker             *sse.Broker
 	AIKeyEncryptSecret string
-	TrustProxy        bool // for audit log IP extraction
+	TrustProxy         bool // for audit log IP extraction
 }
 
 // Preferences handles POST /settings/preferences
