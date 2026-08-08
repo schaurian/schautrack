@@ -504,6 +504,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created entry.",
                 "schema": {
@@ -544,6 +550,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -786,6 +802,16 @@
           },
           "404": {
             "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1144,6 +1170,16 @@
               }
             }
           },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -1384,6 +1420,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1656,6 +1702,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created food.",
                 "schema": {
@@ -1696,6 +1748,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1833,6 +1895,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2034,6 +2106,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created entry.",
                 "schema": {
@@ -2084,6 +2162,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2273,6 +2361,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created todo.",
                 "schema": {
@@ -2313,6 +2407,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2557,6 +2661,16 @@
               }
             }
           },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -2788,6 +2902,16 @@
           },
           "404": {
             "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3182,6 +3306,16 @@
           },
           "403": {
             "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5176,6 +5310,16 @@
       },
       "NotFound": {
         "description": "No such resource, or it belongs to another account.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
         "content": {
           "application/problem+json": {
             "schema": {
