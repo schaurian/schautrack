@@ -318,21 +318,56 @@ func TestRequireLinkAuth(t *testing.T) {
 	t.Run("malformed and hostile ?user= values", func(t *testing.T) {
 		clearLink(t, ctx, pool, alice.ID, bob.ID)
 
-		// Values that do not parse as an integer fall back to the caller's own
-		// id. That is fail-closed — you see your own data, never someone
-		// else's — and is pinned here so the fallback cannot quietly become
-		// "ignore the check". (/api/v1 answers 400 for the same input; the two
-		// surfaces differ on purpose, the legacy one predates the problem+json
-		// contract.)
-		for _, raw := range []string{"abc", "1.5", "", "%20", "null", "1;2", "1+OR+1=1"} {
+		// A value that does not parse is refused with 400 (#376).
+		//
+		// It used to fall back to the caller's own id, which never leaked data
+		// but did something worse in its own way: `?user=abc` and
+		// `?user=<a real linked id>` both answered 200, with different
+		// accounts' data and no way for the client to tell which it had got.
+		// A truncated or typo'd id read as a successful answer about the wrong
+		// person. resolveTarget on /api/v1 already rejected these; the two
+		// surfaces read the same parameter, and disagreeing about what it
+		// means was the defect.
+		// "1;2" is deliberately absent: Go rejects a semicolon-separated query
+		// pair outright (net/url, since Go 1.17), so Get("user") returns "" and
+		// the request is indistinguishable from one that never sent the
+		// parameter. That is handled by the empty-value case below.
+		for _, raw := range []string{"abc", "1.5", "%20", "null", "1+OR+1=1"} {
 			res := runLinkAuth(t, ctx, pool, service.ShareNutrition, alice, "user="+raw)
-			res.assertAllowed(t, alice.ID, fmt.Sprintf("unparseable ?user=%q falls back to self", raw))
+			if res.reached {
+				t.Errorf("unparseable ?user=%q reached the handler; want a 400", raw)
+			}
+			if res.status != http.StatusBadRequest {
+				t.Errorf("unparseable ?user=%q: status = %d, want 400", raw, res.status)
+			}
 		}
 
-		// Values that DO parse but name no reachable account are denied, and
-		// denied identically — a different status or body would let a caller
-		// enumerate which user ids exist.
-		for _, raw := range []string{"0", "-1", "2147483647", "99999999999999999"} {
+		// An EMPTY `user=` is not malformed — it is the same as omitting the
+		// parameter, and must still mean "my own data". Kept separate from the
+		// loop above so the two cannot be conflated.
+		runLinkAuth(t, ctx, pool, service.ShareNutrition, alice, "user=").
+			assertAllowed(t, alice.ID, "empty ?user= means self")
+
+		// Zero and negatives are 400 like the unparseable values above, not
+		// 403. Serial ids start at 1, so these name no account that could ever
+		// exist — refusing them is a statement about the parameter's shape, not
+		// about which accounts are real, and it leaks nothing. /api/v1's
+		// resolveTarget draws the line in the same place (`id <= 0`).
+		for _, raw := range []string{"0", "-1"} {
+			res := runLinkAuth(t, ctx, pool, service.ShareNutrition, alice, "user="+raw)
+			if res.reached {
+				t.Errorf("?user=%s reached the handler; want a 400", raw)
+			}
+			if res.status != http.StatusBadRequest {
+				t.Errorf("?user=%s: status = %d, want 400", raw, res.status)
+			}
+		}
+
+		// A POSITIVE id that names no reachable account is a different matter:
+		// it is a well-formed id that might or might not exist, so it is denied
+		// exactly like an unlinked one. A distinct status or body here WOULD
+		// let a caller enumerate which user ids exist.
+		for _, raw := range []string{"2147483647", "99999999999999999"} {
 			res := runLinkAuth(t, ctx, pool, service.ShareNutrition, alice, "user="+raw)
 			res.assertDenied(t, fmt.Sprintf("?user=%s", raw))
 		}

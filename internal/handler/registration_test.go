@@ -489,6 +489,34 @@ func TestEmailChangeRequest_NormalizesAndReachesSameEmailCheck(t *testing.T) {
 // The validator gates EVERY write, and gates no read
 // =============================================================================
 
+// funcKey names a declaration uniquely within the package: "Receiver.Method"
+// for a method, the bare name for a free function.
+//
+// The map was keyed by fd.Name.Name alone, which collides — the handler package
+// has Create, Delete, Get, List, Login, Me, Update and others declared on
+// several receivers. Files are walked in os.ReadDir order, so the last one won
+// and every lookup below silently resolved to whichever file sorted last.
+//
+// "Login" was the one that mattered: it resolved to OIDCHandler.Login (oidc.go)
+// rather than AuthHandler.Login (auth.go), so
+// TestCredentialValidatorsDoNotGateLogin — the guard that stops #306's
+// validators from locking out grandfathered accounts — was asserting about the
+// OIDC redirect handler. Adding validatePassword to the real password login
+// would have passed (#399).
+func funcKey(fd *ast.FuncDecl) string {
+	if fd.Recv == nil || len(fd.Recv.List) == 0 {
+		return fd.Name.Name
+	}
+	t := fd.Recv.List[0].Type
+	if star, ok := t.(*ast.StarExpr); ok {
+		t = star.X
+	}
+	if id, ok := t.(*ast.Ident); ok {
+		return id.Name + "." + fd.Name.Name
+	}
+	return fd.Name.Name
+}
+
 // parseHandlerPackage parses the handler package sources (no test files) so
 // the assertions below can look at real call graphs rather than at strings.
 func parseHandlerPackage(t *testing.T) map[string]*ast.FuncDecl {
@@ -509,9 +537,17 @@ func parseHandlerPackage(t *testing.T) map[string]*ast.FuncDecl {
 			t.Fatalf("parsing %s: %v", name, err)
 		}
 		for _, d := range f.Decls {
-			if fd, ok := d.(*ast.FuncDecl); ok {
-				funcs[fd.Name.Name] = fd
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok {
+				continue
 			}
+			key := funcKey(fd)
+			if prev, dup := funcs[key]; dup {
+				t.Fatalf("two declarations of %s in the handler package (%s and this one); "+
+					"funcKey must produce a unique name per function or these tests silently "+
+					"assert about the wrong one", key, prev.Name.Name)
+			}
+			funcs[key] = fd
 		}
 	}
 	if len(funcs) == 0 {
@@ -545,13 +581,13 @@ func TestCredentialValidatorsGateEveryWrite(t *testing.T) {
 	funcs := parseHandlerPackage(t)
 
 	emailWrites := []string{
-		"registerCredentials", // credential registration (auth.go)
-		"handleLogin",         // OIDC auto-provisioning (oidc.go)
-		"EmailChangeRequest",  // email change (auth_email.go)
+		"AuthHandler.registerCredentials", // credential registration (auth.go)
+		"OIDCHandler.handleLogin",         // OIDC auto-provisioning (oidc.go)
+		"AuthHandler.EmailChangeRequest",  // email change (auth_email.go)
 		// invite_codes.email is compared against the canonical registrant
 		// address, so an invite written in any other form is a permanently
 		// unredeemable code (issue #342).
-		"CreateInvite", // admin invite (admin.go)
+		"AdminHandler.CreateInvite", // admin invite (admin.go)
 	}
 	for _, name := range emailWrites {
 		fn, ok := funcs[name]
@@ -565,9 +601,9 @@ func TestCredentialValidatorsGateEveryWrite(t *testing.T) {
 	}
 
 	passwordWrites := []string{
-		"registerCredentials", // auth.go
-		"ResetPassword",       // auth_password.go
-		"Password",            // settings.go (SettingsHandler.Password)
+		"AuthHandler.registerCredentials", // auth.go
+		"AuthHandler.ResetPassword",       // auth_password.go
+		"SettingsHandler.Password",        // settings.go
 	}
 	for _, name := range passwordWrites {
 		fn, ok := funcs[name]
@@ -589,10 +625,10 @@ func TestCredentialValidatorsDoNotGateLogin(t *testing.T) {
 	funcs := parseHandlerPackage(t)
 
 	readPaths := []string{
-		"Login",          // auth.go — password login
-		"ForgotPassword", // auth_password.go — reset request, looks the user up by email
-		"VerifyEmail",    // auth_email.go — consumes a token for an existing address
-		"verifyPassword", // auth_helpers.go — the hash comparison itself
+		"AuthHandler.Login",          // auth.go — password login, NOT OIDCHandler.Login
+		"AuthHandler.ForgotPassword", // auth_password.go — reset request, looks the user up by email
+		"AuthHandler.VerifyEmail",    // auth_email.go — consumes a token for an existing address
+		"verifyPassword",             // auth_helpers.go — free function, the hash comparison itself
 	}
 	for _, name := range readPaths {
 		fn, ok := funcs[name]
@@ -614,9 +650,9 @@ func TestCredentialValidatorsDoNotGateLogin(t *testing.T) {
 // grandfathered address into a failed login instead of a successful one.
 func TestOIDCEmailValidationRunsAfterTheLookups(t *testing.T) {
 	funcs := parseHandlerPackage(t)
-	fn, ok := funcs["handleLogin"]
+	fn, ok := funcs["OIDCHandler.handleLogin"]
 	if !ok {
-		t.Fatal("handleLogin not found")
+		t.Fatal("OIDCHandler.handleLogin not found")
 	}
 
 	var lookupPos, validatePos token.Pos
