@@ -41,7 +41,7 @@ test.describe('Delete Account', () => {
 
     // The delete page now shows just a confirm checkbox + button — credential
     // re-prompt is handled by the step-up modal.
-    await expect(page.getByRole('heading', { name: 'Delete Account' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'Delete Account' })).toBeVisible();
 
     // Expire the step-up grace server-side (deterministic) so the modal triggers.
     expireStepUpGrace(deleteUserId);

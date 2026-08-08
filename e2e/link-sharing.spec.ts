@@ -93,11 +93,16 @@ test.describe('Granular link sharing', () => {
     await page.getByRole('button', { name: 'Log In' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     await page.goto(`${baseURL}/settings`);
-    await page.waitForLoadState('domcontentloaded');
     // The label wraps the checkbox — clicking the label toggles it. Addressed
     // by testid, not by text: the visible copy is translated and has changed.
     const notesLabel = page.getByTestId('share-toggle-notes').first();
-    await notesLabel.scrollIntoViewIfNeeded({ timeout: 5000 });
+    // Wait on the element, not the document (#460). The client is a CSR SPA —
+    // #root is still empty at DOMContentLoaded — so the toggle only exists once
+    // the bundle, the React mount and the /settings query have all landed. The
+    // old `scrollIntoViewIfNeeded({ timeout: 5000 })` had to cover that whole
+    // chain within 5s and does not retry; click() auto-scrolls anyway, so the
+    // explicit scroll was a failure point that bought no coverage.
+    await expect(notesLabel).toBeVisible();
     await notesLabel.click();
     // Assert it persisted server-side.
     await expect.poll(() =>
