@@ -35,6 +35,32 @@ func panicking(v any) http.HandlerFunc {
 	return func(http.ResponseWriter, *http.Request) { panic(v) }
 }
 
+// serveCatchingPanic serves the request and returns whatever panic escaped the
+// handler chain, or nil if none did.
+func serveCatchingPanic(h http.Handler, w http.ResponseWriter, r *http.Request) (escaped any) {
+	defer func() { escaped = recover() }()
+	h.ServeHTTP(w, r)
+	return nil
+}
+
+// writeSpy records whether anything was written, so a test can tell "nothing
+// was written" apart from httptest.ResponseRecorder's default 200/empty body.
+type writeSpy struct {
+	http.ResponseWriter
+	wroteHeader bool
+	wroteBody   bool
+}
+
+func (w *writeSpy) WriteHeader(code int) {
+	w.wroteHeader = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *writeSpy) Write(b []byte) (int, error) {
+	w.wroteBody = true
+	return w.ResponseWriter.Write(b)
+}
+
 // v1Router mirrors the real composition in cmd/server/main.go and
 // handler.MountAPIV1: the legacy Recovery wraps everything, and the /api/v1
 // sub-router mounts ProblemRecovery of its own. Rebuilt here rather than
@@ -241,6 +267,93 @@ func TestRecoveryAfterPartialWrite(t *testing.T) {
 			t.Errorf("server logged a superfluous WriteHeader: %q", serverLog.String())
 		}
 	})
+}
+
+// TestRecoveryPropagatesErrAbortHandlerWithoutLogging is the regression test
+// for #331. http.ErrAbortHandler is the sentinel a handler panics with to
+// abandon a response on purpose (httputil.ReverseProxy raises it, and it is the
+// idiomatic way to kill a stuck long-lived stream — we have one in
+// internal/sse). Recovering it would write a 500 onto a response the handler
+// asked to be abandoned and log a stack for something that is not a bug, so it
+// must propagate untouched to net/http, which closes the connection quietly.
+func TestRecoveryPropagatesErrAbortHandlerWithoutLogging(t *testing.T) {
+	// Both middlewares, wrapped directly: the sentinel has to be handled in
+	// the shared recoverWith, not in one of them.
+	for _, tc := range []struct {
+		name string
+		mw   func(http.Handler) http.Handler
+	}{
+		{"Recovery", Recovery},
+		{"ProblemRecovery", ProblemRecovery},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logged := captureLog(t)
+
+			spy := &writeSpy{ResponseWriter: httptest.NewRecorder()}
+			escaped := serveCatchingPanic(
+				tc.mw(panicking(http.ErrAbortHandler)),
+				spy,
+				httptest.NewRequest(http.MethodGet, "/entries", nil),
+			)
+
+			if escaped != http.ErrAbortHandler {
+				t.Fatalf("escaped panic = %v (%T), want http.ErrAbortHandler — "+
+					"the abort was swallowed and turned into a response", escaped, escaped)
+			}
+			assertResponseUntouched(t, spy)
+			assertNothingLogged(t, logged)
+		})
+	}
+
+	// Note 1 on #331: on a v1 route the inner ProblemRecovery recovers first
+	// and the outer legacy Recovery sits above it. If only one layer
+	// re-panicked, the other would still catch the sentinel — worse than not
+	// fixing it — so assert it escapes the real nested composition.
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{"spa", "/settings"},
+		{"v1 through both recovery layers", "/api/v1/entries"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logged := captureLog(t)
+
+			spy := &writeSpy{ResponseWriter: httptest.NewRecorder()}
+			escaped := serveCatchingPanic(
+				v1Router(panicking(http.ErrAbortHandler)),
+				spy,
+				httptest.NewRequest(http.MethodGet, tc.path, nil),
+			)
+
+			if escaped != http.ErrAbortHandler {
+				t.Fatalf("escaped panic = %v (%T), want http.ErrAbortHandler", escaped, escaped)
+			}
+			assertResponseUntouched(t, spy)
+			assertNothingLogged(t, logged)
+		})
+	}
+}
+
+func assertResponseUntouched(t *testing.T, spy *writeSpy) {
+	t.Helper()
+	if spy.wroteHeader {
+		t.Error("a status was written to a response the handler aborted")
+	}
+	if spy.wroteBody {
+		t.Error("a body was written to a response the handler aborted")
+	}
+	if rec, ok := spy.ResponseWriter.(*httptest.ResponseRecorder); ok && rec.Body.Len() != 0 {
+		t.Errorf("response body = %q, want empty", rec.Body.String())
+	}
+}
+
+func assertNothingLogged(t *testing.T, logged *bytes.Buffer) {
+	t.Helper()
+	if logged.Len() != 0 {
+		t.Errorf("an intentional abort was logged: %q — http.ErrAbortHandler is "+
+			"not an error and must stay silent", logged.String())
+	}
 }
 
 // TestRecoveryWriterIsTransparent guards the wrapper Recovery installs to spot
