@@ -32,8 +32,9 @@ func FromKg(v float64, unit string) float64 {
 // ConvertPlanResponseToDisplayUnit converts the weight-VALUED fields of a
 // kg-computed PlanResponse into the user's display unit, in place. Leaves
 // unit-independent fields untouched: BMI, BMICategory, BudgetKcal, ETAWeeks,
-// ProjectedWeeks, Status strings, Composition.BodyFatPct (a percentage), and
-// Metrics.HeightCm (cm, not a weight).
+// ProjectedWeeks, Status strings, Composition.BodyFatPct (a percentage),
+// Composition.AgeDays/Stale (a duration and a flag), and Metrics.HeightCm
+// (cm, not a weight).
 // Rounds to 1 decimal to match the app's weight display.
 func ConvertPlanResponseToDisplayUnit(r *PlanResponse, unit string) {
 	if normUnit(unit) == "kg" {

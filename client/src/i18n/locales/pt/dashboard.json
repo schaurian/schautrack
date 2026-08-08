@@ -148,7 +148,9 @@
       "addHeightWeight": "Adicionar altura e peso",
       "healthyRangeLabel": "Intervalo Saudável",
       "bodyFatLabel": "Gordura Corporal",
-      "leanFatSplit": "{{lean}} {{unit}} de massa magra · {{fat}} {{unit}} de gordura"
+      "leanFatSplit": "{{lean}} {{unit}} de massa magra · {{fat}} {{unit}} de gordura",
+      "bodyFatMeasured": "Medido em {{date}}",
+      "bodyFatStale": "{{days}} dias de idade — não usado no teu orçamento"
     },
     "recommendedBudget": {
       "title": "Orçamento Recomendado",
@@ -156,7 +158,8 @@
       "clampedNotice": "Ajustado a um mínimo seguro",
       "applyButton": "Aplicar como o meu objetivo calórico",
       "formulaKatch": "Segundo Katch-McArdle, a partir de {{lean}} {{unit}} de massa magra",
-      "formulaMifflin": "Segundo Mifflin-St Jeor. Registe uma percentagem de gordura corporal para uma estimativa por massa magra."
+      "formulaMifflin": "Segundo Mifflin-St Jeor. Registe uma percentagem de gordura corporal para uma estimativa por massa magra.",
+      "formulaMifflinStale": "Baseado em Mifflin-St Jeor — a tua medição de gordura corporal tem {{days}} dias, demasiado antiga para estimar a massa magra. Regista uma nova."
     },
     "progress": {
       "title": "Progresso",

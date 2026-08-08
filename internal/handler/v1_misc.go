@@ -40,6 +40,48 @@ type v1Me struct {
 		Version string `json:"version"`
 		Today   string `json:"today"`
 	} `json:"server"`
+	Features v1Features `json:"features"`
+}
+
+// v1Features reports the per-account opt-ins that change how the rest of the
+// API behaves. Without them the only way to discover the account's shape is to
+// send a write and read the rejection: notes answer 409 when the feature is
+// off, and PATCH /entries/{id} answers 422 for `calories` when auto-calc is on.
+//
+// Read-only here, deliberately. Turning these on and off belongs to the app's
+// settings surface, which is session-authed and, for some of it, step-up gated;
+// PATCH /me stays limited to the settings that describe how to interpret data
+// (goal, timezone, unit, language) rather than which features exist. See #344.
+//
+// Every field is a plain bool and always present: a client checking
+// `features.notes` must never have to distinguish "off" from "absent".
+type v1Features struct {
+	// BodyFat mirrors users.body_fat_enabled. Off means a stored reading is
+	// not shown in the app, so a client writing one is writing into a column
+	// the user never sees.
+	BodyFat bool `json:"body_fat"`
+
+	// Todos mirrors users.todos_enabled. The v1 todo endpoints do not gate on
+	// it — a todo written while it is off is stored and returned by the API
+	// but absent from the UI.
+	Todos bool `json:"todos"`
+
+	// Notes mirrors users.notes_enabled. This one IS gated:
+	// requireNotesEnabledFor turns GET/PUT /notes/{date} into a 409 when it is
+	// off, which is precisely what a client cannot otherwise predict.
+	Notes bool `json:"notes"`
+
+	// Macros is DERIVED, not stored: users.macros_enabled is a JSONB object of
+	// per-macro toggles plus auto_calc_calories, and there is no single boolean
+	// to report. True when at least one of protein/carbs/fat/fiber/sugar is on,
+	// i.e. when the app shows any macro at all.
+	Macros bool `json:"macros"`
+
+	// AutoCalcCalories is the auto_calc_calories key of that same object. It is
+	// the one flag with a hard, observable API consequence: with it on, POST
+	// /entries computes `calories` from the macros and ignores what was sent,
+	// and PATCH /entries/{id} rejects `calories` outright with a 422.
+	AutoCalcCalories bool `json:"auto_calc_calories"`
 }
 
 // Me handles GET /api/v1/me. It requires a valid token but no scope: it is how

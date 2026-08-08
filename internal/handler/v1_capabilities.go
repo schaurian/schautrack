@@ -324,6 +324,20 @@ func (h *V1Handler) buildMe(r *http.Request, user *model.User) v1Me {
 	out.User.DailyGoal = user.DailyGoal
 	out.User.Language = user.Language
 
+	// The three stored booleans map straight across. Macros do not: the column
+	// is a JSONB map of per-macro toggles, so both macro fields are derived
+	// from it through the same service helpers the entry handlers use — a
+	// second interpretation here would eventually disagree with the 422 that
+	// UpdateEntryV1 returns, which is exactly the confusion #344 is about.
+	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
+	out.Features = v1Features{
+		BodyFat:          user.BodyFatEnabled,
+		Todos:            user.TodosEnabled,
+		Notes:            user.NotesEnabled,
+		Macros:           len(service.GetEnabledMacros(mu)) > 0,
+		AutoCalcCalories: service.IsAutoCalcCalories(mu),
+	}
+
 	if token := middleware.GetAPIToken(r); token != nil {
 		out.Token.ID = token.ID
 		out.Token.Name = token.Name

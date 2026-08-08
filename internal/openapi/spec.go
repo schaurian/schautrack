@@ -366,12 +366,20 @@ func schemas() map[string]*Schema {
 		"Weight": object("A weight reading. One per account per day.", map[string]*Schema{
 			"date":       dateStr("The day this reading belongs to."),
 			"weight":     number("The reading, in `unit`."),
+			"body_fat":   nullable(number("Body fat as a percentage, or `null` when the day carries no measurement.")),
 			"unit":       {Type: "string", Enum: []any{"kg", "lb"}, Description: "The account's weight unit. Readings are stored as entered and never converted."},
 			"created_at": dateTime("When first recorded (UTC)."),
 			"updated_at": dateTime("When last changed (UTC)."),
-		}, "date", "weight", "unit", "created_at", "updated_at"),
+		}, "date", "weight", "body_fat", "unit", "created_at", "updated_at"),
 		"WeightInput": object("A weight reading.", map[string]*Schema{
 			"weight": withRange(number("The reading, in the account's unit."), 0.01, 1500),
+			"body_fat": nullable(withRange(number(
+				"Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored "+
+					"reading for that day untouched — which is what makes a weight-only scale "+
+					"integration safe to retry. Send `null` to clear it. Writing a value switches "+
+					"the account's body-fat field on if it was off, so the reading is visible in "+
+					"the app; clearing never switches it back off."),
+				0.1, service.MaxBodyFatPct)),
 		}, "weight"),
 		"WeightList": object("A page of weight readings, newest first.", map[string]*Schema{
 			"data":        array(ref("Weight"), "The readings."),
@@ -455,7 +463,7 @@ func schemas() map[string]*Schema {
 			"content": {Type: "string", Description: "Up to 10000 characters.", MaxLength: intp(10000)},
 		}, "content"),
 
-		"Me": object("The authenticated account and token.", map[string]*Schema{
+		"Me": object("The authenticated account, the token, and the account's enabled features.", map[string]*Schema{
 			"user": object("The account this token belongs to.", map[string]*Schema{
 				"id":          integer("Account identifier."),
 				"email":       str("Account email."),
@@ -475,7 +483,24 @@ func schemas() map[string]*Schema {
 				"version": str("The running build version."),
 				"today":   dateStr("Today's date in the account's time zone."),
 			}, "version", "today"),
-		}, "user", "token", "server"),
+			"features": object(
+				"Per-account opt-ins that change how the rest of the API behaves. "+
+					"Read-only: they are switched in the app's settings, not through this API. "+
+					"Every field is always present.",
+				map[string]*Schema{
+					"body_fat": boolean("Body-fat readings are enabled. When `false` a stored " +
+						"reading is not shown in the app."),
+					"todos": boolean("Todos are enabled in the app. The todo endpoints work either " +
+						"way, but a todo created while this is `false` is invisible to the user."),
+					"notes": boolean("Daily notes are enabled. When `false`, `GET` and `PUT " +
+						"/notes/{date}` answer `409`."),
+					"macros": boolean("At least one macro (protein, carbs, fat, fiber, sugar) is " +
+						"enabled for this account, so macro values are shown in the app."),
+					"auto_calc_calories": boolean("Calories are computed from macros. When `true`, " +
+						"`POST /entries` derives `calories` from the macros it was given rather than " +
+						"trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`."),
+				}, "body_fat", "todos", "notes", "macros", "auto_calc_calories"),
+		}, "user", "token", "server", "features"),
 
 		"Link": object("A linked account, from your point of view.", map[string]*Schema{
 			"user_id": integer("Pass this as the `user` query parameter on a read endpoint."),
@@ -765,9 +790,10 @@ func paths() map[string]*PathItem {
 			Get: &Operation{
 				OperationID: "getMe",
 				Summary:     "The authenticated account and token",
-				Description: "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
-				Tags:        []string{"Account"},
-				Responses:   merge(map[string]*Response{"200": ok200("The account, the token, and the server.", ref("Me"))}, errs(nil)),
+				Description: "Requires a valid token but no particular scope — this is how a client discovers " +
+					"which scopes it holds and, via `features`, which optional features the account has on.",
+				Tags:      []string{"Account"},
+				Responses: merge(map[string]*Response{"200": ok200("The account, the token, the server, and the account's enabled features.", ref("Me"))}, errs(nil)),
 			},
 			Patch: &Operation{
 				OperationID: "updateMe",
@@ -898,7 +924,8 @@ func paths() map[string]*PathItem {
 			},
 			Put: &Operation{
 				OperationID: "putWeight", Summary: "Record a day's weight",
-				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.",
+				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. " +
+					"`body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.",
 				Tags:        []string{"Weight"}, Scope: service.ScopeWeightWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeWeightWrite}}},
 				Parameters:  []Parameter{dateParam},

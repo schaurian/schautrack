@@ -38,10 +38,13 @@ type linkedReadEndpoint struct {
 	call   func(h *V1Handler, w http.ResponseWriter, r *http.Request)
 }
 
-// linkedReadEndpoints is every read endpoint that honours ?user=. Adding one
+// linkedReadHandlers is every read endpoint that honours ?user=, paired with
+// the handler to invoke. Named for what it holds rather than what it covers,
+// because v1_links_integration_test.go already declares a linkedReadEndpoints —
+// a shorter, DB-backed list for the same feature. Adding an endpoint here
 // without listing it here leaves it untested; listing one that does not honour
 // the parameter fails TestV1SpecDocumentsUserParamExactlyWhereItWorks.
-var linkedReadEndpoints = []linkedReadEndpoint{
+var linkedReadHandlers = []linkedReadEndpoint{
 	{"GET /entries", nil,
 		func(h *V1Handler, w http.ResponseWriter, r *http.Request) { h.ListEntries(w, r) }},
 	{"GET /entries/{id}", map[string]string{"id": "1"},
@@ -119,7 +122,7 @@ func TestLinkedReadWithoutLinksScopeIsRejected(t *testing.T) {
 		service.ScopeTodosRead, service.ScopeNotesRead,
 	}}
 
-	for _, ep := range linkedReadEndpoints {
+	for _, ep := range linkedReadHandlers {
 		t.Run(ep.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			callNilPool(t, ep, rec, v1ReadRequest("/?user=42", ep.params, caller, token))
@@ -141,7 +144,7 @@ func TestLinkedReadWithoutLinksScopeIsRejected(t *testing.T) {
 // another account's data to an anonymous caller.
 func TestLinkedReadWithoutTokenIsRejected(t *testing.T) {
 	caller := &model.User{ID: 1, Email: "caller@example.com"}
-	for _, ep := range linkedReadEndpoints {
+	for _, ep := range linkedReadHandlers {
 		t.Run(ep.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			callNilPool(t, ep, rec, v1ReadRequest("/?user=42", ep.params, caller, nil))
@@ -161,7 +164,7 @@ func TestLinkedReadRejectsMalformedUserParam(t *testing.T) {
 	token := &model.APIToken{ID: 1, UserID: 1, Scopes: service.AllScopes()}
 
 	for _, raw := range []string{"abc", "0", "-1", "1.5", "42x"} {
-		for _, ep := range linkedReadEndpoints {
+		for _, ep := range linkedReadHandlers {
 			t.Run(raw+" "+ep.name, func(t *testing.T) {
 				rec := httptest.NewRecorder()
 				callNilPool(t, ep, rec, v1ReadRequest("/?user="+raw, ep.params, caller, token))
@@ -204,7 +207,7 @@ func specGETsWithUserParam(t *testing.T) []string {
 // through resolveTarget.
 func TestV1SpecDocumentsUserParamExactlyWhereItWorks(t *testing.T) {
 	var want []string
-	for _, ep := range linkedReadEndpoints {
+	for _, ep := range linkedReadHandlers {
 		want = append(want, ep.name)
 	}
 	sort.Strings(want)
@@ -412,7 +415,7 @@ func TestV1LinkedAccountReadsAllowed(t *testing.T) {
 	// The bug, end to end: list the owner's entries, then fetch one by the id
 	// the list just returned.
 	t.Run("list then fetch an entry", func(t *testing.T) {
-		rec := f.get(linkedReadEndpoints[0], userQ) // GET /entries
+		rec := f.get(linkedReadHandlers[0], userQ) // GET /entries
 		if rec.Code != http.StatusOK {
 			t.Fatalf("list: status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
 		}
@@ -482,7 +485,7 @@ func TestV1LinkedAccountReadsAllowed(t *testing.T) {
 	})
 
 	t.Run("todo definitions", func(t *testing.T) {
-		rec := f.get(linkedReadEndpoints[4], userQ) // GET /todos
+		rec := f.get(linkedReadHandlers[4], userQ) // GET /todos
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
 		}
@@ -598,7 +601,7 @@ func TestV1SelfUserParamNeedsNoLinksScope(t *testing.T) {
 	f := newLinkedFixture(t)
 
 	f.token = &model.APIToken{ID: 1, UserID: f.caller.ID, Scopes: []string{service.ScopeEntriesRead}}
-	ep := linkedReadEndpoints[0] // GET /entries
+	ep := linkedReadHandlers[0] // GET /entries
 	rec := f.get(ep, fmt.Sprintf("?user=%d", f.caller.ID))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (body %q)", rec.Code, rec.Body.String())

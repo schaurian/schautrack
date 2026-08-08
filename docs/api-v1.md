@@ -187,11 +187,11 @@ GET /api/v1/me
 
 **Scope:** none beyond a valid token.
 
-Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.
+Requires a valid token but no particular scope — this is how a client discovers which scopes it holds and, via `features`, which optional features the account has on.
 
 | Status | Response |
 | --- | --- |
-| `200` | [`Me`](#me) — The account, the token, and the server. |
+| `200` | [`Me`](#me) — The account, the token, the server, and the account's enabled features. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
@@ -418,7 +418,7 @@ PUT /api/v1/weight/{date}
 
 **Scope:** `weight:write`
 
-Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.
+Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. `body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.
 
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
@@ -1070,10 +1070,11 @@ Macronutrients in grams. `null` means the macro was not recorded, which is disti
 
 ### Me
 
-The authenticated account and token.
+The authenticated account, the token, and the account's enabled features.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `features` | `object` | yes | Per-account opt-ins that change how the rest of the API behaves. Read-only: they are switched in the app's settings, not through this API. Every field is always present. |
 | `server` | `object` | yes | The server answering. |
 | `token` | `object` | yes | The token that authenticated this request. |
 | `user` | `object` | yes | The account this token belongs to. |
@@ -1340,6 +1341,7 @@ A weight reading. One per account per day.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `body_fat` | `number` or `null` | yes | Body fat as a percentage, or `null` when the day carries no measurement. |
 | `created_at` | `string` (date-time) | yes | When first recorded (UTC). |
 | `date` | `string` (date) | yes | The day this reading belongs to. |
 | `unit` | `string` | yes | The account's weight unit. Readings are stored as entered and never converted. |
@@ -1372,6 +1374,7 @@ A weight reading.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `body_fat` | `number` or `null` |  | Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored reading for that day untouched — which is what makes a weight-only scale integration safe to retry. Send `null` to clear it. Writing a value switches the account's body-fat field on if it was off, so the reading is visible in the app; clearing never switches it back off. |
 | `weight` | `number` | yes | The reading, in the account's unit. |
 
 ### WeightList
