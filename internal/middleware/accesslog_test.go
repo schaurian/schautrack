@@ -92,6 +92,18 @@ func TestAccessLogSkipsHealth(t *testing.T) {
 	}
 }
 
+func TestAccessLogSkipsLivez(t *testing.T) {
+	h := AccessLog(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	recs := captureLogs(t, func() {
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/livez", nil))
+	})
+	if len(recs) != 0 {
+		t.Fatalf("liveness probe should not be logged, got %d records", len(recs))
+	}
+}
+
 // flushRecorder is an httptest.ResponseRecorder that also reports whether Flush
 // was called, so we can assert the wrapper forwards flushes (required for SSE).
 type flushRecorder struct {
