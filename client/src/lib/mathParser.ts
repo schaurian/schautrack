@@ -5,6 +5,28 @@
 // built from /[0-9.]/ characters only.
 const NUMBER_RE = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
 
+/**
+ * Rounds a half AWAY FROM ZERO, matching Go's `math.Round`.
+ *
+ * `Math.round` rounds a half toward +Infinity: `Math.round(-1.5)` is `-1`,
+ * while `math.Round(-1.5)` is `-2`. They agree on every positive half and on
+ * everything that is not exactly `.5`, and disagree on every negative one — so
+ * `10-11.5` previewed as -1 in the browser and was stored as -2 by the server
+ * (#408). The preview is the number the user reads before submitting; it has to
+ * be the number that gets saved.
+ *
+ * The client moves rather than the server because the server's value is what is
+ * already in the database: changing `math.Round` would silently redefine what a
+ * historical entry meant. Away-from-zero is also the symmetric convention —
+ * round(1.5) = 2 and round(-1.5) = -2 — which is what an arithmetic preview
+ * should do.
+ *
+ * Keep in sync with ParseAmount in internal/service/mathparser.go.
+ */
+function roundHalfAwayFromZero(value: number): number {
+  return value < 0 ? -Math.round(-value) : Math.round(value);
+}
+
 // Safe mathematical expression evaluator using recursive descent parser
 function safeMathEval(expr: string): number {
   let pos = 0;
@@ -122,7 +144,16 @@ export function parseAmount(input: string | number | null | undefined, options: 
   try {
     const value = safeMathEval(expr);
     if (typeof value !== 'number' || !Number.isFinite(value)) return { ok: false, value: 0 };
-    const rounded = Math.round(value);
+    const rounded = roundHalfAwayFromZero(value);
+    // Reject anything outside the int32 range even when no maxAbs is given.
+    // The Go side must do this because converting an out-of-range float64 to
+    // int is implementation-defined there and yields math.MinInt64 (#364);
+    // JavaScript has no such trap, but the two parsers have to agree, and the
+    // value ends up in an INTEGER column either way. Without this, an
+    // unbounded parseAmount("99999999999999999999*99999999999999999999")
+    // returned ok on one side and not the other.
+    // Keep in sync with the bound in internal/service/mathparser.go.
+    if (rounded > 2147483647 || rounded < -2147483648) return { ok: false, value: 0 };
     if (maxAbs !== null && Math.abs(rounded) > maxAbs) return { ok: false, value: 0 };
     return { ok: true, value: rounded };
   } catch {

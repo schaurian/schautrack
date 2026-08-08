@@ -241,14 +241,11 @@ describe('parseAmount', () => {
 
       ['', false, 0, 'empty input'],
 
-      // Known remaining divergence from the Go twin: Math.round rounds a half
-      // toward +Infinity, math.Round rounds it away from zero. They agree on
-      // every positive half ('123.5' -> 124 on both) and disagree on every
-      // negative one, so these rows are TS-only and are deliberately absent
-      // from testdata/parse_amount_cases.json. Filed as #408 rather than
-      // changed here: it is a rounding decision, not a parsing one.
-      ['-1.5', true, -1, 'Math.round(-1.5) = -1; Go math.Round(-1.5) = -2'],
-      ['10-11.5', true, -1, 'same, reached through an expression'],
+      // The negative-half divergence is gone (#408): parseAmount rounds half
+      // away from zero via roundHalfAwayFromZero, matching Go's math.Round.
+      // The cases moved to testdata/parse_amount_cases.json, where both
+      // implementations run them, which is the only place that can prove they
+      // still agree.
     ];
     for (const [input, ok, value, why] of cases) {
       expect(parseAmount(input), `${JSON.stringify(input)} (${why})`).toEqual({ ok, value });
