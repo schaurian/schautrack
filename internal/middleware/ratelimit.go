@@ -185,3 +185,27 @@ func NewTokenRateLimiter(max int, window time.Duration, trustProxy bool) *RateLi
 	}
 	return rl
 }
+
+// NewUserRateLimiter buckets by the ACCOUNT behind an API token rather than by
+// the token itself. Use it for limits that guard an expensive operation rather
+// than the API surface as a whole.
+//
+// Per-token is the wrong granularity there: a user may hold up to
+// service.MaxTokensPerUser tokens and can mint another whenever the current one
+// runs out of budget, so a per-token cap on something that spends the
+// operator's money is really that cap times twenty. The cost of an AI estimate
+// is borne per account — the daily AI cap is per user too — so the account is
+// the key that matches what is being protected.
+//
+// Mount BELOW RequireAPIToken. A request with no token falls back to its IP, so
+// the limiter still throttles if it is ever mounted above authentication.
+func NewUserRateLimiter(max int, window time.Duration, trustProxy bool) *RateLimiter {
+	rl := NewProblemRateLimiter(max, window, trustProxy)
+	rl.keyFn = func(r *http.Request) string {
+		if t := GetAPIToken(r); t != nil {
+			return "user:" + strconv.Itoa(t.UserID)
+		}
+		return "ip:" + clientIP(r, trustProxy)
+	}
+	return rl
+}

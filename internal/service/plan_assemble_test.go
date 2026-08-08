@@ -342,6 +342,322 @@ func TestAssemblePlan(t *testing.T) {
 	})
 }
 
+func TestBodyFatReadingAgeDays(t *testing.T) {
+	now := time.Date(2026, 7, 19, 13, 45, 0, 0, time.UTC)
+
+	tests := []struct {
+		name   string
+		date   string
+		want   int
+		wantOK bool
+	}{
+		{"same day is zero, not one", "2026-07-19", 0, true},
+		{"yesterday", "2026-07-18", 1, true},
+		{"exactly the window", "2026-04-20", BodyFatRecencyDays, true},
+		{"one day past the window", "2026-04-19", BodyFatRecencyDays + 1, true},
+		{"across a leap day", "2026-02-28", 141, true},
+		{"future date is negative, not an error", "2026-07-21", -2, true},
+		{"garbage date does not parse", "not-a-date", 0, false},
+		{"empty date does not parse", "", 0, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := BodyFatReadingAgeDays(tt.date, now)
+			if ok != tt.wantOK {
+				t.Fatalf("BodyFatReadingAgeDays(%q) ok = %v, want %v", tt.date, ok, tt.wantOK)
+			}
+			if got != tt.want {
+				t.Errorf("BodyFatReadingAgeDays(%q) = %d, want %d", tt.date, got, tt.want)
+			}
+		})
+	}
+
+	t.Run("the wall-clock time of day never shifts the age", func(t *testing.T) {
+		// now carries 13:45; the reading is a bare date. Truncating both to a
+		// calendar day is what keeps a reading from ageing by a day mid-morning.
+		early := time.Date(2026, 7, 19, 0, 0, 0, 0, time.UTC)
+		late := time.Date(2026, 7, 19, 23, 59, 59, 0, time.UTC)
+		a, _ := BodyFatReadingAgeDays("2026-06-01", early)
+		b, _ := BodyFatReadingAgeDays("2026-06-01", late)
+		if a != b {
+			t.Errorf("age changed within one calendar day: %d vs %d", a, b)
+		}
+	})
+}
+
+// TestAssemblePlanBodyFatRecency covers the recency window that decides whether
+// a body-fat reading may pick the BMR formula. The shared profile below is
+// 180cm / 40 / male / sedentary at 100kg with a 30% reading, chosen because the
+// two formulas are far apart there: Katch-McArdle on 70kg of lean mass gives
+// 370 + 21.6*70 = 1882, Mifflin gives 10*100 + 6.25*180 - 5*40 + 5 = 1930.
+// Neither number can be produced by the other formula, so every assertion below
+// fails loudly if the window is not honoured.
+func TestAssemblePlanBodyFatRecency(t *testing.T) {
+	now := time.Date(2026, 7, 19, 0, 0, 0, 0, time.UTC)
+	const (
+		katchBMR   = 1882.0
+		mifflinBMR = 1930.0
+	)
+
+	// planAt builds the shared profile with a body-fat reading taken ageDays ago.
+	planAt := func(ageDays int) PlanResponse {
+		birthYear := now.Year() - 40
+		sex := "male"
+		activity := "sedentary"
+		return AssemblePlan(PlanInputs{
+			CurrentWeight: f64(100),
+			CurrentBodyFat: &BodyFatReading{
+				Date:     now.AddDate(0, 0, -ageDays).Format("2006-01-02"),
+				WeightKg: 100,
+				Pct:      30,
+			},
+			HeightCm: f64(180), BirthYear: &birthYear, Sex: &sex, ActivityLevel: &activity,
+			Goal: &model.WeightGoal{
+				ID: 20, UserID: 1, StartWeight: 100, StartDate: "2026-07-01",
+				TargetWeight: 85, PaceMode: "rate", RateKgPerWeek: f64(0.5), Status: "active",
+			},
+			Now: now,
+		})
+	}
+
+	t.Run("a fresh reading selects Katch-McArdle", func(t *testing.T) {
+		out := planAt(30)
+		if out.Computed == nil {
+			t.Fatal("expected a computed plan")
+		}
+		if out.Computed.BMRFormula != BMRFormulaKatch {
+			t.Errorf("bmrFormula = %q, want %q for a 30-day-old reading", out.Computed.BMRFormula, BMRFormulaKatch)
+		}
+		if !almost(out.Computed.BMR, katchBMR, 0.05) {
+			t.Errorf("bmr = %v, want %v (Katch-McArdle)", out.Computed.BMR, katchBMR)
+		}
+		if out.Composition == nil {
+			t.Fatal("expected composition")
+		}
+		if out.Composition.Stale {
+			t.Error("expected stale = false for a 30-day-old reading")
+		}
+		if out.Composition.AgeDays != 30 {
+			t.Errorf("ageDays = %d, want 30", out.Composition.AgeDays)
+		}
+	})
+
+	t.Run("a stale reading falls back to Mifflin-St Jeor", func(t *testing.T) {
+		// Two years old: the exact scenario from issue #300. Before the window
+		// existed this reported katch_mcardle — i.e. announced itself as the
+		// more accurate estimate — off a percentage measured two years earlier.
+		out := planAt(730)
+		if out.Computed == nil {
+			t.Fatal("expected a computed plan")
+		}
+		if out.Computed.BMRFormula != BMRFormulaMifflin {
+			t.Errorf("bmrFormula = %q, want %q for a two-year-old reading", out.Computed.BMRFormula, BMRFormulaMifflin)
+		}
+		if !almost(out.Computed.BMR, mifflinBMR, 0.05) {
+			t.Errorf("bmr = %v, want %v (Mifflin-St Jeor)", out.Computed.BMR, mifflinBMR)
+		}
+	})
+
+	t.Run("a stale reading is still reported, flagged, and dated", func(t *testing.T) {
+		// Dropping the reading would be the easy fix and the wrong one: the user
+		// would lose the composition panel and any way to see why the plan
+		// changed formula.
+		out := planAt(730)
+		if out.Composition == nil {
+			t.Fatal("expected a stale reading to still be surfaced")
+		}
+		if !out.Composition.Stale {
+			t.Error("expected stale = true for a two-year-old reading")
+		}
+		if out.Composition.AgeDays != 730 {
+			t.Errorf("ageDays = %d, want 730", out.Composition.AgeDays)
+		}
+		if out.Composition.Date != now.AddDate(0, 0, -730).Format("2006-01-02") {
+			t.Errorf("composition date = %q, want the reading's own date", out.Composition.Date)
+		}
+		if out.Composition.BodyFatPct != 30 {
+			t.Errorf("bodyFatPct = %v, want the measured 30", out.Composition.BodyFatPct)
+		}
+	})
+
+	// The boundary is pinned on both sides so a future >= / > slip, or a change
+	// to BodyFatRecencyDays itself, cannot pass silently.
+	t.Run("the last day inside the window still selects Katch-McArdle", func(t *testing.T) {
+		out := planAt(BodyFatRecencyDays)
+		if out.Computed.BMRFormula != BMRFormulaKatch {
+			t.Errorf("bmrFormula at exactly %d days = %q, want %q — the window is inclusive",
+				BodyFatRecencyDays, out.Computed.BMRFormula, BMRFormulaKatch)
+		}
+		if out.Composition.Stale {
+			t.Errorf("stale = true at exactly %d days, want false", BodyFatRecencyDays)
+		}
+	})
+
+	t.Run("the first day outside the window falls back to Mifflin", func(t *testing.T) {
+		out := planAt(BodyFatRecencyDays + 1)
+		if out.Computed.BMRFormula != BMRFormulaMifflin {
+			t.Errorf("bmrFormula at %d days = %q, want %q",
+				BodyFatRecencyDays+1, out.Computed.BMRFormula, BMRFormulaMifflin)
+		}
+		if !out.Composition.Stale {
+			t.Errorf("stale = false at %d days, want true", BodyFatRecencyDays+1)
+		}
+	})
+
+	t.Run("the window is 90 days", func(t *testing.T) {
+		// Pinned so widening the window is a deliberate edit with a visible diff,
+		// not something a refactor drifts into.
+		if BodyFatRecencyDays != 90 {
+			t.Errorf("BodyFatRecencyDays = %d, want 90", BodyFatRecencyDays)
+		}
+	})
+
+	t.Run("a reading dated in the future counts as fresh", func(t *testing.T) {
+		// The reading date is the user's local date and Now is the server's, so
+		// a reading can legitimately look a few hours ahead. Treating that as
+		// "infinitely stale" would break the plan for anyone east of the server.
+		out := planAt(-1)
+		if out.Computed.BMRFormula != BMRFormulaKatch {
+			t.Errorf("bmrFormula = %q, want %q for a future-dated reading", out.Computed.BMRFormula, BMRFormulaKatch)
+		}
+		if out.Composition.Stale {
+			t.Error("expected stale = false for a future-dated reading")
+		}
+	})
+
+	t.Run("an unparseable reading date is not trusted to pick the formula", func(t *testing.T) {
+		birthYear := now.Year() - 40
+		sex := "male"
+		activity := "sedentary"
+		out := AssemblePlan(PlanInputs{
+			CurrentWeight:  f64(100),
+			CurrentBodyFat: &BodyFatReading{Date: "whenever", WeightKg: 100, Pct: 30},
+			HeightCm:       f64(180), BirthYear: &birthYear, Sex: &sex, ActivityLevel: &activity,
+			Goal: &model.WeightGoal{
+				ID: 21, UserID: 1, StartWeight: 100, StartDate: "2026-07-01",
+				TargetWeight: 85, PaceMode: "rate", RateKgPerWeek: f64(0.5), Status: "active",
+			},
+			Now: now,
+		})
+		if out.Computed.BMRFormula != BMRFormulaMifflin {
+			t.Errorf("bmrFormula = %q, want %q when the reading date cannot be parsed",
+				out.Computed.BMRFormula, BMRFormulaMifflin)
+		}
+		if out.Composition == nil || !out.Composition.Stale {
+			t.Error("expected an undateable reading to be marked stale")
+		}
+	})
+}
+
+// TestAssemblePlanCompositionMatchesBMRInput is the second half of issue #300:
+// the lean mass shown to the user must be the lean mass the budget was computed
+// from, not the lean mass at the weight the reading happened to be taken at.
+func TestAssemblePlanCompositionMatchesBMRInput(t *testing.T) {
+	now := time.Date(2026, 7, 19, 0, 0, 0, 0, time.UTC)
+
+	t.Run("displayed lean mass is the weight the BMR used, not the reading's own", func(t *testing.T) {
+		// 30% measured at 100kg, user now at 75kg — the worked example from the
+		// issue. The reading's own weight would show 70.0kg lean; the BMR is
+		// computed at 75kg, i.e. 52.5kg lean. Those are the two candidate
+		// answers, and only one of them matches the budget.
+		birthYear := now.Year() - 40
+		sex := "male"
+		activity := "sedentary"
+		out := AssemblePlan(PlanInputs{
+			CurrentWeight: f64(75),
+			CurrentBodyFat: &BodyFatReading{
+				Date: now.AddDate(0, 0, -10).Format("2006-01-02"), WeightKg: 100, Pct: 30,
+			},
+			HeightCm: f64(180), BirthYear: &birthYear, Sex: &sex, ActivityLevel: &activity,
+			Goal: &model.WeightGoal{
+				ID: 22, UserID: 1, StartWeight: 100, StartDate: "2026-07-01",
+				TargetWeight: 70, PaceMode: "rate", RateKgPerWeek: f64(0.5), Status: "active",
+			},
+			Now: now,
+		})
+
+		if out.Composition == nil || out.Computed == nil {
+			t.Fatal("expected composition and a computed plan")
+		}
+		if out.Computed.BMRFormula != BMRFormulaKatch {
+			t.Fatalf("bmrFormula = %q, want %q — the rest of this test is about the Katch path",
+				out.Computed.BMRFormula, BMRFormulaKatch)
+		}
+		if !almost(out.Composition.LeanMass, 52.5, 0.05) {
+			t.Errorf("leanMass = %v, want 52.5 (75kg at 30%%), not 70 (the reading's own 100kg)",
+				out.Composition.LeanMass)
+		}
+		if !almost(out.Composition.FatMass, 22.5, 0.05) {
+			t.Errorf("fatMass = %v, want 22.5 (75kg at 30%%)", out.Composition.FatMass)
+		}
+		// The invariant, stated independently of the numbers above: inverting the
+		// reported BMR through Katch-McArdle must land back on the reported lean
+		// mass. 370 + 21.6*52.5 = 1504.
+		leanFromBMR := (out.Computed.BMR - 370) / 21.6
+		if !almost(leanFromBMR, out.Composition.LeanMass, 0.05) {
+			t.Errorf("BMR %v implies %v kg of lean mass but composition reports %v — "+
+				"the displayed split does not match the budget it produced",
+				out.Computed.BMR, leanFromBMR, out.Composition.LeanMass)
+		}
+		if !almost(out.Computed.BMR, 1504, 0.05) {
+			t.Errorf("bmr = %v, want 1504 per the issue's worked example", out.Computed.BMR)
+		}
+		// Lean + fat must still reconcile to the weight they were derived from.
+		if !almost(out.Composition.LeanMass+out.Composition.FatMass, 75, 0.05) {
+			t.Errorf("leanMass + fatMass = %v, want the 75kg they were derived from",
+				out.Composition.LeanMass+out.Composition.FatMass)
+		}
+	})
+
+	t.Run("with no logged weight the goal's start weight anchors both", func(t *testing.T) {
+		// baseWeight falls back to goal.StartWeight; composition must follow it
+		// rather than quietly reverting to the reading's own weight.
+		birthYear := now.Year() - 40
+		sex := "male"
+		activity := "sedentary"
+		out := AssemblePlan(PlanInputs{
+			CurrentWeight: nil,
+			CurrentBodyFat: &BodyFatReading{
+				Date: now.AddDate(0, 0, -5).Format("2006-01-02"), WeightKg: 100, Pct: 30,
+			},
+			HeightCm: f64(180), BirthYear: &birthYear, Sex: &sex, ActivityLevel: &activity,
+			Goal: &model.WeightGoal{
+				ID: 23, UserID: 1, StartWeight: 90, StartDate: "2026-07-01",
+				TargetWeight: 80, PaceMode: "rate", RateKgPerWeek: f64(0.5), Status: "active",
+			},
+			Now: now,
+		})
+		if out.Composition == nil || out.Computed == nil {
+			t.Fatal("expected composition and a computed plan")
+		}
+		if !almost(out.Composition.LeanMass, 63, 0.05) {
+			t.Errorf("leanMass = %v, want 63 (90kg start weight at 30%%)", out.Composition.LeanMass)
+		}
+		leanFromBMR := (out.Computed.BMR - 370) / 21.6
+		if !almost(leanFromBMR, out.Composition.LeanMass, 0.05) {
+			t.Errorf("BMR implies %v kg lean, composition reports %v", leanFromBMR, out.Composition.LeanMass)
+		}
+	})
+
+	t.Run("with neither a weight nor a goal the reading's own weight is used", func(t *testing.T) {
+		// Nothing else exists to anchor on, and no BMR is computed either, so
+		// there is nothing to disagree with.
+		out := AssemblePlan(PlanInputs{
+			CurrentBodyFat: &BodyFatReading{Date: "2026-07-15", WeightKg: 80, Pct: 20},
+			Now:            now,
+		})
+		if out.Composition == nil {
+			t.Fatal("expected composition from the reading alone")
+		}
+		if !almost(out.Composition.LeanMass, 64, 0.05) {
+			t.Errorf("leanMass = %v, want 64 (the reading's own 80kg at 20%%)", out.Composition.LeanMass)
+		}
+		if out.Computed != nil {
+			t.Error("expected no computed plan without a goal")
+		}
+	})
+}
+
 func hasWarning(warnings []PlanWarning, code string) bool {
 	for _, w := range warnings {
 		if w.Code == code {

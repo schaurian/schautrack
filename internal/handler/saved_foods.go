@@ -52,7 +52,8 @@ func toSavedFoodView(id int, name string, emoji *string, amount, protein, carbs,
 }
 
 // List handles GET /api/saved-foods. Returns the caller's own foods only,
-// ranked by use_count then last_used_at.
+// ranked by use_count then last_used_at. The ordering is savedFoodRank,
+// shared with ListSavedFoodsV1 so the app and the API cannot disagree.
 func (h *SavedFoodsHandler) List(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 
@@ -61,7 +62,7 @@ func (h *SavedFoodsHandler) List(w http.ResponseWriter, r *http.Request) {
 		       use_count, last_used_at
 		FROM saved_foods
 		WHERE user_id = $1
-		ORDER BY use_count DESC, last_used_at DESC NULLS LAST, id DESC`,
+		ORDER BY `+savedFoodRank,
 		user.ID)
 	if err != nil {
 		slog.Error("saved_foods list", "error", err)

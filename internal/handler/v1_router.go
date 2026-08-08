@@ -47,6 +47,40 @@ type V1Handler struct {
 	// RequireAPIToken has run. Nil disables it, which is what the route-parity
 	// test relies on to build the tree without dependencies.
 	TokenLimiter *middleware.RateLimiter
+
+	// AILimiter and BarcodeLimiter are sized to the operation, not to the API.
+	// TokenLimiter guards the surface as a whole (dozens of cheap reads a
+	// minute); an AI estimate spends the operator's money on every call and a
+	// barcode lookup hammers a third-party database, and both are reachable
+	// through the app at far lower ceilings. Without these, a token was the
+	// cheapest path to the most expensive operations the server can perform.
+	//
+	// They compose with TokenLimiter rather than replacing it, and bucket per
+	// ACCOUNT (see middleware.NewUserRateLimiter) so that minting more tokens
+	// does not multiply the budget. Nil disables, as above.
+	AILimiter      *middleware.RateLimiter
+	BarcodeLimiter *middleware.RateLimiter
+
+	// Auth guards everything except GET /openapi.json. Nil means
+	// middleware.RequireAPIToken(pool) — the production wiring — so forgetting
+	// to set it cannot leave the surface unauthenticated.
+	//
+	// It exists as a field because the token lookup is the one dependency in
+	// the chain that needs a database, and CI has none. A test that stubs it
+	// drives the REAL route table, so what runs above each handler — scopes,
+	// per-token and per-operation limiters, and their order — is asserted
+	// against the thing production actually serves rather than a copy of it.
+	Auth func(http.Handler) http.Handler
+}
+
+// optionalLimiter returns rl's middleware, or a pass-through when rl is nil, so
+// the route table can name a limiter unconditionally and still be buildable
+// from a zero-value V1Handler.
+func optionalLimiter(rl *middleware.RateLimiter) func(http.Handler) http.Handler {
+	if rl == nil {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return rl.Middleware
 }
 
 // MountAPIV1 builds the /api/v1 sub-router.
@@ -76,8 +110,13 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 	// token, and it contains no user data.
 	r.Get("/openapi.json", h.OpenAPI)
 
+	auth := h.Auth
+	if auth == nil {
+		auth = middleware.RequireAPIToken(pool)
+	}
+
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAPIToken(pool))
+		r.Use(auth)
 		if h.TokenLimiter != nil {
 			r.Use(h.TokenLimiter.Middleware)
 		}
@@ -92,10 +131,19 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		// Barcode lookup is food data, so it rides on foods:read rather than
 		// getting a scope of its own.
-		r.With(middleware.RequireScope(service.ScopeFoodsRead)).Get("/barcode/{code}", h.BarcodeV1)
+		//
+		// The scope check runs BEFORE the limiter on both of the routes below:
+		// a 403 costs nothing to serve, and letting a wrongly-scoped token burn
+		// the account's estimate budget would let it deny service to the
+		// correctly-scoped token beside it.
+		r.With(middleware.RequireScope(service.ScopeFoodsRead),
+			optionalLimiter(h.BarcodeLimiter)).Get("/barcode/{code}", h.BarcodeV1)
 
 		// Its own scope, implied by nothing: every call spends real money.
-		r.With(middleware.RequireScope(service.ScopeAIEstimate)).Post("/ai/estimate", h.EstimateV1)
+		// Not idempotent and not (yet) replayable, so it says so out loud
+		// rather than accepting an Idempotency-Key it would ignore.
+		r.With(middleware.RequireScope(service.ScopeAIEstimate),
+			optionalLimiter(h.AILimiter)).Post("/ai/estimate", rejectIdempotencyKey(h.EstimateV1))
 
 		r.Route("/entries", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/", h.ListEntries)
@@ -118,7 +166,7 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		r.Route("/todos", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeTodosRead)).Get("/", h.ListTodosV1)
-			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Post("/", h.CreateTodoV1)
+			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Post("/", h.withIdempotency(h.CreateTodoV1))
 			r.With(middleware.RequireScope(service.ScopeTodosRead)).Get("/day/{date}", h.TodosForDayV1)
 			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Patch("/{id}", h.UpdateTodoV1)
 			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Delete("/{id}", h.DeleteTodoV1)
@@ -127,7 +175,7 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		r.Route("/saved-foods", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeFoodsRead)).Get("/", h.ListSavedFoodsV1)
-			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Post("/", h.CreateSavedFoodV1)
+			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Post("/", h.withIdempotency(h.CreateSavedFoodV1))
 			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Patch("/{id}", h.UpdateSavedFoodV1)
 			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Delete("/{id}", h.DeleteSavedFoodV1)
 			// Tracking a saved food CREATES a calorie entry, so it is gated on

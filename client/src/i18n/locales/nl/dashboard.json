@@ -148,7 +148,9 @@
       "addHeightWeight": "Voeg lengte & gewicht toe",
       "healthyRangeLabel": "Gezond bereik",
       "bodyFatLabel": "Vetpercentage",
-      "leanFatSplit": "{{lean}} {{unit}} vetvrije massa · {{fat}} {{unit}} vet"
+      "leanFatSplit": "{{lean}} {{unit}} vetvrije massa · {{fat}} {{unit}} vet",
+      "bodyFatMeasured": "Gemeten op {{date}}",
+      "bodyFatStale": "{{days}} dagen oud — niet gebruikt voor je budget"
     },
     "recommendedBudget": {
       "title": "Aanbevolen budget",
@@ -156,7 +158,8 @@
       "clampedNotice": "Beperkt tot een veilig minimum",
       "applyButton": "Toepassen als mijn caloriedoel",
       "formulaKatch": "Volgens Katch-McArdle, op basis van {{lean}} {{unit}} vetvrije massa",
-      "formulaMifflin": "Volgens Mifflin-St Jeor. Registreer een vetpercentage voor een schatting op basis van vetvrije massa."
+      "formulaMifflin": "Volgens Mifflin-St Jeor. Registreer een vetpercentage voor een schatting op basis van vetvrije massa.",
+      "formulaMifflinStale": "Gebaseerd op Mifflin-St Jeor — je vetpercentage is {{days}} dagen oud, te oud om vetvrije massa uit te schatten. Meet opnieuw."
     },
     "progress": {
       "title": "Voortgang",

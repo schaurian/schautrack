@@ -148,7 +148,9 @@
       "addHeightWeight": "Aggiungi altezza e peso",
       "healthyRangeLabel": "Intervallo salutare",
       "bodyFatLabel": "Grasso corporeo",
-      "leanFatSplit": "{{lean}} {{unit}} di massa magra · {{fat}} {{unit}} di grasso"
+      "leanFatSplit": "{{lean}} {{unit}} di massa magra · {{fat}} {{unit}} di grasso",
+      "bodyFatMeasured": "Misurato il {{date}}",
+      "bodyFatStale": "{{days}} giorni fa — non usato per il tuo budget"
     },
     "recommendedBudget": {
       "title": "Budget consigliato",
@@ -156,7 +158,8 @@
       "clampedNotice": "Limitato a un minimo sicuro",
       "applyButton": "Applica come mio obiettivo calorico",
       "formulaKatch": "Secondo Katch-McArdle, da {{lean}} {{unit}} di massa magra",
-      "formulaMifflin": "Secondo Mifflin-St Jeor. Registra una percentuale di grasso corporeo per una stima sulla massa magra."
+      "formulaMifflin": "Secondo Mifflin-St Jeor. Registra una percentuale di grasso corporeo per una stima sulla massa magra.",
+      "formulaMifflinStale": "Basato su Mifflin-St Jeor — la tua misurazione della massa grassa risale a {{days}} giorni fa, troppo vecchia per stimare la massa magra. Registrane una nuova."
     },
     "progress": {
       "title": "Progresso",
