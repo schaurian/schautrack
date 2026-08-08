@@ -1542,22 +1542,9 @@
       "get": {
         "operationId": "listSavedFoods",
         "summary": "List saved foods",
-        "description": "Most-used first, then most-recently-used.",
+        "description": "Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.",
         "tags": [
           "Saved foods"
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum results to return. Values above 200 are clamped to 200.",
-            "schema": {
-              "type": "integer",
-              "default": 50,
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
         ],
         "responses": {
           "200": {
@@ -1566,16 +1553,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SavedFoodList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -4106,11 +4083,11 @@
       },
       "SavedFoodList": {
         "type": "object",
-        "description": "Saved foods, most-used first.",
+        "description": "Saved foods, most-used first. Never partial.",
         "properties": {
           "data": {
             "type": "array",
-            "description": "The foods.",
+            "description": "Every saved food on the account.",
             "items": {
               "$ref": "#/components/schemas/SavedFood"
             }

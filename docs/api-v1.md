@@ -612,16 +612,11 @@ GET /api/v1/saved-foods
 
 **Scope:** `foods:read`
 
-Most-used first, then most-recently-used.
-
-| Parameter | In | Required | Description |
-| --- | --- | --- | --- |
-| `limit` | query |  | Maximum results to return. Values above 200 are clamped to 200. |
+Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.
 
 | Status | Response |
 | --- | --- |
 | `200` | [`SavedFoodList`](#savedfoodlist) — The saved foods. |
-| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
@@ -1079,11 +1074,11 @@ A new saved food.
 
 ### SavedFoodList
 
-Saved foods, most-used first.
+Saved foods, most-used first. Never partial.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `data` | array of [`SavedFood`](#savedfood) | yes | The foods. |
+| `data` | array of [`SavedFood`](#savedfood) | yes | Every saved food on the account. |
 
 ### SavedFoodPatch
 
