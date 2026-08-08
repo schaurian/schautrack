@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { WeightEntry } from '@/types';
 import { upsertWeight, deleteWeight } from '@/api/weight';
+import { MAX_BODY_FAT_PCT, parseBodyFatInput } from '@/lib/bodyFat';
 import { useToastStore } from '@/stores/toastStore';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 
@@ -48,17 +49,24 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   };
 
   const handleSaveBodyFat = async () => {
-    // The field is disabled until the date has a weight entry, so the weight
-    // sent here is the stored one — never the previous-day pre-fill.
+    // The field is disabled until the date has a weight entry, so there is
+    // always a stored weight for the server to keep.
     if (!weightEntry) return;
-    const raw = bodyFatRef.current?.value.trim() || '';
-    const num = raw === '' ? null : parseFloat(raw.replace(',', '.'));
-    if (num !== null && (!Number.isFinite(num) || num <= 0)) return;
+    const parsed = parseBodyFatInput(bodyFatRef.current?.value ?? '');
+    if (!parsed.ok) {
+      // Rejected here rather than round-tripping only to come back as a
+      // generic server error — the bound is the same on both sides.
+      addToast('error', t('weight.toastBodyFatInvalid', { max: MAX_BODY_FAT_PCT }));
+      return;
+    }
     setLoading(true);
     try {
-      await upsertWeight({ date: selectedDate, weight: Number(weightEntry.weight), body_fat: num });
+      // No weight key: this path only ever means "save the body fat", and the
+      // weight it would otherwise send is a cached value the user did not just
+      // measure — re-asserting it reverts a newer weight logged elsewhere.
+      await upsertWeight({ date: selectedDate, body_fat: parsed.value });
       queryClient.invalidateQueries({ queryKey: ['weight'] });
-      addToast('success', num === null ? t('weight.toastBodyFatCleared') : t('weight.toastBodyFatTracked'));
+      addToast('success', parsed.value === null ? t('weight.toastBodyFatCleared') : t('weight.toastBodyFatTracked'));
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('weight.toastBodyFatSaveFailed'));
     }

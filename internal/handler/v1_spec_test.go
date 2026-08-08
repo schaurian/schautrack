@@ -44,7 +44,7 @@ func walkV1Routes(t *testing.T) []string {
 
 func specRoutes() []string {
 	var out []string
-	for _, op := range openapi.Build("test").Operations() {
+	for _, op := range openapi.Build("test", "").Operations() {
 		out = append(out, op.Method+" "+op.Path)
 	}
 	sort.Strings(out)
@@ -83,7 +83,7 @@ func TestV1RoutesMatchSpec(t *testing.T) {
 
 // TestV1SpecIsValidJSON checks the document marshals and round-trips.
 func TestV1SpecIsValidJSON(t *testing.T) {
-	raw, err := openapi.Build("test").JSON()
+	raw, err := openapi.Build("test", "").JSON()
 	if err != nil {
 		t.Fatalf("marshal spec: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestV1SpecIsValidJSON(t *testing.T) {
 // dangling $ref renders as a blank box in every documentation viewer and
 // breaks every client generator, silently.
 func TestV1SpecRefsResolve(t *testing.T) {
-	doc := openapi.Build("test")
+	doc := openapi.Build("test", "")
 	raw, err := doc.JSON()
 	if err != nil {
 		t.Fatalf("marshal spec: %v", err)
@@ -160,7 +160,7 @@ func TestV1SpecScopesAreReal(t *testing.T) {
 	for _, s := range service.AllScopes() {
 		valid[s] = true
 	}
-	for _, op := range openapi.Build("test").Operations() {
+	for _, op := range openapi.Build("test", "").Operations() {
 		if op.Scope == "" {
 			continue // /me and /openapi.json need no scope
 		}

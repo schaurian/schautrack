@@ -48,12 +48,15 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 			CurrentWeight: f64(90),
 			BMI:           &bmi,
 			Series:        []SeriesPoint{{Date: "2026-07-01", Weight: 91}},
-			HealthyRange:  &HealthyRange{Min: 59.9, Max: 80.7},
-			Composition:   &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9},
+			// This branch renames MinKg/MaxKg to Min/Max (#361); AgeDays and
+			// Stale arrived from #300 while it was open and are unit-independent,
+			// so they belong in the fixture but must survive conversion unchanged.
+			HealthyRange: &HealthyRange{Min: 59.9, Max: 80.7},
+			Composition:  &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9, AgeDays: 120, Stale: true},
 			Computed: &PlanComputed{
-				BudgetKcal:    2000,
-				RatePerWeek:   0.34,
-				PlanCurve:     []CurvePoint{{Week: 0, Weight: 90}},
+				BudgetKcal:  2000,
+				RatePerWeek: 0.34,
+				PlanCurve:   []CurvePoint{{Week: 0, Weight: 90}},
 			},
 			Trend: &PlanTrend{SlopePerWeek: -0.3, Status: "on_track"},
 		}
@@ -117,6 +120,17 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 		// A percentage is the same number in kg and lb.
 		if r.Composition.BodyFatPct != 24.3 {
 			t.Errorf("Composition.BodyFatPct must not be converted, got %v", r.Composition.BodyFatPct)
+		}
+		// The reading's age is a duration and its staleness a verdict; a lb user
+		// must not be told their reading is 2.2x older than a kg user's.
+		if r.Composition.AgeDays != 120 {
+			t.Errorf("Composition.AgeDays must not be converted, got %d", r.Composition.AgeDays)
+		}
+		if !r.Composition.Stale {
+			t.Error("Composition.Stale must survive unit conversion")
+		}
+		if r.Composition.Date != "2026-07-01" {
+			t.Errorf("Composition.Date must not change, got %q", r.Composition.Date)
 		}
 	})
 

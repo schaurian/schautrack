@@ -85,10 +85,10 @@ func TestShouldClearStoredAIKey(t *testing.T) {
 	openai := "openai"
 	claude := "claude"
 	tests := []struct {
-		name     string
-		next     *string
-		current  *string
-		want     bool
+		name    string
+		next    *string
+		current *string
+		want    bool
 	}{
 		{"no provider in payload — never clear", nil, &openai, false},
 		{"same provider, current set — autosave must not wipe", &openai, &openai, false},

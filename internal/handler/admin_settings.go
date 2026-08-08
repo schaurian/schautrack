@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"schautrack/internal/database"
 )
 
 // AdminSetting describes one setting that's tunable from /admin.
@@ -18,14 +20,14 @@ import (
 // (then also wire it through SettingsCache.GetEffectiveSetting in the
 // relevant handler).
 type AdminSetting struct {
-	Key      string                  // DB key in admin_settings + JSON key
-	Env      string                  // matching environment variable name
-	Section  string                  // grouping for the UI ("general", "ai", …)
-	Tier     string                  // "hot" = takes effect next request; "restart" = needs server restart
-	Secret   bool                    // mask the value in the UI; don't include the value in audit logs
-	Dangerous bool                   // shows a typed-confirmation dialog before save
-	Help     string                  // short help text shown under the field
-	Validate func(value string) error // optional value validator; called server-side on every save
+	Key       string                   // DB key in admin_settings + JSON key
+	Env       string                   // matching environment variable name
+	Section   string                   // grouping for the UI ("general", "ai", …)
+	Tier      string                   // "hot" = takes effect next request; "restart" = needs server restart
+	Secret    bool                     // mask the value in the UI; don't include the value in audit logs
+	Dangerous bool                     // shows a typed-confirmation dialog before save
+	Help      string                   // short help text shown under the field
+	Validate  func(value string) error // optional value validator; called server-side on every save
 }
 
 // adminSettings is the canonical ordered list. Order is the display order
@@ -45,7 +47,7 @@ var adminSettings = []AdminSetting{
 	// AI Features
 	// =========================================================================
 	{Key: "ai_provider", Env: "AI_PROVIDER", Section: "ai", Tier: "hot",
-		Help: `One of: openai, claude, ollama.`,
+		Help:     `One of: openai, claude, ollama.`,
 		Validate: oneOf("openai", "claude", "ollama", "")},
 	{Key: "ai_key", Env: "AI_KEY", Section: "ai", Tier: "hot", Secret: true,
 		Help: "Global API key (fallback when users don't have their own)."},
@@ -65,7 +67,7 @@ var adminSettings = []AdminSetting{
 	// OIDC / SSO
 	// =========================================================================
 	{Key: "oidc_issuer", Env: "OIDC_ISSUER", Section: "oidc", Tier: "restart",
-		Help: "OIDC issuer URL. Setting this enables OIDC sign-in.",
+		Help:     "OIDC issuer URL. Setting this enables OIDC sign-in.",
 		Validate: validURL},
 	{Key: "oidc_client_id", Env: "OIDC_CLIENT_ID", Section: "oidc", Tier: "restart",
 		Help: "OAuth2 client ID from your provider."},
@@ -167,6 +169,32 @@ var adminSettingByKey = func() map[string]*AdminSetting {
 	return m
 }()
 
+// adminSettingResponse builds the wire representation of a single setting for
+// GET /api/admin (see AdminData).
+//
+// Secret values never cross the wire back to the UI: the response carries only
+// isSet, telling the client that something is stored without revealing it.
+// Extracted from the handler so the redaction rule is assertable without a
+// database — see TestAdminSettingsTableIsConsistent.
+func adminSettingResponse(s *AdminSetting, effective database.SettingResult) map[string]any {
+	isSet := effective.Value != nil && *effective.Value != ""
+	val := ""
+	if isSet && !s.Secret {
+		val = *effective.Value
+	}
+	return map[string]any{
+		"value":     val,
+		"source":    effective.Source,
+		"section":   s.Section,
+		"tier":      s.Tier,
+		"secret":    s.Secret,
+		"dangerous": s.Dangerous,
+		"help":      s.Help,
+		"isSet":     isSet, // for secret fields: tells the UI "something is stored" without revealing it
+		"envVar":    s.Env,
+	}
+}
+
 // =============================================================================
 // validators
 // =============================================================================
@@ -178,24 +206,46 @@ func validBool(v string) error {
 	return fmt.Errorf("must be true or false")
 }
 
+// validURL requires a full http(s) URL.
+//
+// The scheme allow-list is deliberate: every key this gates (base_url,
+// ai_endpoint, oidc_issuer, oidc_redirect_url) is fetched or emitted as a web
+// URL. base_url in particular is interpolated into SEO meta tags and used to
+// build the OIDC redirect URL, so a "javascript:" or "data:" value stored here
+// would end up in a rendered link. url.Parse alone accepts those.
 func validURL(v string) error {
 	if v == "" {
 		return nil
 	}
 	u, err := url.Parse(v)
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	if err != nil || u.Host == "" {
 		return fmt.Errorf("must be a full URL with scheme")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("must be an http:// or https:// URL")
 	}
 	return nil
 }
 
+// validEmail requires a bare address (a@b.com), not the RFC 5322 display-name
+// form ("Foo <a@b.com>") that mail.ParseAddress also accepts.
+//
+// smtp_from is used verbatim both in the From: header and as the SMTP MAIL
+// FROM argument (service.EmailService.send → c.Mail(from)); a display-name
+// value is legal in the header but not in the envelope, so it would be
+// accepted at write time and then fail every send after the restart. The other
+// keys this gates (support_email, imprint_email) are rendered as contact
+// addresses, where a bare address is likewise what's wanted.
 func validEmail(v string) error {
 	if v == "" {
 		return nil
 	}
-	_, err := mail.ParseAddress(v)
+	addr, err := mail.ParseAddress(v)
 	if err != nil {
 		return fmt.Errorf("must be a valid email address")
+	}
+	if addr.Name != "" || addr.Address != v {
+		return fmt.Errorf("must be a bare email address (no display name or angle brackets)")
 	}
 	return nil
 }

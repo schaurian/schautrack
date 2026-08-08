@@ -26,8 +26,35 @@ func derefLang(s *string) string {
 	return *s
 }
 
+// argon2Compare is the argon2id verification every password check goes
+// through. It is a variable solely so tests can observe what reaches the KDF:
+// "argon2id is never handed an unbounded client-supplied string" (issue #340)
+// is a property of the *argument*, and there is no other way to assert it
+// without measuring wall-clock time. Production code must never reassign it.
+var argon2Compare = argon2id.ComparePasswordAndHash
+
+// verifyPassword reports whether password matches hash, supporting both the
+// current argon2id format and legacy bcrypt hashes.
+//
+// This is the single choke point for every path that checks a password
+// against a stored hash — login, the 2FA-reset request, and step-up
+// re-authentication — which is why the length bound lives here rather than at
+// the three call sites: a verification path added later inherits it.
 func verifyPassword(hash, password string) (bool, error) {
 	if hash == "" || password == "" {
+		return false, nil
+	}
+	if passwordExceedsVerifyCap(password) {
+		// Over the cost bound: the submitted string must not reach argon2id.
+		// Burn the standard verification cost against the dummy hash instead,
+		// so this is indistinguishable from a wrong password in both the
+		// response the caller writes and the time it takes to get there.
+		// Returning early *without* the burn would turn "is this email
+		// registered?" into a stopwatch question — the unknown-email path
+		// pays the same cost via equalizeLoginTiming.
+		slog.Warn("rejected over-long password at a verification path",
+			"bytes", len(password), "limit", MaxVerifyPasswordBytes)
+		burnPasswordVerifyCost(oversizedPasswordStandIn)
 		return false, nil
 	}
 	if strings.HasPrefix(hash, "$2b$") || strings.HasPrefix(hash, "$2a$") {
@@ -35,14 +62,51 @@ func verifyPassword(hash, password string) (bool, error) {
 		return err == nil, nil
 	}
 	// Argon2 format: $argon2id$...
-	return argon2id.ComparePasswordAndHash(password, hash)
+	return argon2Compare(password, hash)
 }
 
 func hashPassword(password string) (string, error) {
 	return argon2id.CreateHash(password, argon2id.DefaultParams)
 }
 
+// maxBackupCodeBytes bounds the backup code a client may submit. A generated
+// code is 8 digits; the slack is for a pasted value carrying separators or
+// surrounding whitespace, so a user's formatting mistake still fails on the
+// comparison rather than on an invisible length rule.
+const maxBackupCodeBytes = 64
+
+// bcryptMaxBytes is how much of a password bcrypt actually consumes. Its
+// blowfish key schedule reads 18 x 4 = 72 bytes and ignores the rest;
+// CompareHashAndPassword neither errors nor costs more for a longer input.
+const bcryptMaxBytes = 72
+
+// migratePasswordHash upgrades a legacy bcrypt hash to argon2id after a
+// successful login.
+//
+// It refuses to migrate a password longer than bcrypt validated (#397).
+// bcrypt compared only the first 72 bytes, so every string sharing that prefix
+// logged in — but argon2id compares the WHOLE string. Re-hashing the submitted
+// bytes therefore narrows the account to one specific member of the set that
+// used to work, chosen by whoever logged in last:
+//
+//   - a user whose real password is 80 characters, who has been logging in with
+//     a browser that truncates at 72, silently loses the ability to use the
+//     other spelling;
+//   - worse, anyone who obtained the 72-byte prefix could log in AND, in the
+//     same request, rewrite the stored hash to a longer string of their
+//     choosing that the real owner does not know.
+//
+// Skipping the migration leaves the account on bcrypt, which is exactly the
+// status quo: no worse than before, and no silent change to what the password
+// is. These accounts stay on bcrypt until someone logs in with a password
+// bcrypt could fully see, or changes it — both of which go through the normal
+// argon2id path.
 func migratePasswordHash(pool *pgxpool.Pool, userID int, password string) {
+	if len(password) > bcryptMaxBytes {
+		slog.Warn("skipping bcrypt->argon2id migration: password exceeds what bcrypt validated",
+			"user_id", userID, "bytes", len(password), "bcrypt_limit", bcryptMaxBytes)
+		return
+	}
 	hash, err := hashPassword(password)
 	if err != nil {
 		return
@@ -94,13 +158,37 @@ var dummyPasswordHash = sync.OnceValue(func() string {
 	return hash
 })
 
+// oversizedPasswordStandIn is hashed in place of a client-supplied password
+// that exceeds MaxVerifyPasswordBytes. Nothing is compared against it — the
+// point is only to pay the argon2id cost with a bounded input, so an
+// over-long password costs the server exactly one normal verification instead
+// of one verification plus a Blake2b pass over megabytes.
+const oversizedPasswordStandIn = "schautrack-oversized-password-stand-in"
+
+// burnPasswordVerifyCost performs one argon2id verification against the
+// precomputed dummy hash. Callers use it to spend the cost of a password
+// check they are not actually performing.
+func burnPasswordVerifyCost(password string) {
+	if hash := dummyPasswordHash(); hash != "" {
+		_, _ = argon2Compare(password, hash)
+	}
+}
+
 // equalizeLoginTiming burns the same argon2id verification cost as a real
 // password check. Called on the unknown-email login path so its duration is
 // indistinguishable from a wrong password on an existing account.
+//
+// It applies the same MaxVerifyPasswordBytes bound as verifyPassword, and it
+// must: this is the branch an attacker reaches by inventing an email address,
+// so it is the *cheapest* way to make the server hash a multi-megabyte string
+// — no account required. Bounding only verifyPassword would also have made
+// the two branches diverge in duration for an over-long password, handing
+// back the account-existence oracle this function exists to close.
 func equalizeLoginTiming(password string) {
-	if hash := dummyPasswordHash(); hash != "" {
-		_, _ = argon2id.ComparePasswordAndHash(password, hash)
+	if passwordExceedsVerifyCap(password) {
+		password = oversizedPasswordStandIn
 	}
+	burnPasswordVerifyCost(password)
 }
 
 func verifyAndUseBackupCodeForLogin(r *http.Request, pool *pgxpool.Pool, userID int, code string) bool {
@@ -111,6 +199,26 @@ func verifyAndUseBackupCodeForLogin(r *http.Request, pool *pgxpool.Pool, userID 
 // It reads all unused codes, finds a match in-memory, then uses an atomic UPDATE
 // with a WHERE used = FALSE condition to prevent race conditions.
 func verifyAndMarkBackupCode(r *http.Request, pool *pgxpool.Pool, userID int, code string) bool {
+	// Bound the client string before it reaches the hash loop (#404).
+	//
+	// VerifyBackupCode re-hashes `code` once per unused code, so with
+	// service.BackupCodeCount stored codes an unbounded token is that many
+	// SHA-256 passes over whatever the client sent. Only ReadJSON's 10 MB body
+	// limit stood in the way: a 10 MB token cost roughly a quarter second of
+	// CPU per request, unauthenticated at the login 2FA step.
+	//
+	// A real code is 8 digits (service.GenerateBackupCodes), so anything longer
+	// than this cannot match any stored hash — the check costs nothing and
+	// rejects exactly the inputs that were only ever going to fail. The bound
+	// is loose rather than exactly 8 so that a formatted paste ("1234-5678",
+	// surrounding spaces) still reaches the comparison and fails on its own
+	// merits rather than on a length rule the user cannot see.
+	if len(code) > maxBackupCodeBytes {
+		slog.Warn("rejected an over-long backup code before hashing",
+			"user_id", userID, "bytes", len(code), "limit", maxBackupCodeBytes)
+		return false
+	}
+
 	rows, err := pool.Query(r.Context(),
 		"SELECT id, code_hash FROM totp_backup_codes WHERE user_id = $1 AND used = FALSE", userID)
 	if err != nil {
@@ -196,6 +304,18 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 			"SELECT id, password_hash, totp_enabled, language FROM users WHERE email = $1", emailClean,
 		).Scan(&userID, &passwordHash, &totpEnabled, &userLanguage)
 		if err != nil {
+			// Pay the verification cost we are skipping (#401).
+			//
+			// An unknown address returned here after a cheap index miss, while
+			// a known one went on to spend a full argon2id verification below.
+			// The bodies were identical and the durations were not, so a
+			// stopwatch answered "is this address registered?" — to an
+			// UNAUTHENTICATED caller, which is what makes this worse than the
+			// same shape on an authenticated route.
+			//
+			// Login already equalizes its own unknown-email path this way; this
+			// endpoint takes the same email and password and simply forgot to.
+			equalizeLoginTiming(body.Password)
 			ErrorJSON(w, http.StatusUnauthorized, "Invalid credentials.")
 			return
 		}

@@ -197,6 +197,8 @@
     "createFailed": "Token aanmaken mislukt",
     "dismiss": "Klaar",
     "empty": "Geen API-tokens. Maak er een om Schautrack vanuit scripts of andere apps te gebruiken.",
+    "expiredBadge": "Verlopen",
+    "expiredOn": "verlopen op {{date}}",
     "expires": "verloopt op {{date}}",
     "expiry30": "Verloopt over 30 dagen",
     "expiry365": "Verloopt over 1 jaar",

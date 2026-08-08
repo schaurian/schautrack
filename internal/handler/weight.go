@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -45,23 +45,76 @@ func (h *WeightHandler) ToggleBodyFatEnabled(w http.ResponseWriter, r *http.Requ
 // stored reading alone, an explicit null or empty string clears it, and a
 // number sets it. The bool is false only when a value was supplied but is
 // unusable, so the caller can answer 400 instead of silently dropping it.
+//
+// optionalString (entries_helpers.go) is what keeps those states apart: it
+// checks the interface for nil *before* coercing, so a JSON null never becomes
+// the four-character string "<nil>" that this function used to have to
+// recognise. That sentinel comparison was defensive rather than wrong here —
+// the explicit nil check above it already caught the null — but it also meant
+// a caller sending the literal characters <nil> silently cleared the column.
+// Now it is simply an unparseable body fat and earns a 400, the same call
+// #338 made for the entry amount and macros.
 func parseBodyFatUpdate(body map[string]any) (service.BodyFatUpdate, bool) {
-	raw, exists := body["body_fat"]
-	if !exists {
+	raw, present := optionalString(body, "body_fat")
+	if !present {
 		return service.KeepBodyFat, true
 	}
-	if raw == nil {
+	if raw == nil || *raw == "" {
 		return service.BodyFatUpdate{Set: true}, true
 	}
-	s := strings.TrimSpace(fmt.Sprintf("%v", raw))
-	if s == "" || s == "<nil>" {
-		return service.BodyFatUpdate{Set: true}, true
-	}
-	pct, ok := service.ParseBodyFat(s)
+	pct, ok := service.ParseBodyFat(*raw)
 	if !ok {
 		return service.BodyFatUpdate{}, false
 	}
 	return service.BodyFatUpdate{Set: true, Value: &pct}, true
+}
+
+// weightUpsertDate resolves the date a weight upsert applies to. The SPA sends
+// entry_date, older clients and the CSV importer send date, and a body with
+// neither means "today" in the account's zone — not the server's.
+//
+// Both keys go through optionalString for the same reason parseBodyFatUpdate
+// does: the fallback chain used to coerce with %v first and then test the
+// result against "<nil>" to work out that the key had held a JSON null. A
+// caller who sent the literal characters <nil> therefore had the reading
+// quietly filed under today. It now fails isValidDate in the caller and gets
+// a 400, which is what an unparseable date has always got.
+//
+// now is a parameter so the fallback is testable without a clock.
+func weightUpsertDate(body map[string]any, now time.Time, tz string) string {
+	for _, key := range []string{"entry_date", "date"} {
+		if v, present := optionalString(body, key); present && v != nil && *v != "" {
+			return *v
+		}
+	}
+	return service.FormatDateInTz(now, tz)
+}
+
+// parseWeightUpdate is the weight counterpart of parseBodyFatUpdate: an absent,
+// null or empty weight leaves the stored one alone, a number replaces it. The
+// bool is false only when a value was supplied but is unusable.
+//
+// Making the key optional is what lets a body-fat-only save stop restating a
+// weight it never measured. The old contract forced the dashboard to send back
+// whatever weight its cache held, which silently reverted a newer one logged
+// from another device.
+//
+// Reads through optionalString rather than coercing with %v and testing the
+// result against "<nil>". That sentinel arrived with the three-state weight
+// key and is the last copy of the bug this branch removes (#386): it made a
+// caller who typed the literal characters <nil> indistinguishable from one who
+// sent JSON null, so instead of a 400 the request silently kept the stored
+// weight. A literal "<nil>" is now just an unparseable weight.
+func parseWeightUpdate(body map[string]any) (service.WeightUpdate, bool) {
+	raw, present := optionalString(body, "weight")
+	if !present || raw == nil || *raw == "" {
+		return service.KeepWeight, true
+	}
+	wr := service.ParseWeight(*raw)
+	if !wr.Ok {
+		return service.WeightUpdate{}, false
+	}
+	return service.SetWeight(wr.Value), true
 }
 
 // WeightDay handles GET /weight/day
@@ -118,21 +171,14 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 	userTz := getUserTimezone(r, user)
 
-	dateStr := strings.TrimSpace(fmt.Sprintf("%v", body["entry_date"]))
-	if dateStr == "" || dateStr == "<nil>" {
-		dateStr = strings.TrimSpace(fmt.Sprintf("%v", body["date"]))
-	}
-	if dateStr == "" || dateStr == "<nil>" {
-		dateStr = service.FormatDateInTz(time.Now(), userTz)
-	}
+	dateStr := weightUpsertDate(body, time.Now(), userTz)
 	if !isValidDate(dateStr) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
 
-	weightStr := fmt.Sprintf("%v", body["weight"])
-	wr := service.ParseWeight(weightStr)
-	if !wr.Ok {
+	weightUpd, ok := parseWeightUpdate(body)
+	if !ok {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid weight")
 		return
 	}
@@ -143,8 +189,19 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := service.UpsertWeightEntry(r.Context(), h.Pool, user.ID, dateStr, wr.Value, bodyFat)
+	// Both omitted would be a write that changes nothing but updated_at, which
+	// is never what a caller meant — answer instead of quietly touching the row.
+	if !weightUpd.Set && !bodyFat.Set {
+		ErrorJSON(w, http.StatusBadRequest, "Nothing to save")
+		return
+	}
+
+	entry, err := service.UpsertWeightEntryPartial(r.Context(), h.Pool, user.ID, dateStr, weightUpd, bodyFat)
 	if err != nil {
+		if errors.Is(err, service.ErrNoWeightEntry) {
+			ErrorJSON(w, http.StatusBadRequest, "Log a weight for that date first")
+			return
+		}
 		ErrorJSON(w, http.StatusInternalServerError, "Could not save weight")
 		return
 	}

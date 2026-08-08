@@ -204,8 +204,8 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "name is trimmed then truncated to MaxSavedFoodName",
-			body: map[string]any{"name": "  " + strings.Repeat("a", 100) + "  "},
+			name:      "name is trimmed then truncated to MaxSavedFoodName",
+			body:      map[string]any{"name": "  " + strings.Repeat("a", 100) + "  "},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if len(in.name) != MaxSavedFoodName {
@@ -232,8 +232,8 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "amount arithmetic expression evaluated",
-			body: map[string]any{"name": "x", "amount": "2*3"},
+			name:      "amount arithmetic expression evaluated",
+			body:      map[string]any{"name": "x", "amount": "2*3"},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if !in.hasAmount || in.amount == nil || *in.amount != 6 {
@@ -242,28 +242,33 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "amount unparseable rejected",
-			body: map[string]any{"name": "x", "amount": "abc"},
+			name:      "amount unparseable rejected",
+			body:      map[string]any{"name": "x", "amount": "abc"},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "amount over MaxEntryCalories rejected",
-			body: map[string]any{"name": "x", "amount": "99999"},
+			name:      "amount over MaxEntryCalories rejected",
+			body:      map[string]any{"name": "x", "amount": "99999"},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "explicit nil amount leaves hasAmount false",
-			body: map[string]any{"name": "x", "amount": nil},
+			// #388: a nil amount is a clear, not a no-op — see the amount table
+			// in TestParseSavedFoodPayloadAmount for why.
+			name:      "explicit nil amount clears the column",
+			body:      map[string]any{"name": "x", "amount": nil},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
-				if in.hasAmount {
-					t.Errorf("hasAmount = true, want false for nil amount")
+				if !in.hasAmount {
+					t.Errorf("hasAmount = false, want true for nil amount")
+				}
+				if in.amount != nil {
+					t.Errorf("amount = %v, want nil (cleared)", *in.amount)
 				}
 			},
 		},
 		{
-			name: "valid macro parsed",
-			body: map[string]any{"name": "x", "protein_g": float64(50)},
+			name:      "valid macro parsed",
+			body:      map[string]any{"name": "x", "protein_g": float64(50)},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if v, ok := in.macros["protein"]; !ok || v == nil || *v != 50 {
@@ -272,18 +277,18 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "macro over MaxEntryMacro rejected",
-			body: map[string]any{"name": "x", "protein_g": float64(1500)},
+			name:      "macro over MaxEntryMacro rejected",
+			body:      map[string]any{"name": "x", "protein_g": float64(1500)},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "negative macro rejected",
-			body: map[string]any{"name": "x", "carbs_g": float64(-5)},
+			name:      "negative macro rejected",
+			body:      map[string]any{"name": "x", "carbs_g": float64(-5)},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "explicit nil macro recorded as nil",
-			body: map[string]any{"name": "x", "fat_g": nil},
+			name:      "explicit nil macro recorded as nil",
+			body:      map[string]any{"name": "x", "fat_g": nil},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				v, ok := in.macros["fat"]
@@ -314,6 +319,280 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			}
 			if tt.check != nil {
 				tt.check(t, in)
+			}
+		})
+	}
+}
+
+// --- #341: the "<nil>" sentinel in parseSavedFoodPayload -------------------
+//
+// parseSavedFoodPayload decoded request bodies into map[string]any and coerced
+// every value with fmt.Sprintf("%v", …) before inspecting it, which renders a
+// JSON null as the four-character string "<nil>". The emoji, amount and macro
+// paths then compared against that sentinel to recover the null they had just
+// destroyed; the name path did not compare at all.
+//
+// So POST /api/saved-foods with {"name": null} produced the name "<nil>",
+// which — being a non-empty string — passed the "Name is required" check and
+// created a saved food literally called <nil>. Same bug as #303 on the entries
+// handler, and the reason it shipped is that parseSavedFoodPayload is pure but
+// this matrix was never table-tested.
+//
+// Everything now reads through optionalString (entries_helpers.go), which
+// separates absent / null / present before any coercion happens.
+
+// sfBody decodes a JSON literal the way ReadJSON does, so these tests exercise
+// the same value types the handler really sees (numbers as float64, an explicit
+// null as a present key holding a nil interface). The older tests in this file
+// build map[string]any by hand, which cannot express "key absent" versus
+// "key present holding null" as unambiguously.
+func sfBody(t *testing.T, raw string) map[string]any {
+	t.Helper()
+	return decodeBody(t, raw)
+}
+
+// TestParseSavedFoodPayloadName is the #341 regression proper. saved_foods.name
+// is NOT NULL, so there is no "clear the name" state: an explicit null joins ""
+// and whitespace as a 400, rather than becoming the string <nil>.
+func TestParseSavedFoodPayloadName(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		forCreate bool
+		wantOK    bool
+		wantName  string
+	}{
+		{"absent on create is rejected", `{}`, true, false, ""},
+		{"absent on update leaves the column alone", `{"amount":"500"}`, false, true, ""},
+		// The bug. This used to return a saved food named "<nil>".
+		{"null on create is rejected", `{"name":null}`, true, false, ""},
+		{"null on update is rejected", `{"name":null}`, false, false, ""},
+		{"empty string is rejected", `{"name":""}`, true, false, ""},
+		{"whitespace is rejected", `{"name":"   "}`, true, false, ""},
+		{"tabs and newlines are rejected", `{"name":"\t\n "}`, true, false, ""},
+		{"a normal string is kept", `{"name":"Porridge"}`, true, true, "Porridge"},
+		{"a padded string is trimmed", `{"name":"  Porridge  "}`, true, true, "Porridge"},
+		// The bug's mirror image: a user may legitimately call a food <nil>,
+		// and must get those four characters stored rather than a rejection.
+		{"the literal <nil> is a real name", `{"name":"<nil>"}`, true, true, "<nil>"},
+		{"a number becomes its text", `{"name":42}`, true, true, "42"},
+		{"a zero becomes its text", `{"name":0}`, true, true, "0"},
+		{"true becomes its text", `{"name":true}`, true, true, "true"},
+		{"false becomes its text", `{"name":false}`, true, true, "false"},
+		{"an object becomes its text", `{"name":{"a":1}}`, true, true, "map[a:1]"},
+		{"an empty object becomes its text", `{"name":{}}`, true, true, "map[]"},
+		{"an array becomes its text", `{"name":[1,2]}`, true, true, "[1 2]"},
+		{"an empty array becomes its text", `{"name":[]}`, true, true, "[]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in, status, msg := parseSavedFoodPayload(sfBody(t, tt.body), tt.forCreate)
+			if !tt.wantOK {
+				if status == 0 {
+					t.Fatalf("accepted %s with name %q, want 400", tt.body, in.name)
+				}
+				if msg != "Name is required" {
+					t.Errorf("message = %q, want %q", msg, "Name is required")
+				}
+				return
+			}
+			if status != 0 {
+				t.Fatalf("rejected %s: %d %q", tt.body, status, msg)
+			}
+			if in.hasName != (tt.wantName != "") {
+				t.Fatalf("hasName = %v for %s", in.hasName, tt.body)
+			}
+			if in.name != tt.wantName {
+				t.Errorf("name = %q, want %q", in.name, tt.wantName)
+			}
+		})
+	}
+}
+
+// TestParseSavedFoodPayloadNameIsCapped keeps the UTF-8-safe truncation the
+// refactor moved from inside the coercion to after it.
+func TestParseSavedFoodPayloadNameIsCapped(t *testing.T) {
+	// 78 ASCII bytes + a 4-byte avocado = 82 bytes, so an 80-byte cap lands
+	// two bytes inside the emoji and must walk back off it.
+	utf8Boundary := strings.Repeat("a", 78) + "🥑"
+	for _, tc := range []struct{ in, want string }{
+		{strings.Repeat("b", 130), strings.Repeat("b", MaxSavedFoodName)},
+		{utf8Boundary, strings.Repeat("a", 78)},
+	} {
+		in, status, msg := parseSavedFoodPayload(map[string]any{"name": tc.in}, true)
+		if status != 0 {
+			t.Fatalf("rejected a long name: %d %q", status, msg)
+		}
+		if in.name != tc.want {
+			t.Errorf("name = %q (%d bytes), want %q (%d bytes)", in.name, len(in.name), tc.want, len(tc.want))
+		}
+		if len(in.name) > MaxSavedFoodName {
+			t.Errorf("name is %d bytes, over the %d-byte cap", len(in.name), MaxSavedFoodName)
+		}
+		if !utf8.ValidString(in.name) {
+			t.Errorf("name %q is not valid UTF-8; Postgres would reject it (22021)", in.name)
+		}
+	}
+}
+
+// TestParseSavedFoodPayloadEmoji pins the emoji column, which is nullable and
+// therefore really does have a clear state. Only the literal "<nil>" changes
+// behaviour: it used to clear the column and is now stored.
+func TestParseSavedFoodPayloadEmoji(t *testing.T) {
+	tests := []struct {
+		name        string
+		body        string
+		wantPresent bool
+		wantNil     bool
+		wantValue   string
+	}{
+		{"key absent leaves the column alone", `{"name":"x"}`, false, true, ""},
+		{"null clears it", `{"name":"x","emoji":null}`, true, true, ""},
+		{"empty string clears it", `{"name":"x","emoji":""}`, true, true, ""},
+		{"whitespace clears it", `{"name":"x","emoji":"   "}`, true, true, ""},
+		{"an emoji is stored", `{"name":"x","emoji":"🍕"}`, true, false, "🍕"},
+		{"a normal string is stored", `{"name":"x","emoji":"pz"}`, true, false, "pz"},
+		{"a padded value is trimmed", `{"name":"x","emoji":"  🍕  "}`, true, false, "🍕"},
+		// Was silently cleared by the sentinel. Nonsense as an emoji either
+		// way, but the point is that the four characters are no longer magic.
+		{"the literal <nil> is stored verbatim", `{"name":"x","emoji":"<nil>"}`, true, false, "<nil>"},
+		{"a number becomes its text", `{"name":"x","emoji":42}`, true, false, "42"},
+		{"true becomes its text", `{"name":"x","emoji":true}`, true, false, "true"},
+		{"an object becomes its text", `{"name":"x","emoji":{"a":1}}`, true, false, "map[a:1]"},
+		{"an array becomes its text", `{"name":"x","emoji":[1,2]}`, true, false, "[1 2]"},
+		{"an empty array becomes its text", `{"name":"x","emoji":[]}`, true, false, "[]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in, status, msg := parseSavedFoodPayload(sfBody(t, tt.body), true)
+			if status != 0 {
+				t.Fatalf("rejected %s: %d %q", tt.body, status, msg)
+			}
+			if in.hasEmoji != tt.wantPresent {
+				t.Fatalf("hasEmoji = %v, want %v", in.hasEmoji, tt.wantPresent)
+			}
+			if (in.emoji == nil) != tt.wantNil {
+				t.Fatalf("emoji nil = %v, want %v (got %v)", in.emoji == nil, tt.wantNil, in.emoji)
+			}
+			if in.emoji != nil && *in.emoji != tt.wantValue {
+				t.Errorf("emoji = %q, want %q", *in.emoji, tt.wantValue)
+			}
+			if in.emoji != nil && len(*in.emoji) > MaxSavedFoodEmoji {
+				t.Errorf("emoji is %d bytes, over the %d-byte cap", len(*in.emoji), MaxSavedFoodEmoji)
+			}
+		})
+	}
+}
+
+// TestParseSavedFoodPayloadAmount pins the amount column. Note the asymmetry
+// preserved from before the refactor: an explicit null leaves hasAmount false
+// (Update omits the column entirely), while an empty string clears it. Only the
+// literal "<nil>" changes: it used to clear, and is now a 400 — the same call
+// #338 made for the entry amount.
+func TestParseSavedFoodPayloadAmount(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantSet   bool // hasAmount
+		wantNil   bool
+		wantValue int
+		wantMsg   bool
+	}{
+		{"key absent leaves the column alone", `{"name":"x"}`, false, true, 0, false},
+		// #388: null clears the amount, exactly like "" and "   " below. It used to
+		// leave hasAmount false, so a body of only {"amount": null} — what the UI
+		// sends when the field is emptied — answered 400 "No updates provided" and
+		// left the stored calories in place.
+		{"null clears it", `{"name":"x","amount":null}`, true, true, 0, false},
+		{"empty string clears it", `{"name":"x","amount":""}`, true, true, 0, false},
+		{"whitespace clears it", `{"name":"x","amount":"   "}`, true, true, 0, false},
+		{"a numeric string sets it", `{"name":"x","amount":"500"}`, true, false, 500, false},
+		{"a JSON number sets it", `{"name":"x","amount":500}`, true, false, 500, false},
+		{"an expression is evaluated", `{"name":"x","amount":"2*3"}`, true, false, 6, false},
+		{"literal <nil> is rejected, not silently cleared", `{"name":"x","amount":"<nil>"}`, false, false, 0, true},
+		{"a word is rejected", `{"name":"x","amount":"abc"}`, false, false, 0, true},
+		{"true is rejected", `{"name":"x","amount":true}`, false, false, 0, true},
+		{"an object is rejected", `{"name":"x","amount":{"a":1}}`, false, false, 0, true},
+		{"an array is rejected", `{"name":"x","amount":[1,2]}`, false, false, 0, true},
+		{"over the cap is rejected", `{"name":"x","amount":"99999"}`, false, false, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in, status, msg := parseSavedFoodPayload(sfBody(t, tt.body), true)
+			if (status != 0) != tt.wantMsg {
+				t.Fatalf("status = %d (%q), wantMsg = %v", status, msg, tt.wantMsg)
+			}
+			if tt.wantMsg {
+				return
+			}
+			if in.hasAmount != tt.wantSet {
+				t.Fatalf("hasAmount = %v, want %v", in.hasAmount, tt.wantSet)
+			}
+			if (in.amount == nil) != tt.wantNil {
+				t.Fatalf("amount nil = %v, want %v (got %v)", in.amount == nil, tt.wantNil, in.amount)
+			}
+			if in.amount != nil && *in.amount != tt.wantValue {
+				t.Errorf("amount = %d, want %d", *in.amount, tt.wantValue)
+			}
+		})
+	}
+}
+
+// TestParseSavedFoodPayloadMacros pins the macro columns. They are nullable, so
+// null and "" both clear — but unlike the entries handler an explicit "0" here
+// is a real zero, not a clear. Only the literal "<nil>" changes behaviour.
+func TestParseSavedFoodPayloadMacros(t *testing.T) {
+	tests := []struct {
+		name        string
+		body        string
+		wantPresent bool
+		wantNil     bool
+		wantValue   int
+		wantMsg     bool
+	}{
+		{"key absent leaves the column alone", `{"name":"x"}`, false, true, 0, false},
+		{"null clears it", `{"name":"x","protein_g":null}`, true, true, 0, false},
+		{"empty string clears it", `{"name":"x","protein_g":""}`, true, true, 0, false},
+		{"whitespace clears it", `{"name":"x","protein_g":"   "}`, true, true, 0, false},
+		{"a numeric string sets it", `{"name":"x","protein_g":"50"}`, true, false, 50, false},
+		{"a JSON number sets it", `{"name":"x","protein_g":50}`, true, false, 50, false},
+		// Unlike buildEntryUpdates, where "0" means clear. Pinned so the two
+		// surfaces are not "harmonised" by accident.
+		{"zero is a real zero here, not a clear", `{"name":"x","protein_g":0}`, true, false, 0, false},
+		{"literal <nil> is rejected, not silently cleared", `{"name":"x","protein_g":"<nil>"}`, false, false, 0, true},
+		{"a word is rejected", `{"name":"x","protein_g":"abc"}`, false, false, 0, true},
+		{"true is rejected", `{"name":"x","protein_g":true}`, false, false, 0, true},
+		{"an object is rejected", `{"name":"x","protein_g":{"a":1}}`, false, false, 0, true},
+		{"an array is rejected", `{"name":"x","protein_g":[1,2]}`, false, false, 0, true},
+		{"a fraction is rejected", `{"name":"x","protein_g":30.5}`, false, false, 0, true},
+		{"a negative value is rejected", `{"name":"x","protein_g":-5}`, false, false, 0, true},
+		{"over the cap is rejected", `{"name":"x","protein_g":1500}`, false, false, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in, status, msg := parseSavedFoodPayload(sfBody(t, tt.body), true)
+			if (status != 0) != tt.wantMsg {
+				t.Fatalf("status = %d (%q), wantMsg = %v", status, msg, tt.wantMsg)
+			}
+			if tt.wantMsg {
+				return
+			}
+			v, present := in.macros["protein"]
+			if present != tt.wantPresent {
+				t.Fatalf("protein present = %v, want %v", present, tt.wantPresent)
+			}
+			if !present {
+				return
+			}
+			if (v == nil) != tt.wantNil {
+				t.Fatalf("protein nil = %v, want %v (got %v)", v == nil, tt.wantNil, v)
+			}
+			if v != nil && *v != tt.wantValue {
+				t.Errorf("protein = %d, want %d", *v, tt.wantValue)
 			}
 		})
 	}

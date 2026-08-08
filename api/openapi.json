@@ -4,7 +4,7 @@
     "title": "Schautrack API",
     "version": "1.0.0",
     "summary": "Read and write your Schautrack calorie, weight, todo, and food data.",
-    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` and `GET /weight` are paginated by keyset. Pass the\n`next_cursor` from a response back as `cursor` to fetch the next\npage; stop when `has_more` is false. Cursors are opaque — do not\nconstruct them.\n\n## Retrying safely\n\nEvery `PUT` here is idempotent by construction: the URL names the resource\nand the body states the desired state, so repeating one changes nothing.\n\n`POST` is different. If a request to create an entry times out, you cannot\nknow whether it landed. Send an `Idempotency-Key` header — any string you\ngenerate once per logical operation and reuse when retrying:\n\n```\nIdempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05\n```\n\nThe first request executes and its response is stored. Any retry with the same\nkey replays that response, with `Idempotency-Replayed: true`, instead of\nlogging the meal twice. Reusing a key with a *different* body returns `409`\nrather than silently discarding the new request. Keys are remembered for 24\nhours.\n\n## Rate limits\n\nTwo limits apply: one per IP address and one per token. Exceeding either\nreturns `429` with a `Retry-After` header giving the number of\nseconds until the window reopens. Honour it rather than retrying blindly.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n| `links:read` | Read data that linked accounts have shared with you. |\n| `settings:read` | Read account settings (goal, timezone, units, language). |\n| `settings:write` | Change account settings (goal, timezone, units, language). |\n| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |\n",
+    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\nThe `type` URIs are **stable identifiers, not endpoints**. Every instance,\nself-hosted ones included, emits the same `https://schautrack.com/problems/…`\nURIs on purpose, so a client can recognise a problem type without knowing which\nhost produced it. Do not dereference them, and do not expect a self-hosted\ninstance to rewrite them to its own domain. This document's `servers` URL,\nby contrast, *is* an endpoint, and always names the instance that served it.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` and `GET /weight` are paginated by keyset. Pass the\n`next_cursor` from a response back as `cursor` to fetch the next\npage; stop when `has_more` is false. Cursors are opaque — do not\nconstruct them.\n\n## Retrying safely\n\nEvery `PUT` here is idempotent by construction: the URL names the resource\nand the body states the desired state, so repeating one changes nothing.\n\n`POST` is different. If a request to create an entry times out, you cannot\nknow whether it landed. Send an `Idempotency-Key` header — any string you\ngenerate once per logical operation and reuse when retrying:\n\n```\nIdempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05\n```\n\nThe first request executes and its response is stored. Any retry with the same\nkey replays that response, with `Idempotency-Replayed: true`, instead of\nlogging the meal twice. Reusing a key with a *different* body returns `409`\nrather than silently discarding the new request. Keys are remembered for 24\nhours. A request that fails releases its key, so the retry is a fresh attempt\nrather than a replay of the error.\n\nEvery endpoint that creates something accepts the header: `POST /entries`,\n`POST /todos`, `POST /saved-foods`, and\n`POST /saved-foods/{id}/track`. The operation parameter lists say which,\nand they are not advisory — the one `POST` that does not honour the header\n(`POST /ai/estimate`) rejects it with `400` instead of ignoring it.\nAn accepted request is therefore always a request whose retry semantics are\nwhat you asked for.\n\n## Rate limits\n\nThree limits apply: one per IP address, one per token, and — on the two\nendpoints that cost real resources — one per account. `POST /ai/estimate`\nand `GET /barcode/{code}` reach a paid provider and a third-party food\ndatabase respectively, so they are capped at the same rate the app's own UI\ngets rather than at the API-wide ceiling; a token is not a cheaper route to\nthem than a browser.\n\nExceeding any of the three returns `429` with a `Retry-After`\nheader giving the number of seconds until the window reopens. Honour it rather\nthan retrying blindly.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n| `links:read` | Read data that linked accounts have shared with you. |\n| `settings:read` | Read account settings (goal, timezone, units, language). |\n| `settings:write` | Change account settings (goal, timezone, units, language). |\n| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |\n",
     "license": {
       "name": "AGPL-3.0-or-later",
       "identifier": "AGPL-3.0-or-later"
@@ -17,11 +17,7 @@
   "servers": [
     {
       "url": "https://schautrack.com/api/v1",
-      "description": "Production"
-    },
-    {
-      "url": "https://staging.schautrack.com/api/v1",
-      "description": "Staging"
+      "description": "This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's \"Try it out\" included — send credentials only to the host the document came from."
     }
   ],
   "tags": [
@@ -71,7 +67,7 @@
       "post": {
         "operationId": "estimateFromPhoto",
         "summary": "Estimate nutrition from a food photo",
-        "description": "Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.",
+        "description": "Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured. This is the one `POST` that does not honour `Idempotency-Key`: sending the header returns 400 rather than being ignored, so a caller is never left believing a retry is safe when it is not.",
         "tags": [
           "AI"
         ],
@@ -188,7 +184,7 @@
       "get": {
         "operationId": "lookupBarcode",
         "summary": "Look up a product by barcode",
-        "description": "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.",
+        "description": "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Rate limited per account at the same rate as the app's own scanner, since it queries the same third-party database. Returns 404 when barcode lookup is disabled on the server.",
         "tags": [
           "Saved foods"
         ],
@@ -508,6 +504,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created entry.",
                 "schema": {
@@ -548,6 +550,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -608,6 +620,7 @@
       "get": {
         "operationId": "getEntry",
         "summary": "Fetch one calorie entry",
+        "description": "Pass the same `user` you listed with: an id from `GET /entries?user=42` belongs to account 42, so fetching it needs `?user=42` too. Without it the lookup is scoped to your own account and returns 404.",
         "tags": [
           "Entries"
         ],
@@ -617,6 +630,14 @@
             "in": "path",
             "description": "The resource's identifier.",
             "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
             "schema": {
               "type": "integer"
             }
@@ -781,6 +802,16 @@
           },
           "404": {
             "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1016,13 +1047,13 @@
       "get": {
         "operationId": "getMe",
         "summary": "The authenticated account and token",
-        "description": "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
+        "description": "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds and, via `features`, which optional features the account has on.",
         "tags": [
           "Account"
         ],
         "responses": {
           "200": {
-            "description": "The account, the token, and the server.",
+            "description": "The account, the token, the server, and the account's enabled features.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1131,6 +1162,16 @@
           },
           "403": {
             "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1387,6 +1428,16 @@
               }
             }
           },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request is well-formed but its values are rejected. `invalid_params` lists the offending fields.",
             "content": {
@@ -1465,7 +1516,7 @@
       "get": {
         "operationId": "getPlan",
         "summary": "The weight-loss plan",
-        "description": "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.",
+        "description": "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.\n\n**Your own plan only, deliberately.** This endpoint does not accept `user`: the plan is a projection over body metrics and a weight goal, and account linking has no share category covering either. A linked account's weight readings are readable via `GET /weight?user=`; the plan built from them is not.",
         "tags": [
           "Plan"
         ],
@@ -1542,22 +1593,9 @@
       "get": {
         "operationId": "listSavedFoods",
         "summary": "List saved foods",
-        "description": "Most-used first, then most-recently-used.",
+        "description": "Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.\n\n**Your own foods only, deliberately.** This endpoint does not accept `user`: account linking shares nutrition, weight, todos, and notes, and saved foods are none of those, so there is no share category that could authorize reading another account's. Passing `user` is ignored.",
         "tags": [
           "Saved foods"
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum results to return. Values above 200 are clamped to 200.",
-            "schema": {
-              "type": "integer",
-              "default": 50,
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
         ],
         "responses": {
           "200": {
@@ -1566,16 +1604,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SavedFoodList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1643,6 +1671,16 @@
         "tags": [
           "Saved foods"
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1664,6 +1702,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created food.",
                 "schema": {
@@ -1704,6 +1748,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1841,6 +1895,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2042,6 +2106,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created entry.",
                 "schema": {
@@ -2092,6 +2162,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2152,9 +2232,19 @@
       "get": {
         "operationId": "listTodos",
         "summary": "List todo definitions",
-        "description": "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.",
+        "description": "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`. Accepts `user` under the same `todos` share category as that endpoint.",
         "tags": [
           "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -2163,6 +2253,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TodoList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -2230,6 +2330,16 @@
         "tags": [
           "Todos"
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2251,6 +2361,12 @@
               }
             },
             "headers": {
+              "Idempotency-Replayed": {
+                "description": "Present and `true` only on a replayed response — the request matched a stored Idempotency-Key and nothing new was created. Absent on the first request. This is the only way to distinguish a replay from a fresh create, since a replay repeats the original status code.",
+                "schema": {
+                  "type": "boolean"
+                }
+              },
               "Location": {
                 "description": "URL of the created todo.",
                 "schema": {
@@ -2291,6 +2407,16 @@
           },
           "409": {
             "description": "The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2527,6 +2653,16 @@
           },
           "404": {
             "description": "No such resource, or it belongs to another account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2774,6 +2910,16 @@
               }
             }
           },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Too many requests. The `Retry-After` header gives the number of seconds until the window reopens.",
             "content": {
@@ -2964,6 +3110,7 @@
       "get": {
         "operationId": "getWeight",
         "summary": "Fetch one day's weight",
+        "description": "Pass the same `user` you listed with — a date from `GET /weight?user=42` is a reading on account 42, and without `?user=42` this looks in your own readings and returns 404. `unit` is always the unit of whoever the reading belongs to; readings are never converted.",
         "tags": [
           "Weight"
         ],
@@ -2978,6 +3125,14 @@
               "format": "date",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
               "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -3072,7 +3227,7 @@
       "put": {
         "operationId": "putWeight",
         "summary": "Record a day's weight",
-        "description": "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.",
+        "description": "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. `body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.",
         "tags": [
           "Weight"
         ],
@@ -3151,6 +3306,16 @@
           },
           "403": {
             "description": "The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3320,6 +3485,10 @@
         "type": "object",
         "description": "Body composition derived from the most recent body-fat reading. That reading can be older than the current weight — body composition is measured less often — so `date` says when it was taken.",
         "properties": {
+          "ageDays": {
+            "type": "integer",
+            "description": "Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead."
+          },
           "bodyFatPct": {
             "type": "number",
             "description": "Body fat as a percentage of total mass. A percentage, so never unit-converted."
@@ -3353,6 +3522,10 @@
           "leanMass": {
             "type": "number",
             "description": "Fat-free mass at that reading. In the unit given by the plan's `unit` field."
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "Whether the reading is too old to choose the BMR formula (older than 90 days). A stale reading is still reported — it is the account's most recent measurement — but `computed.bmrFormula` falls back to `mifflin_st_jeor` instead of `katch_mcardle`."
           }
         },
         "required": [
@@ -3360,7 +3533,9 @@
           "bodyFatPct",
           "leanMass",
           "fatMass",
-          "category"
+          "category",
+          "ageDays",
+          "stale"
         ]
       },
       "Completion": {
@@ -3830,8 +4005,41 @@
       },
       "Me": {
         "type": "object",
-        "description": "The authenticated account and token.",
+        "description": "The authenticated account, the token, and the account's enabled features.",
         "properties": {
+          "features": {
+            "type": "object",
+            "description": "Per-account opt-ins that change how the rest of the API behaves. Read-only: they are switched in the app's settings, not through this API. Every field is always present.",
+            "properties": {
+              "auto_calc_calories": {
+                "type": "boolean",
+                "description": "Calories are computed from macros. When `true`, `POST /entries` derives `calories` from the macros it was given rather than trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`."
+              },
+              "body_fat": {
+                "type": "boolean",
+                "description": "Body-fat readings are enabled. When `false` a stored reading is not shown in the app."
+              },
+              "macros": {
+                "type": "boolean",
+                "description": "At least one macro (protein, carbs, fat, fiber, sugar) is enabled for this account, so macro values are shown in the app."
+              },
+              "notes": {
+                "type": "boolean",
+                "description": "Daily notes are enabled. When `false`, `GET` and `PUT /notes/{date}` answer `409`."
+              },
+              "todos": {
+                "type": "boolean",
+                "description": "Todos are enabled in the app. The todo endpoints work either way, but a todo created while this is `false` is invisible to the user."
+              }
+            },
+            "required": [
+              "body_fat",
+              "todos",
+              "notes",
+              "macros",
+              "auto_calc_calories"
+            ]
+          },
           "server": {
             "type": "object",
             "description": "The server answering.",
@@ -3946,7 +4154,8 @@
         "required": [
           "user",
           "token",
-          "server"
+          "server",
+          "features"
         ]
       },
       "Note": {
@@ -4522,11 +4731,11 @@
       },
       "SavedFoodList": {
         "type": "object",
-        "description": "Saved foods, most-used first.",
+        "description": "Saved foods, most-used first. Never partial.",
         "properties": {
           "data": {
             "type": "array",
-            "description": "The foods.",
+            "description": "Every saved food on the account.",
             "items": {
               "$ref": "#/components/schemas/SavedFood"
             }
@@ -4877,6 +5086,13 @@
         "type": "object",
         "description": "A weight reading. One per account per day.",
         "properties": {
+          "body_fat": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Body fat as a percentage, or `null` when the day carries no measurement."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4910,6 +5126,7 @@
         "required": [
           "date",
           "weight",
+          "body_fat",
           "unit",
           "created_at",
           "updated_at"
@@ -5013,6 +5230,15 @@
         "type": "object",
         "description": "A weight reading.",
         "properties": {
+          "body_fat": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored reading for that day untouched — which is what makes a weight-only scale integration safe to retry. Send `null` to clear it. Writing a value switches the account's body-fat field on if it was off, so the reading is visible in the app; clearing never switches it back off.",
+            "minimum": 0.1,
+            "maximum": 75
+          },
           "weight": {
             "type": "number",
             "description": "The reading, in the account's unit.",
@@ -5093,6 +5319,16 @@
       },
       "NotFound": {
         "description": "No such resource, or it belongs to another account.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint.",
         "content": {
           "application/problem+json": {
             "schema": {

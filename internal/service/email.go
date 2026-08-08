@@ -6,7 +6,7 @@ import (
 	"embed"
 	"fmt"
 	htmltemplate "html/template"
-	"log"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/smtp"
@@ -140,7 +140,7 @@ func (es *EmailService) SendEmail(to, subject, text, html string) error {
 		// generic message. Swallowing the error here made every caller
 		// report success even when nothing was sent — combined with the
 		// unverified-user cleanup that silently cost accounts.
-		log.Printf("SMTP send failed: %v", err)
+		slog.Error("SMTP send failed", "error", err)
 		return fmt.Errorf("email send failed: %w", err)
 	}
 	return nil

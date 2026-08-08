@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	CookieName     = "schautrack.sid"
-	AnonMaxAge     = 15 * time.Minute
-	AuthMaxAge     = 30 * 24 * time.Hour
-	PruneInterval  = 5 * time.Minute
+	CookieName       = "schautrack.sid"
+	AnonMaxAge       = 15 * time.Minute
+	AuthMaxAge       = 30 * 24 * time.Hour
+	PruneInterval    = 5 * time.Minute
 	defaultStepUpTTL = 30 * time.Minute
 )
 
@@ -32,10 +32,18 @@ const (
 // environment variable (any value parseable by time.ParseDuration). The
 // override exists for E2E tests that need a short window to exercise both
 // the in-grace and expired paths.
-var StepUpTTL = parseStepUpTTL()
+var StepUpTTL = ParseStepUpTTL(os.Getenv("STEP_UP_TTL"))
 
-func parseStepUpTTL() time.Duration {
-	if v := os.Getenv("STEP_UP_TTL"); v != "" {
+// ParseStepUpTTL resolves a raw step_up_ttl value (env var or admin setting)
+// into a duration, falling back to defaultStepUpTTL for anything empty,
+// unparseable, or non-positive.
+//
+// It takes the raw string rather than reading the environment itself so the
+// admin-settings validator that gates the same value (handler.validDuration)
+// can be asserted against it — a value the validator accepts but this parser
+// rejects means the admin sets a step-up window and silently gets 30m.
+func ParseStepUpTTL(v string) time.Duration {
+	if v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			return d
 		}

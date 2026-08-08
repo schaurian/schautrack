@@ -3,6 +3,7 @@ package openapi
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"schautrack/internal/service"
 )
@@ -94,6 +95,13 @@ served as ` + "`application/problem+json`" + `:
 
 Branch on ` + "`type`" + `, not on ` + "`detail`" + `: the type URI is stable, the prose is not.
 
+The ` + "`type`" + ` URIs are **stable identifiers, not endpoints**. Every instance,
+self-hosted ones included, emits the same ` + "`https://schautrack.com/problems/…`" + `
+URIs on purpose, so a client can recognise a problem type without knowing which
+host produced it. Do not dereference them, and do not expect a self-hosted
+instance to rewrite them to its own domain. This document's ` + "`servers`" + ` URL,
+by contrast, *is* an endpoint, and always names the instance that served it.
+
 ## Dates and time zones
 
 Dates are ` + "`YYYY-MM-DD`" + ` in the **account's** time zone. Omitting a date means
@@ -125,17 +133,70 @@ The first request executes and its response is stored. Any retry with the same
 key replays that response, with ` + "`Idempotency-Replayed: true`" + `, instead of
 logging the meal twice. Reusing a key with a *different* body returns ` + "`409`" + `
 rather than silently discarding the new request. Keys are remembered for 24
-hours.
+hours. A request that fails releases its key, so the retry is a fresh attempt
+rather than a replay of the error.
+
+Every endpoint that creates something accepts the header: ` + "`POST /entries`" + `,
+` + "`POST /todos`" + `, ` + "`POST /saved-foods`" + `, and
+` + "`POST /saved-foods/{id}/track`" + `. The operation parameter lists say which,
+and they are not advisory — the one ` + "`POST`" + ` that does not honour the header
+(` + "`POST /ai/estimate`" + `) rejects it with ` + "`400`" + ` instead of ignoring it.
+An accepted request is therefore always a request whose retry semantics are
+what you asked for.
 
 ## Rate limits
 
-Two limits apply: one per IP address and one per token. Exceeding either
-returns ` + "`429`" + ` with a ` + "`Retry-After`" + ` header giving the number of
-seconds until the window reopens. Honour it rather than retrying blindly.`
+Three limits apply: one per IP address, one per token, and — on the two
+endpoints that cost real resources — one per account. ` + "`POST /ai/estimate`" + `
+and ` + "`GET /barcode/{code}`" + ` reach a paid provider and a third-party food
+database respectively, so they are capped at the same rate the app's own UI
+gets rather than at the API-wide ceiling; a token is not a cheaper route to
+them than a browser.
 
-// Build assembles the OpenAPI document. version is the running build version,
-// surfaced so a reader can tell which deployment served the spec.
-func Build(version string) *Document {
+Exceeding any of the three returns ` + "`429`" + ` with a ` + "`Retry-After`" + `
+header giving the number of seconds until the window reopens. Honour it rather
+than retrying blindly.`
+
+// CanonicalBaseURL is the URL of the Schautrack-hosted instance. It is the base
+// cmd/apidocs bakes into the committed api/openapi.json and docs/api-v1.md, so
+// those two artifacts describe one fixed, reviewable host instead of whatever
+// machine happened to run the generator. A running server never uses it: it
+// serves its own BASE_URL — see Build.
+const CanonicalBaseURL = "https://schautrack.com"
+
+// servers returns the single `servers` entry for the instance serving this
+// document.
+//
+// There is exactly one entry, and it is this instance. A hardcoded list naming
+// schautrack.com used to ship to every deployment, which meant a self-hoster's
+// spec pointed clients — Swagger UI's "Try it out" above all, which sends the
+// caller's `stk_…` bearer token to servers[0] — at a host they do not control.
+// A long-lived token leaked that way is a durable exposure, so the server URL
+// has to follow the instance.
+func servers(baseURL string) []Server {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if base == "" {
+		// No BASE_URL configured. A relative server URL is resolved by the
+		// client against the URL the document itself was fetched from (OpenAPI
+		// 3.1 §4.8.5), which keeps an unconfigured instance pointing at itself.
+		// Deriving an absolute URL from the request's Host header instead would
+		// put an attacker-supplied value into the published contract, so the
+		// relative form is both simpler and safer.
+		return []Server{{URL: "/api/v1", Description: serverDescription}}
+	}
+	return []Server{{URL: base + "/api/v1", Description: serverDescription}}
+}
+
+const serverDescription = "This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's \"Try it out\" included — send credentials only to the host the document came from."
+
+// Build assembles the OpenAPI document.
+//
+// version is the running build version, surfaced so a reader can tell which
+// deployment served the spec. baseURL is the public root this instance is
+// reached at (config.BaseURL / the BASE_URL environment variable); it becomes
+// the sole `servers` entry as <baseURL>/api/v1. An empty baseURL yields the
+// relative "/api/v1", which every client resolves against this instance.
+func Build(version, baseURL string) *Document {
 	d := &Document{
 		OpenAPI: "3.1.0",
 		Info: Info{
@@ -146,10 +207,7 @@ func Build(version string) *Document {
 			License:     &License{Name: "AGPL-3.0-or-later", Identifier: "AGPL-3.0-or-later"},
 			Contact:     &Contact{Name: "Schautrack", URL: "https://schautrack.com"},
 		},
-		Servers: []Server{
-			{URL: "https://schautrack.com/api/v1", Description: "Production"},
-			{URL: "https://staging.schautrack.com/api/v1", Description: "Staging"},
-		},
+		Servers: servers(baseURL),
 		Tags: []Tag{
 			{Name: "Account", Description: "Who the token belongs to and what it may do."},
 			{Name: "Entries", Description: "Calorie entries and their macros."},
@@ -172,11 +230,87 @@ func Build(version string) *Document {
 		Security: []SecurityRequirement{{"bearerAuth": {}}},
 	}
 	d.Paths = paths()
+	applyBodyLimitResponses(d)
+	applyIdempotencyReplayedHeader(d)
 	d.Info.Version = APIVersion
 	if version != "" {
 		d.Info.Description += "\n\n---\n\nServed by build `" + version + "`."
 	}
 	return d
+}
+
+// applyBodyLimitResponses declares 413 on every operation that accepts a
+// request body.
+//
+// Derived rather than written per operation on purpose. decodeV1 caps every v1
+// body at maxV1Body and answers 413 when it is exceeded, so the response is a
+// property of "this operation takes a body" — not of any individual endpoint.
+// Listing it by hand meant only the AI image upload documented it (#349), and
+// a client generated from the document had no 413 branch for the other
+// thirteen: an oversized payload surfaced as an unhandled status rather than
+// as the size error it is.
+//
+// An operation that already declares its own 413 keeps it — POST /ai/estimate
+// has a different limit and says so.
+func applyBodyLimitResponses(d *Document) {
+	for _, item := range d.Paths {
+		for _, op := range item.Operations() {
+			if op.RequestBody == nil || op.Responses["413"] != nil {
+				continue
+			}
+			op.Responses["413"] = respRef("PayloadTooLarge")
+		}
+	}
+}
+
+// applyIdempotencyReplayedHeader declares the Idempotency-Replayed response
+// header on the success responses of every operation that accepts an
+// Idempotency-Key.
+//
+// The header is how a caller tells a replay from a fresh create — the status
+// code cannot, because a replay deliberately repeats the original 201. It was
+// described in prose but never declared, so it did not exist for any generated
+// client (#360); code reading `response.headers["Idempotency-Replayed"]` had to
+// be written by hand against documentation.
+//
+// Keyed off the request parameter rather than a list of paths so the two cannot
+// disagree: an endpoint that starts honouring the key documents the header in
+// the same commit, and one that stops loses it.
+func applyIdempotencyReplayedHeader(d *Document) {
+	header := Header{
+		Description: "Present and `true` only on a replayed response — the request matched a stored " +
+			"Idempotency-Key and nothing new was created. Absent on the first request. This is the " +
+			"only way to distinguish a replay from a fresh create, since a replay repeats the " +
+			"original status code.",
+		Schema: boolean(""),
+	}
+	for _, item := range d.Paths {
+		for _, op := range item.Operations() {
+			if !acceptsIdempotencyKey(op) {
+				continue
+			}
+			for code, resp := range op.Responses {
+				if code < "200" || code > "299" || resp == nil {
+					continue
+				}
+				if resp.Headers == nil {
+					resp.Headers = map[string]Header{}
+				}
+				if _, ok := resp.Headers["Idempotency-Replayed"]; !ok {
+					resp.Headers["Idempotency-Replayed"] = header
+				}
+			}
+		}
+	}
+}
+
+func acceptsIdempotencyKey(op *Operation) bool {
+	for _, p := range op.Parameters {
+		if p.In == "header" && p.Name == "Idempotency-Key" {
+			return true
+		}
+	}
+	return false
 }
 
 func securitySchemes() map[string]*SecurityScheme {
@@ -210,11 +344,11 @@ func sharedResponses() map[string]*Response {
 			},
 		},
 		"ServerError": r("An unexpected server-side failure."),
+		"PayloadTooLarge": r("The request body exceeds the 1 MB limit. Attached to every operation " +
+			"that takes a body — the cap is enforced in the decoder, not per endpoint."),
 	}
 }
 
-// idempotencyParam documents the opt-in retry-safety header on the two
-// endpoints that create something.
 // linkedUserParam lets a read endpoint return a linked account's data.
 var linkedUserParam = Parameter{
 	Name: "user", In: "query",
@@ -224,6 +358,9 @@ var linkedUserParam = Parameter{
 	Schema: integer(""),
 }
 
+// idempotencyParam documents the opt-in retry-safety header. It belongs on
+// every endpoint that creates something; the endpoints that do not honour it
+// reject it with 400 rather than ignoring it, so this list is not advisory.
 var idempotencyParam = Parameter{
 	Name: "Idempotency-Key", In: "header",
 	Description: "Optional. A key you generate once per logical operation and reuse when retrying. " +
@@ -307,12 +444,20 @@ func schemas() map[string]*Schema {
 		"Weight": object("A weight reading. One per account per day.", map[string]*Schema{
 			"date":       dateStr("The day this reading belongs to."),
 			"weight":     number("The reading, in `unit`."),
+			"body_fat":   nullable(number("Body fat as a percentage, or `null` when the day carries no measurement.")),
 			"unit":       {Type: "string", Enum: []any{"kg", "lb"}, Description: "The account's weight unit. Readings are stored as entered and never converted."},
 			"created_at": dateTime("When first recorded (UTC)."),
 			"updated_at": dateTime("When last changed (UTC)."),
-		}, "date", "weight", "unit", "created_at", "updated_at"),
+		}, "date", "weight", "body_fat", "unit", "created_at", "updated_at"),
 		"WeightInput": object("A weight reading.", map[string]*Schema{
 			"weight": withRange(number("The reading, in the account's unit."), 0.01, 1500),
+			"body_fat": nullable(withRange(number(
+				"Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored "+
+					"reading for that day untouched — which is what makes a weight-only scale "+
+					"integration safe to retry. Send `null` to clear it. Writing a value switches "+
+					"the account's body-fat field on if it was off, so the reading is visible in "+
+					"the app; clearing never switches it back off."),
+				0.1, service.MaxBodyFatPct)),
 		}, "weight"),
 		"WeightList": object("A page of weight readings, newest first.", map[string]*Schema{
 			"data":        array(ref("Weight"), "The readings."),
@@ -379,8 +524,8 @@ func schemas() map[string]*Schema {
 				"emoji":    nullStr("`null` clears the emoji."),
 				"calories": withRange(nullInt("Energy per unit."), -9999, 9999),
 			}, macroInputProps())),
-		"SavedFoodList": object("Saved foods, most-used first.", map[string]*Schema{
-			"data": array(ref("SavedFood"), "The foods."),
+		"SavedFoodList": object("Saved foods, most-used first. Never partial.", map[string]*Schema{
+			"data": array(ref("SavedFood"), "Every saved food on the account."),
 		}, "data"),
 		"TrackInput": object("How to log this food.", map[string]*Schema{
 			"date":     dateStr("Defaults to today in the account's time zone."),
@@ -396,7 +541,7 @@ func schemas() map[string]*Schema {
 			"content": {Type: "string", Description: "Up to 10000 characters.", MaxLength: intp(10000)},
 		}, "content"),
 
-		"Me": object("The authenticated account and token.", map[string]*Schema{
+		"Me": object("The authenticated account, the token, and the account's enabled features.", map[string]*Schema{
 			"user": object("The account this token belongs to.", map[string]*Schema{
 				"id":          integer("Account identifier."),
 				"email":       str("Account email."),
@@ -416,7 +561,24 @@ func schemas() map[string]*Schema {
 				"version": str("The running build version."),
 				"today":   dateStr("Today's date in the account's time zone."),
 			}, "version", "today"),
-		}, "user", "token", "server"),
+			"features": object(
+				"Per-account opt-ins that change how the rest of the API behaves. "+
+					"Read-only: they are switched in the app's settings, not through this API. "+
+					"Every field is always present.",
+				map[string]*Schema{
+					"body_fat": boolean("Body-fat readings are enabled. When `false` a stored " +
+						"reading is not shown in the app."),
+					"todos": boolean("Todos are enabled in the app. The todo endpoints work either " +
+						"way, but a todo created while this is `false` is invisible to the user."),
+					"notes": boolean("Daily notes are enabled. When `false`, `GET` and `PUT " +
+						"/notes/{date}` answer `409`."),
+					"macros": boolean("At least one macro (protein, carbs, fat, fiber, sugar) is " +
+						"enabled for this account, so macro values are shown in the app."),
+					"auto_calc_calories": boolean("Calories are computed from macros. When `true`, " +
+						"`POST /entries` derives `calories` from the macros it was given rather than " +
+						"trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`."),
+				}, "body_fat", "todos", "notes", "macros", "auto_calc_calories"),
+		}, "user", "token", "server", "features"),
 
 		"Link": object("A linked account, from your point of view.", map[string]*Schema{
 			"user_id": integer("Pass this as the `user` query parameter on a read endpoint."),
@@ -551,7 +713,9 @@ func planSchemas() map[string]*Schema {
 				"leanMass":   number("Fat-free mass at that reading." + inUnit),
 				"fatMass":    number("Fat mass at that reading." + inUnit),
 				"category":   nullEnumStr("The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one.", "essential", "athletic", "fitness", "average", "obese"),
-			}, "date", "bodyFatPct", "leanMass", "fatMass", "category"),
+				"ageDays":    integer("Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead."),
+				"stale":      boolean("Whether the reading is too old to choose the BMR formula (older than 90 days). A stale reading is still reported — it is the account's most recent measurement — but `computed.bmrFormula` falls back to `mifflin_st_jeor` instead of `katch_mcardle`."),
+			}, "date", "bodyFatPct", "leanMass", "fatMass", "category", "ageDays", "stale"),
 
 		"HealthyRange": object("The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.",
 			map[string]*Schema{
@@ -720,9 +884,10 @@ func paths() map[string]*PathItem {
 			Get: &Operation{
 				OperationID: "getMe",
 				Summary:     "The authenticated account and token",
-				Description: "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
-				Tags:        []string{"Account"},
-				Responses:   merge(map[string]*Response{"200": ok200("The account, the token, and the server.", ref("Me"))}, errs(nil)),
+				Description: "Requires a valid token but no particular scope — this is how a client discovers " +
+					"which scopes it holds and, via `features`, which optional features the account has on.",
+				Tags:      []string{"Account"},
+				Responses: merge(map[string]*Response{"200": ok200("The account, the token, the server, and the account's enabled features.", ref("Me"))}, errs(nil)),
 			},
 			Patch: &Operation{
 				OperationID: "updateMe",
@@ -784,9 +949,12 @@ func paths() map[string]*PathItem {
 		"/entries/{id}": {
 			Get: &Operation{
 				OperationID: "getEntry", Summary: "Fetch one calorie entry",
+				Description: "Pass the same `user` you listed with: an id from `GET /entries?user=42` " +
+					"belongs to account 42, so fetching it needs `?user=42` too. Without it the lookup " +
+					"is scoped to your own account and returns 404.",
 				Tags: []string{"Entries"}, Scope: service.ScopeEntriesRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeEntriesRead}}},
-				Parameters: []Parameter{idParam},
+				Parameters: []Parameter{idParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The entry.", ref("Entry")),
 					"400": respRef("BadRequest"), "404": respRef("NotFound"),
@@ -836,9 +1004,13 @@ func paths() map[string]*PathItem {
 		"/weight/{date}": {
 			Get: &Operation{
 				OperationID: "getWeight", Summary: "Fetch one day's weight",
+				Description: "Pass the same `user` you listed with — a date from `GET /weight?user=42` " +
+					"is a reading on account 42, and without `?user=42` this looks in your own " +
+					"readings and returns 404. `unit` is always the unit of whoever the reading " +
+					"belongs to; readings are never converted.",
 				Tags: []string{"Weight"}, Scope: service.ScopeWeightRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeWeightRead}}},
-				Parameters: []Parameter{dateParam},
+				Parameters: []Parameter{dateParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The reading.", ref("Weight")),
 					"400": respRef("BadRequest"), "404": respRef("NotFound"),
@@ -846,8 +1018,9 @@ func paths() map[string]*PathItem {
 			},
 			Put: &Operation{
 				OperationID: "putWeight", Summary: "Record a day's weight",
-				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.",
-				Tags:        []string{"Weight"}, Scope: service.ScopeWeightWrite,
+				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. " +
+					"`body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.",
+				Tags: []string{"Weight"}, Scope: service.ScopeWeightWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeWeightWrite}}},
 				Parameters:  []Parameter{dateParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("WeightInput"))},
@@ -871,15 +1044,21 @@ func paths() map[string]*PathItem {
 		"/todos": {
 			Get: &Operation{
 				OperationID: "listTodos", Summary: "List todo definitions",
-				Description: "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.",
-				Tags:        []string{"Todos"}, Scope: service.ScopeTodosRead,
-				Security:  []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
-				Responses: merge(map[string]*Response{"200": ok200("The todos.", ref("TodoList"))}, errs(nil)),
+				Description: "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`. " +
+					"Accepts `user` under the same `todos` share category as that endpoint.",
+				Tags: []string{"Todos"}, Scope: service.ScopeTodosRead,
+				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
+				Parameters: []Parameter{linkedUserParam},
+				Responses: merge(map[string]*Response{
+					"200": ok200("The todos.", ref("TodoList")),
+					"400": respRef("BadRequest"),
+				}, errs(nil)),
 			},
 			Post: &Operation{
 				OperationID: "createTodo", Summary: "Create a todo",
 				Tags: []string{"Todos"}, Scope: service.ScopeTodosWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeTodosWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("TodoInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created todo.", ref("Todo"), "URL of the created todo."),
@@ -939,19 +1118,27 @@ func paths() map[string]*PathItem {
 		"/saved-foods": {
 			Get: &Operation{
 				OperationID: "listSavedFoods", Summary: "List saved foods",
-				Description: "Most-used first, then most-recently-used.",
-				Tags:        []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
-				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
-				Parameters: []Parameter{limitParam},
+				Description: "Most-used first, then most-recently-used, then newest first. " +
+					"Not paginated: an account holds at most 200 saved foods, so this always " +
+					"returns the complete set.\n\n" +
+					"**Your own foods only, deliberately.** This endpoint does not accept `user`: " +
+					"account linking shares nutrition, weight, todos, and notes, and saved foods are " +
+					"none of those, so there is no share category that could authorize reading " +
+					"another account's. Passing `user` is ignored.",
+				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
+				Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
+				// No 400: the operation takes no input to reject, matching the
+				// other parameterless collections (listTodos, listLinks).
+
 				Responses: merge(map[string]*Response{
 					"200": ok200("The saved foods.", ref("SavedFoodList")),
-					"400": respRef("BadRequest"),
 				}, errs(nil)),
 			},
 			Post: &Operation{
 				OperationID: "createSavedFood", Summary: "Create a saved food",
 				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("SavedFoodInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created food.", ref("SavedFood"), "URL of the created food."),
@@ -1036,6 +1223,8 @@ func paths() map[string]*PathItem {
 		"/barcode/{code}": {Get: &Operation{
 			OperationID: "lookupBarcode", Summary: "Look up a product by barcode",
 			Description: "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. " +
+				"Rate limited per account at the same rate as the app's own scanner, since it " +
+				"queries the same third-party database. " +
 				"Returns 404 when barcode lookup is disabled on the server.",
 			Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
 			Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
@@ -1057,8 +1246,12 @@ func paths() map[string]*PathItem {
 			OperationID: "estimateFromPhoto", Summary: "Estimate nutrition from a food photo",
 			Description: "Requires the `ai:estimate` scope, which no other scope implies — every call " +
 				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
-				"daily AI limit applies here exactly as it does in the app. Returns 404 when no AI " +
-				"provider is configured.",
+				"daily AI limit applies here exactly as it does in the app, as does a per-account " +
+				"rate limit matching the app's own estimate endpoint — this is not a cheaper path " +
+				"to the provider. Returns 404 when no AI provider is configured. This is the one " +
+				"`POST` that does not honour `Idempotency-Key`: sending the header returns 400 " +
+				"rather than being ignored, so a caller is never left believing a retry is safe " +
+				"when it is not.",
 			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
 			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},
@@ -1079,8 +1272,14 @@ func paths() map[string]*PathItem {
 
 		"/plan": {Get: &Operation{
 			OperationID: "getPlan", Summary: "The weight-loss plan",
-			Description: "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.",
-			Tags:        []string{"Plan"}, Scope: service.ScopePlanRead,
+			Description: "Read-only. Unlike the app's own plan endpoint, this one never writes — a " +
+				"`plan:read` token cannot change state, so a goal that has been reached is reported " +
+				"but not transitioned.\n\n" +
+				"**Your own plan only, deliberately.** This endpoint does not accept `user`: the plan " +
+				"is a projection over body metrics and a weight goal, and account linking has no " +
+				"share category covering either. A linked account's weight readings are readable " +
+				"via `GET /weight?user=`; the plan built from them is not.",
+			Tags: []string{"Plan"}, Scope: service.ScopePlanRead,
 			Security:  []SecurityRequirement{{"bearerAuth": {service.ScopePlanRead}}},
 			Responses: merge(map[string]*Response{"200": ok200("The plan.", ref("Plan"))}, errs(nil)),
 		}},

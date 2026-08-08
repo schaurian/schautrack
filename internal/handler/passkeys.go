@@ -36,8 +36,8 @@ func (u *webauthnUser) WebAuthnID() []byte {
 	return b
 }
 
-func (u *webauthnUser) WebAuthnName() string        { return u.email }
-func (u *webauthnUser) WebAuthnDisplayName() string  { return u.email }
+func (u *webauthnUser) WebAuthnName() string                       { return u.email }
+func (u *webauthnUser) WebAuthnDisplayName() string                { return u.email }
 func (u *webauthnUser) WebAuthnCredentials() []webauthn.Credential { return u.credentials }
 
 func passkeysToCredentials(records []service.PasskeyRecord) []webauthn.Credential {
@@ -91,9 +91,9 @@ func (h *PasskeyHandler) RegisterBegin(w http.ResponseWriter, r *http.Request) {
 	excludeList := make([]protocol.CredentialDescriptor, len(wUser.credentials))
 	for i, c := range wUser.credentials {
 		excludeList[i] = protocol.CredentialDescriptor{
-			Type:            protocol.PublicKeyCredentialType,
-			CredentialID:    c.ID,
-			Transport:       c.Transport,
+			Type:         protocol.PublicKeyCredentialType,
+			CredentialID: c.ID,
+			Transport:    c.Transport,
 		}
 	}
 

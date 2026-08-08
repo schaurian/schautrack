@@ -4,7 +4,15 @@ const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/fixtures/**', '**/setup-test-user.ts'],
+  // `*.helper.spec.ts` is reserved for ad-hoc, non-asserting browser automation
+  // (screenshot capture and the like) and is never part of a run. Screenshots are
+  // produced by `npm run screenshots` (scripts/screenshots.ts), not by a spec;
+  // e2e/ holds asserting specs only.
+  //
+  // NOTE: a project that sets its own `testIgnore` REPLACES this list rather than
+  // extending it, so the pattern is repeated in the `chromium` project below —
+  // that is the only project selecting files by ignore rather than `testMatch`.
+  testIgnore: ['**/fixtures/**', '**/setup-test-user.ts', '**/*.helper.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 1,
@@ -97,10 +105,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['chromium', 'invite'],
     },
-    // Everything else: parallel with shared session
+    // Everything else: parallel with shared session. This list REPLACES the
+    // top-level `testIgnore`, so `**/*.helper.spec.ts` has to be repeated here.
     {
       name: 'chromium',
-      testIgnore: [/auth\.spec\.ts/, /two-factor\.spec\.ts/, /stepup\.spec\.ts/, /passkey\.spec\.ts/, /admin\.spec\.ts/, /barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/, /graceful-shutdown\.spec\.ts/],
+      testIgnore: [/auth\.spec\.ts/, /two-factor\.spec\.ts/, /stepup\.spec\.ts/, /passkey\.spec\.ts/, /admin\.spec\.ts/, /barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/, /graceful-shutdown\.spec\.ts/, /\.helper\.spec\.ts$/, /fixtures\//],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',

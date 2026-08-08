@@ -119,12 +119,79 @@ config:
   # Registration mode: "open" (default) or "false"/"invite" (requires invite code)
   # Also configurable via /admin settings page
   enableRegistration: ""
+  # Release/update check. The app asks the release provider (GitHub by default)
+  # for the newest published version so the footer can flag an outdated
+  # instance. That is an outbound request to api.github.com on a 1-hour cache.
+  # Every value here is OPTIONAL: leave it empty and the chart omits the
+  # environment variable entirely, so the app's own default applies.
+  updateCheck:
+    # UPDATE_CHECK_ENABLED — set to false to opt out of the outbound request
+    # entirely (recommended for privacy-sensitive or air-gapped installs; the
+    # app default is enabled). This is a DISABLE-ONLY flag: the app tests
+    # `!= "false"`, so false is the only value that changes behaviour, and it
+    # must reach the ConfigMap as the string "false" — the template handles
+    # that, so a plain YAML `false` here (or --set ...enabled=false) is correct.
+    # "Report an Issue" links keep working either way; only the version lookup
+    # is gated.
+    enabled: ""
+    # UPDATE_PROVIDER — "github" or "gitlab" (app default: github). Together
+    # with repo/baseUrl this points the check at your own mirror instead of
+    # disabling it. An unknown value makes the app log an error and fall back.
+    provider: ""
+    # UPDATE_REPO — "owner/repo" (GitLab also accepts nested
+    # "group/subgroup/project"). App default: schaurian/schautrack.
+    repo: ""
+    # UPDATE_BASE_URL — host override for self-hosted GitHub Enterprise
+    # (API assumed at <baseUrl>/api/v3) or self-hosted GitLab (<baseUrl>/api/v4).
+    # Empty = the provider's public host.
+    baseUrl: ""
+  # CAPTCHA tuning. Note there is deliberately NO value for CAPTCHA_BYPASS:
+  # it is a test-only escape hatch that makes VerifyCaptcha accept any
+  # non-empty answer, removing all brute-force protection from login and
+  # registration. It is set only by compose.test.yml and must stay unreachable
+  # from the chart — please do not "fix" this by adding it.
+  captcha:
+    # LOGIN_CAPTCHA_GLOBAL_THRESHOLD — failed logins per account email or per
+    # client IP (cross-session, 15-minute window) before login demands a
+    # captcha (app default: 3). The per-session threshold is fixed at 3 and is
+    # not affected. Raise this only where every client legitimately shares one
+    # source IP — a test harness, or an egress NAT in front of many users —
+    # since the shared-IP counter otherwise captcha-gates unrelated sessions.
+    # A value of 0 or less is ignored by the app, so it means "use the default".
+    globalThreshold: ""
   # Trust X-Forwarded-For headers for rate limiting (default: true)
   # Set to "false" for direct-access deployments without a reverse proxy
   trustProxy: ""
+  # Rate limits. Every value here is OPTIONAL: leave it empty and the chart
+  # omits the environment variable entirely, so the app's own compiled-in
+  # default applies. Do not copy the defaults in — pinning them here freezes
+  # your deployment at whatever the app shipped when you wrote the file.
+  # A value of 0 is treated as unset by the app, so it also means "default".
+  # Which client each bucket is keyed by depends on config.trustProxy.
+  rateLimit:
+    # RATE_LIMIT_AUTH — auth attempts per IP per 15 minutes on
+    # login / register / step-up (app default: 10)
+    auth: ""
+    # RATE_LIMIT_STRICT — requests per IP per 5 minutes on sensitive endpoints:
+    # password-reset request/confirm, 2FA reset, email-change request, and AI
+    # estimate (app default: 5). This is the AI-estimate ceiling — raise it if
+    # your users hit "too many requests" on photo estimation.
+    strict: ""
+    # RATE_LIMIT_API — requests per IP per minute on the public API /api/v1
+    # (app default: 120). The outer guard, and the only limit that throttles
+    # unauthenticated traffic. Keep well above the auth limiters: a client
+    # syncing a day of entries makes dozens of calls in a burst.
+    api: ""
+    # RATE_LIMIT_API_TOKEN — requests per personal access token per minute on
+    # /api/v1 (app default: 60). The limit a legitimate API client actually
+    # runs into; per-IP alone means everyone behind one NAT shares a bucket.
+    apiToken: ""
   # Allow search engine indexing (sets ROBOTS_INDEX env var)
   robotsIndex: false
-  # Base URL for SEO meta tags (leave empty to auto-detect from request)
+  # Base URL for SEO meta tags and the `servers` entry of the API's OpenAPI
+  # document at /api/v1/openapi.json (leave empty to auto-detect from request;
+  # the OpenAPI document then uses a relative URL, which clients resolve
+  # against this instance either way)
   baseUrl: ""
   # Android App Links (Digital Asset Links) — binds the domain to the published
   # Android app so https:// links open in the app. Served at

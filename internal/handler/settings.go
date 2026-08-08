@@ -26,10 +26,10 @@ import (
 )
 
 type SettingsHandler struct {
-	Pool              *pgxpool.Pool
-	Broker            *sse.Broker
+	Pool               *pgxpool.Pool
+	Broker             *sse.Broker
 	AIKeyEncryptSecret string
-	TrustProxy        bool // for audit log IP extraction
+	TrustProxy         bool // for audit log IP extraction
 }
 
 // Preferences handles POST /settings/preferences
@@ -320,8 +320,8 @@ func (h *SettingsHandler) Password(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "New passwords do not match.")
 		return
 	}
-	if len(body.NewPassword) < 10 {
-		ErrorJSON(w, http.StatusBadRequest, "New password must be at least 10 characters.")
+	if err := validatePassword(body.NewPassword); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, openAddFood } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
@@ -227,11 +227,19 @@ test.describe.serial('Macro Settings', () => {
     await page.goto(`${baseURL}/dashboard`);
     await page.waitForURL(/\/dashboard/);
 
-    // Macro inputs use inputmode="numeric"; calories auto-calc field is readonly with inputmode="tel"
-    const proteinInput = page.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input[inputmode="numeric"]');
-    const carbsInput = page.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input[inputmode="numeric"]');
-    const fatInput = page.locator('label').filter({ hasText: 'Fat' }).locator('..').locator('input[inputmode="numeric"]');
-    const caloriesInput = page.locator('label').filter({ hasText: 'Calories' }).locator('..').locator('input[inputmode="tel"]');
+    // The entry form lives in the "Add food" sheet, not inline on the page.
+    // Desktop used to render an always-open inline form and this spec was
+    // written against that; the sheet is now the only way in on every
+    // viewport, so the form has to be opened before its fields exist at all.
+    const addFood = await openAddFood(page);
+
+    // Macro inputs use inputmode="numeric"; calories auto-calc field is readonly with inputmode="tel".
+    // Scoped to the dialog so these cannot accidentally match a label of the
+    // same name elsewhere on the dashboard behind the sheet.
+    const proteinInput = addFood.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input[inputmode="numeric"]');
+    const carbsInput = addFood.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input[inputmode="numeric"]');
+    const fatInput = addFood.locator('label').filter({ hasText: 'Fat' }).locator('..').locator('input[inputmode="numeric"]');
+    const caloriesInput = addFood.locator('label').filter({ hasText: 'Calories' }).locator('..').locator('input[inputmode="tel"]');
 
     await expect(proteinInput).toBeVisible({ timeout: 10000 });
     await proteinInput.click();

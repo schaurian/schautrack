@@ -329,6 +329,112 @@ func TestParseImportData_CapsAtTenThousand(t *testing.T) {
 	}
 }
 
+// TestParseImportDataCountsSkippedRows pins the counters that make a partial
+// import visible.
+//
+// Every one of these rows used to be dropped with no trace: the response said
+// "Imported 1 entries." and the user had no way to know the file had held more
+// (#351). The NBSP row is the case the issue was actually filed about — the
+// browser parser accepted "1 000" with a NBSP, so the number reached an export
+// file, and re-importing it silently threw the row away because the Go parser
+// rejected the same string. It now imports, which is the real fix; the counter
+// is the belt to that braces, for every other row the server cannot read.
+func TestParseImportDataCountsSkippedRows(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantEntries  int
+		wantSkippedE int
+		wantWeights  int
+		wantSkippedW int
+	}{
+		{
+			name:         "unparseable amount is counted, not silently dropped",
+			input:        `{"entries":[{"date":"2025-01-15","amount":420},{"date":"2025-01-15","amount":"1.2.3"},{"date":"2025-01-15","amount":"abc"}]}`,
+			wantEntries:  1,
+			wantSkippedE: 2,
+		},
+		{
+			name:         "NBSP thousands separator now imports instead of vanishing",
+			input:        `{"entries":[{"date":"2025-01-15","amount":"1\u00a0000"}]}`,
+			wantEntries:  1,
+			wantSkippedE: 0,
+		},
+		{
+			name:         "bad date, non-object row and zero amount all count",
+			input:        `{"entries":[{"date":"bad","amount":100},"nope",{"date":"2025-01-15","amount":0},{"date":"2025-01-15","amount":50}]}`,
+			wantEntries:  1,
+			wantSkippedE: 3,
+		},
+		{
+			name:         "weights are counted separately",
+			input:        `{"weights":[{"date":"2025-01-15","weight":72.5},{"date":"2025-01-15","weight":"heavy"},{"date":"nope","weight":70}]}`,
+			wantWeights:  1,
+			wantSkippedW: 2,
+		},
+		{
+			name:        "a clean file reports nothing skipped",
+			input:       `{"entries":[{"date":"2025-01-15","amount":420}],"weights":[{"date":"2025-01-15","weight":72.5}]}`,
+			wantEntries: 1,
+			wantWeights: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := parseImportData(mustParseImportJSON(t, tt.input))
+			if len(d.entries) != tt.wantEntries || d.skippedEntries != tt.wantSkippedE {
+				t.Errorf("entries kept/skipped = %d/%d, want %d/%d",
+					len(d.entries), d.skippedEntries, tt.wantEntries, tt.wantSkippedE)
+			}
+			if len(d.weights) != tt.wantWeights || d.skippedWeights != tt.wantSkippedW {
+				t.Errorf("weights kept/skipped = %d/%d, want %d/%d",
+					len(d.weights), d.skippedWeights, tt.wantWeights, tt.wantSkippedW)
+			}
+		})
+	}
+}
+
+// TestParseImportDataCountsRowsPastTheCap verifies the 10,000-row cap is
+// reported too. Truncating a file is the same silent data loss as dropping a
+// bad row, it just happens to a valid one.
+func TestParseImportDataCountsRowsPastTheCap(t *testing.T) {
+	entries := make([]any, 10005)
+	for i := range entries {
+		entries[i] = map[string]any{"date": "2025-01-15", "amount": float64(100)}
+	}
+	d := parseImportData(map[string]any{"entries": entries})
+	if len(d.entries) != 10000 {
+		t.Fatalf("entries = %d, want 10000", len(d.entries))
+	}
+	if d.skippedEntries != 5 {
+		t.Errorf("skippedEntries = %d, want 5", d.skippedEntries)
+	}
+}
+
+// TestImportMessage pins the user-facing text, including the singular/plural
+// split and the fact that a clean import says nothing extra.
+func TestImportMessage(t *testing.T) {
+	tests := []struct {
+		parts   []string
+		skipped int
+		want    string
+	}{
+		{[]string{"3 entries"}, 0, "Imported 3 entries."},
+		{[]string{"3 entries"}, 1, "Imported 3 entries. Skipped 1 row that could not be read."},
+		{[]string{"3 entries"}, 7, "Imported 3 entries. Skipped 7 rows that could not be read."},
+		{
+			[]string{"3 entries", "2 weight records"}, 2,
+			"Imported 3 entries and 2 weight records. Skipped 2 rows that could not be read.",
+		},
+	}
+	for _, tt := range tests {
+		if got := importMessage(tt.parts, tt.skipped); got != tt.want {
+			t.Errorf("importMessage(%v, %d) = %q, want %q", tt.parts, tt.skipped, got, tt.want)
+		}
+	}
+}
+
 // buildImportRequest builds a POST /settings/import multipart request. When
 // fieldName is empty the file part is omitted entirely (to exercise the
 // "no file uploaded" path).

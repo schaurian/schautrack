@@ -89,9 +89,9 @@ func TestResolveAIConfig(t *testing.T) {
 // internal) endpoint URL.
 func TestAIClientErrorMessage(t *testing.T) {
 	tests := []struct {
-		name       string
-		err        error
-		want       string
+		name        string
+		err         error
+		want        string
 		mustNotHold []string
 	}{
 		{

@@ -148,7 +148,9 @@
       "addHeightWeight": "Añade altura y peso",
       "healthyRangeLabel": "Rango saludable",
       "bodyFatLabel": "Grasa corporal",
-      "leanFatSplit": "{{lean}} {{unit}} de masa magra · {{fat}} {{unit}} de grasa"
+      "leanFatSplit": "{{lean}} {{unit}} de masa magra · {{fat}} {{unit}} de grasa",
+      "bodyFatMeasured": "Medido el {{date}}",
+      "bodyFatStale": "{{days}} días de antigüedad: no se usa para tu presupuesto"
     },
     "recommendedBudget": {
       "title": "Presupuesto recomendado",
@@ -156,7 +158,8 @@
       "clampedNotice": "Ajustado a un mínimo seguro",
       "applyButton": "Aplicar como mi objetivo de calorías",
       "formulaKatch": "Según Katch-McArdle, a partir de {{lean}} {{unit}} de masa magra",
-      "formulaMifflin": "Según Mifflin-St Jeor. Registra un porcentaje de grasa corporal para una estimación por masa magra."
+      "formulaMifflin": "Según Mifflin-St Jeor. Registra un porcentaje de grasa corporal para una estimación por masa magra.",
+      "formulaMifflinStale": "Basado en Mifflin-St Jeor: tu medición de grasa corporal tiene {{days}} días, demasiado antigua para estimar la masa magra. Registra una nueva."
     },
     "progress": {
       "title": "Progreso",
@@ -325,6 +328,7 @@
     "bodyFatNeedsWeight": "Grasa corporal %: registra primero un peso arriba y se desbloqueará.",
     "toastBodyFatTracked": "Grasa corporal registrada",
     "toastBodyFatCleared": "Grasa corporal eliminada",
+    "toastBodyFatInvalid": "La grasa corporal debe estar entre 0 y {{max}} %",
     "toastBodyFatSaveFailed": "Error al guardar la grasa corporal",
     "bodyFatHint": "La segunda casilla es tu % de grasa corporal, si tu báscula lo mide.",
     "bodyFatPlaceholder": "% grasa"

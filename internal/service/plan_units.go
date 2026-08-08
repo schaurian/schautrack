@@ -41,8 +41,8 @@ func FromKg(v float64, unit string) float64 {
 // kg-computed PlanResponse into the user's display unit, in place, and stamps
 // r.Unit with the unit it left them in. Leaves unit-independent fields
 // untouched: BMI, BMICategory, BudgetKcal, ETAWeeks, ProjectedWeeks, Status
-// strings, Composition.BodyFatPct (a percentage), and Metrics.HeightCm (cm,
-// not a weight).
+// strings, Composition.BodyFatPct (a percentage), Composition.AgeDays/Stale
+// (a duration and a flag), and Metrics.HeightCm (cm, not a weight).
 // Rounds to 1 decimal to match the app's weight display.
 //
 // The Unit stamp happens before the kg fast-path returns, so the payload is
