@@ -211,14 +211,17 @@ func TestValidRPID(t *testing.T) {
 		{in: "[::1]", ok: false, note: "bracketed IPv6 literal — also contains ':'"},
 		{in: "//example.com", ok: false, note: "contains '/'"},
 
-		// Known gap: the validator is a three-character blocklist, so anything
-		// without :// , / or : passes — including values that are not valid
-		// hostnames at all. Getting the RP ID wrong breaks passkey login for
-		// every user at once, with no error at write time. Pinned here so the
-		// gap is visible; tracked separately rather than widened under #309.
-		{in: "example.com ", ok: true, note: "KNOWN GAP: trailing whitespace accepted"},
-		{in: "not a hostname", ok: true, note: "KNOWN GAP: spaces accepted"},
-		{in: "exam_ple.com", ok: true, note: "KNOWN GAP: underscore accepted"},
+		// #348 replaced the three-character blocklist with a hostname grammar,
+		// so a value that is merely not a hostname is now caught at write time
+		// rather than breaking passkey login for everyone at the next restart.
+		{in: "example.com ", ok: false, note: "trailing whitespace is not part of a hostname"},
+		{in: "not a hostname", ok: false, note: "spaces are not legal in a label"},
+		{in: "exam_ple.com", ok: false, note: "underscores are legal in some DNS records but not in hostnames, and never in a browser origin"},
+		{in: "localhost", ok: true, note: "a single label is valid — self-hosted deployments use one"},
+		{in: "app.example.com", ok: true, note: "the ordinary case"},
+		{in: "example.com.", ok: true, note: "a fully-qualified name keeps its trailing dot"},
+		{in: "-bad.example.com", ok: false, note: "a label may not start with a hyphen"},
+		{in: "bad-.example.com", ok: false, note: "nor end with one"},
 	})
 }
 
