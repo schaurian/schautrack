@@ -103,11 +103,16 @@ const targetWeightColumnMax = 9999.99
 // fitsTargetWeightColumn reports whether w survives an INSERT into
 // NUMERIC(6,2). Postgres rounds to two decimals on store, so the check is
 // against the rounded value; NaN and ±Inf never fit.
+//
+// "Survives" includes weight_goals_positive CHECK (target_weight > 0), which is
+// evaluated on the ROUNDED value: 0.001 fits the column's width but is stored
+// as 0.00 and rejected (#374).
 func fitsTargetWeightColumn(w float64) bool {
 	if math.IsNaN(w) || math.IsInf(w, 0) {
 		return false
 	}
-	return math.Abs(math.Round(w*100)/100) <= targetWeightColumnMax
+	stored := math.Round(w*100) / 100
+	return stored > 0 && stored <= targetWeightColumnMax
 }
 
 func TestValidateTargetWeight(t *testing.T) {
@@ -121,7 +126,13 @@ func TestValidateTargetWeight(t *testing.T) {
 		{"NaN", math.NaN(), false},
 		{"positive infinity", math.Inf(1), false},
 		{"negative infinity", math.Inf(-1), false},
-		{"tiny but positive", 0.001, true},
+		// Positive, but NUMERIC(6,2) stores it as 0.00 and
+		// weight_goals_positive then rejects the row — a 500 where the caller
+		// should have got a 400 (#374, the same defect #302 fixed in
+		// ParseWeight).
+		{"tiny but positive, rounds to 0.00", 0.001, false},
+		{"rounds up to the smallest storable value", 0.005, true},
+		{"smallest storable value", 0.01, true},
 		{"one", 1, true},
 		{"typical", 70, true},
 		{"ParseWeight cap", service.MaxWeight, true},
