@@ -1,0 +1,102 @@
+name: Nightly Fuzz
+
+# Step 3 of issue #315. The fuzz targets themselves are ordinary tests: `go
+# test ./...` replays their recorded seed corpus on every push, which is where
+# the regression value lives and needs no CI change at all. This workflow is
+# the other half — actually *fuzzing*, i.e. generating new inputs, which is
+# too slow to sit in the PR path.
+#
+# The corpus is cached per target and carried forward from run to run, so each
+# night resumes from the coverage the previous nights found rather than
+# restarting from the seeds. Without that, a nightly fuzz job re-explores the
+# same shallow inputs forever.
+#
+# A crasher is uploaded as an artifact rather than auto-committed: pushing to a
+# branch from CI needs `contents: write` on a scheduled job, and a failing
+# nightly with the reproducer attached is enough to act on. Drop the artifact
+# into `internal/<pkg>/testdata/fuzz/<Target>/` in a PR to make it a permanent
+# regression seed.
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # 04:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: 'Per-target fuzz duration (any Go duration, e.g. 5m)'
+        required: false
+        default: '5m'
+
+permissions:
+  contents: read
+
+# One nightly at a time. Two overlapping runs would race on the corpus cache
+# and the later save would silently drop the earlier run's findings.
+concurrency:
+  group: nightly-fuzz
+  cancel-in-progress: false
+
+env:
+  # Pin the build cache into the workspace so the fuzz corpus underneath it
+  # (GOCACHE/fuzz) has a stable, cacheable path.
+  GOCACHE: ${{ github.workspace }}/.gocache
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Every target runs even when one of them finds something — a crasher in
+      # one parser says nothing about the others.
+      fail-fast: false
+      matrix:
+        include:
+          - { package: ./internal/service/, target: FuzzParseAmount }
+          - { package: ./internal/service/, target: FuzzParseWeight }
+          - { package: ./internal/service/, target: FuzzParseBodyFat }
+          - { package: ./internal/service/, target: FuzzValidateSchedule }
+          - { package: ./internal/handler/, target: FuzzIsValidDate }
+          - { package: ./internal/handler/, target: FuzzTruncateUTF8 }
+          - { package: ./internal/handler/, target: FuzzDecodeCursor }
+          - { package: ./internal/handler/, target: FuzzDecodeV1 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # setup-go's cache is keyed on go.sum and would pin a stale copy of
+          # GOCACHE — including the fuzz corpus — for as long as deps do not
+          # change. The corpus is cached explicitly below instead.
+          cache: false
+
+      # Restore the previous night's corpus. The run_id in the key means the
+      # primary key never hits, so every run writes a fresh entry and
+      # restore-keys picks up the most recent one.
+      - name: Restore fuzz corpus
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/.gocache/fuzz
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.target }}-
+
+      - name: Fuzz ${{ matrix.target }}
+        run: |
+          go test ${{ matrix.package }} \
+            -run '^$' \
+            -fuzz '^${{ matrix.target }}$' \
+            -fuzztime='${{ inputs.fuzztime || '5m' }}'
+
+      # A failing target writes its reproducer to
+      # internal/<pkg>/testdata/fuzz/<Target>/<hash>.
+      - name: Upload crasher
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: crasher-${{ matrix.target }}
+          path: internal/**/testdata/fuzz/**
+          if-no-files-found: ignore
