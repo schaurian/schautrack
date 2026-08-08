@@ -164,8 +164,8 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "Passwords do not match.")
 		return
 	}
-	if len(body.Password) < 10 {
-		ErrorJSON(w, http.StatusBadRequest, "Password must be at least 10 characters.")
+	if err := validatePassword(body.Password); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
