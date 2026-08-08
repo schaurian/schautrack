@@ -290,8 +290,7 @@ func main() {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), "sseUserID", user.ID)
-		sseBroker.ServeHTTP(w, r.WithContext(ctx))
+		sseBroker.ServeHTTP(w, r.WithContext(sse.WithUserID(r.Context(), user.ID)))
 	})
 
 	// Todo routes

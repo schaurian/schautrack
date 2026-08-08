@@ -47,6 +47,7 @@ func RequireLinkAuth(pool *pgxpool.Pool, category string) func(http.Handler) htt
 			// it means is the actual defect. Matching the stricter one costs a
 			// caller one obvious error instead of one wrong answer.
 			targetUserID := currentUser.ID
+			tooLargeForAnyRow := false
 			if userParam := r.URL.Query().Get("user"); userParam != "" {
 				id, err := strconv.Atoi(userParam)
 				if err != nil || id <= 0 {
@@ -58,6 +59,21 @@ func RequireLinkAuth(pool *pgxpool.Pool, category string) func(http.Handler) htt
 					})
 					return
 				}
+				// A positive id larger than an int4 column can hold names no
+				// account that could ever exist — but it is still a well-formed
+				// id from the caller's point of view, so it must be DENIED like
+				// any other unreachable account rather than 400'd. Answering 400
+				// here would hand a caller an oracle for the id space, which is
+				// exactly the distinction "denial is indistinguishable across
+				// causes" exists to prevent.
+				//
+				// It cannot simply be passed through either: pgx would fail to
+				// encode it into int4 and the request would 500 (found by the
+				// contract fuzzer). Flagging it routes it to the same denial
+				// branch without touching the database.
+				if id > model.MaxID {
+					tooLargeForAnyRow = true
+				}
 				targetUserID = id
 			}
 
@@ -66,8 +82,10 @@ func RequireLinkAuth(pool *pgxpool.Pool, category string) func(http.Handler) htt
 			if targetUserID != currentUser.ID {
 				// Load target user
 				var err error
-				targetUser, err = GetUserByID(r.Context(), pool, targetUserID)
-				if err != nil || targetUser == nil {
+				if !tooLargeForAnyRow {
+					targetUser, err = GetUserByID(r.Context(), pool, targetUserID)
+				}
+				if tooLargeForAnyRow || err != nil || targetUser == nil {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusForbidden)
 					json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Not authorized"})

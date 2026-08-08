@@ -701,7 +701,11 @@ func TestCursorRoundTrip(t *testing.T) {
 		"1900-01-01", "1999-12-31", "2000-01-01", "2024-02-29",
 		"2026-01-01", "2026-07-03", "2026-12-31", "2200-12-31",
 	}
-	ids := []int{1, 2, 9, 42, 999, 100000, math.MaxInt32, math.MaxInt}
+	// math.MaxInt32 is the top of the range, not math.MaxInt: a cursor id names
+	// a row, and every id column in this schema is int4. decodeCursor now
+	// rejects anything larger rather than passing it to pgx, which turned a
+	// fabricated cursor into a 500 instead of a 400.
+	ids := []int{1, 2, 9, 42, 999, 100000, math.MaxInt32 - 1, math.MaxInt32}
 
 	for _, d := range dates {
 		for _, id := range ids {

@@ -239,11 +239,11 @@ func (p *parser) parseFactor() float64 {
 func (p *parser) parseTerm() float64 {
 	left := p.parseFactor()
 	for p.err == nil && p.pos < len(p.expr) {
-		op := p.peek()
-		if op == '*' {
+		switch p.peek() {
+		case '*':
 			p.consume()
 			left *= p.parseFactor()
-		} else if op == '/' {
+		case '/':
 			p.consume()
 			right := p.parseFactor()
 			if right == 0 {
@@ -251,8 +251,8 @@ func (p *parser) parseTerm() float64 {
 				return 0
 			}
 			left /= right
-		} else {
-			break
+		default:
+			return left
 		}
 	}
 	return left
@@ -261,15 +261,15 @@ func (p *parser) parseTerm() float64 {
 func (p *parser) parseExpression() float64 {
 	left := p.parseTerm()
 	for p.err == nil && p.pos < len(p.expr) {
-		op := p.peek()
-		if op == '+' {
+		switch p.peek() {
+		case '+':
 			p.consume()
 			left += p.parseTerm()
-		} else if op == '-' {
+		case '-':
 			p.consume()
 			left -= p.parseTerm()
-		} else {
-			break
+		default:
+			return left
 		}
 	}
 	return left

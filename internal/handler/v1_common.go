@@ -263,8 +263,8 @@ func pathDate(r *http.Request) (string, *apierr.Problem) {
 
 // pathID reads and validates a positive integer path parameter.
 func pathID(r *http.Request) (int, *apierr.Problem) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if err != nil || id <= 0 {
+	id, ok := model.ParseID(chi.URLParam(r, "id"))
+	if !ok {
 		return 0, apierr.BadRequest("The id must be a positive integer.")
 	}
 	return id, nil
@@ -333,8 +333,8 @@ func decodeCursor(s string) (cursor, error) {
 	if !ok || !isValidDate(date) {
 		return cursor{}, errors.New("malformed cursor")
 	}
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
+	id, ok := model.ParseID(idStr)
+	if !ok {
 		return cursor{}, errors.New("malformed cursor")
 	}
 	return cursor{Date: date, ID: id}, nil

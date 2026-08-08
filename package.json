@@ -8,7 +8,8 @@
     "test:e2e": "sh scripts/e2e.sh",
     "test:e2e:ui": "sh scripts/e2e.sh --ui",
     "test:e2e:setup": "docker compose -f compose.test.yml down -v; docker compose -f compose.test.yml up -d --build --wait && npx tsx e2e/setup-test-user.ts",
-    "test:e2e:down": "docker compose -f compose.test.yml down -v"
+    "test:e2e:down": "docker compose -f compose.test.yml down -v",
+    "test:contract": "sh scripts/api-contract-test.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
