@@ -23,8 +23,12 @@ test.describe('Legal Pages', () => {
     psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
   });
 
-  test.afterAll(() => {
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
+  test.afterAll(async ({ browser }) => {
+    // Through the admin API, not psql: a direct write leaves the server's
+    // one-minute settings cache holding whatever the last test set, so if a
+    // test aborts between disabling and restoring, enable_legal stays `false`
+    // for the specs that playwright.config.ts schedules after this project.
+    await setAdminSetting(browser, 'enable_legal', 'true');
   });
 
   test('imprint page loads with address content', async ({ browser }) => {
