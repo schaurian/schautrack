@@ -92,7 +92,16 @@ The first request executes and its response is stored. Any retry with the same
 key replays that response, with `Idempotency-Replayed: true`, instead of
 logging the meal twice. Reusing a key with a *different* body returns `409`
 rather than silently discarding the new request. Keys are remembered for 24
-hours.
+hours. A request that fails releases its key, so the retry is a fresh attempt
+rather than a replay of the error.
+
+Every endpoint that creates something accepts the header: `POST /entries`,
+`POST /todos`, `POST /saved-foods`, and
+`POST /saved-foods/{id}/track`. The operation parameter lists say which,
+and they are not advisory — the one `POST` that does not honour the header
+(`POST /ai/estimate`) rejects it with `400` instead of ignoring it.
+An accepted request is therefore always a request whose retry semantics are
+what you asked for.
 
 ## Rate limits
 
@@ -474,6 +483,10 @@ POST /api/v1/todos
 
 **Scope:** `todos:write`
 
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
+
 **Request body** (required): [`TodoInput`](#todoinput)
 
 | Status | Response |
@@ -647,6 +660,10 @@ POST /api/v1/saved-foods
 ```
 
 **Scope:** `foods:write`
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
 
 **Request body** (required): [`SavedFoodInput`](#savedfoodinput)
 
@@ -850,7 +867,7 @@ POST /api/v1/ai/estimate
 
 **Scope:** `ai:estimate`
 
-Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured.
+Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured. This is the one `POST` that does not honour `Idempotency-Key`: sending the header returns 400 rather than being ignored, so a caller is never left believing a retry is safe when it is not.
 
 **Request body** (required): [`EstimateInput`](#estimateinput)
 
