@@ -17,6 +17,15 @@ on:
       - 'public/**'
       - 'cliff.toml'
       - '.github/workflows/build.yml'
+      # The E2E suite and everything that decides whether it can run at all.
+      # Without these, a change to a spec, to the compose harness or to the
+      # Playwright config gets no CI at all — which is precisely how the suite
+      # rotted unnoticed in the first place.
+      - 'e2e/**'
+      - 'compose.test.yml'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
     tags:
       - 'v*'
   pull_request:
@@ -35,6 +44,11 @@ on:
       - 'public/**'
       - 'cliff.toml'
       - '.github/workflows/build.yml'
+      - 'e2e/**'
+      - 'compose.test.yml'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
 
 # Serialize runs per ref so two quick merges to the same branch cannot race:
 # without this, both runs compute the same next version from the same latest
@@ -99,6 +113,112 @@ jobs:
       - name: Check i18n catalog parity
         run: npm run i18n:check
         working-directory: client
+
+  e2e:
+    # NOTE: deliberately NOT the
+    # `${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}`
+    # expression every other job here uses. The self-hosted `arc-runner` scale
+    # set cannot run this suite:
+    #   * its runner image ships no `sudo`, so `playwright install --with-deps`
+    #     cannot install Chromium's system libraries — and Chromium will not
+    #     launch without them;
+    #   * it is `maxRunners: 1` with a 2Gi memory limit, so a Docker build plus
+    #     PostgreSQL plus two Chromium workers risks an OOM kill *and* would
+    #     serialise every other job in the pipeline behind the longest one.
+    # This repository is public, so GitHub-hosted minutes are free. Revisit if
+    # the runner image or its limits change.
+    runs-on: ubuntu-latest
+    needs: test
+    # A hung browser must not sit on a runner for the default 6 hours.
+    timeout-minutes: 45
+    # REPORT-ONLY FOR NOW. This suite has never executed in CI, so its first
+    # runs are expected to surface environment differences rather than real
+    # regressions, and a gate that is red by default is a gate somebody deletes.
+    #
+    # TO TURN IT INTO A REAL GATE (target: once it has been green on `staging`
+    # for a week — tracked in #312) TWO changes are needed, not one:
+    #   1. delete the `continue-on-error` line below, and
+    #   2. add `e2e` to `compute-version`'s `needs:` — otherwise the release
+    #      chain still runs in parallel with this job and a red suite publishes
+    #      an image anyway.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+          # The root package.json is the Playwright harness; the `test` job
+          # caches client/package-lock.json, which is a different dependency
+          # tree and would restore the wrong cache here.
+          cache-dependency-path: package-lock.json
+
+      - name: Install E2E dependencies
+        run: npm ci
+
+      # `e2e/setup-test-user.ts` and `e2e/fixtures/helpers.ts` mint bcrypt
+      # hashes by shelling out to `python3 -c "import bcrypt; ..."`. Neither
+      # python3 nor the bcrypt module is guaranteed on a runner, and the failure
+      # mode is an opaque "Setup failed" long before any spec runs, so install
+      # both explicitly.
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Install bcrypt for the E2E seed script
+        run: pip install bcrypt
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # These three steps are `npm run test:e2e` split apart on purpose. That
+      # script ends in `; docker compose ... down`, so the shell's exit status
+      # is the teardown's and a failing Playwright run still exits 0 (#320) —
+      # wiring it in verbatim would add a job that can never go red. Splitting
+      # it also lets the reporter be overridden and guarantees teardown via
+      # `if: always()`.
+      #
+      # Cost note: `test:e2e:setup` does a `docker compose up --build`, i.e. it
+      # rebuilds the application image that `build-and-push` is building at the
+      # same time. Reusing that image instead would be faster but is a larger
+      # change (the compose file would need to take an image ref); the rebuild
+      # is the simpler first step.
+      - name: Start test stack and seed users
+        run: npm run test:e2e:setup
+
+      - name: Run Playwright suite
+        # playwright.config.ts selects the `github` reporter under CI, which
+        # emits inline annotations but writes no playwright-report/ — the
+        # artifact upload below would find nothing. Ask for both.
+        run: npx playwright test --reporter=github,html
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+
+      - name: Dump test stack logs
+        if: failure()
+        run: docker compose -f compose.test.yml logs --no-color --tail=400
+
+      - name: Tear down test stack
+        if: always()
+        run: npm run test:e2e:down
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          # test-results/ carries the traces and failure screenshots that
+          # playwright.config.ts records (`trace: on-first-retry`,
+          # `screenshot: only-on-failure`); the report links straight to them.
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
 
   compute-version:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
