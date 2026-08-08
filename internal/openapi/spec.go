@@ -230,11 +230,87 @@ func Build(version, baseURL string) *Document {
 		Security: []SecurityRequirement{{"bearerAuth": {}}},
 	}
 	d.Paths = paths()
+	applyBodyLimitResponses(d)
+	applyIdempotencyReplayedHeader(d)
 	d.Info.Version = APIVersion
 	if version != "" {
 		d.Info.Description += "\n\n---\n\nServed by build `" + version + "`."
 	}
 	return d
+}
+
+// applyBodyLimitResponses declares 413 on every operation that accepts a
+// request body.
+//
+// Derived rather than written per operation on purpose. decodeV1 caps every v1
+// body at maxV1Body and answers 413 when it is exceeded, so the response is a
+// property of "this operation takes a body" — not of any individual endpoint.
+// Listing it by hand meant only the AI image upload documented it (#349), and
+// a client generated from the document had no 413 branch for the other
+// thirteen: an oversized payload surfaced as an unhandled status rather than
+// as the size error it is.
+//
+// An operation that already declares its own 413 keeps it — POST /ai/estimate
+// has a different limit and says so.
+func applyBodyLimitResponses(d *Document) {
+	for _, item := range d.Paths {
+		for _, op := range item.Operations() {
+			if op.RequestBody == nil || op.Responses["413"] != nil {
+				continue
+			}
+			op.Responses["413"] = respRef("PayloadTooLarge")
+		}
+	}
+}
+
+// applyIdempotencyReplayedHeader declares the Idempotency-Replayed response
+// header on the success responses of every operation that accepts an
+// Idempotency-Key.
+//
+// The header is how a caller tells a replay from a fresh create — the status
+// code cannot, because a replay deliberately repeats the original 201. It was
+// described in prose but never declared, so it did not exist for any generated
+// client (#360); code reading `response.headers["Idempotency-Replayed"]` had to
+// be written by hand against documentation.
+//
+// Keyed off the request parameter rather than a list of paths so the two cannot
+// disagree: an endpoint that starts honouring the key documents the header in
+// the same commit, and one that stops loses it.
+func applyIdempotencyReplayedHeader(d *Document) {
+	header := Header{
+		Description: "Present and `true` only on a replayed response — the request matched a stored " +
+			"Idempotency-Key and nothing new was created. Absent on the first request. This is the " +
+			"only way to distinguish a replay from a fresh create, since a replay repeats the " +
+			"original status code.",
+		Schema: boolean(""),
+	}
+	for _, item := range d.Paths {
+		for _, op := range item.Operations() {
+			if !acceptsIdempotencyKey(op) {
+				continue
+			}
+			for code, resp := range op.Responses {
+				if code < "200" || code > "299" || resp == nil {
+					continue
+				}
+				if resp.Headers == nil {
+					resp.Headers = map[string]Header{}
+				}
+				if _, ok := resp.Headers["Idempotency-Replayed"]; !ok {
+					resp.Headers["Idempotency-Replayed"] = header
+				}
+			}
+		}
+	}
+}
+
+func acceptsIdempotencyKey(op *Operation) bool {
+	for _, p := range op.Parameters {
+		if p.In == "header" && p.Name == "Idempotency-Key" {
+			return true
+		}
+	}
+	return false
 }
 
 func securitySchemes() map[string]*SecurityScheme {
@@ -268,6 +344,8 @@ func sharedResponses() map[string]*Response {
 			},
 		},
 		"ServerError": r("An unexpected server-side failure."),
+		"PayloadTooLarge": r("The request body exceeds the 1 MB limit. Attached to every operation " +
+			"that takes a body — the cap is enforced in the decoder, not per endpoint."),
 	}
 }
 

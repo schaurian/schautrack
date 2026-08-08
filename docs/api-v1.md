@@ -215,6 +215,7 @@ Only settings that affect how the rest of the API behaves are writable. Authenti
 | `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -275,6 +276,7 @@ Needs `calories`, at least one macro, or both. When the account computes calorie
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -327,6 +329,7 @@ Only the fields present in the body are changed. Send `null` to clear the name o
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -433,6 +436,7 @@ Idempotent: repeating the same request is harmless, which makes it safe for a sc
 | `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -507,6 +511,7 @@ POST /api/v1/todos
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -556,6 +561,7 @@ PATCH /api/v1/todos/{id}
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -608,6 +614,7 @@ States the desired result rather than toggling, so a retried request cannot sile
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
 
@@ -682,6 +689,7 @@ POST /api/v1/saved-foods
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -708,6 +716,7 @@ PATCH /api/v1/saved-foods/{id}
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -759,6 +768,7 @@ Creates a calorie entry from the saved food and returns it. Requires `entries:wr
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `404` | [`Problem`](#problem) — No such resource, or it belongs to another account. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
@@ -815,6 +825,7 @@ Replaces the whole note. Writing an empty string deletes it. Returns 409 when da
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `409` | [`Problem`](#problem) — The request collides with existing state — a duplicate name, a limit already reached, or a feature not enabled. |
+| `413` | [`Problem`](#problem) — The request body exceeds the 1 MB limit. Attached to every operation that takes a body — the cap is enforced in the decoder, not per endpoint. |
 | `422` | [`Problem`](#problem) — The request is well-formed but its values are rejected. `invalid_params` lists the offending fields. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
 | `500` | [`Problem`](#problem) — An unexpected server-side failure. |
