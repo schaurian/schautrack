@@ -147,12 +147,16 @@ func TestV1BodyLimitIsEnforced(t *testing.T) {
 	requireProblemShape(t, withKey)
 }
 
-// TestV1SavedFoodsCollectionDoesNotPaginate documents the behaviour #298 owns:
-// GET /saved-foods honours `limit` but never reports that it truncated, so a
-// sync client cannot tell a short page from a complete one.
+// TestV1SavedFoodsCollectionDoesNotPaginate pins what #298 settled: the
+// collection is not paginated and always returns the account's complete set.
+// `limit` is still accepted on the wire but ignored, which is the safe
+// direction — it can only ever return more than a caller asked for, never
+// fewer rows than exist.
 //
-// TODO(#298): when has_more/next_cursor are added (or the limit is dropped),
-// turn this into the same pagination walk TestV1EntriesKeysetPagination... does.
+// It previously asserted the opposite, that `limit` truncated the response
+// with no has_more to say so. That was the bug: a client with 60 saved foods
+// got 50 and no indication the page was partial, so a sync reasonably
+// concluded the other 10 had been deleted.
 func TestV1SavedFoodsCollectionDoesNotPaginate(t *testing.T) {
 	e := newV1Env(t)
 	token := e.token(service.ScopeFoodsWrite)
@@ -172,12 +176,12 @@ func TestV1SavedFoodsCollectionDoesNotPaginate(t *testing.T) {
 
 	var page v1List[v1SavedFood]
 	decodeJSON(t, rec, &page)
-	if len(page.Data) != 2 {
-		t.Fatalf("got %d foods, want the requested 2", len(page.Data))
+	if len(page.Data) != 3 {
+		t.Fatalf("got %d foods, want all 3 — `limit` must be ignored, not silently truncate", len(page.Data))
 	}
 	if page.HasMore != nil || page.NextCursor != nil {
-		t.Fatalf("has_more/next_cursor are now populated (%v/%v) — #298 is fixed, so replace this "+
-			"test with a real pagination walk", page.HasMore, page.NextCursor)
+		t.Fatalf("has_more/next_cursor are populated (%v/%v) — this collection is documented as "+
+			"unpaginated and the SavedFoodList schema does not declare them", page.HasMore, page.NextCursor)
 	}
 }
 

@@ -3351,6 +3351,10 @@
         "type": "object",
         "description": "Body composition derived from the most recent body-fat reading. That reading can be older than the current weight — body composition is measured less often — so `date` says when it was taken.",
         "properties": {
+          "ageDays": {
+            "type": "integer",
+            "description": "Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead."
+          },
           "bodyFatPct": {
             "type": "number",
             "description": "Body fat as a percentage of total mass. A percentage, so never unit-converted."
@@ -3384,6 +3388,10 @@
           "leanMass": {
             "type": "number",
             "description": "Fat-free mass at that reading. In the account's weight unit."
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "Whether the reading is too old to choose the BMR formula (older than 90 days). A stale reading is still reported — it is the account's most recent measurement — but `computed.bmrFormula` falls back to `mifflin_st_jeor` instead of `katch_mcardle`."
           }
         },
         "required": [
@@ -3391,7 +3399,9 @@
           "bodyFatPct",
           "leanMass",
           "fatMass",
-          "category"
+          "category",
+          "ageDays",
+          "stale"
         ]
       },
       "Completion": {

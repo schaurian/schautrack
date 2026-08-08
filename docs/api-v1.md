@@ -924,11 +924,13 @@ Body composition derived from the most recent body-fat reading. That reading can
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `ageDays` | `integer` | yes | Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead. |
 | `bodyFatPct` | `number` | yes | Body fat as a percentage of total mass. A percentage, so never unit-converted. |
 | `category` | `string` or `null` | yes | The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one. |
 | `date` | `string` (date) | yes | The day the body-fat reading was recorded. |
 | `fatMass` | `number` | yes | Fat mass at that reading. In the account's weight unit. |
 | `leanMass` | `number` | yes | Fat-free mass at that reading. In the account's weight unit. |
+| `stale` | `boolean` | yes | Whether the reading is too old to choose the BMR formula (older than 90 days). A stale reading is still reported — it is the account's most recent measurement — but `computed.bmrFormula` falls back to `mifflin_st_jeor` instead of `katch_mcardle`. |
 
 ### Completion
 
