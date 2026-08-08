@@ -44,7 +44,7 @@ func checkSchema(t *testing.T, schemaName string, v any) {
 	if err != nil {
 		t.Fatalf("marshal %s: %v", schemaName, err)
 	}
-	if err := openapi.Build("").ValidateJSON(schemaName, raw); err != nil {
+	if err := openapi.Build("", "").ValidateJSON(schemaName, raw); err != nil {
 		t.Errorf("%v\n\nserialized as: %s", err, abbreviate(raw, 1500))
 	}
 }
@@ -351,7 +351,7 @@ func TestPlanMatchesSchema(t *testing.T) {
 // emit must be one the schema lists, or a client switching on `code` hits a
 // value the document never mentioned.
 func TestPlanWarningsAreDocumented(t *testing.T) {
-	doc := openapi.Build("")
+	doc := openapi.Build("", "")
 	schema := doc.Components.Schemas["PlanWarning"]
 	documented := map[string]bool{}
 	for _, v := range schema.Properties["code"].Enum {
@@ -373,7 +373,7 @@ func TestPlanWarningsAreDocumented(t *testing.T) {
 // contract test that cannot fail is worse than none, because it reads as
 // coverage.
 func TestValidatorRejectsDrift(t *testing.T) {
-	doc := openapi.Build("")
+	doc := openapi.Build("", "")
 
 	cases := []struct {
 		name, schema string
@@ -412,7 +412,7 @@ func TestValidatorRejectsDrift(t *testing.T) {
 // Plan used to be on this list. It was not free-form by intent, only by
 // omission, which is exactly why it drifted.
 func TestValidatorAcceptsFreeForm(t *testing.T) {
-	doc := openapi.Build("")
+	doc := openapi.Build("", "")
 	for _, name := range []string{"Estimate", "BarcodeProduct"} {
 		if err := doc.ValidateJSON(name, []byte(`{"whatever":[1,2,3],"nested":{"x":true}}`)); err != nil {
 			t.Errorf("%s is documented as free-form but was rejected: %v", name, err)

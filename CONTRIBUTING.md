@@ -60,10 +60,15 @@ go test ./...
 Playwright suite in `e2e/`:
 
 ```bash
-npm install                       # installs @playwright/test + tsx (root deps)
+npm ci                            # installs the root harness deps
 npx playwright install chromium   # one-time: download the browser
 npm run test:e2e
 ```
+
+Docker, Node.js and a browser are the only prerequisites — everything else the
+suite needs is a root `devDependency`, so `npm ci` is sufficient. (The seeds hash
+legacy bcrypt passwords with `bcryptjs`, which is pure JavaScript and needs no
+native build step and no Python.)
 
 Related scripts:
 

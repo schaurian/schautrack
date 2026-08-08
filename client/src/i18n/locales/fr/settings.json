@@ -197,6 +197,8 @@
     "createFailed": "Échec de la création du jeton",
     "dismiss": "Terminé",
     "empty": "Aucun jeton d'API. Créez-en un pour utiliser Schautrack depuis des scripts ou d'autres applications.",
+    "expiredBadge": "Expiré",
+    "expiredOn": "expiré le {{date}}",
     "expires": "expire le {{date}}",
     "expiry30": "Expire dans 30 jours",
     "expiry365": "Expire dans 1 an",

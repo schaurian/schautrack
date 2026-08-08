@@ -92,6 +92,101 @@ test.describe('Entry Inline Edit', () => {
     await ctx.close();
   });
 
+  /**
+   * Find a just-created entry by name without knowing which calendar day the
+   * server filed it under. Entry dates are resolved in the user's timezone,
+   * which need not match the runner's, so probe yesterday/today/tomorrow.
+   */
+  async function findEntryByName(page: Page, name: string): Promise<{ id: number; date: string }> {
+    const now = Date.now();
+    for (const offset of [0, -1, 1]) {
+      const date = new Date(now + offset * 86400000).toISOString().split('T')[0];
+      const res = await page.request.get(`${baseURL}/entries/day?date=${date}`);
+      if (!res.ok()) continue;
+      const body = await res.json();
+      const hit = (body.entries || []).find((e: { name: string | null }) => e.name === name);
+      if (hit) return { id: hit.id, date };
+    }
+    throw new Error(`entry ${name} not found on any nearby date`);
+  }
+
+  /**
+   * Regression for #303.
+   *
+   * POST /entries/:id/update decodes into map[string]any and used to coerce
+   * every value with fmt.Sprintf("%v", …) before inspecting it, which renders
+   * a JSON null as the four-character string "<nil>". The entry-name path did
+   * not compare against that sentinel (the amount and macro paths did), so
+   * {"name": null} — the documented way to clear the name — renamed the entry
+   * to <nil> and the card rendered those four characters to the user.
+   *
+   * The SPA itself sends "" when the inline editor is emptied, so this state is
+   * only reachable from a client that sends a real JSON null; hence the direct
+   * request rather than a UI interaction.
+   */
+  test('clearing a name with an explicit JSON null does not render <nil>', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
+    await createEntry(page, 'Null name test');
+
+    await expect(page.getByRole('button', { name: 'Null name test', exact: true })).toBeVisible({ timeout: 10000 });
+    const entry = await findEntryByName(page, 'Null name test');
+
+    const { token } = await (await page.request.get(`${baseURL}/api/csrf`)).json();
+    const res = await page.request.post(`${baseURL}/entries/${entry.id}/update`, {
+      data: { name: null },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+    });
+    expect(res.status()).toBe(200);
+
+    // The server's own view of the entry: the name is cleared, not renamed.
+    const updated = await res.json();
+    expect(updated.entry.name).toBeNull();
+
+    // And the card the user sees renders the unnamed placeholder, never <nil>.
+    // Deliberately not waitForLoadState('networkidle'): the dashboard holds an
+    // SSE stream open, so the network never goes idle.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('button', { name: '—', exact: true }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: 'Null name test', exact: true })).toHaveCount(0);
+    await expect(page.getByText('<nil>')).toHaveCount(0);
+
+    await page.request.post(`${baseURL}/entries/${entry.id}/delete`, {
+      headers: { 'X-CSRF-Token': token },
+    });
+    await ctx.close();
+  });
+
+  test('clearing a name through the inline editor does not render <nil>', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
+    await createEntry(page, 'Empty name test');
+
+    const nameBtn = page.getByRole('button', { name: 'Empty name test', exact: true });
+    await nameBtn.scrollIntoViewIfNeeded({ timeout: 10000 });
+    // Grab the id while the entry is still findable by name — once the name is
+    // cleared there is nothing left to look it up by.
+    const entry = await findEntryByName(page, 'Empty name test');
+    await nameBtn.click();
+
+    const editInput = page.locator('input:focus');
+    await expect(editInput).toBeVisible({ timeout: 5000 });
+    await editInput.fill('');
+    await editInput.press('Enter');
+
+    await expect(page.getByRole('button', { name: 'Empty name test', exact: true })).toHaveCount(0, { timeout: 10000 });
+    await expect(page.getByText('<nil>')).toHaveCount(0);
+
+    const { token } = await (await page.request.get(`${baseURL}/api/csrf`)).json();
+    await page.request.post(`${baseURL}/entries/${entry.id}/delete`, {
+      headers: { 'X-CSRF-Token': token },
+    });
+    await ctx.close();
+  });
+
   test('edit entry calorie value inline', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();

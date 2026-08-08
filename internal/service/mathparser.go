@@ -14,15 +14,42 @@ type ParseAmountResult struct {
 
 var validExprRe = regexp.MustCompile(`^[0-9+\-*/().]+$`)
 
+// hexLiteralRe matches a C-style hex literal ("0x10", "0XfF") anywhere in the
+// input. The `(^|[^0-9.])` prefix keeps genuine multiplications whose left
+// operand merely ends in a zero — "10x16", "100x2", "1.0x2" — out of the match:
+// there the "0" continues a longer number and the "x" is the multiplication
+// symbol the normalization pass is there to support.
+//
+// Only `0x` followed by a *decimal* digit is actually reachable as a silent
+// zero ("0xff" already fails validExprRe because "f" is not an allowed
+// character), but the full hex-digit class is matched so the rejection reason
+// is the same for every hex-looking input instead of depending on which digits
+// happen to be used.
+var hexLiteralRe = regexp.MustCompile(`(^|[^0-9.])0[xX][0-9a-fA-F]`)
+
 func ParseAmount(input string, maxAbs int) ParseAmountResult {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return ParseAmountResult{Ok: false, Value: 0}
 	}
 
-	// Normalize input
-	expr := strings.ReplaceAll(input, " ", "")
-	expr = strings.ReplaceAll(expr, ",", "")
+	// Normalize input. Stripping spaces and commas are independent global
+	// replacements of distinct characters, so their relative order does not
+	// matter; commas go first only so the hex check below can still see the
+	// spaces.
+	expr := strings.ReplaceAll(input, ",", "")
+
+	// Reject hex-looking literals before "x" becomes "*". Without this,
+	// "0x10" normalizes to "0*10" and is *silently accepted as 0* — the
+	// callers read Value==0 as "no calorie entry", so a pasted hex value
+	// writes an empty entry and reports success. Checked before spaces are
+	// stripped so an explicitly spaced "0 x 10" is still the multiplication
+	// it looks like.
+	if hexLiteralRe.MatchString(expr) {
+		return ParseAmountResult{Ok: false, Value: 0}
+	}
+
+	expr = strings.ReplaceAll(expr, " ", "")
 	expr = strings.NewReplacer("–", "-", "—", "-", "−", "-").Replace(expr)
 	expr = strings.NewReplacer("x", "*", "X", "*", "×", "*").Replace(expr)
 	expr = strings.ReplaceAll(expr, "÷", "/")
