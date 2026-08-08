@@ -38,11 +38,18 @@ func ParseWeight(input string) ParseWeightResult {
 		return ParseWeightResult{Ok: false}
 	}
 	val, err := strconv.ParseFloat(normalized, 64)
-	if err != nil || val <= 0 || val > 1500 || math.IsInf(val, 0) || math.IsNaN(val) {
+	if err != nil || val <= 0 || val > MaxWeight || math.IsInf(val, 0) || math.IsNaN(val) {
 		return ParseWeightResult{Ok: false}
 	}
 	return ParseWeightResult{Ok: true, Value: math.Round(val*100) / 100}
 }
+
+// MaxWeight bounds an accepted weight, in whichever display unit the user has
+// selected (kg or lb). It is deliberately loose — far above any plausible human
+// weight — while keeping every stored value well inside the NUMERIC(6,2) weight
+// columns (max 9999.99), so an out-of-range value fails as a 400 here rather
+// than a 500 from a numeric overflow on INSERT.
+const MaxWeight = 1500.0
 
 // MaxBodyFatPct bounds an accepted body-fat reading. It is deliberately loose —
 // the highest percentages ever recorded are around 70 — and matches the
