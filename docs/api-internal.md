@@ -129,6 +129,12 @@ Three limiters are applied per client IP (the client IP is taken from
 
 Exceeding a limit returns `429 Too Many Requests`.
 
+The public API mirrors the strict and barcode ceilings on its own
+`POST /api/v1/ai/estimate` and `GET /api/v1/barcode/{code}`, bucketed per
+account rather than per IP, so a personal access token is not a cheaper route
+to the paid provider or to OpenFoodFacts than the app is. Those rejections are
+problem+json, like every other `/api/v1` error.
+
 ---
 
 ## Shared users (linked accounts)
