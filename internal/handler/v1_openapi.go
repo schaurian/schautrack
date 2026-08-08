@@ -8,26 +8,36 @@ import (
 	"schautrack/internal/openapi"
 )
 
-// The document is identical for every caller and costs a few hundred
-// allocations to build, so it is built once and reused. sync.Once rather than
-// package init so a build-version-dependent document is still possible.
-var (
-	specOnce  sync.Once
-	specBytes []byte
-	specErr   error
-)
+// specCache memoizes the built document. It is a field on V1Handler rather than
+// a package-level var so the cached bytes belong to one handler — and therefore
+// to one BaseURL. A process-wide cache would let the first handler to serve the
+// spec fix the `servers` URL for every other handler in the process, which is
+// exactly the host-leak this endpoint must not have.
+//
+// Must not be copied once used; V1Handler is always held by pointer, and
+// `go vet`'s copylocks check enforces the rest.
+type specCache struct {
+	once  sync.Once
+	bytes []byte
+	err   error
+}
 
 // OpenAPI handles GET /api/v1/openapi.json.
 //
 // Unauthenticated on purpose: a client must be able to read the contract before
 // it holds a token, and the document describes only the API's shape, never any
 // user's data.
+//
+// The document is identical for every caller of this instance and costs a few
+// hundred allocations to build, so it is built once and reused. It is keyed to
+// nothing request-derived: the `servers` entry comes from h.BaseURL, fixed at
+// startup, so no caller's Host header can influence what a later caller reads.
 func (h *V1Handler) OpenAPI(w http.ResponseWriter, r *http.Request) {
-	specOnce.Do(func() {
-		specBytes, specErr = openapi.Build(h.BuildVersion).JSON()
+	h.spec.once.Do(func() {
+		h.spec.bytes, h.spec.err = openapi.Build(h.BuildVersion, h.BaseURL).JSON()
 	})
-	if specErr != nil {
-		apierr.Write(w, r, dbFail("build openapi document", specErr))
+	if h.spec.err != nil {
+		apierr.Write(w, r, dbFail("build openapi document", h.spec.err))
 		return
 	}
 
@@ -35,5 +45,5 @@ func (h *V1Handler) OpenAPI(w http.ResponseWriter, r *http.Request) {
 	// tells tooling the version without having to parse the body.
 	w.Header().Set("Content-Type", "application/openapi+json;version=3.1")
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	w.Write(specBytes)
+	w.Write(h.spec.bytes)
 }

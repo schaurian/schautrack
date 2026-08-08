@@ -169,17 +169,30 @@ func (h *V1Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetEntryV1 handles GET /api/v1/entries/{id}.
+//
+// It honours ?user= for the same reason GET /entries does, and it has to: the
+// list hands out ids, and an id from a linked account's list would 404 here if
+// this looked the row up under the caller's own id. The list-then-fetch pattern
+// has to work across the pair or the parameter is a trap.
+//
+// resolveTarget is the authorization boundary — the row is still scoped to a
+// single user_id, so an id belonging to an account that is not linked (or does
+// not share nutrition) is never readable.
 func (h *V1Handler) GetEntryV1(w http.ResponseWriter, r *http.Request) {
 	id, prob := pathID(r)
 	if prob != nil {
 		apierr.Write(w, r, prob)
 		return
 	}
-	user := v1User(r)
+	tgt, prob := h.resolveTarget(r, service.ShareNutrition)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
 	row := h.Pool.QueryRow(r.Context(),
-		"SELECT "+entrySelect+" FROM calorie_entries WHERE id = $1 AND user_id = $2", id, user.ID)
+		"SELECT "+entrySelect+" FROM calorie_entries WHERE id = $1 AND user_id = $2", id, tgt.User.ID)
 
-	e, err := scanEntry(row, v1Tz(r))
+	e, err := scanEntry(row, tgt.tz())
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			apierr.Write(w, r, apierr.NotFound("No entry with that id."))

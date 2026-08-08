@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"log/slog"
+	"math"
 	"net/http"
 	"time"
 
@@ -50,8 +51,14 @@ func validateActivityLevel(a *string) bool {
 // passes validation and then 500s on INSERT with a numeric overflow instead of
 // a clean 400. NaN and ±Inf are rejected as a side effect: NaN fails every
 // comparison, and +Inf exceeds the cap.
+//
+// The lower bound is re-checked AFTER coercion to the column's scale, for the
+// same reason ParseWeight does it (#302): NUMERIC(6,2) stores 0.001 as 0.00,
+// which then fails weight_goals_positive — a 500 where the caller should have
+// got a 400. TargetWeight never passes through ParseWeight, so that fix does
+// not reach it.
 func validateTargetWeight(w float64) bool {
-	return w > 0 && w <= service.MaxWeight
+	return w > 0 && w <= service.MaxWeight && math.Round(w*100)/100 > 0
 }
 
 func validatePaceMode(m string) bool {
@@ -124,6 +131,13 @@ func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (servic
 	// The latest body-fat reading may be older than the latest weight (body
 	// composition is typically measured less often), so it is looked up
 	// separately and carries the weight it was taken with.
+	//
+	// The lookup is deliberately unbounded: the most recent reading is always
+	// worth *showing*, however old. Whether it is recent enough to pick the BMR
+	// formula is a separate question, decided in AssemblePlan against
+	// service.BodyFatRecencyDays — bounding the query instead would hide the
+	// reading and its date, leaving the user no way to see why the plan
+	// silently went back to Mifflin-St Jeor.
 	var bodyFat *service.BodyFatReading
 	lastBodyFat, err := service.GetLastBodyFatEntry(ctx, h.Pool, user.ID, "")
 	if err != nil {

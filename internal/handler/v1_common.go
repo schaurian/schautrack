@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -104,48 +105,100 @@ func (o Optional[T]) MarshalJSON() ([]byte, error) {
 // a payload remotely that size, so it gets a tighter bound of its own.
 const maxV1Body = 1 << 20
 
-// decodeV1 reads a JSON body into dst, rejecting unknown fields.
+// decodeV1 reads a JSON body into dst, requiring it to be a single JSON object
+// and rejecting unknown fields.
 //
 // DisallowUnknownFields is the deliberate choice here. A public API that
 // silently ignores `{"calorie": 500}` (note the typo) hands the caller a
 // success response and drops their data. Failing with a message naming the
 // unknown field turns a silent data-loss bug into an obvious 400.
+//
+// It decodes in two passes, which looks redundant and is not. Decoding the
+// body straight into dst cannot distinguish a bare `null` from `{}`:
+// encoding/json treats a top-level null literal as "leave the destination
+// alone", so Decode returns no error, dst stays zero-valued, and the handler
+// runs as though the caller had sent an empty object. On the PUT-replace
+// endpoints a zero-valued struct is a destructive instruction — `Content: ""`
+// on PUT /notes/{date} means "delete this note" — so a body carrying no
+// instruction at all deleted a note and returned 200. That is the same silent
+// data loss DisallowUnknownFields exists to prevent, so a top-level value that
+// is not an object is refused before dst is ever touched.
 func decodeV1(w http.ResponseWriter, r *http.Request, dst any) *apierr.Problem {
 	if r.Body == nil {
 		return apierr.BadRequest("A JSON request body is required.")
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxV1Body))
-	dec.DisallowUnknownFields()
 
-	if err := dec.Decode(dst); err != nil {
-		var maxErr *http.MaxBytesError
-		if errors.As(err, &maxErr) {
-			return apierr.New(http.StatusRequestEntityTooLarge, "body-too-large",
-				"Request body too large",
-				fmt.Sprintf("The request body exceeds the %d byte limit.", maxV1Body))
-		}
-		var typeErr *json.UnmarshalTypeError
-		if errors.As(err, &typeErr) {
-			return apierr.Unprocessable("A field has the wrong type.",
-				apierr.InvalidParam{
-					Name:   typeErr.Field,
-					Reason: fmt.Sprintf("expected %s", typeErr.Type.String()),
-				})
-		}
-		// json's unknown-field error is only available as a string; converting
-		// it here is what lets the caller see WHICH field they misspelled.
-		if field, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
-			return apierr.BadRequest("Unknown field " + field + ".")
-		}
-		return apierr.BadRequest("The request body is not valid JSON.")
+	// Pass 1 reads the body as an uninterpreted value. This is where the size
+	// limit and JSON syntax are enforced — both have to win over the shape
+	// check below, because a body that cannot be read has no shape to report.
+	var raw json.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return decodeV1Problem(err)
 	}
 
-	// A second Decode must hit EOF; anything else means the caller sent more
-	// than one JSON value and half of it would be ignored.
+	// Decode strips leading whitespace, so raw starts at the value itself. An
+	// array, string, number, boolean or null gets the same 400 as the
+	// multi-value case below: the caller sent something that is not a request
+	// body for this endpoint, and saying which shape was expected is the only
+	// actionable thing to tell them.
+	if len(raw) == 0 || raw[0] != '{' {
+		return apierr.BadRequest("The request body must be a JSON object.")
+	}
+
+	// Pass 2 fills dst from the object. It runs over the bytes pass 1 already
+	// read, so the body is never read twice.
+	obj := json.NewDecoder(bytes.NewReader(raw))
+	obj.DisallowUnknownFields()
+	if err := obj.Decode(dst); err != nil {
+		return decodeV1Problem(err)
+	}
+
+	// A second Decode on the *body* must hit EOF; anything else means the
+	// caller sent more than one JSON value and half of it would be ignored.
+	// Checked last so that a malformed first object is reported as the field
+	// error it is rather than as a multi-value body.
 	if dec.More() {
 		return apierr.BadRequest("The request body must contain exactly one JSON object.")
 	}
 	return nil
+}
+
+// decodeV1Problem maps an encoding/json failure onto a problem detail. Shared
+// by both decodeV1 passes: the size and syntax errors can only come from the
+// first, the field-level ones only from the second, and keeping one mapping
+// means the two passes cannot drift into reporting the same fault differently.
+func decodeV1Problem(err error) *apierr.Problem {
+	var maxErr *http.MaxBytesError
+	if errors.As(err, &maxErr) {
+		return apierr.New(http.StatusRequestEntityTooLarge, "body-too-large",
+			"Request body too large",
+			fmt.Sprintf("The request body exceeds the %d byte limit.", maxV1Body))
+	}
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) {
+		// Field is empty when the mismatch is the body itself rather than one
+		// of its fields. decodeV1's own shape check now catches that case
+		// first, so this branch is a backstop for a dst that is not a struct;
+		// it stays because typeErr.Type is the destination *Go* type, and
+		// answering `{"name": "", "reason": "expected handler.v1EntryInput"}`
+		// is both useless to the caller and a leak of an internal type name
+		// into a public response.
+		if typeErr.Field == "" {
+			return apierr.BadRequest("The request body must be a JSON object.")
+		}
+		return apierr.Unprocessable("A field has the wrong type.",
+			apierr.InvalidParam{
+				Name:   typeErr.Field,
+				Reason: fmt.Sprintf("expected %s", typeErr.Type.String()),
+			})
+	}
+	// json's unknown-field error is only available as a string; converting it
+	// here is what lets the caller see WHICH field they misspelled.
+	if field, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+		return apierr.BadRequest("Unknown field " + field + ".")
+	}
+	return apierr.BadRequest("The request body is not valid JSON.")
 }
 
 // pathDate reads and validates a YYYY-MM-DD path parameter.

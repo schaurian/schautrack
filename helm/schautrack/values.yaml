@@ -188,7 +188,10 @@ config:
     apiToken: ""
   # Allow search engine indexing (sets ROBOTS_INDEX env var)
   robotsIndex: false
-  # Base URL for SEO meta tags (leave empty to auto-detect from request)
+  # Base URL for SEO meta tags and the `servers` entry of the API's OpenAPI
+  # document at /api/v1/openapi.json (leave empty to auto-detect from request;
+  # the OpenAPI document then uses a relative URL, which clients resolve
+  # against this instance either way)
   baseUrl: ""
   # Android App Links (Digital Asset Links) — binds the domain to the published
   # Android app so https:// links open in the app. Served at

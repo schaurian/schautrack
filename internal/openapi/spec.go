@@ -3,6 +3,7 @@ package openapi
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"schautrack/internal/service"
 )
@@ -94,6 +95,13 @@ served as ` + "`application/problem+json`" + `:
 
 Branch on ` + "`type`" + `, not on ` + "`detail`" + `: the type URI is stable, the prose is not.
 
+The ` + "`type`" + ` URIs are **stable identifiers, not endpoints**. Every instance,
+self-hosted ones included, emits the same ` + "`https://schautrack.com/problems/…`" + `
+URIs on purpose, so a client can recognise a problem type without knowing which
+host produced it. Do not dereference them, and do not expect a self-hosted
+instance to rewrite them to its own domain. This document's ` + "`servers`" + ` URL,
+by contrast, *is* an endpoint, and always names the instance that served it.
+
 ## Dates and time zones
 
 Dates are ` + "`YYYY-MM-DD`" + ` in the **account's** time zone. Omitting a date means
@@ -125,17 +133,70 @@ The first request executes and its response is stored. Any retry with the same
 key replays that response, with ` + "`Idempotency-Replayed: true`" + `, instead of
 logging the meal twice. Reusing a key with a *different* body returns ` + "`409`" + `
 rather than silently discarding the new request. Keys are remembered for 24
-hours.
+hours. A request that fails releases its key, so the retry is a fresh attempt
+rather than a replay of the error.
+
+Every endpoint that creates something accepts the header: ` + "`POST /entries`" + `,
+` + "`POST /todos`" + `, ` + "`POST /saved-foods`" + `, and
+` + "`POST /saved-foods/{id}/track`" + `. The operation parameter lists say which,
+and they are not advisory — the one ` + "`POST`" + ` that does not honour the header
+(` + "`POST /ai/estimate`" + `) rejects it with ` + "`400`" + ` instead of ignoring it.
+An accepted request is therefore always a request whose retry semantics are
+what you asked for.
 
 ## Rate limits
 
-Two limits apply: one per IP address and one per token. Exceeding either
-returns ` + "`429`" + ` with a ` + "`Retry-After`" + ` header giving the number of
-seconds until the window reopens. Honour it rather than retrying blindly.`
+Three limits apply: one per IP address, one per token, and — on the two
+endpoints that cost real resources — one per account. ` + "`POST /ai/estimate`" + `
+and ` + "`GET /barcode/{code}`" + ` reach a paid provider and a third-party food
+database respectively, so they are capped at the same rate the app's own UI
+gets rather than at the API-wide ceiling; a token is not a cheaper route to
+them than a browser.
 
-// Build assembles the OpenAPI document. version is the running build version,
-// surfaced so a reader can tell which deployment served the spec.
-func Build(version string) *Document {
+Exceeding any of the three returns ` + "`429`" + ` with a ` + "`Retry-After`" + `
+header giving the number of seconds until the window reopens. Honour it rather
+than retrying blindly.`
+
+// CanonicalBaseURL is the URL of the Schautrack-hosted instance. It is the base
+// cmd/apidocs bakes into the committed api/openapi.json and docs/api-v1.md, so
+// those two artifacts describe one fixed, reviewable host instead of whatever
+// machine happened to run the generator. A running server never uses it: it
+// serves its own BASE_URL — see Build.
+const CanonicalBaseURL = "https://schautrack.com"
+
+// servers returns the single `servers` entry for the instance serving this
+// document.
+//
+// There is exactly one entry, and it is this instance. A hardcoded list naming
+// schautrack.com used to ship to every deployment, which meant a self-hoster's
+// spec pointed clients — Swagger UI's "Try it out" above all, which sends the
+// caller's `stk_…` bearer token to servers[0] — at a host they do not control.
+// A long-lived token leaked that way is a durable exposure, so the server URL
+// has to follow the instance.
+func servers(baseURL string) []Server {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if base == "" {
+		// No BASE_URL configured. A relative server URL is resolved by the
+		// client against the URL the document itself was fetched from (OpenAPI
+		// 3.1 §4.8.5), which keeps an unconfigured instance pointing at itself.
+		// Deriving an absolute URL from the request's Host header instead would
+		// put an attacker-supplied value into the published contract, so the
+		// relative form is both simpler and safer.
+		return []Server{{URL: "/api/v1", Description: serverDescription}}
+	}
+	return []Server{{URL: base + "/api/v1", Description: serverDescription}}
+}
+
+const serverDescription = "This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's \"Try it out\" included — send credentials only to the host the document came from."
+
+// Build assembles the OpenAPI document.
+//
+// version is the running build version, surfaced so a reader can tell which
+// deployment served the spec. baseURL is the public root this instance is
+// reached at (config.BaseURL / the BASE_URL environment variable); it becomes
+// the sole `servers` entry as <baseURL>/api/v1. An empty baseURL yields the
+// relative "/api/v1", which every client resolves against this instance.
+func Build(version, baseURL string) *Document {
 	d := &Document{
 		OpenAPI: "3.1.0",
 		Info: Info{
@@ -146,10 +207,7 @@ func Build(version string) *Document {
 			License:     &License{Name: "AGPL-3.0-or-later", Identifier: "AGPL-3.0-or-later"},
 			Contact:     &Contact{Name: "Schautrack", URL: "https://schautrack.com"},
 		},
-		Servers: []Server{
-			{URL: "https://schautrack.com/api/v1", Description: "Production"},
-			{URL: "https://staging.schautrack.com/api/v1", Description: "Staging"},
-		},
+		Servers: servers(baseURL),
 		Tags: []Tag{
 			{Name: "Account", Description: "Who the token belongs to and what it may do."},
 			{Name: "Entries", Description: "Calorie entries and their macros."},
@@ -213,8 +271,6 @@ func sharedResponses() map[string]*Response {
 	}
 }
 
-// idempotencyParam documents the opt-in retry-safety header on the two
-// endpoints that create something.
 // linkedUserParam lets a read endpoint return a linked account's data.
 var linkedUserParam = Parameter{
 	Name: "user", In: "query",
@@ -224,6 +280,9 @@ var linkedUserParam = Parameter{
 	Schema: integer(""),
 }
 
+// idempotencyParam documents the opt-in retry-safety header. It belongs on
+// every endpoint that creates something; the endpoints that do not honour it
+// reject it with 400 rather than ignoring it, so this list is not advisory.
 var idempotencyParam = Parameter{
 	Name: "Idempotency-Key", In: "header",
 	Description: "Optional. A key you generate once per logical operation and reuse when retrying. " +
@@ -289,7 +348,9 @@ func schemas() map[string]*Schema {
 		"updated_at":   dateTime("When it was last changed (UTC)."),
 	}
 
-	return map[string]*Schema{
+	// The plan's ten schemas are built separately — inline they would bury
+	// everything else in this function.
+	return mergeProps(map[string]*Schema{
 		"Macros": macros,
 
 		"Entry": object("A calorie entry.", entryProps,
@@ -305,12 +366,20 @@ func schemas() map[string]*Schema {
 		"Weight": object("A weight reading. One per account per day.", map[string]*Schema{
 			"date":       dateStr("The day this reading belongs to."),
 			"weight":     number("The reading, in `unit`."),
+			"body_fat":   nullable(number("Body fat as a percentage, or `null` when the day carries no measurement.")),
 			"unit":       {Type: "string", Enum: []any{"kg", "lb"}, Description: "The account's weight unit. Readings are stored as entered and never converted."},
 			"created_at": dateTime("When first recorded (UTC)."),
 			"updated_at": dateTime("When last changed (UTC)."),
-		}, "date", "weight", "unit", "created_at", "updated_at"),
+		}, "date", "weight", "body_fat", "unit", "created_at", "updated_at"),
 		"WeightInput": object("A weight reading.", map[string]*Schema{
 			"weight": withRange(number("The reading, in the account's unit."), 0.01, 1500),
+			"body_fat": nullable(withRange(number(
+				"Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored "+
+					"reading for that day untouched — which is what makes a weight-only scale "+
+					"integration safe to retry. Send `null` to clear it. Writing a value switches "+
+					"the account's body-fat field on if it was off, so the reading is visible in "+
+					"the app; clearing never switches it back off."),
+				0.1, service.MaxBodyFatPct)),
 		}, "weight"),
 		"WeightList": object("A page of weight readings, newest first.", map[string]*Schema{
 			"data":        array(ref("Weight"), "The readings."),
@@ -377,8 +446,8 @@ func schemas() map[string]*Schema {
 				"emoji":    nullStr("`null` clears the emoji."),
 				"calories": withRange(nullInt("Energy per unit."), -9999, 9999),
 			}, macroInputProps())),
-		"SavedFoodList": object("Saved foods, most-used first.", map[string]*Schema{
-			"data": array(ref("SavedFood"), "The foods."),
+		"SavedFoodList": object("Saved foods, most-used first. Never partial.", map[string]*Schema{
+			"data": array(ref("SavedFood"), "Every saved food on the account."),
 		}, "data"),
 		"TrackInput": object("How to log this food.", map[string]*Schema{
 			"date":     dateStr("Defaults to today in the account's time zone."),
@@ -394,7 +463,7 @@ func schemas() map[string]*Schema {
 			"content": {Type: "string", Description: "Up to 10000 characters.", MaxLength: intp(10000)},
 		}, "content"),
 
-		"Me": object("The authenticated account and token.", map[string]*Schema{
+		"Me": object("The authenticated account, the token, and the account's enabled features.", map[string]*Schema{
 			"user": object("The account this token belongs to.", map[string]*Schema{
 				"id":          integer("Account identifier."),
 				"email":       str("Account email."),
@@ -414,14 +483,24 @@ func schemas() map[string]*Schema {
 				"version": str("The running build version."),
 				"today":   dateStr("Today's date in the account's time zone."),
 			}, "version", "today"),
-		}, "user", "token", "server"),
-
-		"Plan": {
-			Type: "object",
-			Description: "The weight-loss plan: body metrics, active goal, computed budget, " +
-				"projected curve, and trend analysis. Weight-valued fields are in the account's unit.",
-			AdditionalProperties: true,
-		},
+			"features": object(
+				"Per-account opt-ins that change how the rest of the API behaves. "+
+					"Read-only: they are switched in the app's settings, not through this API. "+
+					"Every field is always present.",
+				map[string]*Schema{
+					"body_fat": boolean("Body-fat readings are enabled. When `false` a stored " +
+						"reading is not shown in the app."),
+					"todos": boolean("Todos are enabled in the app. The todo endpoints work either " +
+						"way, but a todo created while this is `false` is invisible to the user."),
+					"notes": boolean("Daily notes are enabled. When `false`, `GET` and `PUT " +
+						"/notes/{date}` answer `409`."),
+					"macros": boolean("At least one macro (protein, carbs, fat, fiber, sugar) is " +
+						"enabled for this account, so macro values are shown in the app."),
+					"auto_calc_calories": boolean("Calories are computed from macros. When `true`, " +
+						"`POST /entries` derives `calories` from the macros it was given rather than " +
+						"trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`."),
+				}, "body_fat", "todos", "notes", "macros", "auto_calc_calories"),
+		}, "user", "token", "server", "features"),
 
 		"Link": object("A linked account, from your point of view.", map[string]*Schema{
 			"user_id": integer("Pass this as the `user` query parameter on a read endpoint."),
@@ -479,10 +558,153 @@ func schemas() map[string]*Schema {
 			}, "name", "reason"), "Present on validation failures."),
 			"required_scope": str("Present on 403s: the scope the token is missing."),
 		}, "type", "title", "status"),
+	}, planSchemas())
+}
+
+// planSchemas describes GET /plan: one component per Go type behind
+// service.PlanResponse.
+//
+// Named components rather than one free-form blob, which is what this was until
+// it turned out that "additionalProperties: true" also means "Document.Validate
+// checks nothing". /plan carries the largest payload in the API and the one that
+// changes most often, and it had silently gained three undocumented fields.
+// Writing the shape down is what puts it under the same drift check as every
+// other response (internal/handler.TestPlanMatchesSchema); the docs and the
+// generated clients getting real types instead of Record<string, unknown> are
+// the bonus.
+//
+// Sub-objects are separate components rather than inline ones so the reference
+// page renders a field table for each — an inline object renders as the word
+// "object" and nothing else.
+//
+// Weight-valued fields are in the account's unit throughout, including the four
+// whose names say Kg (minKg, maxKg, rateKgPerWeek, slopeKgPerWeek):
+// service.ConvertPlanResponseToDisplayUnit converts them like every other
+// weight. The names are historical and misleading — schaurian/schautrack#361.
+func planSchemas() map[string]*Schema {
+	const inUnit = " In the account's weight unit."
+
+	return map[string]*Schema{
+		"Plan": object("The weight-loss plan: body metrics, active goal, computed budget, "+
+			"projected curve, and trend analysis. Every field is always present; those that depend "+
+			"on data the account has not supplied are `null`. Weight-valued fields are in the "+
+			"account's unit.",
+			map[string]*Schema{
+				"metrics":       describedRef("PlanMetrics", "The body metrics the plan is computed from."),
+				"currentWeight": nullable(number("The most recent weight reading. `null` when none is logged." + inUnit)),
+				"bmi":           nullable(number("Body mass index. `null` without both a height and a weight.")),
+				"bmiCategory":   nullEnumStr("The band `bmi` falls in: `underweight`, `normal`, `overweight` or `obese`.", "underweight", "normal", "overweight", "obese"),
+				"composition":   nullableRef("BodyComposition", "Derived from the most recent body-fat reading. `null` when none was recorded."),
+				"healthyRange":  nullableRef("HealthyRange", "The healthy weight range for the account's height. `null` without a height and a weight."),
+				"goal":          nullableRef("WeightGoal", "The active weight goal. `null` when none is set."),
+				"computed":      nullableRef("PlanComputed", "The budget and projection. `null` unless the body metrics are complete AND an active goal has a usable pace."),
+				"trend":         nullableRef("PlanTrend", "Observed progress. `null` when no goal is set; present but flagged `insufficient_data` when there are too few readings."),
+				"currentCalorieGoal": nullInt("The account's daily calorie target as it stands now, which need not equal " +
+					"`computed.budgetKcal` — the recommendation is only applied when the user accepts it."),
+				"series":     array(ref("SeriesPoint"), "Logged weight readings from the last 180 days, oldest first."),
+				"warnings":   array(ref("PlanWarning"), "Safety notes about this plan. Empty when there is nothing to flag."),
+				"disclaimer": str("Fixed text to show alongside the numbers. The plan is an estimate, not medical advice."),
+			},
+			"metrics", "currentWeight", "bmi", "bmiCategory", "composition", "healthyRange", "goal",
+			"computed", "trend", "currentCalorieGoal", "series", "warnings", "disclaimer"),
+
+		"PlanMetrics": object("The body metrics the plan is computed from. Each is `null` until the account supplies it; they are set in the app, not over this API.",
+			map[string]*Schema{
+				"heightCm":      nullable(number("Height in centimetres. Never converted — this is not a weight.")),
+				"birthYear":     nullInt("Year of birth; age is derived from it."),
+				"sex":           nullEnumStr("`male`, `female` or `other`. Used by the Mifflin–St Jeor formula and the calorie floor.", "male", "female", "other"),
+				"activityLevel": nullEnumStr("`sedentary`, `light`, `moderate`, `active` or `very_active`. Decides the multiplier applied to BMR to reach TDEE.", "sedentary", "light", "moderate", "active", "very_active"),
+				"complete":      boolean("Whether all four are set. `computed` stays `null` while this is `false`."),
+			}, "heightCm", "birthYear", "sex", "activityLevel", "complete"),
+
+		"BodyComposition": object("Body composition derived from the most recent body-fat reading. That reading can be "+
+			"older than the current weight — body composition is measured less often — so `date` says when it was taken.",
+			map[string]*Schema{
+				"date":       dateStr("The day the body-fat reading was recorded."),
+				"bodyFatPct": number("Body fat as a percentage of total mass. A percentage, so never unit-converted."),
+				"leanMass":   number("Fat-free mass at that reading." + inUnit),
+				"fatMass":    number("Fat mass at that reading." + inUnit),
+				"category":   nullEnumStr("The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one.", "essential", "athletic", "fitness", "average", "obese"),
+				"ageDays":    integer("Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead."),
+				"stale":      boolean("Whether the reading is too old to choose the BMR formula (older than 90 days). A stale reading is still reported — it is the account's most recent measurement — but `computed.bmrFormula` falls back to `mifflin_st_jeor` instead of `katch_mcardle`."),
+			}, "date", "bodyFatPct", "leanMass", "fatMass", "category", "ageDays", "stale"),
+
+		"HealthyRange": object("The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.",
+			map[string]*Schema{
+				"minKg": number("Lower bound." + inUnit + " Not necessarily kg, despite the name."),
+				"maxKg": number("Upper bound." + inUnit + " Not necessarily kg, despite the name."),
+			}, "minKg", "maxKg"),
+
+		"WeightGoal": object("The active weight goal, echoed in the account's unit. Read-only here: setting a goal has "+
+			"real health implications, so it stays in the app where the numbers can be explained.",
+			map[string]*Schema{
+				"id":               integer("Goal identifier."),
+				"user_id":          integer("The account that owns it."),
+				"start_weight":     number("Weight when the goal was set." + inUnit),
+				"start_date":       dateStr("The day the goal was set."),
+				"target_weight":    number("The target." + inUnit),
+				"pace_mode":        enumStr("`rate` sets a weekly pace directly; `date` derives one from `target_date`.", "rate", "date"),
+				"rate_kg_per_week": number("The requested pace per week. Present when `pace_mode` is `rate`." + inUnit + " Not necessarily kg, despite the name."),
+				"target_date":      dateStr("The requested finish date. Present when `pace_mode` is `date`."),
+				"activity_level":   enumStr("The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`.", "sedentary", "light", "moderate", "active", "very_active"),
+				"status":           enumStr("`active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal.", "active", "achieved", "abandoned"),
+				"achieved_at":      dateTime("When the goal was met (UTC). Absent while it is active."),
+				"created_at":       dateTime("When the goal was created (UTC)."),
+				"updated_at":       dateTime("When it was last changed (UTC)."),
+			}, "id", "user_id", "start_weight", "start_date", "target_weight", "pace_mode", "status", "created_at", "updated_at"),
+
+		"PlanComputed": object("The energy budget and the projection it produces.",
+			map[string]*Schema{
+				"bmr":           number("Basal metabolic rate, kcal/day, per `bmrFormula`."),
+				"tdee":          number("Total daily energy expenditure: BMR times the activity factor, kcal/day."),
+				"budgetKcal":    integer("The recommended daily intake, kcal."),
+				"budgetClamped": boolean("Whether the budget was raised to the safe floor for this sex. The matching `budget_clamped` warning is also emitted."),
+				"rateKgPerWeek": number("The goal's pace per week." + inUnit + " Not necessarily kg, despite the name."),
+				"etaWeeks":      number("Weeks to the target at that pace."),
+				"etaDate":       nullable(dateStr("The date `etaWeeks` lands on. `null` when the ETA is not a finite number.")),
+				"planCurve": array(ref("CurvePoint"), "Projected weight week by week. It decelerates: BMR is recomputed at each "+
+					"simulated weight, so the deficit shrinks as the weight does. Stops at the target, at a plateau, or after 160 weeks."),
+				"bmrFormula": enumStr("Which estimator produced `bmr`: `katch_mcardle` when a body-fat reading was available (it works off lean mass, the more accurate basis), `mifflin_st_jeor` otherwise.",
+					"mifflin_st_jeor", "katch_mcardle"),
+			}, "bmr", "tdee", "budgetKcal", "budgetClamped", "rateKgPerWeek", "etaWeeks", "etaDate", "planCurve", "bmrFormula"),
+
+		"CurvePoint": object("One week of the projected curve.", map[string]*Schema{
+			"week":   integer("Weeks from now. Week 0 is the starting weight."),
+			"weight": number("Projected weight that week." + inUnit),
+		}, "week", "weight"),
+
+		"PlanTrend": object("Observed progress: a least-squares fit over the readings from the last 30 days. "+
+			"Independent of the body metrics, so it works even when `computed` is `null`.",
+			map[string]*Schema{
+				"slopeKgPerWeek": number("Fitted change per week, negative when losing." + inUnit + " Not necessarily kg, despite the name."),
+				"hasData":        boolean("Whether there were enough readings — two, at least a week apart — to fit a line."),
+				"projectedWeeks": number("Weeks to the target at the observed rate. `-1` when it cannot be projected."),
+				"projectedDate":  nullable(dateStr("The date `projectedWeeks` lands on. `null` when it cannot be projected.")),
+				"status": enumStr("Progress against the plan's pace: `ahead` from 110%, `on_track` from 85%, `behind` below that. "+
+					"`stalled` when the fitted change is under 0.05 per week, `wrong_direction` when it moves away from the target, "+
+					"`insufficient_data` when `hasData` is false.",
+					"insufficient_data", "stalled", "wrong_direction", "behind", "on_track", "ahead"),
+			}, "slopeKgPerWeek", "hasData", "projectedWeeks", "projectedDate", "status"),
+
+		"SeriesPoint": object("One logged weight reading, as charted.", map[string]*Schema{
+			"date":    dateStr("The day of the reading."),
+			"weight":  number("The reading." + inUnit),
+			"bodyFat": number("Body fat percentage recorded with it. Absent when the scale reported weight only."),
+		}, "date", "weight"),
+
+		"PlanWarning": object("A safety note about the plan. Branch on `code`; `message` is English prose that can change.",
+			map[string]*Schema{
+				"code": enumStr("What is being flagged: `budget_clamped` (the budget was raised to the safe floor), "+
+					"`aggressive_rate` (the pace exceeds 1% of body weight per week), `target_underweight` or `target_obese` "+
+					"(the target weight falls in that BMI band).",
+					"budget_clamped", "aggressive_rate", "target_underweight", "target_obese"),
+				"message": str("Human-readable explanation, in English."),
+			}, "code", "message"),
 	}
 }
 
-// mergeProps combines property maps. Later maps win on key collision.
+// mergeProps combines maps of named schemas — properties, or the components
+// map itself. Later maps win on key collision.
 func mergeProps(maps ...map[string]*Schema) map[string]*Schema {
 	out := map[string]*Schema{}
 	for _, m := range maps {
@@ -570,9 +792,10 @@ func paths() map[string]*PathItem {
 			Get: &Operation{
 				OperationID: "getMe",
 				Summary:     "The authenticated account and token",
-				Description: "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
-				Tags:        []string{"Account"},
-				Responses:   merge(map[string]*Response{"200": ok200("The account, the token, and the server.", ref("Me"))}, errs(nil)),
+				Description: "Requires a valid token but no particular scope — this is how a client discovers " +
+					"which scopes it holds and, via `features`, which optional features the account has on.",
+				Tags:      []string{"Account"},
+				Responses: merge(map[string]*Response{"200": ok200("The account, the token, the server, and the account's enabled features.", ref("Me"))}, errs(nil)),
 			},
 			Patch: &Operation{
 				OperationID: "updateMe",
@@ -634,9 +857,12 @@ func paths() map[string]*PathItem {
 		"/entries/{id}": {
 			Get: &Operation{
 				OperationID: "getEntry", Summary: "Fetch one calorie entry",
+				Description: "Pass the same `user` you listed with: an id from `GET /entries?user=42` " +
+					"belongs to account 42, so fetching it needs `?user=42` too. Without it the lookup " +
+					"is scoped to your own account and returns 404.",
 				Tags: []string{"Entries"}, Scope: service.ScopeEntriesRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeEntriesRead}}},
-				Parameters: []Parameter{idParam},
+				Parameters: []Parameter{idParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The entry.", ref("Entry")),
 					"400": respRef("BadRequest"), "404": respRef("NotFound"),
@@ -686,9 +912,13 @@ func paths() map[string]*PathItem {
 		"/weight/{date}": {
 			Get: &Operation{
 				OperationID: "getWeight", Summary: "Fetch one day's weight",
+				Description: "Pass the same `user` you listed with — a date from `GET /weight?user=42` " +
+					"is a reading on account 42, and without `?user=42` this looks in your own " +
+					"readings and returns 404. `unit` is always the unit of whoever the reading " +
+					"belongs to; readings are never converted.",
 				Tags: []string{"Weight"}, Scope: service.ScopeWeightRead,
 				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeWeightRead}}},
-				Parameters: []Parameter{dateParam},
+				Parameters: []Parameter{dateParam, linkedUserParam},
 				Responses: merge(map[string]*Response{
 					"200": ok200("The reading.", ref("Weight")),
 					"400": respRef("BadRequest"), "404": respRef("NotFound"),
@@ -696,8 +926,9 @@ func paths() map[string]*PathItem {
 			},
 			Put: &Operation{
 				OperationID: "putWeight", Summary: "Record a day's weight",
-				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.",
-				Tags:        []string{"Weight"}, Scope: service.ScopeWeightWrite,
+				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. " +
+					"`body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.",
+				Tags: []string{"Weight"}, Scope: service.ScopeWeightWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeWeightWrite}}},
 				Parameters:  []Parameter{dateParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("WeightInput"))},
@@ -721,15 +952,21 @@ func paths() map[string]*PathItem {
 		"/todos": {
 			Get: &Operation{
 				OperationID: "listTodos", Summary: "List todo definitions",
-				Description: "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.",
-				Tags:        []string{"Todos"}, Scope: service.ScopeTodosRead,
-				Security:  []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
-				Responses: merge(map[string]*Response{"200": ok200("The todos.", ref("TodoList"))}, errs(nil)),
+				Description: "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`. " +
+					"Accepts `user` under the same `todos` share category as that endpoint.",
+				Tags: []string{"Todos"}, Scope: service.ScopeTodosRead,
+				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeTodosRead}}},
+				Parameters: []Parameter{linkedUserParam},
+				Responses: merge(map[string]*Response{
+					"200": ok200("The todos.", ref("TodoList")),
+					"400": respRef("BadRequest"),
+				}, errs(nil)),
 			},
 			Post: &Operation{
 				OperationID: "createTodo", Summary: "Create a todo",
 				Tags: []string{"Todos"}, Scope: service.ScopeTodosWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeTodosWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("TodoInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created todo.", ref("Todo"), "URL of the created todo."),
@@ -789,19 +1026,27 @@ func paths() map[string]*PathItem {
 		"/saved-foods": {
 			Get: &Operation{
 				OperationID: "listSavedFoods", Summary: "List saved foods",
-				Description: "Most-used first, then most-recently-used.",
-				Tags:        []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
-				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
-				Parameters: []Parameter{limitParam},
+				Description: "Most-used first, then most-recently-used, then newest first. " +
+					"Not paginated: an account holds at most 200 saved foods, so this always " +
+					"returns the complete set.\n\n" +
+					"**Your own foods only, deliberately.** This endpoint does not accept `user`: " +
+					"account linking shares nutrition, weight, todos, and notes, and saved foods are " +
+					"none of those, so there is no share category that could authorize reading " +
+					"another account's. Passing `user` is ignored.",
+				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
+				Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
+				// No 400: the operation takes no input to reject, matching the
+				// other parameterless collections (listTodos, listLinks).
+
 				Responses: merge(map[string]*Response{
 					"200": ok200("The saved foods.", ref("SavedFoodList")),
-					"400": respRef("BadRequest"),
 				}, errs(nil)),
 			},
 			Post: &Operation{
 				OperationID: "createSavedFood", Summary: "Create a saved food",
 				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("SavedFoodInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created food.", ref("SavedFood"), "URL of the created food."),
@@ -886,6 +1131,8 @@ func paths() map[string]*PathItem {
 		"/barcode/{code}": {Get: &Operation{
 			OperationID: "lookupBarcode", Summary: "Look up a product by barcode",
 			Description: "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. " +
+				"Rate limited per account at the same rate as the app's own scanner, since it " +
+				"queries the same third-party database. " +
 				"Returns 404 when barcode lookup is disabled on the server.",
 			Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
 			Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
@@ -907,8 +1154,12 @@ func paths() map[string]*PathItem {
 			OperationID: "estimateFromPhoto", Summary: "Estimate nutrition from a food photo",
 			Description: "Requires the `ai:estimate` scope, which no other scope implies — every call " +
 				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
-				"daily AI limit applies here exactly as it does in the app. Returns 404 when no AI " +
-				"provider is configured.",
+				"daily AI limit applies here exactly as it does in the app, as does a per-account " +
+				"rate limit matching the app's own estimate endpoint — this is not a cheaper path " +
+				"to the provider. Returns 404 when no AI provider is configured. This is the one " +
+				"`POST` that does not honour `Idempotency-Key`: sending the header returns 400 " +
+				"rather than being ignored, so a caller is never left believing a retry is safe " +
+				"when it is not.",
 			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
 			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},
@@ -929,8 +1180,14 @@ func paths() map[string]*PathItem {
 
 		"/plan": {Get: &Operation{
 			OperationID: "getPlan", Summary: "The weight-loss plan",
-			Description: "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.",
-			Tags:        []string{"Plan"}, Scope: service.ScopePlanRead,
+			Description: "Read-only. Unlike the app's own plan endpoint, this one never writes — a " +
+				"`plan:read` token cannot change state, so a goal that has been reached is reported " +
+				"but not transitioned.\n\n" +
+				"**Your own plan only, deliberately.** This endpoint does not accept `user`: the plan " +
+				"is a projection over body metrics and a weight goal, and account linking has no " +
+				"share category covering either. A linked account's weight readings are readable " +
+				"via `GET /weight?user=`; the plan built from them is not.",
+			Tags: []string{"Plan"}, Scope: service.ScopePlanRead,
 			Security:  []SecurityRequirement{{"bearerAuth": {service.ScopePlanRead}}},
 			Responses: merge(map[string]*Response{"200": ok200("The plan.", ref("Plan"))}, errs(nil)),
 		}},
