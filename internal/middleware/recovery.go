@@ -2,7 +2,8 @@ package middleware
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"runtime/debug"
 
@@ -19,7 +20,8 @@ import (
 //
 // http.ErrAbortHandler is the one panic value it does not recover: a handler
 // panicking with it is deliberately abandoning the response, so it propagates
-// to net/http, which closes the connection and logs nothing.
+// to net/http, which closes the connection and logs nothing. Recovered panics
+// are logged as a single structured slog record ("panic recovered").
 func Recovery(next http.Handler) http.Handler {
 	return recoverWith(next, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -74,13 +76,40 @@ func recoverWith(next http.Handler, write func(http.ResponseWriter, *http.Reques
 			// other would still catch the sentinel.
 			//
 			// Nothing is logged, on purpose. An intentional abort is not an
-			// error. AccessLog sits above this middleware and does not
-			// recover, so an aborted request also gets no access-log line —
-			// accepted: an abandoned response has no meaningful status to
-			// report. Same precedent as chi's Recoverer.
+			// error, and a scary "panic recovered" record for one would train
+			// operators to ignore the alert that matters. AccessLog sits above
+			// this middleware and does not recover, so an aborted request also
+			// gets no access-log line — accepted: an abandoned response has no
+			// meaningful status to report. Same precedent as chi's Recoverer.
 			if rec == http.ErrAbortHandler {
 				panic(rec)
 			}
+
+			// This was log.Printf. main.go calls slog.SetDefault, which
+			// reroutes the log package through the same JSON handler, so the
+			// old call did reach stdout — but as a record at INFO (the level
+			// slog hardcodes for log package output) whose msg was the panic
+			// plus the entire stack. A panic therefore sat below the error
+			// threshold, carried no request context, and had a msg unique to
+			// each occurrence, which no alert rule can match and no two
+			// occurrences can be grouped by. Hence ERROR, a fixed msg, and the
+			// stack as its own attribute. The msg is the same on both branches
+			// so one rule catches every panic; response_committed marks the
+			// unsalvageable case.
+			//
+			// The panic value and the stack stop at the operator's log. Both
+			// routinely carry request data, and a stack frame hands out the
+			// server's package and file layout; the client gets the fixed,
+			// generic body write produces instead. The path is logged without
+			// its query string for the same reason AccessLog does so: query
+			// strings carry OIDC codes and other short-lived secrets.
+			slog.Error("panic recovered",
+				"panic", fmt.Sprint(rec),
+				"method", r.Method,
+				"path", r.URL.Path,
+				"response_committed", rw.committed,
+				"stack", string(debug.Stack()),
+			)
 
 			if rw.committed {
 				// The handler already wrote a status and probably part of a
@@ -90,16 +119,9 @@ func recoverWith(next http.Handler, write func(http.ResponseWriter, *http.Reques
 				// line — already on the wire — would still claim success.
 				// Nothing can be salvaged: leave the response truncated so the
 				// framing, not a bogus body, tells the client it is incomplete.
-				log.Printf("panic after response was committed (%s %s), response left truncated: %v\n%s",
-					r.Method, r.URL.Path, rec, debug.Stack())
 				return
 			}
 
-			// The panic value and the stack go to the operator's log and stop
-			// there. Both routinely carry request data, and a stack frame hands
-			// out the server's package and file layout; the client gets the
-			// fixed, generic body write produces instead.
-			log.Printf("panic: %v\n%s", rec, debug.Stack())
 			write(rw, r)
 		}()
 		next.ServeHTTP(rw, r)
