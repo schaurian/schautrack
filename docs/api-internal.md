@@ -251,7 +251,7 @@ returns `401` when unauthenticated.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/weight/day` | Session, link-aware | Weight entry (weight + optional body fat) for a given day. |
-| POST | `/weight/upsert` | Session +CSRF | Create or update a weight entry for a date. |
+| POST | `/weight/upsert` | Session +CSRF | Create or update a weight entry for a date. `weight` and `body_fat` are independently optional; an omitted key leaves that column untouched. |
 | POST | `/weight/{id}/delete` | Session +CSRF | Delete a weight entry. |
 | POST | `/weight/toggle-body-fat` | Session +CSRF | Enable/disable the body-fat field for the current user. |
 
@@ -473,6 +473,30 @@ Request contains any subset of `name`, `amount`, and the macro `*_g` fields.
 ### `POST /entries/{id}/delete`
 
 No body. → `200 { "ok": true }` or `404` if not found.
+
+### `POST /weight/upsert`
+
+```json
+{ "date": "2026-07-12", "weight": "72.5", "body_fat": "24.3" }
+```
+
+Both value fields are optional and **an omitted key leaves the stored column
+alone**, so a save only ever writes what the caller actually measured. At least
+one of the two must be present.
+
+- `weight` — omit (or send `null` / `""`) to keep the stored weight, send a
+  number in `(0, 1500]` to replace it. It cannot be cleared; the column is
+  `NOT NULL`. A client saving only a body fat **must** omit it: restating a
+  cached weight overwrites a newer one logged from another device.
+- `body_fat` — a percentage in `(0, 75]`, three-state as described under
+  `POST /entries`.
+- `date` (alias `entry_date`) is `YYYY-MM-DD`; defaults to today in the user's
+  timezone.
+
+→ `200 { "ok": true, "entry": { "id", "entry_date", "weight", "body_fat", "created_at", "updated_at" } }`.
+`400 { "ok": false, "error": "Log a weight for that date first" }` when the
+request carries no `weight` and the date has no entry yet — there is nothing to
+attach a body-fat reading to. `400 "Nothing to save"` when both keys are absent.
 
 ---
 

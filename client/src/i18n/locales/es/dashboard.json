@@ -325,6 +325,7 @@
     "bodyFatNeedsWeight": "Grasa corporal %: registra primero un peso arriba y se desbloqueará.",
     "toastBodyFatTracked": "Grasa corporal registrada",
     "toastBodyFatCleared": "Grasa corporal eliminada",
+    "toastBodyFatInvalid": "La grasa corporal debe estar entre 0 y {{max}} %",
     "toastBodyFatSaveFailed": "Error al guardar la grasa corporal",
     "bodyFatHint": "La segunda casilla es tu % de grasa corporal, si tu báscula lo mide.",
     "bodyFatPlaceholder": "% grasa"
