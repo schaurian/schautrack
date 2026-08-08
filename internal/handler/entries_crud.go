@@ -25,9 +25,7 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	userTz := getUserTimezone(r, user)
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
 
-	rawAmount := fmt.Sprintf("%v", body["amount"])
-	amountResult := service.ParseAmount(rawAmount, MaxEntryCalories)
-	hasCalorieEntry := amountResult.Ok && amountResult.Value != 0
+	amount := classifyAmount(fmt.Sprintf("%v", body["amount"]), MaxEntryCalories)
 
 	entryDate, _ := body["entry_date"].(string)
 	entryDate = strings.TrimSpace(entryDate)
@@ -93,18 +91,18 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories computed from macros exceed the maximum of %d", MaxEntryCalories))
 				return
 			}
-			amountResult.Value = *computed
-			amountResult.Ok = true
-			hasCalorieEntry = true
+			// A computed amount replaces whatever the request sent, so an
+			// unparseable `amount` field is no longer grounds for a 400.
+			amount = amountDecision{Value: *computed, HasCalorieEntry: true}
 		}
 	}
 
-	if rawAmount != "" && rawAmount != "<nil>" && !amountResult.Ok {
+	if amount.Reject {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories))
 		return
 	}
 
-	if !hasCalorieEntry && !hasMacroEntry && !hasWeight {
+	if !amount.HasCalorieEntry && !hasMacroEntry && !hasWeight {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid entry data")
 		return
 	}
@@ -116,10 +114,10 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	if hasCalorieEntry || hasMacroEntry {
+	if amount.HasCalorieEntry || hasMacroEntry {
 		entryAmount := 0
-		if hasCalorieEntry {
-			entryAmount = amountResult.Value
+		if amount.HasCalorieEntry {
+			entryAmount = amount.Value
 		}
 		// Build dynamic query
 		cols := "user_id, entry_date, amount, entry_name"
@@ -154,7 +152,7 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hasCalorieEntry || hasMacroEntry {
+	if amount.HasCalorieEntry || hasMacroEntry {
 		h.Broker.BroadcastEntryChange(user.ID)
 	}
 	OkJSON(w)

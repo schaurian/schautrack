@@ -24,6 +24,50 @@ const (
 
 var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
+// amountDecision is how an entry request's raw `amount` field was interpreted.
+type amountDecision struct {
+	Value int
+	// HasCalorieEntry is false when the request carries no calorie component
+	// at all — either the field was absent, or it parsed to zero.
+	HasCalorieEntry bool
+	// Reject means the field was present and unparseable: answer 400.
+	Reject bool
+}
+
+// classifyAmount interprets the raw `amount` field of an entry request.
+//
+// rawAmount is whatever fmt.Sprintf("%v", body["amount"]) produced, so an
+// absent JSON key arrives here as the literal string "<nil>", and a JSON
+// number >= 1e6 arrives in scientific notation ("1e+06") — which ParseAmount
+// rejects on syntax. That rejection is still the right answer, because any
+// such value is far past MaxEntryCalories, but it is worth knowing the 400 is
+// not a range check.
+//
+// The decision this function records (issue #304): a successful parse whose
+// value is zero is NOT an error, even when the input was not literally "0".
+//
+//   - Zero is the established "no calorie component" sentinel across this
+//     handler and UpdateEntry, which special-cases the string "0" to write
+//     amount = 0. Making CreateEntry 400 on a zero while UpdateEntry stores
+//     one would be incoherent.
+//   - After ParseAmount learned to reject hex literals, every remaining
+//     Ok/zero result comes from arithmetic the user actually wrote — "0",
+//     "0.0", "10-10", "0*5". Those are honest zeros, and a weight-only or
+//     macro-only entry submitted with a zeroed calorie box is a real flow.
+//   - Separating "meant zero" from "accidentally became zero" needs a
+//     heuristic over the input text, and that heuristic is exactly the kind
+//     of thing that silently changes what the app accepts. The fix for
+//     "0x10" belongs in the parser, where the artefact is created, and that
+//     is where it now lives.
+func classifyAmount(rawAmount string, maxAbs int) amountDecision {
+	res := service.ParseAmount(rawAmount, maxAbs)
+	return amountDecision{
+		Value:           res.Value,
+		HasCalorieEntry: res.Ok && res.Value != 0,
+		Reject:          !res.Ok && rawAmount != "" && rawAmount != "<nil>",
+	}
+}
+
 type dailyStat struct {
 	Date          string `json:"date"`
 	Total         int    `json:"total"`

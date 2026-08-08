@@ -330,3 +330,98 @@ func TestBuildDayOptionsBetweenInvalid(t *testing.T) {
 		t.Errorf("expected nil for invalid start date, got %v", days)
 	}
 }
+
+// TestClassifyAmount pins how CreateEntry reads the raw `amount` field —
+// the caller-side half of issue #304.
+func TestClassifyAmount(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want amountDecision
+		why  string
+	}{
+		{
+			name: "absent field",
+			raw:  "<nil>",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: false},
+			why:  "fmt.Sprintf(\"%v\", nil); a weight-only entry must not 400",
+		},
+		{
+			name: "empty string",
+			raw:  "",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: false},
+			why:  "cleared input box, same as absent",
+		},
+		{
+			name: "plain number",
+			raw:  "1500",
+			want: amountDecision{Value: 1500, HasCalorieEntry: true, Reject: false},
+			why:  "the ordinary case",
+		},
+		{
+			name: "expression",
+			raw:  "100 + 50 x 2",
+			want: amountDecision{Value: 200, HasCalorieEntry: true, Reject: false},
+			why:  "the calculator is the point of ParseAmount",
+		},
+		{
+			name: "over the cap",
+			raw:  "10000",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			why:  "above MaxEntryCalories, rejected rather than clamped",
+		},
+		{
+			name: "garbage",
+			raw:  "abc",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			why:  "present but unparseable",
+		},
+		{
+			// fmt.Sprintf("%v", float64) renders anything >= 1e6 like this.
+			// The 400 is correct (1e6 is far past MaxEntryCalories) but it
+			// comes from the grammar rejecting "e", not from a range check.
+			name: "scientific notation from a large JSON number",
+			raw:  "1e+06",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			why:  "rejected on syntax; the range check never runs",
+		},
+		{
+			// The defect from issue #304, now fixed one layer down: this used
+			// to be Ok/0, i.e. "no calorie entry", so an entry combining it
+			// with a weight was written with amount = 0 and reported success.
+			name: "hex-looking input",
+			raw:  "0x10",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			why:  "must 400, not be silently swallowed as zero",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := classifyAmount(tt.raw, MaxEntryCalories)
+			if got != tt.want {
+				t.Errorf("classifyAmount(%q) = %+v, want %+v (%s)", tt.raw, got, tt.want, tt.why)
+			}
+		})
+	}
+}
+
+// TestClassifyAmountZeroIsNotAnError records the judgement call issue #304
+// asked for: CreateEntry does NOT 400 when ParseAmount returns Ok with a zero
+// value, even for input that was not literally "0".
+//
+// Every input below is arithmetic the user actually expressed as zero, and
+// zero is this handler's "no calorie component" sentinel — the request still
+// succeeds if it carries a macro or a weight, and is rejected as "Invalid
+// entry data" if it carries nothing else. The input that did not deserve that
+// treatment was "0x10", where the zero was a normalization artefact; it is
+// rejected in service.ParseAmount now, so it never reaches this function as a
+// zero (see the hex case in TestClassifyAmount).
+func TestClassifyAmountZeroIsNotAnError(t *testing.T) {
+	for _, raw := range []string{"0", "0.0", "-0", "(0)", "0.4", "10-10", "5-5", "0*5", "0/1"} {
+		got := classifyAmount(raw, MaxEntryCalories)
+		want := amountDecision{Value: 0, HasCalorieEntry: false, Reject: false}
+		if got != want {
+			t.Errorf("classifyAmount(%q) = %+v, want %+v", raw, got, want)
+		}
+	}
+}
