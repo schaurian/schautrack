@@ -205,6 +205,13 @@ export interface InviteCode {
   used_by_email: string | null;
   expires_at: string | null;
   created_at: string;
+  /**
+   * The bound `email` is not a valid address, so this code can never be
+   * redeemed — no registrant address can equal it. Computed server-side from
+   * the same validator registration uses, so the two cannot disagree.
+   * Only ever true for rows written before that validation existed.
+   */
+  unredeemable: boolean;
 }
 
 // --- Weight-loss planner ---

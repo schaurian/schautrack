@@ -23,6 +23,7 @@
     "envBadge": "ENV",
     "expiresOn": "expires {{date}}",
     "inviteCodesHeading": "Invite Codes",
+    "inviteUnredeemable": "cannot be redeemed — delete and reissue",
     "loadingMore": "Loading more…",
     "noChanges": "No changes to save.",
     "noUsersFound": "No users found",
