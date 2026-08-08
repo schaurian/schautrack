@@ -115,7 +115,7 @@ var (
 // deliverable on the intranet/self-hosted deployments this app supports, and
 // validEmail accepts it too.
 func validateEmail(raw string) (string, error) {
-	email := strings.ToLower(strings.TrimSpace(raw))
+	email := canonicalizeEmail(raw)
 	if email == "" {
 		return "", errEmailRequired
 	}
@@ -137,6 +137,23 @@ func validateEmail(raw string) (string, error) {
 		return "", errEmailInvalid
 	}
 	return email, nil
+}
+
+// canonicalizeEmail is the normalization half of validateEmail — trim and
+// lowercase — with none of the validation. It exists so that a READ path can
+// bring a stored address into the canonical form before comparing it against
+// one that came out of validateEmail, without also rejecting values that
+// predate the validator.
+//
+// Splitting it out (rather than open-coding ToLower/TrimSpace at each
+// comparison) is what keeps the two halves from drifting: validateEmail's
+// return value is by construction canonicalizeEmail's output, so
+// `canonicalizeEmail(stored) == validated` is exactly the right comparison.
+//
+// Never use it on a write. Anything that stores an address must call
+// validateEmail, which is the only function that can reject one.
+func canonicalizeEmail(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
 }
 
 // validatePassword enforces the password policy on every write that sets a

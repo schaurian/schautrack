@@ -147,14 +147,36 @@ func (h *AdminHandler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	ReadJSON(r, &body)
 
-	user := middleware.GetCurrentUser(r)
-	code := service.GenerateInviteCode()
-	email := strings.TrimSpace(body.Email)
-
+	// The invite email is bound to an account that does not exist yet, so it
+	// is a credential write like any other and goes through the same gate.
+	// Trimming alone is not enough:
+	//
+	//   - registerCredentials compares the stored address against the
+	//     canonical form validateEmail produces for the registrant. An invite
+	//     stored as "Not An Email" — or, before the read path was made
+	//     canonical, as "Foo@Example.COM" — can never equal that. The admin
+	//     gets a success response and a code nobody can ever redeem, and the
+	//     recipient gets "This invite code is for a different email address."
+	//     with no way to proceed.
+	//   - the address is handed straight to the SMTP server below, which
+	//     rejects a malformed one.
+	//
+	// Validating before GenerateInviteCode keeps the rejection free of side
+	// effects: no code is minted and nothing is written.
+	var email string
 	var emailPtr *string
-	if email != "" {
+	if strings.TrimSpace(body.Email) != "" {
+		clean, err := validateEmail(body.Email)
+		if err != nil {
+			ErrorJSON(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		email = clean
 		emailPtr = &email
 	}
+
+	user := middleware.GetCurrentUser(r)
+	code := service.GenerateInviteCode()
 
 	var id int
 	err := h.Pool.QueryRow(r.Context(),

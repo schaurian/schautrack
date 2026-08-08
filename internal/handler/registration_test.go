@@ -548,6 +548,10 @@ func TestCredentialValidatorsGateEveryWrite(t *testing.T) {
 		"registerCredentials", // credential registration (auth.go)
 		"handleLogin",         // OIDC auto-provisioning (oidc.go)
 		"EmailChangeRequest",  // email change (auth_email.go)
+		// invite_codes.email is compared against the canonical registrant
+		// address, so an invite written in any other form is a permanently
+		// unredeemable code (issue #342).
+		"CreateInvite", // admin invite (admin.go)
 	}
 	for _, name := range emailWrites {
 		fn, ok := funcs[name]

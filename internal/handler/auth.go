@@ -288,9 +288,22 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 			ErrorJSON(w, http.StatusBadRequest, "This invite code has expired.")
 			return
 		}
-		if inviteEmail != nil && *inviteEmail != "" && strings.ToLower(*inviteEmail) != emailClean {
-			ErrorJSON(w, http.StatusBadRequest, "This invite code is for a different email address.")
-			return
+		// Both sides of this comparison have to be canonical or it is a coin
+		// flip. emailClean came out of validateEmail; since #342 so did the
+		// stored address, but rows written before that were only trimmed, so
+		// the stored side is canonicalized on read.
+		//
+		// Deliberately a read-side normalization and NOT a migration: a
+		// migration could lowercase the legacy rows, but it could not repair
+		// one holding something like "not an email", which stays unredeemable
+		// either way — so it would rewrite user data without closing the gap.
+		// canonicalizeEmail closes the part that can be closed, for free, and
+		// keeps working for any row a future path writes.
+		if inviteEmail != nil {
+			if want := canonicalizeEmail(*inviteEmail); want != "" && want != emailClean {
+				ErrorJSON(w, http.StatusBadRequest, "This invite code is for a different email address.")
+				return
+			}
 		}
 		sess.Set("pendingInviteCode", inviteCode)
 	}
