@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"log/slog"
+	"math"
 	"net/http"
 	"time"
 
@@ -50,8 +51,14 @@ func validateActivityLevel(a *string) bool {
 // passes validation and then 500s on INSERT with a numeric overflow instead of
 // a clean 400. NaN and ±Inf are rejected as a side effect: NaN fails every
 // comparison, and +Inf exceeds the cap.
+//
+// The lower bound is re-checked AFTER coercion to the column's scale, for the
+// same reason ParseWeight does it (#302): NUMERIC(6,2) stores 0.001 as 0.00,
+// which then fails weight_goals_positive — a 500 where the caller should have
+// got a 400. TargetWeight never passes through ParseWeight, so that fix does
+// not reach it.
 func validateTargetWeight(w float64) bool {
-	return w > 0 && w <= service.MaxWeight
+	return w > 0 && w <= service.MaxWeight && math.Round(w*100)/100 > 0
 }
 
 func validatePaceMode(m string) bool {
