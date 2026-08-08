@@ -25,6 +25,13 @@ import (
 // OIDC authorization codes and other short-lived secrets that must not land in
 // logs. The health endpoint is skipped so Kubernetes liveness/readiness probes
 // do not drown the access log.
+//
+// It does not recover panics, which is what lets Recovery's deliberate
+// re-panic of http.ErrAbortHandler reach net/http and close the connection.
+// The consequence is that a request aborted that way gets no access-log line
+// at all: this middleware's slog call sits after next.ServeHTTP and is skipped
+// when the stack unwinds. That is accepted — an abandoned response has no
+// meaningful status, byte count or latency to report.
 func AccessLog(trustProxy bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

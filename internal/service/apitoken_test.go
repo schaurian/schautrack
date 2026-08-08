@@ -1,9 +1,17 @@
 package service
 
 import (
+	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"schautrack/internal/database"
+	"schautrack/internal/model"
 )
 
 func TestGenerateAPITokenShape(t *testing.T) {
@@ -172,6 +180,158 @@ func TestScopeSatisfies(t *testing.T) {
 			}
 		})
 	}
+}
+
+// activeInList counts the tokens a caller reading ListAPITokens would consider
+// live — the same subset the token UI renders as usable. It exists so the test
+// below can compare the list's answer against the cap's answer.
+func activeInList(tokens []model.APIToken, now time.Time) int {
+	n := 0
+	for _, t := range tokens {
+		if t.Active(now) {
+			n++
+		}
+	}
+	return n
+}
+
+// TestListAndCapAgreeOnWhatCountsAgainstTheLimit is the regression test for
+// issue #299: ListAPITokens kept expired tokens while the mint cap ignored
+// them, and the UI — which gates its "New token" button on the list — locked
+// users out of tokens the server would have granted.
+//
+// The two must stay reconcilable: whatever ListAPITokens returns, the number of
+// entries satisfying model.APIToken.Active has to equal CountActiveAPITokens,
+// which is the number CreateAPIToken enforces against. This test drives a user
+// through the states where they diverged.
+//
+// Skipped unless TEST_DATABASE_URL is set, so it does not gate CI (which has no
+// database). Run locally with, e.g.:
+//
+//	TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' go test ./internal/service/ -run TestListAndCapAgreeOnWhatCountsAgainstTheLimit -v
+func TestListAndCapAgreeOnWhatCountsAgainstTheLimit(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	pool, err := database.NewPool(ctx, url)
+	if err != nil {
+		t.Fatalf("NewPool failed: %v", err)
+	}
+	defer pool.Close()
+
+	if err := database.InitSchemaWithRetry(ctx, pool, 3); err != nil {
+		t.Fatalf("schema init failed: %v", err)
+	}
+
+	email := fmt.Sprintf("apitoken-limit-test-%d@example.com", time.Now().UnixNano())
+	var userID int
+	if err := pool.QueryRow(ctx,
+		"INSERT INTO users (email, password_hash) VALUES ($1, 'x') RETURNING id", email,
+	).Scan(&userID); err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+	defer pool.Exec(context.Background(), "DELETE FROM users WHERE id = $1", userID)
+
+	// assertAgreement is the invariant, checked after every state change: the
+	// list and the cap must describe the same set of live tokens.
+	assertAgreement := func(t *testing.T, wantListed, wantActive int) {
+		t.Helper()
+		tokens, err := ListAPITokens(ctx, pool, userID)
+		if err != nil {
+			t.Fatalf("ListAPITokens failed: %v", err)
+		}
+		if len(tokens) != wantListed {
+			t.Errorf("ListAPITokens returned %d tokens, want %d", len(tokens), wantListed)
+		}
+		counted, err := CountActiveAPITokens(ctx, pool, userID)
+		if err != nil {
+			t.Fatalf("CountActiveAPITokens failed: %v", err)
+		}
+		if listActive := activeInList(tokens, time.Now()); listActive != counted {
+			t.Errorf("the list says %d active tokens, the cap counts %d — they must agree",
+				listActive, counted)
+		}
+		if counted != wantActive {
+			t.Errorf("CountActiveAPITokens = %d, want %d", counted, wantActive)
+		}
+	}
+
+	mint := func(t *testing.T, name string) *model.APIToken {
+		t.Helper()
+		expiry := time.Now().Add(24 * time.Hour)
+		tok, raw, err := CreateAPIToken(ctx, pool, userID, name, []string{ScopeEntriesRead}, &expiry)
+		if err != nil {
+			t.Fatalf("CreateAPIToken(%q) failed: %v", name, err)
+		}
+		if !strings.HasPrefix(raw, TokenPrefix) {
+			t.Fatalf("CreateAPIToken(%q) returned a malformed secret", name)
+		}
+		return tok
+	}
+
+	// Fill the account to exactly the cap.
+	for i := range MaxTokensPerUser {
+		mint(t, fmt.Sprintf("token-%02d", i))
+	}
+	assertAgreement(t, MaxTokensPerUser, MaxTokensPerUser)
+
+	// At the cap, minting must be refused — this is the state the UI's "at the
+	// limit" message is supposed to describe.
+	expiry := time.Now().Add(24 * time.Hour)
+	if _, _, err := CreateAPIToken(ctx, pool, userID, "one too many",
+		[]string{ScopeEntriesRead}, &expiry); !errors.Is(err, ErrTokenLimit) {
+		t.Fatalf("CreateAPIToken at the cap returned %v, want ErrTokenLimit", err)
+	}
+
+	// Now let 8 of them lapse. The list must still show all 20 (the user has to
+	// be able to see and clear the dead ones) while only 12 count.
+	const expiredCount = 8
+	if _, err := pool.Exec(ctx, `
+		UPDATE api_tokens SET expires_at = NOW() - INTERVAL '1 day'
+		WHERE id IN (SELECT id FROM api_tokens WHERE user_id = $1 ORDER BY id LIMIT $2)`,
+		userID, expiredCount); err != nil {
+		t.Fatalf("failed to expire tokens: %v", err)
+	}
+	assertAgreement(t, MaxTokensPerUser, MaxTokensPerUser-expiredCount)
+
+	// The payoff: with expired tokens on the account the server grants another
+	// one. Before the fix the UI refused to even render the button here.
+	fresh := mint(t, "after the lapse")
+	assertAgreement(t, MaxTokensPerUser+1, MaxTokensPerUser-expiredCount+1)
+
+	// Revocation removes a token from the list and the count together — the
+	// one case where the two have always agreed, asserted so it stays that way.
+	ok, err := RevokeAPIToken(ctx, pool, userID, fresh.ID)
+	if err != nil || !ok {
+		t.Fatalf("RevokeAPIToken(%d) = %v, %v; want true, nil", fresh.ID, ok, err)
+	}
+	assertAgreement(t, MaxTokensPerUser, MaxTokensPerUser-expiredCount)
+
+	// An expired token can still be revoked, which is how a user clears the
+	// dead weight the list now shows them.
+	tokens, err := ListAPITokens(ctx, pool, userID)
+	if err != nil {
+		t.Fatalf("ListAPITokens failed: %v", err)
+	}
+	var expiredID int
+	for _, tok := range tokens {
+		if !tok.Active(time.Now()) {
+			expiredID = tok.ID
+			break
+		}
+	}
+	if expiredID == 0 {
+		t.Fatal("expected at least one expired token in the list")
+	}
+	if ok, err := RevokeAPIToken(ctx, pool, userID, expiredID); err != nil || !ok {
+		t.Fatalf("RevokeAPIToken(expired %d) = %v, %v; want true, nil", expiredID, ok, err)
+	}
+	assertAgreement(t, MaxTokensPerUser-1, MaxTokensPerUser-expiredCount)
 }
 
 // TestEveryScopeHasADescription guards the token UI and the generated docs:

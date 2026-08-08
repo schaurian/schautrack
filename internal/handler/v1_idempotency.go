@@ -33,6 +33,16 @@ func slogWarn(msg string, err error) { slog.Warn(msg, "error", err) }
 // operation and reuses across retries. The first request executes and its
 // response is stored; every retry with that key replays the stored response
 // instead of creating a second entry.
+//
+// Every POST on the v1 surface goes through one of the two wrappers here:
+// withIdempotency, which honours the header, or rejectIdempotencyKey, which
+// answers 400. Neither may be omitted. An unwrapped POST accepts the header
+// and does nothing with it — unlike an unknown body field, an unknown header
+// is not rejected anywhere — so the caller gets a 201 that looks like
+// retry-safety it does not have, and finds out only when a timeout-retry
+// creates the resource twice. Silence must never read as success.
+// TestEveryV1PostDecidesOnIdempotencyKey fails the build if a new POST route
+// skips the choice.
 
 const (
 	// idempotencyHeader is the de facto standard name, and the one the IETF
@@ -143,6 +153,30 @@ func (h *V1Handler) withIdempotency(next http.HandlerFunc) http.HandlerFunc {
 			// behaviour it had before this feature existed.
 			slogWarn("failed to store idempotent response", err)
 		}
+	}
+}
+
+// rejectIdempotencyKey wraps a POST handler that does NOT honour the header,
+// so sending one is an error rather than a no-op.
+//
+// The alternative — accepting and ignoring it — is the failure this whole file
+// exists to prevent: the caller believes the request is replay-protected, the
+// server never stored anything, and the first timeout produces a duplicate.
+// A 400 costs the caller one obvious error instead of one silent duplicate.
+//
+// It must reject before the handler runs, not after: once the work is done,
+// answering 400 would report a failure for a request that actually succeeded.
+func rejectIdempotencyKey(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(idempotencyHeader) != "" {
+			apierr.Write(w, r, apierr.BadRequest(
+				"This endpoint does not support the Idempotency-Key header. "+
+					"Retry safety is not available here; omit the header rather than "+
+					"assuming it protects the request. See GET /api/v1/openapi.json for "+
+					"the endpoints that accept it."))
+			return
+		}
+		next(w, r)
 	}
 }
 

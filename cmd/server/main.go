@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +30,12 @@ import (
 
 // Set via -ldflags at build time.
 var version = "dev"
+
+// barcodeRateLimit is the per-minute ceiling on barcode lookups, applied to the
+// session route (per IP) and to GET /api/v1/barcode/{code} (per account). One
+// constant so the public API cannot quietly drift into being the cheaper path
+// to the same third-party database.
+const barcodeRateLimit = 30
 
 func main() {
 	// Structured logging
@@ -70,7 +77,7 @@ func main() {
 	emailService := service.NewEmailService(cfg)
 	authLimiter := middleware.NewRateLimiter(cfg.RateLimitAuth, 15*time.Minute, cfg.TrustProxy)
 	strictLimiter := middleware.NewRateLimiter(cfg.RateLimitStrict, 5*time.Minute, cfg.TrustProxy)
-	barcodeLimiter := middleware.NewRateLimiter(30, time.Minute, cfg.TrustProxy)
+	barcodeLimiter := middleware.NewRateLimiter(barcodeRateLimit, time.Minute, cfg.TrustProxy)
 
 	// SSE broker. Events are fanned out through Postgres LISTEN/NOTIFY so they
 	// reach subscribers held by *other* instances: with more than one replica
@@ -326,6 +333,7 @@ func main() {
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
 	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)
+	warnUncappedAIKey(ctx, cfg, settingsCache)
 
 	// Personal access token management. Session-authenticated, NOT part of
 	// /api/v1: a token must never be able to mint another token, or one leaked
@@ -362,9 +370,18 @@ func main() {
 		Pool:         pool,
 		Broker:       sseBroker,
 		BuildVersion: cfg.BuildVersion,
+		BaseURL:      cfg.BaseURL,
 		Barcode:      v1Barcode,
 		AIEstimate:   aiHandler.Estimate,
 		TokenLimiter: middleware.NewTokenRateLimiter(cfg.RateLimitAPIToken, time.Minute, cfg.TrustProxy),
+		// Injecting the handlers without the limiters that guard them made the
+		// API the cheap path to the expensive operations: RATE_LIMIT_API_TOKEN
+		// (60/min) against 5 per 5 minutes for an estimate and 30/min for a
+		// lookup on the session routes. These restore the app's own ceilings,
+		// bucketed per account rather than per token — tokens are free to mint,
+		// so a per-token budget is a per-token budget times MaxTokensPerUser.
+		AILimiter:      middleware.NewUserRateLimiter(cfg.RateLimitStrict, 5*time.Minute, cfg.TrustProxy),
+		BarcodeLimiter: middleware.NewUserRateLimiter(barcodeRateLimit, time.Minute, cfg.TrustProxy),
 	}
 	apiV1IPLimiter := middleware.NewProblemRateLimiter(cfg.RateLimitAPI, time.Minute, cfg.TrustProxy)
 	r.With(apiV1IPLimiter.Middleware).Mount("/api/v1", v1Handler.MountAPIV1(pool))
@@ -453,6 +470,33 @@ func main() {
 
 	pool.Close()
 	slog.Info("shutdown complete")
+}
+
+// warnUncappedAIKey logs once at startup when the operator has supplied a
+// global AI key but no daily limit.
+//
+// That combination is an open tab at the provider: the global key takes
+// precedence over every user's personal one, so each account on the server
+// spends the operator's money, and nothing bounds the total. The rate limiters
+// cap the burst, not the day. AI_DAILY_LIMIT is unset by default (the Helm
+// chart sets 10; docker-compose and bare deployments get nothing), so the
+// people affected are exactly the ones who never chose this.
+//
+// Resolved the same way handler.AIHandler resolves it — env overriding the
+// admin-panel setting — so the warning cannot disagree with what is enforced.
+func warnUncappedAIKey(ctx context.Context, cfg *config.Config, settings *database.SettingsCache) {
+	key := settings.GetEffectiveSetting(ctx, "ai_key", cfg.AIKey)
+	if key.Value == nil || *key.Value == "" {
+		return
+	}
+	limit := settings.GetEffectiveSetting(ctx, "ai_daily_limit", os.Getenv("AI_DAILY_LIMIT"))
+	if limit.Value != nil {
+		if n, err := strconv.Atoi(*limit.Value); err == nil && n > 0 {
+			return
+		}
+	}
+	slog.Warn("global AI key configured with no daily limit: every account can spend the operator's AI budget without a cap — set AI_DAILY_LIMIT, or ai_daily_limit in the admin panel",
+		"ai_key_source", key.Source)
 }
 
 // spaFallback serves static files from the client dist directory and public directory,

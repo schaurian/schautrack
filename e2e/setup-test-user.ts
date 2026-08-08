@@ -4,6 +4,8 @@
  */
 import { execSync } from 'child_process';
 
+import { bcryptHash } from './fixtures/bcrypt';
+
 const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
@@ -21,13 +23,6 @@ function psql(sql: string): string {
   return execSync(
     `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
     { input: sql + '\n', encoding: 'utf-8' }
-  ).trim();
-}
-
-function bcryptHash(password: string): string {
-  return execSync(
-    `python3 -c "import bcrypt; print(bcrypt.hashpw(b'${password}', bcrypt.gensalt(10)).decode())"`,
-    { encoding: 'utf-8' }
   ).trim();
 }
 

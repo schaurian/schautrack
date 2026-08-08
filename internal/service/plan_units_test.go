@@ -49,7 +49,7 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 			BMI:           &bmi,
 			Series:        []SeriesPoint{{Date: "2026-07-01", Weight: 91}},
 			HealthyRange:  &HealthyRange{MinKg: 59.9, MaxKg: 80.7},
-			Composition:   &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9},
+			Composition:   &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9, AgeDays: 120, Stale: true},
 			Computed: &PlanComputed{
 				BudgetKcal:    2000,
 				RateKgPerWeek: 0.34,
@@ -117,6 +117,17 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 		// A percentage is the same number in kg and lb.
 		if r.Composition.BodyFatPct != 24.3 {
 			t.Errorf("Composition.BodyFatPct must not be converted, got %v", r.Composition.BodyFatPct)
+		}
+		// The reading's age is a duration and its staleness a verdict; a lb user
+		// must not be told their reading is 2.2x older than a kg user's.
+		if r.Composition.AgeDays != 120 {
+			t.Errorf("Composition.AgeDays must not be converted, got %d", r.Composition.AgeDays)
+		}
+		if !r.Composition.Stale {
+			t.Error("Composition.Stale must survive unit conversion")
+		}
+		if r.Composition.Date != "2026-07-01" {
+			t.Errorf("Composition.Date must not change, got %q", r.Composition.Date)
 		}
 	})
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -62,6 +63,30 @@ func parseBodyFatUpdate(body map[string]any) (service.BodyFatUpdate, bool) {
 		return service.BodyFatUpdate{}, false
 	}
 	return service.BodyFatUpdate{Set: true, Value: &pct}, true
+}
+
+// parseWeightUpdate is the weight counterpart of parseBodyFatUpdate: an absent,
+// null or empty weight leaves the stored one alone, a number replaces it. The
+// bool is false only when a value was supplied but is unusable.
+//
+// Making the key optional is what lets a body-fat-only save stop restating a
+// weight it never measured. The old contract forced the dashboard to send back
+// whatever weight its cache held, which silently reverted a newer one logged
+// from another device.
+func parseWeightUpdate(body map[string]any) (service.WeightUpdate, bool) {
+	raw, exists := body["weight"]
+	if !exists || raw == nil {
+		return service.KeepWeight, true
+	}
+	s := strings.TrimSpace(fmt.Sprintf("%v", raw))
+	if s == "" || s == "<nil>" {
+		return service.KeepWeight, true
+	}
+	wr := service.ParseWeight(s)
+	if !wr.Ok {
+		return service.WeightUpdate{}, false
+	}
+	return service.SetWeight(wr.Value), true
 }
 
 // WeightDay handles GET /weight/day
@@ -130,9 +155,8 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	weightStr := fmt.Sprintf("%v", body["weight"])
-	wr := service.ParseWeight(weightStr)
-	if !wr.Ok {
+	weightUpd, ok := parseWeightUpdate(body)
+	if !ok {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid weight")
 		return
 	}
@@ -143,8 +167,19 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := service.UpsertWeightEntry(r.Context(), h.Pool, user.ID, dateStr, wr.Value, bodyFat)
+	// Both omitted would be a write that changes nothing but updated_at, which
+	// is never what a caller meant — answer instead of quietly touching the row.
+	if !weightUpd.Set && !bodyFat.Set {
+		ErrorJSON(w, http.StatusBadRequest, "Nothing to save")
+		return
+	}
+
+	entry, err := service.UpsertWeightEntryPartial(r.Context(), h.Pool, user.ID, dateStr, weightUpd, bodyFat)
 	if err != nil {
+		if errors.Is(err, service.ErrNoWeightEntry) {
+			ErrorJSON(w, http.StatusBadRequest, "Log a weight for that date first")
+			return
+		}
 		ErrorJSON(w, http.StatusInternalServerError, "Could not save weight")
 		return
 	}

@@ -42,7 +42,23 @@ func GetUserByID(ctx context.Context, pool *pgxpool.Pool, id int) (*model.User, 
 }
 
 // IsAdmin checks if a user is the admin.
+//
+// The empty check happens FIRST (and after trimming): an unset or
+// whitespace-only ADMIN_EMAIL must make nobody an admin, never everybody. The
+// admin panel can rewrite live configuration, so this function failing open on
+// a missing environment variable would be the worst bug in the codebase.
+//
+// The comparison is case-insensitive. adminEmail is trimmed because it comes
+// straight from os.Getenv("ADMIN_EMAIL") with no cleaning in config.go, and a
+// stray trailing newline from a .env file or a Kubernetes secret would
+// otherwise lock the real admin out of their own panel with a bare 403.
+//
+// user.Email is deliberately NOT trimmed. Addresses are normalized to
+// lowercase-and-trimmed on every write path (registration, login, OIDC, email
+// change), so there is nothing to clean; trimming here would instead let an
+// account somehow stored as "admin@example.com " match ADMIN_EMAIL.
 func IsAdmin(user *model.User, adminEmail string) bool {
+	adminEmail = strings.TrimSpace(adminEmail)
 	if adminEmail == "" || user == nil {
 		return false
 	}
