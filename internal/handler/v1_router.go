@@ -140,8 +140,10 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 			optionalLimiter(h.BarcodeLimiter)).Get("/barcode/{code}", h.BarcodeV1)
 
 		// Its own scope, implied by nothing: every call spends real money.
+		// Not idempotent and not (yet) replayable, so it says so out loud
+		// rather than accepting an Idempotency-Key it would ignore.
 		r.With(middleware.RequireScope(service.ScopeAIEstimate),
-			optionalLimiter(h.AILimiter)).Post("/ai/estimate", h.EstimateV1)
+			optionalLimiter(h.AILimiter)).Post("/ai/estimate", rejectIdempotencyKey(h.EstimateV1))
 
 		r.Route("/entries", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/", h.ListEntries)
@@ -164,7 +166,7 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		r.Route("/todos", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeTodosRead)).Get("/", h.ListTodosV1)
-			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Post("/", h.CreateTodoV1)
+			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Post("/", h.withIdempotency(h.CreateTodoV1))
 			r.With(middleware.RequireScope(service.ScopeTodosRead)).Get("/day/{date}", h.TodosForDayV1)
 			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Patch("/{id}", h.UpdateTodoV1)
 			r.With(middleware.RequireScope(service.ScopeTodosWrite)).Delete("/{id}", h.DeleteTodoV1)
@@ -173,7 +175,7 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		r.Route("/saved-foods", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeFoodsRead)).Get("/", h.ListSavedFoodsV1)
-			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Post("/", h.CreateSavedFoodV1)
+			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Post("/", h.withIdempotency(h.CreateSavedFoodV1))
 			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Patch("/{id}", h.UpdateSavedFoodV1)
 			r.With(middleware.RequireScope(service.ScopeFoodsWrite)).Delete("/{id}", h.DeleteSavedFoodV1)
 			// Tracking a saved food CREATES a calorie entry, so it is gated on
