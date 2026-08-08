@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -47,15 +48,25 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	// create, so the two collapse to a NULL entry_name.
 	entryName, _ := optionalEntryName(body, "entry_name")
 
-	// Parse weight (frontend may send as string or number)
+	// Parse weight (frontend may send as string or number).
+	//
+	// An unparseable weight is a 400, not a shrug (#319). This used to leave
+	// hasWeight false and carry on, so the request answered 200 having stored
+	// nothing: the user typed a weight, saw success, and it was not there.
+	// Every sibling field on this handler — calories, macros, body fat —
+	// already rejects a value it cannot parse, so silently dropping this one
+	// was also the odd case out.
 	var weightVal float64
 	hasWeight := false
 	if wv, _ := optionalString(body, "weight"); wv != nil && *wv != "" {
 		wr := service.ParseWeight(*wv)
-		if wr.Ok {
-			weightVal = wr.Value
-			hasWeight = true
+		if !wr.Ok {
+			ErrorJSON(w, http.StatusBadRequest,
+				fmt.Sprintf("Weight must be a number greater than 0 and at most %g", service.MaxWeight))
+			return
 		}
+		weightVal = wr.Value
+		hasWeight = true
 	}
 
 	bodyFat, ok := parseBodyFatUpdate(body)
@@ -102,7 +113,9 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !amount.HasCalorieEntry && !hasMacroEntry && !hasWeight {
+	// bodyFat.Set counts as content: a body-fat-only request is a real write
+	// now that it is no longer discarded (#327).
+	if !amount.HasCalorieEntry && !hasMacroEntry && !hasWeight && !bodyFat.Set {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid entry data")
 		return
 	}
@@ -139,10 +152,34 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if hasWeight {
+	// A body fat with no weight is still a reading worth keeping (#327).
+	//
+	// This used to write only when hasWeight, so
+	// POST /entries {"body_fat": "24.3"} answered 200 having stored nothing —
+	// while an out-of-range body fat got a 400 from parseBodyFatUpdate above.
+	// A validation error for a bad value and a silent success for a good one
+	// is the worst pairing available.
+	//
+	// UpsertWeightEntryPartial is exactly the shape for this: KeepWeight
+	// applies the body fat to an existing row for that date and reports
+	// ErrNoWeightEntry when there is none, rather than inventing a weight to
+	// hang the reading on. That mirrors what the weight endpoint already
+	// answers for the same request.
+	switch {
+	case hasWeight:
 		_, err := service.UpsertWeightEntry(r.Context(), tx, user.ID, entryDate, weightVal, bodyFat)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Failed to save weight")
+			return
+		}
+	case bodyFat.Set:
+		_, err := service.UpsertWeightEntryPartial(r.Context(), tx, user.ID, entryDate, service.KeepWeight, bodyFat)
+		if errors.Is(err, service.ErrNoWeightEntry) {
+			ErrorJSON(w, http.StatusBadRequest, "Log a weight for that date first")
+			return
+		}
+		if err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Failed to save body fat")
 			return
 		}
 	}
