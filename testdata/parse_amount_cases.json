@@ -16,14 +16,16 @@
     "belong here - it belongs in that language's own test file.",
     "",
     "Deliberately NOT in this table:",
-    "  - Negative half-values ('-1.5', '10-11.5'). Go's math.Round rounds half away",
-    "    from zero (-2); JavaScript's Math.round rounds half toward +Inf (-1). That",
-    "    is a real divergence, tracked separately in issue #408.",
     "  - Inputs that evaluate to a negative zero ('-0', '-0.4'). JavaScript yields",
     "    -0, Go yields a plain 0. Nothing observable distinguishes them (-0 === 0,",
     "    String(-0) is '0', JSON.stringify(-0) is '0'), but a deep-equal assertion",
     "    does. Pinned per-language instead.",
-    "  - maxAbs behaviour, which each side pins in its own table."
+    "  - maxAbs behaviour, which each side pins in its own table.",
+    "",
+    "Negative half-values ARE pinned here as of #408: the TS side now rounds half",
+    "away from zero to match Go's math.Round, so both agree on -1.5 -> -2.",
+    "Out-of-int32 magnitudes are pinned too, as of #364: both reject rather than",
+    "one overflowing to math.MinInt64 and the other returning a float."
   ],
   "cases": [
     {
@@ -33,55 +35,55 @@
       "why": "U+0020 as a thousands separator, intended"
     },
     {
-      "input": "1\u00a0000",
+      "input": "1 000",
       "ok": true,
       "value": 1000,
       "why": "NBSP thousands separator (fr-FR, de-CH copy-paste)"
     },
     {
-      "input": "1\u202f000",
+      "input": "1 000",
       "ok": true,
       "value": 1000,
       "why": "narrow NBSP thousands separator (fr-FR)"
     },
     {
-      "input": "1\u2009000",
+      "input": "1 000",
       "ok": true,
       "value": 1000,
       "why": "thin space thousands separator"
     },
     {
-      "input": "1\u2007000",
+      "input": "1 000",
       "ok": true,
       "value": 1000,
       "why": "figure space thousands separator"
     },
     {
-      "input": "1\u3000000",
+      "input": "1　000",
       "ok": true,
       "value": 1000,
       "why": "ideographic space (CJK full-width)"
     },
     {
-      "input": "1\u1680000",
+      "input": "1 000",
       "ok": true,
       "value": 1000,
       "why": "ogham space mark, still a space separator"
     },
     {
-      "input": "5\u00855",
+      "input": "55",
       "ok": true,
       "value": 55,
       "why": "U+0085 NEL: unicode.IsSpace yes, JS \\s no - stripped on both"
     },
     {
-      "input": "5\ufeff5",
+      "input": "5﻿5",
       "ok": true,
       "value": 55,
       "why": "U+FEFF BOM: JS \\s yes, unicode.IsSpace no - stripped on both"
     },
     {
-      "input": "\u00a05\u00a0",
+      "input": " 5 ",
       "ok": true,
       "value": 5,
       "why": "surrounding NBSP"
@@ -99,7 +101,7 @@
       "why": "vertical tab, form feed, carriage return"
     },
     {
-      "input": "2\u00a0x\u00a03",
+      "input": "2 x 3",
       "ok": true,
       "value": 6,
       "why": "NBSP around the multiplication shorthand"
@@ -111,13 +113,13 @@
       "why": "digits concatenate: a typo becomes a plausible number"
     },
     {
-      "input": "5\u200b5",
+      "input": "5​5",
       "ok": false,
       "value": 0,
       "why": "U+200B ZWSP is in neither whitespace set - not stripped, rejected"
     },
     {
-      "input": "5\u20605",
+      "input": "5⁠5",
       "ok": false,
       "value": 0,
       "why": "U+2060 WORD JOINER is not whitespace either"
@@ -303,7 +305,7 @@
       "why": "spaced form is an explicit multiplication by zero"
     },
     {
-      "input": "0\u00a0x\u00a010",
+      "input": "0 x 10",
       "ok": true,
       "value": 0,
       "why": "NBSP-spaced form matches the U+0020-spaced form: the hex check runs before whitespace is stripped"
@@ -315,7 +317,7 @@
       "why": "comma is stripped first, so this is 10*2"
     },
     {
-      "input": "10 \u00d7 5",
+      "input": "10 × 5",
       "ok": true,
       "value": 50,
       "why": "multiplication sign"
@@ -333,25 +335,25 @@
       "why": "uppercase ASCII X"
     },
     {
-      "input": "100 \u00f7 4",
+      "input": "100 ÷ 4",
       "ok": true,
       "value": 25,
       "why": "division sign"
     },
     {
-      "input": "10 \u2013 5",
+      "input": "10 – 5",
       "ok": true,
       "value": 5,
       "why": "en dash as minus"
     },
     {
-      "input": "10 \u2014 5",
+      "input": "10 — 5",
       "ok": true,
       "value": 5,
       "why": "em dash as minus"
     },
     {
-      "input": "10 \u2212 5",
+      "input": "10 − 5",
       "ok": true,
       "value": 5,
       "why": "minus sign as minus"
@@ -651,31 +653,31 @@
       "why": "what a stringified 1234567 looks like"
     },
     {
-      "input": "\uff10",
+      "input": "０",
       "ok": false,
       "value": 0,
       "why": "fullwidth zero"
     },
     {
-      "input": "\uff11\uff12\uff13",
+      "input": "１２３",
       "ok": false,
       "value": 0,
       "why": "fullwidth digits"
     },
     {
-      "input": "\u0661\u0662\u0663",
+      "input": "١٢٣",
       "ok": false,
       "value": 0,
       "why": "Arabic-Indic digits"
     },
     {
-      "input": "\u00bd",
+      "input": "½",
       "ok": false,
       "value": 0,
       "why": "vulgar fraction"
     },
     {
-      "input": "\u2153",
+      "input": "⅓",
       "ok": false,
       "value": 0,
       "why": "vulgar fraction"
@@ -685,6 +687,60 @@
       "ok": false,
       "value": 0,
       "why": "stringified nil from an absent JSON key"
+    },
+    {
+      "input": "-1.5",
+      "ok": true,
+      "value": -2,
+      "why": "#408: negative half rounds away from zero on both sides"
+    },
+    {
+      "input": "-2.5",
+      "ok": true,
+      "value": -3,
+      "why": "#408: same, and not banker's rounding either"
+    },
+    {
+      "input": "10-11.5",
+      "ok": true,
+      "value": -2,
+      "why": "#408: the expression form from the issue"
+    },
+    {
+      "input": "-0.5",
+      "ok": true,
+      "value": -1,
+      "why": "#408: rounds to -1 on both, not -0"
+    },
+    {
+      "input": "0-0.5",
+      "ok": true,
+      "value": -1,
+      "why": "#408: same via arithmetic"
+    },
+    {
+      "input": "99999999999999999999*99999999999999999999",
+      "ok": false,
+      "value": 0,
+      "why": "#364: out of int32 range - Go used to overflow to math.MinInt64 and pass the bound check"
+    },
+    {
+      "input": "2147483648",
+      "ok": false,
+      "value": 0,
+      "why": "#364: one past int32 max"
+    },
+    {
+      "input": "-2147483649",
+      "ok": false,
+      "value": 0,
+      "why": "#364: one past int32 min"
+    },
+    {
+      "input": "2147483647",
+      "ok": true,
+      "value": 2147483647,
+      "why": "#364: int32 max itself is fine"
     }
   ]
 }

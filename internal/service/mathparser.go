@@ -98,11 +98,30 @@ func ParseAmount(input string, maxAbs int) ParseAmountResult {
 		return ParseAmountResult{Ok: false, Value: 0}
 	}
 
-	rounded := int(math.Round(val))
-	if maxAbs > 0 && abs(rounded) > maxAbs {
+	// Bound the float BEFORE converting to int.
+	//
+	// Converting an out-of-range float64 to int is implementation-defined in
+	// Go, and on amd64 and arm64 it yields the integer indefinite value
+	// math.MinInt64. abs(math.MinInt64) is math.MinInt64 — still negative — so
+	// `abs(rounded) > maxAbs` was false and the bound waved it through:
+	// ParseAmount("99999999999999999999*99999999999999999999", 9999) returned
+	// Ok with a value of -9223372036854775808, which the entry handlers then
+	// tried to store (#364).
+	//
+	// Checking in float space has no such edge: rounded is finite here (Inf and
+	// NaN are rejected above), and comparing it against maxAbs as a float is
+	// exact for every magnitude that could pass — maxAbs is at most 9999.
+	rounded := math.Round(val)
+	if maxAbs > 0 && math.Abs(rounded) > float64(maxAbs) {
 		return ParseAmountResult{Ok: false, Value: 0}
 	}
-	return ParseAmountResult{Ok: true, Value: rounded}
+	// With no maxAbs the caller has opted out of the range check, so the
+	// conversion still has to be guarded — otherwise the same indefinite value
+	// escapes through the unbounded path.
+	if rounded > math.MaxInt32 || rounded < math.MinInt32 {
+		return ParseAmountResult{Ok: false, Value: 0}
+	}
+	return ParseAmountResult{Ok: true, Value: int(rounded)}
 }
 
 func abs(x int) int {
