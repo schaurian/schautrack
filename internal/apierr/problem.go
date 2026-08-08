@@ -23,6 +23,14 @@ const ContentType = "application/problem+json"
 // typeBase prefixes every machine-readable problem type. RFC 9457 §3.1.1 wants
 // a URI reference that identifies the problem type; these are stable
 // identifiers first and documentation anchors second.
+//
+// Every instance emits this same prefix, self-hosted deployments included, and
+// that is deliberate: the URI names the problem type, it does not address a
+// resource on the instance that produced it. Two instances reporting the same
+// failure must be comparable by `type` alone, which rewriting the host per
+// deployment would destroy. Clients should match on the string and never
+// dereference it. (The OpenAPI document's `servers` URL is the opposite case —
+// it *is* an endpoint, so it follows config.BaseURL; see internal/openapi.)
 const typeBase = "https://schautrack.com/problems/"
 
 // InvalidParam describes a single rejected field. RFC 9457 leaves per-field

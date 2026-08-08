@@ -54,6 +54,13 @@ served as `application/problem+json`:
 
 Branch on `type`, not on `detail`: the type URI is stable, the prose is not.
 
+The `type` URIs are **stable identifiers, not endpoints**. Every instance,
+self-hosted ones included, emits the same `https://schautrack.com/problems/…`
+URIs on purpose, so a client can recognise a problem type without knowing which
+host produced it. Do not dereference them, and do not expect a self-hosted
+instance to rewrite them to its own domain. This document's `servers` URL,
+by contrast, *is* an endpoint, and always names the instance that served it.
+
 ## Dates and time zones
 
 Dates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means
@@ -116,8 +123,7 @@ seconds until the window reopens. Honour it rather than retrying blindly.
 
 | URL | |
 | --- | --- |
-| `https://schautrack.com/api/v1` | Production |
-| `https://staging.schautrack.com/api/v1` | Staging |
+| `https://schautrack.com/api/v1` | This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's "Try it out" included — send credentials only to the host the document came from. |
 
 ## Endpoints
 

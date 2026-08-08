@@ -362,6 +362,7 @@ func main() {
 		Pool:         pool,
 		Broker:       sseBroker,
 		BuildVersion: cfg.BuildVersion,
+		BaseURL:      cfg.BaseURL,
 		Barcode:      v1Barcode,
 		AIEstimate:   aiHandler.Estimate,
 		TokenLimiter: middleware.NewTokenRateLimiter(cfg.RateLimitAPIToken, time.Minute, cfg.TrustProxy),

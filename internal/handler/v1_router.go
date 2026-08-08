@@ -21,6 +21,19 @@ type V1Handler struct {
 	// server it is talking to.
 	BuildVersion string
 
+	// BaseURL is the public root this instance is reached at (config.BaseURL,
+	// i.e. the BASE_URL environment variable). It becomes the sole `servers`
+	// entry of GET /api/v1/openapi.json, so that a self-hosted instance's spec
+	// points clients — including Swagger UI's "Try it out", which is where a
+	// bearer token gets sent — at that instance and not at schautrack.com.
+	// Empty means "not configured", which yields a relative server URL that
+	// clients resolve against this instance anyway.
+	BaseURL string
+
+	// spec caches the built OpenAPI document for this handler. Per-handler, not
+	// package-level, so one instance's BaseURL can never be served to another.
+	spec specCache
+
 	// Barcode and AIEstimate are the app's own handlers, injected rather than
 	// reimplemented so the API and the UI cannot disagree about what a barcode
 	// resolves to or how an estimate is billed. Nil when the feature is

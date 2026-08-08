@@ -35,7 +35,15 @@ func main() {
 
 	// Build with an empty version so the output does not churn on every
 	// deployment — the committed artifacts describe the contract, not a build.
-	doc := openapi.Build("")
+	//
+	// The base URL, by contrast, is pinned to the canonical Schautrack host on
+	// purpose. A running server serves its own BASE_URL here (that is what stops
+	// a self-hosted instance from pointing clients at schautrack.com), but the
+	// committed artifacts must be byte-stable and reviewable in a diff, so they
+	// cannot depend on the environment of whoever ran this generator. Readers of
+	// api/openapi.json therefore get one fixed, documented host; readers of a
+	// live /api/v1/openapi.json get theirs.
+	doc := openapi.Build("", openapi.CanonicalBaseURL)
 
 	spec, err := doc.JSON()
 	if err != nil {

@@ -223,6 +223,17 @@ unversioned and changes freely; this one is a contract.
    silently turns "clear this field" into "change nothing". `Optional` implements
    `json.Unmarshaler`, which is called for explicit null and not called when absent.
    See `v1_optional_test.go`; this was a real shipped bug.
+8. **The served spec's `servers` entry is this instance, never a hardcoded host.**
+   `openapi.Build(version, baseURL)` emits exactly one server, `<BASE_URL>/api/v1`
+   (relative `/api/v1` when `BASE_URL` is unset). Swagger UI's "Try it out" sends the
+   caller's `stk_…` token to `servers[0]`, so a hardcoded host means a self-hoster's
+   token goes to someone else's server. The built document is cached **per handler**
+   (`V1Handler.spec`), not process-wide, so one instance's host cannot be served to
+   another, and nothing request-derived may enter it. `cmd/apidocs` deliberately pins
+   `openapi.CanonicalBaseURL` so the committed artifacts stay byte-stable.
+   By contrast the `internal/apierr` `type` URIs (`https://schautrack.com/problems/…`)
+   are **stable identifiers, not endpoints**: every instance emits the same ones on
+   purpose, so clients can compare problem types across hosts. Do not "fix" those.
 
 ### Layout
 
@@ -262,7 +273,7 @@ Server / general:
 
 SEO:
 - `ROBOTS_INDEX`: Set to `true` to allow search-engine indexing (default: noindex)
-- `BASE_URL`: Base URL for SEO meta tags and the OIDC redirect fallback (auto-detected from request if unset)
+- `BASE_URL`: Base URL for SEO meta tags, the OIDC redirect fallback, and the `servers` entry of the served OpenAPI document (auto-detected from request if unset; the OpenAPI document falls back to the relative `/api/v1` instead, which clients resolve against this instance)
 
 Legal / support:
 - `SUPPORT_EMAIL`: Contact email for support pages
