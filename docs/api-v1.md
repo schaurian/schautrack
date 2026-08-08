@@ -937,7 +937,7 @@ Body composition derived from the most recent body-fat reading. That reading can
 | --- | --- | --- | --- |
 | `ageDays` | `integer` | yes | Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead. |
 | `bodyFatPct` | `number` | yes | Body fat as a percentage of total mass. A percentage, so never unit-converted. |
-| `category` | `string` or `null` | yes | The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one. |
+| `category` | `essential` \| `athletic` \| `fitness` \| `average` \| `obese` \| `null` | yes | The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one. |
 | `date` | `string` (date) | yes | The day the body-fat reading was recorded. |
 | `fatMass` | `number` | yes | Fat mass at that reading. In the unit given by the plan's `unit` field. |
 | `leanMass` | `number` | yes | Fat-free mass at that reading. In the unit given by the plan's `unit` field. |
@@ -1061,6 +1061,28 @@ A linked account, from your point of view.
 | `timezone` | `string` | yes | Their IANA time zone. Their timestamps are rendered in it, not yours. |
 | `user_id` | `integer` | yes | Pass this as the `user` query parameter on a read endpoint. |
 
+#### shares_to_them
+
+What you share back with them.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `notes` | `boolean` | yes | Daily notes. |
+| `nutrition` | `boolean` | yes | Calorie entries and macros. |
+| `todos` | `boolean` | yes | Todos and completions. |
+| `weight` | `boolean` | yes | Weight readings. |
+
+#### shares_with_me
+
+What this account shares WITH you — the only categories `?user=` will serve.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `notes` | `boolean` | yes | Daily notes. |
+| `nutrition` | `boolean` | yes | Calorie entries and macros. |
+| `todos` | `boolean` | yes | Todos and completions. |
+| `weight` | `boolean` | yes | Weight readings. |
+
 ### LinkList
 
 Accounts linked to yours.
@@ -1092,6 +1114,52 @@ The authenticated account, the token, and the account's enabled features.
 | `token` | `object` | yes | The token that authenticated this request. |
 | `user` | `object` | yes | The account this token belongs to. |
 
+#### features
+
+Per-account opt-ins that change how the rest of the API behaves. Read-only: they are switched in the app's settings, not through this API. Every field is always present.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `auto_calc_calories` | `boolean` | yes | Calories are computed from macros. When `true`, `POST /entries` derives `calories` from the macros it was given rather than trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`. |
+| `body_fat` | `boolean` | yes | Body-fat readings are enabled. When `false` a stored reading is not shown in the app. |
+| `macros` | `boolean` | yes | At least one macro (protein, carbs, fat, fiber, sugar) is enabled for this account, so macro values are shown in the app. |
+| `notes` | `boolean` | yes | Daily notes are enabled. When `false`, `GET` and `PUT /notes/{date}` answer `409`. |
+| `todos` | `boolean` | yes | Todos are enabled in the app. The todo endpoints work either way, but a todo created while this is `false` is invisible to the user. |
+
+#### server
+
+The server answering.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `today` | `string` (date) | yes | Today's date in the account's time zone. |
+| `version` | `string` | yes | The running build version. |
+
+#### token
+
+The token that authenticated this request.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `expires_at` | `string` or `null` | yes | When it stops working. `null` means never. |
+| `id` | `integer` | yes | Token identifier. |
+| `name` | `string` | yes | The label given when it was created. |
+| `prefix` | `string` | yes | The token's non-secret prefix. |
+| `scopes` | array of `string` | yes | Everything this token may do. |
+
+#### user
+
+The account this token belongs to.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `daily_goal` | `integer` or `null` | yes | Daily calorie goal, if set. |
+| `email` | `string` | yes | Account email. |
+| `id` | `integer` | yes | Account identifier. |
+| `language` | `string` or `null` | yes | UI language, if set. |
+| `timezone` | `string` | yes | IANA time zone. Determines what `today` and every bare date mean. |
+| `weight_unit` | `kg` \| `lb` | yes | The unit weight readings are stored in. |
+
 ### Note
 
 One day's free-text note.
@@ -1117,7 +1185,7 @@ The weight-loss plan: body metrics, active goal, computed budget, projected curv
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `bmi` | `number` or `null` | yes | Body mass index. `null` without both a height and a weight. |
-| `bmiCategory` | `string` or `null` | yes | The band `bmi` falls in: `underweight`, `normal`, `overweight` or `obese`. |
+| `bmiCategory` | `underweight` \| `normal` \| `overweight` \| `obese` \| `null` | yes | The band `bmi` falls in: `underweight`, `normal`, `overweight` or `obese`. |
 | `composition` | [`BodyComposition`](#bodycomposition) or `null` | yes | Derived from the most recent body-fat reading. `null` when none was recorded. |
 | `computed` | [`PlanComputed`](#plancomputed) or `null` | yes | The budget and projection. `null` unless the body metrics are complete AND an active goal has a usable pace. |
 | `currentCalorieGoal` | `integer` or `null` | yes | The account's daily calorie target as it stands now, which need not equal `computed.budgetKcal` — the recommendation is only applied when the user accepts it. |
@@ -1128,7 +1196,7 @@ The weight-loss plan: body metrics, active goal, computed budget, projected curv
 | `metrics` | [`PlanMetrics`](#planmetrics) | yes | The body metrics the plan is computed from. |
 | `series` | array of [`SeriesPoint`](#seriespoint) | yes | Logged weight readings from the last 180 days, oldest first. |
 | `trend` | [`PlanTrend`](#plantrend) or `null` | yes | Observed progress. `null` when no goal is set; present but flagged `insufficient_data` when there are too few readings. |
-| `unit` | `string` | yes | The unit every weight-valued field in this payload is in: `kg` or `lb`. The plan is computed in kilograms and converted once, on the way out, to the account's configured unit; this field records which one that was, so the numbers can be read without a second call to `/me`. |
+| `unit` | `kg` \| `lb` | yes | The unit every weight-valued field in this payload is in: `kg` or `lb`. The plan is computed in kilograms and converted once, on the way out, to the account's configured unit; this field records which one that was, so the numbers can be read without a second call to `/me`. |
 | `warnings` | array of [`PlanWarning`](#planwarning) | yes | Safety notes about this plan. Empty when there is nothing to flag. |
 
 ### PlanComputed
@@ -1138,7 +1206,7 @@ The energy budget and the projection it produces.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `bmr` | `number` | yes | Basal metabolic rate, kcal/day, per `bmrFormula`. |
-| `bmrFormula` | `string` | yes | Which estimator produced `bmr`: `katch_mcardle` when a body-fat reading was available (it works off lean mass, the more accurate basis), `mifflin_st_jeor` otherwise. |
+| `bmrFormula` | `mifflin_st_jeor` \| `katch_mcardle` | yes | Which estimator produced `bmr`: `katch_mcardle` when a body-fat reading was available (it works off lean mass, the more accurate basis), `mifflin_st_jeor` otherwise. |
 | `budgetClamped` | `boolean` | yes | Whether the budget was raised to the safe floor for this sex. The matching `budget_clamped` warning is also emitted. |
 | `budgetKcal` | `integer` | yes | The recommended daily intake, kcal. |
 | `etaDate` | `string` or `null` | yes | The date `etaWeeks` lands on. `null` when the ETA is not a finite number. |
@@ -1153,11 +1221,11 @@ The body metrics the plan is computed from. Each is `null` until the account sup
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `activityLevel` | `string` or `null` | yes | `sedentary`, `light`, `moderate`, `active` or `very_active`. Decides the multiplier applied to BMR to reach TDEE. |
+| `activityLevel` | `sedentary` \| `light` \| `moderate` \| `active` \| `very_active` \| `null` | yes | `sedentary`, `light`, `moderate`, `active` or `very_active`. Decides the multiplier applied to BMR to reach TDEE. |
 | `birthYear` | `integer` or `null` | yes | Year of birth; age is derived from it. |
 | `complete` | `boolean` | yes | Whether all four are set. `computed` stays `null` while this is `false`. |
 | `heightCm` | `number` or `null` | yes | Height in centimetres. Never converted — this is not a weight. |
-| `sex` | `string` or `null` | yes | `male`, `female` or `other`. Used by the Mifflin–St Jeor formula and the calorie floor. |
+| `sex` | `male` \| `female` \| `other` \| `null` | yes | `male`, `female` or `other`. Used by the Mifflin–St Jeor formula and the calorie floor. |
 
 ### PlanTrend
 
@@ -1169,7 +1237,7 @@ Observed progress: a least-squares fit over the readings from the last 30 days. 
 | `projectedDate` | `string` or `null` | yes | The date `projectedWeeks` lands on. `null` when it cannot be projected. |
 | `projectedWeeks` | `number` | yes | Weeks to the target at the observed rate. `-1` when it cannot be projected. |
 | `slopePerWeek` | `number` | yes | Fitted change per week, negative when losing. In the unit given by the plan's `unit` field. |
-| `status` | `string` | yes | Progress against the plan's pace: `ahead` from 110%, `on_track` from 85%, `behind` below that. `stalled` when the fitted change is under 0.05 per week, `wrong_direction` when it moves away from the target, `insufficient_data` when `hasData` is false. |
+| `status` | `insufficient_data` \| `stalled` \| `wrong_direction` \| `behind` \| `on_track` \| `ahead` | yes | Progress against the plan's pace: `ahead` from 110%, `on_track` from 85%, `behind` below that. `stalled` when the fitted change is under 0.05 per week, `wrong_direction` when it moves away from the target, `insufficient_data` when `hasData` is false. |
 
 ### PlanWarning
 
@@ -1177,7 +1245,7 @@ A safety note about the plan. Branch on `code`; `message` is English prose that 
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `code` | `string` | yes | What is being flagged: `budget_clamped` (the budget was raised to the safe floor), `aggressive_rate` (the pace exceeds 1% of body weight per week), `target_underweight` or `target_obese` (the target weight falls in that BMI band). |
+| `code` | `budget_clamped` \| `aggressive_rate` \| `target_underweight` \| `target_obese` | yes | What is being flagged: `budget_clamped` (the budget was raised to the safe floor), `aggressive_rate` (the pace exceeds 1% of body weight per week), `target_underweight` or `target_obese` (the target weight falls in that BMI band). |
 | `message` | `string` | yes | Human-readable explanation, in English. |
 
 ### Problem
@@ -1255,7 +1323,7 @@ When a todo recurs.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `days` | array of `integer` |  | Required when `type` is `weekly`. |
-| `type` | `string` | yes | `daily` every day; `weekly` on the listed days. |
+| `type` | `daily` \| `weekly` | yes | `daily` every day; `weekly` on the listed days. |
 
 ### SeriesPoint
 
@@ -1276,7 +1344,7 @@ Account settings to change. Omit a field to leave it alone.
 | `daily_goal` | `integer` or `null` |  | Daily calorie goal. `null` clears it. |
 | `language` | `string` or `null` |  | UI language: one of en, de, es, fr, it, nl, pl, pt. `null` restores automatic. |
 | `timezone` | `string` |  | IANA time zone name, e.g. `Europe/Berlin`. Decides what every bare date means. |
-| `weight_unit` | `string` |  | Display unit. Changing it does NOT convert stored readings — they are kept as entered. |
+| `weight_unit` | `kg` \| `lb` |  | Display unit. Changing it does NOT convert stored readings — they are kept as entered. |
 
 ### Todo
 
@@ -1358,7 +1426,7 @@ A weight reading. One per account per day.
 | `body_fat` | `number` or `null` | yes | Body fat as a percentage, or `null` when the day carries no measurement. |
 | `created_at` | `string` (date-time) | yes | When first recorded (UTC). |
 | `date` | `string` (date) | yes | The day this reading belongs to. |
-| `unit` | `string` | yes | The account's weight unit. Readings are stored as entered and never converted. |
+| `unit` | `kg` \| `lb` | yes | The account's weight unit. Readings are stored as entered and never converted. |
 | `updated_at` | `string` (date-time) | yes | When last changed (UTC). |
 | `weight` | `number` | yes | The reading, in `unit`. |
 
@@ -1369,14 +1437,14 @@ The active weight goal, echoed in the account's unit. Read-only here: setting a 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `achieved_at` | `string` (date-time) |  | When the goal was met (UTC). Absent while it is active. |
-| `activity_level` | `string` |  | The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`. |
+| `activity_level` | `sedentary` \| `light` \| `moderate` \| `active` \| `very_active` |  | The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`. |
 | `created_at` | `string` (date-time) | yes | When the goal was created (UTC). |
 | `id` | `integer` | yes | Goal identifier. |
-| `pace_mode` | `string` | yes | `rate` sets a weekly pace directly; `date` derives one from `target_date`. |
+| `pace_mode` | `rate` \| `date` | yes | `rate` sets a weekly pace directly; `date` derives one from `target_date`. |
 | `rate_kg_per_week` | `number` |  | The requested pace per week. Present when `pace_mode` is `rate`. In the unit given by the plan's `unit` field. **Not necessarily kilograms, despite the name** — the name is the `weight_goals.rate_kg_per_week` column's, and the goal is stored and echoed in the account's own unit. Unlike the plan's other weight fields it was not renamed, because the same key is the request body of the app's `PUT /plan/goal`; see schaurian/schautrack#396. |
 | `start_date` | `string` (date) | yes | The day the goal was set. |
 | `start_weight` | `number` | yes | Weight when the goal was set. In the unit given by the plan's `unit` field. |
-| `status` | `string` | yes | `active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal. |
+| `status` | `active` \| `achieved` \| `abandoned` | yes | `active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal. |
 | `target_date` | `string` (date) |  | The requested finish date. Present when `pace_mode` is `date`. |
 | `target_weight` | `number` | yes | The target. In the unit given by the plan's `unit` field. |
 | `updated_at` | `string` (date-time) | yes | When it was last changed (UTC). |

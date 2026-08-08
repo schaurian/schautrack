@@ -256,23 +256,56 @@ func (d *Document) schemaReference() string {
 			continue
 		}
 
-		required := map[string]bool{}
-		for _, r := range s.Required {
-			required[r] = true
-		}
-
-		b.WriteString("| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n")
-		for _, field := range sortedKeys(s.Properties) {
-			p := s.Properties[field]
-			req := ""
-			if required[field] {
-				req = "yes"
-			}
-			fmt.Fprintf(&b, "| `%s` | %s | %s | %s |\n", field, typeName(p), req, p.Description)
-		}
-		b.WriteString("\n")
+		writeFieldTable(&b, s, "")
 	}
 	return b.String()
+}
+
+// writeFieldTable renders one schema's fields, then recurses into any property
+// that is an inline object with properties of its own.
+//
+// Without the recursion a nested object printed as the single word `object` and
+// its fields appeared nowhere in the document (#393). Me was the worst case: its
+// user, token, server and features objects carry most of what the endpoint
+// returns, and the Markdown said nothing about any of them. A $ref is different
+// — typeName already links to that component's own section — so only inline
+// objects are expanded here.
+//
+// prefix carries the dotted path so the sub-table has a heading a reader can
+// match to the parent row ("Me.user"), and so two schemas with a `user` object
+// do not produce two identically titled sections.
+func writeFieldTable(b *strings.Builder, s *Schema, prefix string) {
+	required := map[string]bool{}
+	for _, r := range s.Required {
+		required[r] = true
+	}
+
+	b.WriteString("| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n")
+	for _, field := range sortedKeys(s.Properties) {
+		p := s.Properties[field]
+		req := ""
+		if required[field] {
+			req = "yes"
+		}
+		fmt.Fprintf(b, "| `%s` | %s | %s | %s |\n", field, typeName(p), req, p.Description)
+	}
+	b.WriteString("\n")
+
+	for _, field := range sortedKeys(s.Properties) {
+		p := s.Properties[field]
+		if p == nil || p.Ref != "" || len(p.Properties) == 0 {
+			continue
+		}
+		path := field
+		if prefix != "" {
+			path = prefix + "." + field
+		}
+		fmt.Fprintf(b, "#### %s\n\n", path)
+		if p.Description != "" {
+			fmt.Fprintf(b, "%s\n\n", p.Description)
+		}
+		writeFieldTable(b, p, path)
+	}
 }
 
 // typeName renders a schema's type for the docs table, including references,
@@ -290,6 +323,21 @@ func typeName(s *Schema) string {
 			parts = append(parts, typeName(alt))
 		}
 		return strings.Join(parts, " or ")
+	}
+	// An enum renders as its members, not as the type they happen to share.
+	// "string" tells a reader nothing they could not have guessed; `kg` | `lb`
+	// is the entire contract of the field (#363). Checked before the type
+	// switch so it wins for every underlying type, not just string.
+	if len(s.Enum) > 0 {
+		var parts []string
+		for _, v := range s.Enum {
+			if v == nil {
+				parts = append(parts, "`null`")
+				continue
+			}
+			parts = append(parts, fmt.Sprintf("`%v`", v))
+		}
+		return strings.Join(parts, " \\| ")
 	}
 	switch t := s.Type.(type) {
 	case string:
