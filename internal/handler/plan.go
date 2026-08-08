@@ -41,8 +41,17 @@ func validateActivityLevel(a *string) bool {
 	return a == nil || validActivityLevels[*a]
 }
 
+// validateTargetWeight bounds the goal's target weight. Unlike start_weight —
+// which is copied from the user's latest weight entry and so has already been
+// through service.ParseWeight — TargetWeight is decoded straight off the JSON
+// body as a float64, making this the only place the cap is applied. The upper
+// bound keeps the value within the target_weight NUMERIC(6,2) column (max
+// 9999.99) and matches ParseWeight's cap; without it a target weight >= 10000
+// passes validation and then 500s on INSERT with a numeric overflow instead of
+// a clean 400. NaN and ±Inf are rejected as a side effect: NaN fails every
+// comparison, and +Inf exceeds the cap.
 func validateTargetWeight(w float64) bool {
-	return w > 0
+	return w > 0 && w <= service.MaxWeight
 }
 
 func validatePaceMode(m string) bool {
