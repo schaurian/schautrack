@@ -55,9 +55,9 @@ go test ./...
 ```
 
 **End-to-end (Playwright)** — the root `package.json` is a thin test harness. Its
-`test:e2e` script builds and starts the full stack defined in `compose.test.yml`
-(app on port 3001, PostgreSQL, Mailpit), seeds a test user, then runs the
-Playwright suite in `e2e/`:
+`test:e2e` script (a thin wrapper over `scripts/e2e.sh`) builds and starts the
+full stack defined in `compose.test.yml` (app on port 3001, PostgreSQL, Mailpit),
+seeds a test user, then runs the Playwright suite in `e2e/`:
 
 ```bash
 npm install                       # installs @playwright/test + tsx (root deps)
@@ -65,11 +65,25 @@ npx playwright install chromium   # one-time: download the browser
 npm run test:e2e
 ```
 
+`test:e2e` **exits with Playwright's status** — a failing suite fails the
+command, so `npm run test:e2e && git push` does the right thing. A failure to
+bring the stack up or to seed the test user propagates too, and the stack is torn
+down either way, including when you interrupt the run with Ctrl-C.
+
+Arguments after `--` are forwarded to Playwright, so you can narrow a run without
+bypassing the harness:
+
+```bash
+npm run test:e2e -- --grep "invite"
+```
+
 Related scripts:
 
 - `npm run test:e2e:ui` — run the suite with the Playwright UI.
 - `npm run test:e2e:setup` — bring the test stack up and seed the user, then
-  leave it running (useful for iterating on individual specs).
+  leave it running (useful for iterating on individual specs). Fails if the
+  stack does not come up or the seed fails; the leading `docker compose down -v`
+  that clears a previous stack is best-effort and its status is ignored.
 - `npm run test:e2e:down` — tear the test stack down and remove its volumes.
 
 Please add or update tests for any behavior you change, and run both `go test
