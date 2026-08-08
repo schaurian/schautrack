@@ -30,9 +30,11 @@ type V1Handler struct {
 	// clients resolve against this instance anyway.
 	BaseURL string
 
-	// spec caches the built OpenAPI document for this handler. Per-handler, not
-	// package-level, so one instance's BaseURL can never be served to another.
+	// spec and docs cache the built OpenAPI document and its rendered HTML
+	// page for this handler. Per-handler, not package-level, so one instance's
+	// BaseURL can never be served to another.
 	spec specCache
+	docs specCache
 
 	// Barcode and AIEstimate are the app's own handlers, injected rather than
 	// reimplemented so the API and the UI cannot disagree about what a barcode
@@ -107,8 +109,10 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 	r.Use(middleware.ProblemRecovery)
 
 	// The spec is public: a client must be able to fetch it before it has a
-	// token, and it contains no user data.
+	// token, and it contains no user data. /docs is the same document rendered
+	// for humans, public for the same reason.
 	r.Get("/openapi.json", h.OpenAPI)
+	r.Get("/docs", h.Docs)
 
 	auth := h.Auth
 	if auth == nil {
