@@ -125,7 +125,16 @@ The first request executes and its response is stored. Any retry with the same
 key replays that response, with ` + "`Idempotency-Replayed: true`" + `, instead of
 logging the meal twice. Reusing a key with a *different* body returns ` + "`409`" + `
 rather than silently discarding the new request. Keys are remembered for 24
-hours.
+hours. A request that fails releases its key, so the retry is a fresh attempt
+rather than a replay of the error.
+
+Every endpoint that creates something accepts the header: ` + "`POST /entries`" + `,
+` + "`POST /todos`" + `, ` + "`POST /saved-foods`" + `, and
+` + "`POST /saved-foods/{id}/track`" + `. The operation parameter lists say which,
+and they are not advisory — the one ` + "`POST`" + ` that does not honour the header
+(` + "`POST /ai/estimate`" + `) rejects it with ` + "`400`" + ` instead of ignoring it.
+An accepted request is therefore always a request whose retry semantics are
+what you asked for.
 
 ## Rate limits
 
@@ -213,8 +222,6 @@ func sharedResponses() map[string]*Response {
 	}
 }
 
-// idempotencyParam documents the opt-in retry-safety header on the two
-// endpoints that create something.
 // linkedUserParam lets a read endpoint return a linked account's data.
 var linkedUserParam = Parameter{
 	Name: "user", In: "query",
@@ -224,6 +231,9 @@ var linkedUserParam = Parameter{
 	Schema: integer(""),
 }
 
+// idempotencyParam documents the opt-in retry-safety header. It belongs on
+// every endpoint that creates something; the endpoints that do not honour it
+// reject it with 400 rather than ignoring it, so this list is not advisory.
 var idempotencyParam = Parameter{
 	Name: "Idempotency-Key", In: "header",
 	Description: "Optional. A key you generate once per logical operation and reuse when retrying. " +
@@ -730,6 +740,7 @@ func paths() map[string]*PathItem {
 				OperationID: "createTodo", Summary: "Create a todo",
 				Tags: []string{"Todos"}, Scope: service.ScopeTodosWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeTodosWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("TodoInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created todo.", ref("Todo"), "URL of the created todo."),
@@ -802,6 +813,7 @@ func paths() map[string]*PathItem {
 				OperationID: "createSavedFood", Summary: "Create a saved food",
 				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("SavedFoodInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created food.", ref("SavedFood"), "URL of the created food."),
@@ -908,7 +920,9 @@ func paths() map[string]*PathItem {
 			Description: "Requires the `ai:estimate` scope, which no other scope implies — every call " +
 				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
 				"daily AI limit applies here exactly as it does in the app. Returns 404 when no AI " +
-				"provider is configured.",
+				"provider is configured. This is the one `POST` that does not honour " +
+				"`Idempotency-Key`: sending the header returns 400 rather than being ignored, so a " +
+				"caller is never left believing a retry is safe when it is not.",
 			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
 			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},

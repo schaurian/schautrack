@@ -211,13 +211,20 @@ unversioned and changes freely; this one is a contract.
 5. **Tokens cannot mint tokens.** Token management (`/api/tokens`) lives on the
    session surface and is step-up gated. If a token could create another token, one
    leaked read-only token would escalate to a permanent full-scope one.
-6. **Non-idempotent creates must honour `Idempotency-Key`.** `POST /entries` and
-   `POST /saved-foods/{id}/track` are wrapped in `withIdempotency`. If you add
-   another endpoint that creates something, wrap it too — a client whose request
-   times out otherwise has to choose between double-logging and losing data. The
-   key is claimed with `INSERT ... ON CONFLICT DO NOTHING` *before* the handler
-   runs, which is what makes concurrent retries safe; don't "simplify" that into
-   a check-then-insert.
+6. **Non-idempotent creates must honour `Idempotency-Key`.** `POST /entries`,
+   `POST /todos`, `POST /saved-foods`, and `POST /saved-foods/{id}/track` are wrapped
+   in `withIdempotency`. If you add another endpoint that creates something, wrap it
+   too — a client whose request times out otherwise has to choose between
+   double-logging and losing data. The key is claimed with
+   `INSERT ... ON CONFLICT DO NOTHING` *before* the handler runs, which is what makes
+   concurrent retries safe; don't "simplify" that into a check-then-insert.
+   **Every v1 `POST` must pick a side:** `withIdempotency` to honour the header, or
+   `rejectIdempotencyKey` to answer 400. Leaving a POST unwrapped is the worst of the
+   three — an unknown *header* is not rejected the way an unknown body field is, so
+   the caller gets a 201 that looks like retry-safety it does not have.
+   `TestEveryV1PostDecidesOnIdempotencyKey` fails the build if a new POST skips the
+   choice, and the spec's parameter list is the client-visible half of the same fact.
+   Currently only `POST /ai/estimate` rejects.
 7. **PATCH bodies use `handler.Optional[T]`, never `**T`.** `encoding/json` unmarshals
    an explicit `null` into a pointer as nil — identical to an absent key — so `**T`
    silently turns "clear this field" into "change nothing". `Optional` implements
