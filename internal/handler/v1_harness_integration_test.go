@@ -324,8 +324,8 @@ func v1Routes(t *testing.T) []v1Route {
 		if route == "" {
 			route = "/"
 		}
-		if route == "/openapi.json" {
-			return nil // public by design; it has its own test
+		if route == "/openapi.json" || route == "/docs" {
+			return nil // public by design; each has its own test
 		}
 		key := method + " " + route
 		if !documented[key] {
