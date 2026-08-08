@@ -21,7 +21,7 @@ export function clearMetrics() {
 export function upsertGoal(g: {
   target_weight: number;
   pace_mode: 'rate' | 'date';
-  rate_kg_per_week?: number;
+  rate_per_week?: number;
   target_date?: string;
 }) {
   return api<{ ok: boolean; goal: WeightGoal }>('/api/plan/goal', {

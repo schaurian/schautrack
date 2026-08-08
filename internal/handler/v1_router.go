@@ -140,10 +140,15 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 			optionalLimiter(h.BarcodeLimiter)).Get("/barcode/{code}", h.BarcodeV1)
 
 		// Its own scope, implied by nothing: every call spends real money.
-		// Not idempotent and not (yet) replayable, so it says so out loud
-		// rather than accepting an Idempotency-Key it would ignore.
+		//
+		// Idempotent since #359, and it is the endpoint that most needs to be:
+		// a retried estimate spends the operator's AI budget twice AND burns a
+		// second slot in the account's daily cap, for a photo the caller
+		// already paid to analyse. It used to reject the header outright, which
+		// was honest but left the most expensive operation on the surface as
+		// the only one a timeout could silently double.
 		r.With(middleware.RequireScope(service.ScopeAIEstimate),
-			optionalLimiter(h.AILimiter)).Post("/ai/estimate", rejectIdempotencyKey(h.EstimateV1))
+			optionalLimiter(h.AILimiter)).Post("/ai/estimate", h.withIdempotency(h.EstimateV1))
 
 		r.Route("/entries", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/", h.ListEntries)

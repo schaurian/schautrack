@@ -888,7 +888,11 @@ POST /api/v1/ai/estimate
 
 **Scope:** `ai:estimate`
 
-Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured. This is the one `POST` that does not honour `Idempotency-Key`: sending the header returns 400 rather than being ignored, so a caller is never left believing a retry is safe when it is not.
+Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured; `GET /me` reports whether it is, under `server.features.ai_estimate`. Honours `Idempotency-Key`, and this is the endpoint it matters most on: a retried estimate would spend the AI budget twice and burn a second slot in the account's daily cap, for a photo already analysed.
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
 
 **Request body** (required): [`EstimateInput`](#estimateinput)
 
@@ -1132,8 +1136,18 @@ The server answering.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `features` | `object` | yes | Which OPTIONAL endpoints this deployment actually serves. Separate from the account-level `features` below on purpose: this is how the operator configured the instance, that is what the user switched on, and a client needs to tell "you turned this off" apart from "this server does not offer it". Both fields are always present. |
 | `today` | `string` (date) | yes | Today's date in the account's time zone. |
 | `version` | `string` | yes | The running build version. |
+
+#### server.features
+
+Which OPTIONAL endpoints this deployment actually serves. Separate from the account-level `features` below on purpose: this is how the operator configured the instance, that is what the user switched on, and a client needs to tell "you turned this off" apart from "this server does not offer it". Both fields are always present.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `ai_estimate` | `boolean` | yes | An AI provider is configured, so `POST /ai/estimate` is live. The account's daily cap still applies on top. |
+| `barcode` | `boolean` | yes | `GET /barcode/{code}` will attempt a lookup. When `false` it answers 404 `feature-disabled`. |
 
 #### token
 
@@ -1441,7 +1455,7 @@ The active weight goal, echoed in the account's unit. Read-only here: setting a 
 | `created_at` | `string` (date-time) | yes | When the goal was created (UTC). |
 | `id` | `integer` | yes | Goal identifier. |
 | `pace_mode` | `rate` \| `date` | yes | `rate` sets a weekly pace directly; `date` derives one from `target_date`. |
-| `rate_kg_per_week` | `number` |  | The requested pace per week. Present when `pace_mode` is `rate`. In the unit given by the plan's `unit` field. **Not necessarily kilograms, despite the name** — the name is the `weight_goals.rate_kg_per_week` column's, and the goal is stored and echoed in the account's own unit. Unlike the plan's other weight fields it was not renamed, because the same key is the request body of the app's `PUT /plan/goal`; see schaurian/schautrack#396. |
+| `rate_per_week` | `number` |  | The requested pace per week. Present when `pace_mode` is `rate`. In the unit given by the plan's `unit` field. Renamed from `rate_kg_per_week`, which was not necessarily kilograms: the goal is stored and echoed in the account's own unit. `PUT /plan/goal` still accepts the old key on input so existing clients keep working. |
 | `start_date` | `string` (date) | yes | The day the goal was set. |
 | `start_weight` | `number` | yes | Weight when the goal was set. In the unit given by the plan's `unit` field. |
 | `status` | `active` \| `achieved` \| `abandoned` | yes | `active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal. |
