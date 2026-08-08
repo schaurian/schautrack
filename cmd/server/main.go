@@ -157,6 +157,10 @@ func main() {
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
+		// /livez is the liveness probe (process alive, no dependency check);
+		// /health is readiness (also pings the database). Keep them split —
+		// see handler.Livez for why a DB check must never gate liveness.
+		r.Get("/livez", handler.Livez)
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
 		r.Get("/latest-version", handler.LatestVersion(updateProvider, cfg.UpdateCheckEnabled))
 		r.Get("/csrf", handler.CsrfToken)

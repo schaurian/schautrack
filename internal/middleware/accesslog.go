@@ -23,8 +23,8 @@ import (
 //
 // The path is logged without its query string on purpose: query strings carry
 // OIDC authorization codes and other short-lived secrets that must not land in
-// logs. The health endpoint is skipped so Kubernetes liveness/readiness probes
-// do not drown the access log.
+// logs. The health and liveness endpoints are skipped so Kubernetes
+// liveness/readiness probes do not drown the access log.
 //
 // It does not recover panics, which is what lets Recovery's deliberate
 // re-panic of http.ErrAbortHandler reach net/http and close the connection.
@@ -35,7 +35,7 @@ import (
 func AccessLog(trustProxy bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/api/health" {
+			if r.URL.Path == "/api/health" || r.URL.Path == "/api/livez" {
 				next.ServeHTTP(w, r)
 				return
 			}
