@@ -70,6 +70,17 @@ func TestDecodeV1(t *testing.T) {
 			wantDst: v1CommonTestBody{},
 		},
 		{
+			// Load-bearing for the shape check added in #347, which tests the
+			// FIRST byte of the decoded raw value. json.Decoder.Decode skips
+			// leading whitespace, so that byte is the '{' and not a space —
+			// but if it ever did not, every pretty-printed or newline-prefixed
+			// body would be wrongly refused as "not a JSON object". Pinned
+			// because a client that indents its payload is entirely ordinary.
+			name:    "leading whitespace before the object is fine",
+			body:    "\n\t  {\"name\":\"apple\",\"calories\":95}\n",
+			wantDst: v1CommonTestBody{Name: "apple", Calories: 95},
+		},
+		{
 			// The whole point of the manual strings.CutPrefix: a typo'd field
 			// must come back named, not as a generic parse failure.
 			name:       "unknown field is a 400 that names the field",
