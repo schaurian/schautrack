@@ -188,23 +188,39 @@ func hostPort(id string) (string, error) {
 	return line[i+1:], nil
 }
 
-// waitReady polls until Postgres accepts connections.
+// waitReady polls until Postgres accepts queries over TCP.
 //
-// It uses pg_isready *inside* the container rather than dialling the published
-// port from here, because the entrypoint starts the server once to run
-// initdb-time setup and then restarts it. A TCP dial can therefore succeed
-// against a server that is about to go away, which shows up later as a
-// connection reset in whichever test happened to run first.
+// The -h 127.0.0.1 is the entire point and was the bug. The postgres
+// entrypoint runs initdb, starts a temporary server for the init scripts, then
+// stops it and starts the real one — and that temporary server listens on the
+// unix socket ONLY. `pg_isready` with no host defaults to the socket, so it
+// reports ready during the init phase, before anything is listening on TCP.
+// Tests connect over the published port, so they got either a refused
+// connection or the temporary server's "unexpected EOF" as it shut down. It
+// reproduces as an intermittent
+//
+//	failed to receive message: unexpected EOF
+//
+// on a loaded machine, where the window between the two phases is widest.
+// Measured on an idle laptop the socket reports ready a full poll before TCP
+// does, so the race was always there and only load made it visible.
+//
+// The probe is `psql -c 'SELECT 1'` rather than pg_isready because it has to
+// prove more than a listening socket: pg_isready reports "accepting
+// connections" while the server is still in recovery, and a query is the thing
+// the tests actually need to work.
 func waitReady(id string) error {
 	deadline := time.Now().Add(startupTimeout)
 	var lastErr error
 	for time.Now().Before(deadline) {
-		if _, err := run(10*time.Second, "docker", "exec", id,
-			"pg_isready", "--quiet", "--username", "postgres", "--dbname", "postgres"); err == nil {
+		_, err := run(10*time.Second, "docker", "exec", id,
+			"psql", "--host", "127.0.0.1", "--port", "5432",
+			"--username", "postgres", "--dbname", "postgres",
+			"--quiet", "--no-align", "--tuples-only", "--command", "SELECT 1")
+		if err == nil {
 			return nil
-		} else {
-			lastErr = err
 		}
+		lastErr = err
 		time.Sleep(250 * time.Millisecond)
 	}
 	return fmt.Errorf("%s was not ready within %v: %w", image, startupTimeout, lastErr)
