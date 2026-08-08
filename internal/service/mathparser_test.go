@@ -1,6 +1,9 @@
 package service
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -193,6 +196,11 @@ func TestParseAmountMaxAbs(t *testing.T) {
 // what this table records. Nothing here is incidental: if a case below starts
 // failing, the normalization order changed and the set of strings the app
 // accepts changed with it. Decide again, then update the table.
+//
+// Cases that must hold in *both* parsers live in testdata/parse_amount_cases.json
+// instead, run from here by TestParseAmountSharedCases and from the client by
+// tests/mathParserParity.test.ts. This table is for what is specific to the Go
+// side; prefer the shared fixture for anything else.
 func TestParseAmountNormalizationEdges(t *testing.T) {
 	tests := []struct {
 		input string
@@ -224,18 +232,24 @@ func TestParseAmountNormalizationEdges(t *testing.T) {
 		{"0 x 10", true, 0, "spaced form is an explicit multiplication by zero"},
 		{"1,0x2", true, 20, "comma is stripped first, so this is 10*2"},
 
-		// --- Space stripping ---------------------------------------------
-		// ALL spaces go, so a space inside a number closes over silently.
+		// --- Whitespace stripping ----------------------------------------
+		// ALL whitespace goes, so a space inside a number closes over
+		// silently.
 		{"5 5", true, 55, "digits concatenate: a typo becomes a plausible number"},
 		{"1 000", true, 1000, "space as a thousands separator, intended"},
 		{"2 x 3", true, 6, "spaces around operators, intended"},
 		{"5 -", false, 0, "trailing operator still fails the grammar"},
 		{" 5 ", true, 5, "surrounding spaces"},
 		{"\t7\n", true, 7, "TrimSpace handles tabs/newlines at the ends"},
-		// Only U+0020 is stripped, not Unicode whitespace. NBSP survives
-		// into the expression and fails validExprRe.
-		{"5\u00a05", false, 0, "non-breaking space is not stripped"},
-		{"1\u00a0000", false, 0, "NBSP thousands separator is rejected, unlike a plain space"},
+		// stripWhitespace drops every whitespace rune, not just U+0020, so a
+		// NBSP thousands separator is accepted exactly like a plain space
+		// (#351). It used to survive into the expression and fail
+		// validExprRe, which meant the server 400'd inputs the browser
+		// parser accepted. The full whitespace class is pinned in the shared
+		// fixture; these two are the cases the issue was filed about.
+		{"5\u00a05", true, 55, "NBSP is stripped, so digits concatenate like they do around U+0020"},
+		{"1\u00a0000", true, 1000, "NBSP thousands separator, what fr-FR and de-CH produce"},
+		{"5\u200b5", false, 0, "U+200B ZWSP is not whitespace in either language: still rejected"},
 
 		// --- Comma stripping ----------------------------------------------
 		{"1,000", true, 1000, "comma as a thousands separator, intended"},
@@ -258,17 +272,28 @@ func TestParseAmountNormalizationEdges(t *testing.T) {
 		{"5+-3", true, 2, "binary plus then unary minus"},
 
 		// --- Decimal forms ---------------------------------------------------
-		// parseNumber accepts any run of [0-9.] and hands it to Sscanf, whose
-		// error is ignored — so a malformed decimal truncates at the first
-		// valid prefix rather than failing. parseFactor, however, requires a
-		// digit to start a number, which is why ".5" is rejected while "5."
-		// is not.
-		{"5.", true, 5, "trailing decimal point is tolerated"},
-		{".5", false, 0, "leading decimal point is NOT (asymmetric with \"5.\")"},
-		{"5..", true, 5, "trailing dots tolerated"},
-		{"..5", false, 0, "leading dots rejected"},
-		{"5.0.0", true, 5, "malformed decimal truncates to its valid prefix"},
-		{"1.2.3", true, 1, "same, and 1.2 rounds to 1"},
+		// parseNumber still accepts any run of [0-9.], but it now converts it
+		// with strconv.ParseFloat and fails the parse when the run is not a
+		// whole decimal literal. Previously the run went to fmt.Sscanf with
+		// the error discarded, so "1.2.3" was silently accepted as its
+		// longest valid prefix — a fat-fingered amount became a plausible
+		// different amount instead of a validation error (#353).
+		//
+		// parseFactor also admits a leading "." now, so ".5" and "5." are
+		// symmetric. That was the other half of #353: ParseWeight accepts
+		// ".5" as 0.5, and the two number boxes disagreeing on the same
+		// keystroke bought nothing — see
+		// TestParseAmountVsParseWeightSyntaxDivergence, where that row is now
+		// an agreement rather than a divergence.
+		{"5.", true, 5, "trailing decimal point is a valid literal"},
+		{".5", true, 1, "leading decimal point too, symmetric with \"5.\" (rounds to 1)"},
+		{".4", true, 0, "same, and it rounds to an honest zero"},
+		{"5..", false, 0, "two decimal points is not a number: no longer tolerated as 5"},
+		{"..5", false, 0, "leading dots still rejected, now by parseNumber rather than parseFactor"},
+		{".", false, 0, "a bare dot is not a number"},
+		{"5.0.0", false, 0, "malformed decimal REJECTED, no longer truncated to 5"},
+		{"1.2.3", false, 0, "same: no longer 1.2 rounded to 1"},
+		{"1.2.3+1", false, 0, "a malformed literal fails the whole expression"},
 
 		// --- Scientific notation ---------------------------------------------
 		// "e" is not in validExprRe and the grammar has no exponent operator.
@@ -296,6 +321,16 @@ func TestParseAmountNormalizationEdges(t *testing.T) {
 		// so a missing key arrives as this literal string.
 		{"<nil>", false, 0, "stringified nil from an absent JSON key"},
 		{"", false, 0, "empty input"},
+
+		// --- Known remaining divergence from the TS twin --------------------
+		// math.Round rounds a half away from zero; JavaScript's Math.round
+		// rounds it toward +Inf. They agree on every positive half ("123.5" ->
+		// 124 in both) and disagree on every negative one, so these two rows
+		// are Go-only and are deliberately absent from
+		// testdata/parse_amount_cases.json. Filed as #408 rather than changed
+		// here: it is a rounding decision, not a parsing one.
+		{"-1.5", true, -2, "math.Round(-1.5) = -2; JS Math.round(-1.5) = -1"},
+		{"10-11.5", true, -2, "same, reached through an expression"},
 	}
 
 	for _, tt := range tests {
@@ -350,6 +385,12 @@ func TestParseAmountAcceptedZeros(t *testing.T) {
 //     European decimal point a scale displays. It also inherits ParseFloat's
 //     exponent syntax for free.
 //
+// One row that used to be here is gone: ".5" was rejected by ParseAmount and
+// accepted by ParseWeight, but that followed from nothing except parseFactor
+// requiring a leading digit. It was not a consequence of one parser being a
+// calculator and the other a scalar, so it was not worth keeping — see #353.
+// The rows below are the ones that do follow from the difference in kind.
+//
 // The divergence is therefore kept, not removed: collapsing it in either
 // direction would either take the calculator away from calories or the comma
 // decimal away from weights. This test is the record of that decision, so a
@@ -366,10 +407,11 @@ func TestParseAmountVsParseWeightSyntaxDivergence(t *testing.T) {
 		{"1,5", true, 15, true, 1.5, "comma: thousands separator vs decimal point"},
 		{"1,000", true, 1000, true, 1.0, "the same string means 1000 kcal or 1.0 kg"},
 		{"1e1", false, 0, true, 10, "exponent syntax: grammar has none, ParseFloat does"},
-		{".5", false, 0, true, 0.5, "leading decimal point: grammar needs a leading digit"},
+		{".5", true, 1, true, 0.5, "leading decimal point: both accept it; the amount then rounds to 1"},
 		{"2x3", true, 6, false, 0, "expression syntax exists only for amounts"},
 		{"100+50", true, 150, false, 0, "same"},
 		{"5.", true, 5, true, 5, "trailing decimal point: both accept it"},
+		{"1.2.3", false, 0, false, 0, "malformed decimal: both reject it (#353)"},
 	}
 	for _, tt := range tests {
 		a := ParseAmount(tt.input, 0)
@@ -383,6 +425,70 @@ func TestParseAmountVsParseWeightSyntaxDivergence(t *testing.T) {
 				tt.input, w.Ok, w.Value, tt.weightOk, tt.weightValue, tt.why)
 		}
 	}
+}
+
+// sharedParseAmountCase is one row of testdata/parse_amount_cases.json.
+type sharedParseAmountCase struct {
+	Input string `json:"input"`
+	Ok    bool   `json:"ok"`
+	Value int    `json:"value"`
+	Why   string `json:"why"`
+}
+
+// TestParseAmountSharedCases runs the cross-language pin table that
+// client/tests/mathParserParity.test.ts runs against the TypeScript twin.
+//
+// The safe-math parser exists twice — Go for the API, TypeScript because CSP
+// forbids eval() in the browser — and the SPA parses the input box locally and
+// POSTs the resulting *number*, so the two are not a primary/mirror pair:
+// whichever one runs decides what gets stored. When they disagree, the app
+// accepts an input in the browser and rejects the same input from the v1 API
+// or an import file, and nothing tells anyone.
+//
+// They did disagree, twice, and both were found by reading the code rather
+// than by a failing test:
+//
+//   - #351: Go stripped only U+0020, TS stripped all of Unicode whitespace, so
+//     a NBSP thousands separator ("1\u00a0000") worked in the SPA and 400'd on
+//     the API — and vanished silently from an import.
+//   - #353: both discarded their number-conversion error, in two different
+//     ways (fmt.Sscanf vs parseFloat), so "1.2.3" became 1 in Go and 1.2 in TS.
+//     Same class of bug, two different wrong answers.
+//
+// Two tables maintained side by side would not have caught either: nothing
+// forces a change to one to be applied to the other. One table, loaded by both
+// runners, does. Add cases here rather than to the per-language tables
+// whenever the expectation is not language-specific.
+//
+// Two classes are deliberately excluded and pinned per-language instead,
+// documented in the fixture's _readme: negative half-values (math.Round rounds
+// half away from zero, Math.round rounds half toward +Inf, tracked as #408) and
+// inputs that evaluate to a negative zero. See the "known remaining divergence"
+// note in TestParseAmountNormalizationEdges.
+func TestParseAmountSharedCases(t *testing.T) {
+	path := filepath.Join("..", "..", "testdata", "parse_amount_cases.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read shared fixture: %v", err)
+	}
+	var doc struct {
+		Cases []sharedParseAmountCase `json:"cases"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("parse shared fixture: %v", err)
+	}
+	if len(doc.Cases) == 0 {
+		t.Fatal("shared fixture is empty")
+	}
+
+	for _, tt := range doc.Cases {
+		r := ParseAmount(tt.Input, 0)
+		if r.Ok != tt.Ok || r.Value != tt.Value {
+			t.Errorf("ParseAmount(%q) = {%v, %d}, want {%v, %d} (%s)",
+				tt.Input, r.Ok, r.Value, tt.Ok, tt.Value, tt.Why)
+		}
+	}
+	t.Logf("%d shared cases", len(doc.Cases))
 }
 
 func TestSafeMathEvalPrecedence(t *testing.T) {

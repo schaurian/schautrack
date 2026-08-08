@@ -5,6 +5,13 @@ import { parseAmount } from './mathParser';
 // The safe-math parser is duplicated in Go and TS (CSP forbids eval in the
 // browser), so both implementations must agree on the same table of inputs.
 // Keep this file in sync with the Go tests when either parser changes.
+//
+// "Keep in sync" is now enforced rather than requested for the cases that must
+// hold on both sides: they live in testdata/parse_amount_cases.json and are run
+// by tests/mathParserParity.test.ts here and by TestParseAmountSharedCases in
+// Go. Two hand-maintained tables let #351 and #353 diverge silently; one table
+// with two runners cannot. Add cases there unless the expectation is specific
+// to this implementation.
 
 describe('parseAmount', () => {
   it('parses simple numbers', () => {
@@ -171,18 +178,21 @@ describe('parseAmount', () => {
       ['0 x 10', true, 0, 'spaced form is an explicit multiplication by zero'],
       ['1,0x2', true, 20, 'comma is stripped first, so this is 10*2'],
 
-      // Space stripping: ALL whitespace goes, so a space inside a number
-      // closes over silently.
+      // Whitespace stripping: ALL whitespace goes, so a space inside a
+      // number closes over silently.
       ['5 5', true, 55, 'digits concatenate: a typo becomes a plausible number'],
       ['1 000', true, 1000, 'space as a thousands separator, intended'],
       ['2 x 3', true, 6, 'spaces around operators, intended'],
       ['5 -', false, 0, 'trailing operator still fails the grammar'],
       [' 5 ', true, 5, 'surrounding spaces'],
       ['\t7\n', true, 7, 'tabs and newlines'],
-      // DIVERGENCE from Go: /\s+/ strips Unicode whitespace, Go strips only
-      // U+0020, so the server rejects what this accepts. Harmless for the SPA
-      // (this parser runs first and sends a number) but real for the v1 API.
-      ['5\u00a05', true, 55, 'NBSP stripped here, NOT in the Go parser'],
+      // No longer a divergence from Go: stripWhitespace there now drops the
+      // same set this does, so a NBSP thousands separator is accepted by the
+      // v1 API and the import path too (#351). The full whitespace class is
+      // pinned in the shared fixture; these are the cases the issue named.
+      ['5\u00a05', true, 55, 'NBSP is stripped, exactly as in the Go parser'],
+      ['1\u00a0000', true, 1000, 'NBSP thousands separator, what fr-FR and de-CH produce'],
+      ['5\u200b5', false, 0, 'U+200B ZWSP is not whitespace in either language: still rejected'],
 
       // Comma stripping: a comma is ALWAYS a thousands separator, never a
       // decimal point. In an expression parser it cannot be both.
@@ -199,15 +209,22 @@ describe('parseAmount', () => {
       ['5--3', true, 8, 'binary minus then unary minus'],
       ['5+-3', true, 2, 'binary plus then unary minus'],
 
-      // Decimal forms: parseNumber accepts any run of [0-9.] and hands it to
-      // parseFloat, so a malformed decimal truncates to its valid prefix.
-      // parseFactor needs a leading digit, hence the ".5" / "5." asymmetry.
-      ['5.', true, 5, 'trailing decimal point is tolerated'],
-      ['.5', false, 0, 'leading decimal point is NOT (asymmetric with "5.")'],
-      ['5..', true, 5, 'trailing dots tolerated'],
-      ['..5', false, 0, 'leading dots rejected'],
-      ['5.0.0', true, 5, 'malformed decimal truncates to its valid prefix'],
-      ['1.2.3', true, 1, 'same, and 1.2 rounds to 1'],
+      // Decimal forms: parseNumber still accepts any run of [0-9.], but it
+      // now shape-checks the run before handing it to parseFloat, which
+      // truncates to the longest valid prefix rather than returning NaN. A
+      // fat-fingered '1.2.3' used to be accepted as 1 (#353).
+      //
+      // parseFactor also admits a leading '.' now, so '.5' and '5.' are
+      // symmetric - matching Go, where ParseWeight already accepted '.5'.
+      ['5.', true, 5, 'trailing decimal point is a valid literal'],
+      ['.5', true, 1, 'leading decimal point too, symmetric with "5." (rounds to 1)'],
+      ['.4', true, 0, 'same, and it rounds to an honest zero'],
+      ['5..', false, 0, 'two decimal points is not a number: no longer tolerated as 5'],
+      ['..5', false, 0, 'leading dots still rejected, now by parseNumber rather than parseFactor'],
+      ['.', false, 0, 'a bare dot is not a number'],
+      ['5.0.0', false, 0, 'malformed decimal REJECTED, no longer truncated to 5'],
+      ['1.2.3', false, 0, 'same: no longer 1.2 rounded to 1'],
+      ['1.2.3+1', false, 0, 'a malformed literal fails the whole expression'],
 
       // Scientific notation: "e" is not an allowed character and the grammar
       // has no exponent operator.
@@ -223,6 +240,15 @@ describe('parseAmount', () => {
       ['½', false, 0, 'vulgar fraction'],
 
       ['', false, 0, 'empty input'],
+
+      // Known remaining divergence from the Go twin: Math.round rounds a half
+      // toward +Infinity, math.Round rounds it away from zero. They agree on
+      // every positive half ('123.5' -> 124 on both) and disagree on every
+      // negative one, so these rows are TS-only and are deliberately absent
+      // from testdata/parse_amount_cases.json. Filed as #408 rather than
+      // changed here: it is a rounding decision, not a parsing one.
+      ['-1.5', true, -1, 'Math.round(-1.5) = -1; Go math.Round(-1.5) = -2'],
+      ['10-11.5', true, -1, 'same, reached through an expression'],
     ];
     for (const [input, ok, value, why] of cases) {
       expect(parseAmount(input), `${JSON.stringify(input)} (${why})`).toEqual({ ok, value });
