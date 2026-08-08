@@ -322,6 +322,7 @@
     "deleteEntryTitle": "Delete weight entry",
     "sectionTitle": "Weight",
     "toastBodyFatCleared": "Body fat removed",
+    "toastBodyFatInvalid": "Body fat must be between 0 and {{max}}%",
     "toastBodyFatSaveFailed": "Failed to save body fat",
     "toastBodyFatTracked": "Body fat tracked",
     "toastDeleteFailed": "Failed to delete weight",

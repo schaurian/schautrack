@@ -325,6 +325,7 @@
     "bodyFatNeedsWeight": "Gordura corporal %: registe primeiro um peso acima para desbloquear.",
     "toastBodyFatTracked": "Gordura corporal registada",
     "toastBodyFatCleared": "Gordura corporal removida",
+    "toastBodyFatInvalid": "A gordura corporal deve estar entre 0 e {{max}} %",
     "toastBodyFatSaveFailed": "Falha ao guardar gordura corporal",
     "bodyFatHint": "A segunda caixa é a sua % de gordura corporal, se a balança a medir.",
     "bodyFatPlaceholder": "% gordura"

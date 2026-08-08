@@ -223,7 +223,7 @@ smtp:
 | `config.enableRegistration` | `open` or `false`/`invite` (requires invite code) | `""` (open) |
 | `config.trustProxy` | Trust X-Forwarded-For headers for rate limiting | `""` (true) |
 | `config.robotsIndex` | Allow search engine indexing | `false` |
-| `config.baseUrl` | Base URL for SEO meta tags (auto-detects if empty) | `""` |
+| `config.baseUrl` | Base URL for SEO meta tags and the OpenAPI `servers` entry (auto-detects if empty) | `""` |
 | `config.stepUpTTL` | Step-up auth grace window after login before sensitive auth-method changes require re-prompting. Any Go duration (e.g. `5s`, `10m`, `1h`); empty = server default of 30m | `""` |
 | `config.androidPackageName` | Package name for Android App Links (`/.well-known/assetlinks.json`) | `to.schauer.schautrack` |
 | `config.androidCertFingerprints` | Comma-separated SHA-256 signing-cert fingerprint(s) for App Links (**deployment-specific**; empty disables the endpoint) | `""` |

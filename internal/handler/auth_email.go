@@ -186,10 +186,14 @@ func (h *AuthHandler) EmailChangeRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	user := middleware.GetCurrentUser(r)
-	newEmail := strings.ToLower(strings.TrimSpace(body.NewEmail))
 
-	if newEmail == "" || !strings.Contains(newEmail, "@") {
-		ErrorJSON(w, http.StatusBadRequest, "Please enter a valid email address.")
+	// Same gate as registration and OIDC auto-provisioning. Without it the
+	// registration check is trivially bypassed: sign up with a good address,
+	// then change it to anything. The old check here ("contains an @") let
+	// "<script>@x" and a 5 MB string straight through.
+	newEmail, err := validateEmail(body.NewEmail)
+	if err != nil {
+		ErrorJSON(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if newEmail == strings.ToLower(user.Email) {

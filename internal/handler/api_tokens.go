@@ -34,6 +34,12 @@ type apiTokenView struct {
 	ExpiresAt  *time.Time `json:"expires_at"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	CreatedAt  time.Time  `json:"created_at"`
+
+	// Expired is computed here rather than left to the client to derive from
+	// ExpiresAt. The browser clock is not the clock the limit is enforced
+	// against, and the UI both marks dead rows and gates its "New token"
+	// button on this — so it has to be the server's answer (issue #299).
+	Expired bool `json:"expired"`
 }
 
 // List handles GET /api/tokens.
@@ -46,11 +52,15 @@ func (h *APITokensHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// One clock reading for the whole list, so two rows expiring in the same
+	// instant cannot be classified differently.
+	now := time.Now()
 	views := make([]apiTokenView, 0, len(tokens))
 	for _, t := range tokens {
 		views = append(views, apiTokenView{
 			ID: t.ID, Name: t.Name, Prefix: t.Prefix, Scopes: t.Scopes,
 			ExpiresAt: t.ExpiresAt, LastUsedAt: t.LastUsedAt, CreatedAt: t.CreatedAt,
+			Expired: !t.Active(now),
 		})
 	}
 

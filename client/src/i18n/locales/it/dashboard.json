@@ -325,6 +325,7 @@
     "bodyFatNeedsWeight": "Grasso corporeo %: registra prima un peso qui sopra e si sbloccherà.",
     "toastBodyFatTracked": "Grasso corporeo registrato",
     "toastBodyFatCleared": "Grasso corporeo rimosso",
+    "toastBodyFatInvalid": "Il grasso corporeo deve essere tra 0 e {{max}} %",
     "toastBodyFatSaveFailed": "Salvataggio del grasso corporeo non riuscito",
     "bodyFatHint": "Il secondo campo è la tua percentuale di grasso corporeo, se la bilancia la misura.",
     "bodyFatPlaceholder": "% grasso"

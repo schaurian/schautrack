@@ -126,6 +126,17 @@ func decodeV1(w http.ResponseWriter, r *http.Request, dst any) *apierr.Problem {
 		}
 		var typeErr *json.UnmarshalTypeError
 		if errors.As(err, &typeErr) {
+			// Field is empty when the mismatch is the body itself rather than
+			// one of its fields — a bare array, string or number where an
+			// object belongs. There is nothing to put in invalid_params[].name
+			// then, and typeErr.Type is the destination *Go* type, so the old
+			// 422 answered `{"name": "", "reason": "expected handler.v1EntryInput"}`:
+			// useless to the caller and a leak of an internal type name into a
+			// public response. That is a malformed body, exactly like the
+			// multi-value case below, so it gets the same 400.
+			if typeErr.Field == "" {
+				return apierr.BadRequest("The request body must be a JSON object.")
+			}
 			return apierr.Unprocessable("A field has the wrong type.",
 				apierr.InvalidParam{
 					Name:   typeErr.Field,

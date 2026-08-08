@@ -42,7 +42,7 @@ func checkSchema(t *testing.T, schemaName string, v any) {
 	if err != nil {
 		t.Fatalf("marshal %s: %v", schemaName, err)
 	}
-	if err := openapi.Build("").ValidateJSON(schemaName, raw); err != nil {
+	if err := openapi.Build("", "").ValidateJSON(schemaName, raw); err != nil {
 		t.Errorf("%v\n\nserialized as: %s", err, raw)
 	}
 }
@@ -219,7 +219,7 @@ func TestProblemMatchesSchema(t *testing.T) {
 // contract test that cannot fail is worse than none, because it reads as
 // coverage.
 func TestValidatorRejectsDrift(t *testing.T) {
-	doc := openapi.Build("")
+	doc := openapi.Build("", "")
 
 	cases := []struct {
 		name, schema string
@@ -245,7 +245,7 @@ func TestValidatorRejectsDrift(t *testing.T) {
 // TestValidatorAcceptsFreeForm checks the deliberately open Plan schema is not
 // rejected for carrying undeclared keys.
 func TestValidatorAcceptsFreeForm(t *testing.T) {
-	doc := openapi.Build("")
+	doc := openapi.Build("", "")
 	if err := doc.ValidateJSON("Plan", []byte(`{"metrics":{"heightCm":180},"anything":[1,2,3]}`)); err != nil {
 		t.Errorf("Plan is documented as free-form but was rejected: %v", err)
 	}

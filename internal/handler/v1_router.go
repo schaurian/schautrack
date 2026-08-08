@@ -21,6 +21,19 @@ type V1Handler struct {
 	// server it is talking to.
 	BuildVersion string
 
+	// BaseURL is the public root this instance is reached at (config.BaseURL,
+	// i.e. the BASE_URL environment variable). It becomes the sole `servers`
+	// entry of GET /api/v1/openapi.json, so that a self-hosted instance's spec
+	// points clients — including Swagger UI's "Try it out", which is where a
+	// bearer token gets sent — at that instance and not at schautrack.com.
+	// Empty means "not configured", which yields a relative server URL that
+	// clients resolve against this instance anyway.
+	BaseURL string
+
+	// spec caches the built OpenAPI document for this handler. Per-handler, not
+	// package-level, so one instance's BaseURL can never be served to another.
+	spec specCache
+
 	// Barcode and AIEstimate are the app's own handlers, injected rather than
 	// reimplemented so the API and the UI cannot disagree about what a barcode
 	// resolves to or how an estimate is billed. Nil when the feature is
@@ -48,6 +61,16 @@ type V1Handler struct {
 // route tree without a database.
 func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 	r := chi.NewRouter()
+
+	// Panics are an error path like any other, so they must answer in the v1
+	// error format too. The globally-mounted middleware.Recovery writes the
+	// legacy {"ok": false} envelope, which would break invariant #3 at exactly
+	// the moment a client most needs a machine-readable error. Recovering here
+	// — inside the mount, so this runs first and the global one never sees the
+	// panic — keeps the decision in the route table rather than in a path
+	// prefix check somewhere else. Same reasoning as the 404/405 overrides
+	// below.
+	r.Use(middleware.ProblemRecovery)
 
 	// The spec is public: a client must be able to fetch it before it has a
 	// token, and it contains no user data.

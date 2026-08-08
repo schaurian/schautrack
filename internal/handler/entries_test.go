@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"schautrack/internal/service"
 )
@@ -331,6 +334,356 @@ func TestBuildDayOptionsBetweenInvalid(t *testing.T) {
 	}
 }
 
+// --- optionalString / optionalEntryName / buildEntryUpdates ---------------
+//
+// Regression coverage for #303. The legacy SPA surface decodes request bodies
+// into map[string]any and used to coerce every value with fmt.Sprintf("%v", …)
+// before inspecting it, which renders a JSON null as the four-character string
+// "<nil>". Two of the three coercion sites in entries_crud.go then compared
+// against that "<nil>" sentinel to recover "this was null"; the entry-name site
+// did not, so POST /entries/:id/update with {"name": null} renamed the entry to
+// <nil> instead of clearing it. The v1 surface never had the bug because
+// Optional[T] keeps the three states apart in the type system
+// (v1_optional_test.go); these tests are the map[string]any equivalent.
+
+// TestOptionalString covers the coercion matrix: which JSON shapes are absent,
+// which are null, and what a present value coerces to.
+func TestOptionalString(t *testing.T) {
+	// 118 ASCII bytes then a 4-byte avocado: 122 bytes total, so a 120-byte
+	// cap lands two bytes inside the emoji. optionalString does no truncating,
+	// so it must come back whole; TestOptionalEntryName checks the cut.
+	longUTF8 := strings.Repeat("a", 118) + "🥑"
+
+	tests := []struct {
+		name        string
+		body        string
+		key         string
+		wantPresent bool
+		wantNil     bool
+		wantValue   string
+	}{
+		{"key absent", `{"other":"x"}`, "name", false, true, ""},
+		{"empty body", `{}`, "name", false, true, ""},
+		{"explicit null", `{"name":null}`, "name", true, true, ""},
+		{"empty string", `{"name":""}`, "name", true, false, ""},
+		{"whitespace only", `{"name":"   "}`, "name", true, false, ""},
+		{"tabs and newlines", `{"name":"\t\n "}`, "name", true, false, ""},
+		{"normal string", `{"name":"Porridge"}`, "name", true, false, "Porridge"},
+		{"string is trimmed", `{"name":"  Porridge  "}`, "name", true, false, "Porridge"},
+		// The bug's mirror image: a user who legitimately types <nil> gets
+		// those four characters stored, not a cleared field. Under the old
+		// sentinel comparison this was indistinguishable from null.
+		{"literal <nil> string", `{"name":"<nil>"}`, "name", true, false, "<nil>"},
+		{"integer number", `{"name":42}`, "name", true, false, "42"},
+		{"fractional number", `{"name":42.5}`, "name", true, false, "42.5"},
+		{"negative number", `{"name":-7}`, "name", true, false, "-7"},
+		{"zero", `{"name":0}`, "name", true, false, "0"},
+		{"boolean true", `{"name":true}`, "name", true, false, "true"},
+		{"boolean false", `{"name":false}`, "name", true, false, "false"},
+		{"object", `{"name":{"a":1}}`, "name", true, false, "map[a:1]"},
+		{"empty object", `{"name":{}}`, "name", true, false, "map[]"},
+		{"array", `{"name":[1,2]}`, "name", true, false, "[1 2]"},
+		{"empty array", `{"name":[]}`, "name", true, false, "[]"},
+		{"over-120-byte string is not truncated here", `{"name":"` + longUTF8 + `"}`, "name", true, false, longUTF8},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, present := optionalString(decodeBody(t, tt.body), tt.key)
+			if present != tt.wantPresent {
+				t.Fatalf("present = %v, want %v", present, tt.wantPresent)
+			}
+			if (got == nil) != tt.wantNil {
+				t.Fatalf("value nil = %v, want %v (got %v)", got == nil, tt.wantNil, got)
+			}
+			if got != nil && *got != tt.wantValue {
+				t.Errorf("value = %q, want %q", *got, tt.wantValue)
+			}
+		})
+	}
+}
+
+// TestOptionalEntryName checks the entry-name layer: the 120-byte cap, the
+// UTF-8 boundary walk-back, and the collapse of a blank value to nil so the
+// column is cleared rather than set to "".
+func TestOptionalEntryName(t *testing.T) {
+	ascii130 := strings.Repeat("b", 130)
+	// 118 'a' + 🥑 = 122 bytes; cutting at 120 lands mid-emoji, so
+	// truncateUTF8 must walk back to 118 and drop the emoji entirely.
+	utf8Boundary := strings.Repeat("a", 118) + "🥑"
+
+	tests := []struct {
+		name        string
+		body        string
+		wantPresent bool
+		wantNil     bool
+		wantValue   string
+	}{
+		{"key absent leaves the name alone", `{"amount":100}`, false, true, ""},
+		{"explicit null clears the name", `{"name":null}`, true, true, ""},
+		{"empty string clears the name", `{"name":""}`, true, true, ""},
+		{"whitespace clears the name", `{"name":"   "}`, true, true, ""},
+		{"a value sets the name", `{"name":"Porridge"}`, true, false, "Porridge"},
+		{"literal <nil> is a real name", `{"name":"<nil>"}`, true, false, "<nil>"},
+		{"a number becomes its text", `{"name":42}`, true, false, "42"},
+		{"long ASCII is capped at 120 bytes", `{"name":"` + ascii130 + `"}`, true, false, strings.Repeat("b", 120)},
+		{"cap walks back off a split rune", `{"name":"` + utf8Boundary + `"}`, true, false, strings.Repeat("a", 118)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, present := optionalEntryName(decodeBody(t, tt.body), "name")
+			if present != tt.wantPresent {
+				t.Fatalf("present = %v, want %v", present, tt.wantPresent)
+			}
+			if (got == nil) != tt.wantNil {
+				t.Fatalf("value nil = %v, want %v (got %v)", got == nil, tt.wantNil, got)
+			}
+			if got == nil {
+				return
+			}
+			if *got != tt.wantValue {
+				t.Errorf("value = %q (%d bytes), want %q (%d bytes)", *got, len(*got), tt.wantValue, len(tt.wantValue))
+			}
+			if len(*got) > MaxEntryNameBytes {
+				t.Errorf("value is %d bytes, over the %d-byte cap", len(*got), MaxEntryNameBytes)
+			}
+			if !utf8.ValidString(*got) {
+				t.Errorf("value %q is not valid UTF-8; Postgres would reject it (22021)", *got)
+			}
+		})
+	}
+}
+
+// TestBuildEntryUpdatesNameThreeStates is the #303 regression proper: it walks
+// the same absent / null / present matrix TestEntryPatchThreeStates walks on
+// the v1 surface, but through the map[string]any path POST /entries/:id/update
+// actually takes.
+func TestBuildEntryUpdatesNameThreeStates(t *testing.T) {
+	t.Run("absent leaves the column alone", func(t *testing.T) {
+		updates, values, msg := buildEntryUpdates(decodeBody(t, `{"amount":"250"}`), false)
+		if msg != "" {
+			t.Fatalf("unexpected rejection: %s", msg)
+		}
+		for _, u := range updates {
+			if strings.HasPrefix(u, "entry_name") {
+				t.Fatalf("entry_name in SET clause %v for a body that never mentioned it", updates)
+			}
+		}
+		if len(values) != 1 {
+			t.Fatalf("values = %v, want just the amount", values)
+		}
+	})
+
+	t.Run("null clears the column", func(t *testing.T) {
+		updates, values, msg := buildEntryUpdates(decodeBody(t, `{"name":null}`), false)
+		if msg != "" {
+			t.Fatalf("unexpected rejection: %s", msg)
+		}
+		if len(updates) != 1 || updates[0] != "entry_name = $1" {
+			t.Fatalf("updates = %v, want [entry_name = $1]", updates)
+		}
+		if len(values) != 1 {
+			t.Fatalf("values = %v, want one", values)
+		}
+		// The bug: this used to be a *string pointing at "<nil>", so the
+		// entry was renamed to <nil> instead of having its name cleared.
+		got, _ := values[0].(*string)
+		if got != nil {
+			t.Errorf("bound value = %q, want NULL — {\"name\": null} must clear the name, not rename the entry", *got)
+		}
+	})
+
+	t.Run("a value sets the column", func(t *testing.T) {
+		_, values, msg := buildEntryUpdates(decodeBody(t, `{"name":"  Porridge  "}`), false)
+		if msg != "" {
+			t.Fatalf("unexpected rejection: %s", msg)
+		}
+		got, _ := values[0].(*string)
+		if got == nil || *got != "Porridge" {
+			t.Errorf("bound value = %v, want a pointer to \"Porridge\"", got)
+		}
+	})
+
+	t.Run("an empty string clears the column", func(t *testing.T) {
+		// What the SPA sends when the user empties the inline name input.
+		_, values, msg := buildEntryUpdates(decodeBody(t, `{"name":""}`), false)
+		if msg != "" {
+			t.Fatalf("unexpected rejection: %s", msg)
+		}
+		if got, _ := values[0].(*string); got != nil {
+			t.Errorf("bound value = %q, want NULL", *got)
+		}
+	})
+
+	t.Run("a literal <nil> is stored verbatim", func(t *testing.T) {
+		_, values, msg := buildEntryUpdates(decodeBody(t, `{"name":"<nil>"}`), false)
+		if msg != "" {
+			t.Fatalf("unexpected rejection: %s", msg)
+		}
+		got, _ := values[0].(*string)
+		if got == nil || *got != "<nil>" {
+			t.Errorf("bound value = %v, want a pointer to \"<nil>\" — a user may legitimately name an entry that", got)
+		}
+	})
+}
+
+// TestBuildEntryUpdatesAmount pins the amount column's three states. amount is
+// NOT NULL, so "cleared" means 0 rather than NULL.
+func TestBuildEntryUpdatesAmount(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		autoCalc  bool
+		wantSet   bool
+		wantValue int
+		wantMsg   bool
+	}{
+		{"absent leaves the column alone", `{"name":"x"}`, false, false, 0, false},
+		{"null zeroes it", `{"amount":null}`, false, true, 0, false},
+		{"empty string zeroes it", `{"amount":""}`, false, true, 0, false},
+		{"explicit zero zeroes it", `{"amount":"0"}`, false, true, 0, false},
+		{"a string value sets it", `{"amount":"250"}`, false, true, 250, false},
+		{"a number value sets it", `{"amount":250}`, false, true, 250, false},
+		{"an expression is evaluated", `{"amount":"100+150"}`, false, true, 250, false},
+		{"garbage is rejected", `{"amount":"abc"}`, false, false, 0, true},
+		// Previously "<nil>" was a magic zero. Now it is what it looks like:
+		// an unparseable amount, and the caller gets a 400 instead of a
+		// silent overwrite with 0.
+		{"literal <nil> is rejected, not silently zeroed", `{"amount":"<nil>"}`, false, false, 0, true},
+		{"over the cap is rejected", `{"amount":"99999"}`, false, false, 0, true},
+		{"auto-calc ignores the field", `{"amount":"250"}`, true, false, 0, false},
+		{"auto-calc ignores a null too", `{"amount":null}`, true, false, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updates, values, msg := buildEntryUpdates(decodeBody(t, tt.body), tt.autoCalc)
+			if (msg != "") != tt.wantMsg {
+				t.Fatalf("message = %q, wantMsg = %v", msg, tt.wantMsg)
+			}
+			if tt.wantMsg {
+				return
+			}
+			idx := -1
+			for i, u := range updates {
+				if strings.HasPrefix(u, "amount") {
+					idx = i
+				}
+			}
+			if (idx >= 0) != tt.wantSet {
+				t.Fatalf("updates = %v, wantSet = %v", updates, tt.wantSet)
+			}
+			if !tt.wantSet {
+				return
+			}
+			if got, ok := values[idx].(int); !ok || got != tt.wantValue {
+				t.Errorf("bound value = %v, want %d", values[idx], tt.wantValue)
+			}
+		})
+	}
+}
+
+// TestBuildEntryUpdatesMacros pins the macro columns. Unlike amount these are
+// nullable, and 0 means "clear" rather than "zero grams" — a deliberate legacy
+// quirk of this surface, preserved here so a refactor cannot drop it silently.
+func TestBuildEntryUpdatesMacros(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantSet   bool
+		wantNull  bool
+		wantValue int
+		wantMsg   bool
+	}{
+		{"absent leaves the column alone", `{"name":"x"}`, false, false, 0, false},
+		{"null clears it", `{"protein_g":null}`, true, true, 0, false},
+		{"empty string clears it", `{"protein_g":""}`, true, true, 0, false},
+		{"whitespace clears it", `{"protein_g":"   "}`, true, true, 0, false},
+		{"zero clears it", `{"protein_g":"0"}`, true, true, 0, false},
+		{"a string value sets it", `{"protein_g":"30"}`, true, false, 30, false},
+		{"a number value sets it", `{"protein_g":30}`, true, false, 30, false},
+		{"literal <nil> is rejected, not silently cleared", `{"protein_g":"<nil>"}`, false, false, 0, true},
+		{"a negative value is rejected", `{"protein_g":"-1"}`, false, false, 0, true},
+		{"over the cap is rejected", `{"protein_g":"1000"}`, false, false, 0, true},
+		{"a non-integer is rejected", `{"protein_g":"abc"}`, false, false, 0, true},
+		{"a fractional number is rejected", `{"protein_g":30.5}`, false, false, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updates, values, msg := buildEntryUpdates(decodeBody(t, tt.body), false)
+			if (msg != "") != tt.wantMsg {
+				t.Fatalf("message = %q, wantMsg = %v", msg, tt.wantMsg)
+			}
+			if tt.wantMsg {
+				return
+			}
+			idx := -1
+			for i, u := range updates {
+				if strings.HasPrefix(u, "protein_g") {
+					idx = i
+				}
+			}
+			if (idx >= 0) != tt.wantSet {
+				t.Fatalf("updates = %v, wantSet = %v", updates, tt.wantSet)
+			}
+			if !tt.wantSet {
+				return
+			}
+			if tt.wantNull {
+				if values[idx] != nil {
+					t.Errorf("bound value = %v, want NULL", values[idx])
+				}
+				return
+			}
+			if got, ok := values[idx].(int); !ok || got != tt.wantValue {
+				t.Errorf("bound value = %v, want %d", values[idx], tt.wantValue)
+			}
+		})
+	}
+}
+
+// TestBuildEntryUpdatesPlaceholdersAreSequential guards the contract UpdateEntry
+// relies on to append the WHERE-clause binds: fragment i uses $(i+1), and there
+// are exactly as many values as fragments. Getting this wrong misbinds every
+// column, which no amount of field-level testing would reveal.
+func TestBuildEntryUpdatesPlaceholdersAreSequential(t *testing.T) {
+	body := decodeBody(t, `{"name":"Porridge","amount":"250","protein_g":"30","carbs_g":null,"fat_g":"10","fiber_g":"5","sugar_g":"2"}`)
+	updates, values, msg := buildEntryUpdates(body, false)
+	if msg != "" {
+		t.Fatalf("unexpected rejection: %s", msg)
+	}
+	if len(updates) != len(values) {
+		t.Fatalf("%d fragments but %d values", len(updates), len(values))
+	}
+	if len(updates) != 7 {
+		t.Fatalf("updates = %v, want 7 fragments (name, amount, 5 macros)", updates)
+	}
+	for i, u := range updates {
+		want := fmt.Sprintf("$%d", i+1)
+		if !strings.HasSuffix(u, "= "+want) {
+			t.Errorf("fragment %d = %q, want it to bind %s", i, u, want)
+		}
+	}
+}
+
+// TestBuildEntryUpdatesEmptyBody documents that a body with nothing recognised
+// produces no fragments, which UpdateEntry turns into "No updates provided"
+// rather than an UPDATE with an empty SET clause (a SQL syntax error, i.e. a
+// 500 for the caller).
+func TestBuildEntryUpdatesEmptyBody(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"unknown":"x"}`, `{"amount":"250"}`} {
+		updates, _, msg := buildEntryUpdates(decodeBody(t, raw), true) // autoCalc drops amount
+		if msg != "" {
+			t.Fatalf("%s: unexpected rejection: %s", raw, msg)
+		}
+		if len(updates) != 0 {
+			t.Errorf("%s: updates = %v, want none", raw, updates)
+		}
+	}
+}
+
 // TestClassifyAmount pins how CreateEntry reads the raw `amount` field —
 // the caller-side half of issue #304.
 func TestClassifyAmount(t *testing.T) {
@@ -341,10 +694,22 @@ func TestClassifyAmount(t *testing.T) {
 		why  string
 	}{
 		{
-			name: "absent field",
-			raw:  "<nil>",
+			// #303 replaced the fmt.Sprintf("%v", …) coercion with
+			// optionalString, so an absent or null key now reaches this
+			// function as "" rather than the four-character "<nil>".
+			name: "absent, null, or cleared field",
+			raw:  "",
 			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: false},
-			why:  "fmt.Sprintf(\"%v\", nil); a weight-only entry must not 400",
+			why:  "a weight-only or macro-only entry must not 400",
+		},
+		{
+			// The sentinel is gone, so this is no longer a stand-in for null:
+			// it is a user who typed six literal characters, and it is
+			// unparseable. Telling the two apart is the point of #303.
+			name: "literal <nil> typed by a user",
+			raw:  "<nil>",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			why:  "present but unparseable; absence is \"\" now, not this",
 		},
 		{
 			name: "empty string",
