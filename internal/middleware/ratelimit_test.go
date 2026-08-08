@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -114,47 +115,122 @@ func TestRateLimiter_DifferentIPsIndependent(t *testing.T) {
 	}
 }
 
+// TestRateLimiter_ResetsAfterWindow runs under synctest so it can use the real
+// production window (RATE_LIMIT_AUTH defaults to 10 attempts per 15 minutes)
+// instead of the 50ms stand-in it used before, and still finish instantly.
+//
+// That matters for more than speed. The old test slept 60ms for a 50ms window,
+// which asserts "somewhere in that 10ms of slack the window reopened" — it
+// could not tell a window that resets at exactly `window` from one that resets
+// at `window + 9ms`, and on a loaded runner a 60ms sleep that lands late is a
+// flake. With a fake clock the boundary is exact, so the two assertions below
+// pin the actual contract: still blocked AT the window, open just past it.
 func TestRateLimiter_ResetsAfterWindow(t *testing.T) {
-	rl := &RateLimiter{
-		entries:    make(map[string]*rateLimitEntry),
-		max:        1,
-		window:     50 * time.Millisecond,
-		maxEntries: defaultMaxEntries,
-	}
+	synctest.Test(t, func(t *testing.T) {
+		const window = 15 * time.Minute
+		rl := &RateLimiter{
+			entries:    make(map[string]*rateLimitEntry),
+			max:        1,
+			window:     window,
+			maxEntries: defaultMaxEntries,
+		}
 
-	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+		handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
 
-	// First request succeeds
-	r1 := httptest.NewRequest("GET", "/", nil)
-	r1.RemoteAddr = "10.0.0.1:12345"
-	w1 := httptest.NewRecorder()
-	handler.ServeHTTP(w1, r1)
-	if w1.Code != http.StatusOK {
-		t.Errorf("first request: status = %d, want %d", w1.Code, http.StatusOK)
-	}
+		do := func() int {
+			r := httptest.NewRequest("GET", "/", nil)
+			r.RemoteAddr = "10.0.0.1:12345"
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			return w.Code
+		}
 
-	// Second request is blocked
-	r2 := httptest.NewRequest("GET", "/", nil)
-	r2.RemoteAddr = "10.0.0.1:12345"
-	w2 := httptest.NewRecorder()
-	handler.ServeHTTP(w2, r2)
-	if w2.Code != http.StatusTooManyRequests {
-		t.Errorf("second request: status = %d, want %d", w2.Code, http.StatusTooManyRequests)
-	}
+		if got := do(); got != http.StatusOK {
+			t.Errorf("first request: status = %d, want %d", got, http.StatusOK)
+		}
+		if got := do(); got != http.StatusTooManyRequests {
+			t.Errorf("second request: status = %d, want %d", got, http.StatusTooManyRequests)
+		}
 
-	// Wait for window to expire
-	time.Sleep(60 * time.Millisecond)
+		// The reset test is `now.Sub(windowStart) > rl.window`, strictly
+		// greater — so at exactly the window boundary the caller is still
+		// blocked. Asserting this direction is what stops the comparison being
+		// silently loosened to >=, which would let a caller through a full
+		// window early on every cycle.
+		time.Sleep(window)
+		if got := do(); got != http.StatusTooManyRequests {
+			t.Errorf("at exactly the window boundary: status = %d, want %d — the window reopened early",
+				got, http.StatusTooManyRequests)
+		}
 
-	// Third request should succeed (window reset)
-	r3 := httptest.NewRequest("GET", "/", nil)
-	r3.RemoteAddr = "10.0.0.1:12345"
-	w3 := httptest.NewRecorder()
-	handler.ServeHTTP(w3, r3)
-	if w3.Code != http.StatusOK {
-		t.Errorf("post-window request: status = %d, want %d", w3.Code, http.StatusOK)
-	}
+		// One nanosecond past it, the window is genuinely over. A fake clock
+		// makes a one-nanosecond assertion meaningful; a real one could not
+		// resolve it.
+		time.Sleep(time.Nanosecond)
+		if got := do(); got != http.StatusOK {
+			t.Errorf("just past the window: status = %d, want %d — the window never reopened",
+				got, http.StatusOK)
+		}
+	})
+}
+
+// TestRateLimiterCleanupEvictsElapsedEntries covers the eviction loop, which
+// had no test before: it is a bare `for range ticker.C` on a one-minute
+// ticker, so driving even a single iteration meant a one-minute test.
+//
+// It is the only thing bounding the limiter's memory below maxEntries. If it
+// stopped running, entries would accumulate one per unique client IP until the
+// 10k cap, at which point NewRateLimiter starts rejecting *unseen* IPs
+// outright — a slow drift into refusing legitimate traffic that no
+// single-request test would notice.
+func TestRateLimiterCleanupEvictsElapsedEntries(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const window = 15 * time.Minute
+		rl := &RateLimiter{
+			entries:    make(map[string]*rateLimitEntry),
+			max:        1,
+			window:     window,
+			maxEntries: defaultMaxEntries,
+		}
+
+		go rl.cleanup(t.Context())
+
+		handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = "10.0.0.1:12345"
+		handler.ServeHTTP(httptest.NewRecorder(), r)
+
+		entries := func() int {
+			rl.mu.Lock()
+			defer rl.mu.Unlock()
+			return len(rl.entries)
+		}
+
+		if got := entries(); got != 1 {
+			t.Fatalf("tracked entries after one request = %d, want 1", got)
+		}
+
+		// A tick while the entry's window is still open must not evict it —
+		// otherwise the limiter would forget callers mid-window and the cap
+		// would not hold.
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		if got := entries(); got != 1 {
+			t.Fatalf("entry evicted while its window was still open: %d entries, want 1", got)
+		}
+
+		// Once the window has fully elapsed, the next tick must drop it.
+		time.Sleep(window)
+		synctest.Wait()
+		if got := entries(); got != 0 {
+			t.Fatalf("entry survived %v past its window: %d entries, want 0 — "+
+				"the map grows without bound if eviction stops", window, got)
+		}
+	})
 }
 
 func TestRateLimiter_XForwardedFor(t *testing.T) {

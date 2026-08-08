@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -70,7 +71,7 @@ func NewRateLimiter(max int, window time.Duration, trustProxy bool) *RateLimiter
 		trustProxy: trustProxy,
 		reject:     rejectJSON,
 	}
-	go rl.cleanup()
+	go rl.cleanup(context.Background())
 	return rl
 }
 
@@ -129,18 +130,30 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func (rl *RateLimiter) cleanup() {
+// cleanup evicts entries whose window has fully elapsed, once a minute, until
+// its context is cancelled.
+//
+// The context exists so the loop has a shutdown path and so it can be tested:
+// a loop that only ever returns when the process exits cannot be driven by a
+// test that has to wait for every goroutine it started to finish. The
+// constructors pass context.Background(), which is the previous behaviour.
+func (rl *RateLimiter) cleanup(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
-	for range ticker.C {
-		rl.mu.Lock()
-		now := time.Now()
-		for ip, entry := range rl.entries {
-			if now.Sub(entry.windowStart) > rl.window {
-				delete(rl.entries, ip)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			rl.mu.Lock()
+			now := time.Now()
+			for ip, entry := range rl.entries {
+				if now.Sub(entry.windowStart) > rl.window {
+					delete(rl.entries, ip)
+				}
 			}
+			rl.mu.Unlock()
 		}
-		rl.mu.Unlock()
 	}
 }
 
