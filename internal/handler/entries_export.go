@@ -204,6 +204,14 @@ type importData struct {
 	weights         []importWeight
 	goalCandidate   *float64
 	hasUserSettings bool
+	// skippedEntries and skippedWeights count the rows that were present in
+	// the file but did not survive validation, including the ones dropped by
+	// the 10,000-row cap. Import reports the total so a partial import stops
+	// being indistinguishable from a complete one — a row with an amount the
+	// server could not parse used to just vanish, and the response still said
+	// the import succeeded (#351).
+	skippedEntries int
+	skippedWeights int
 }
 
 // isEmpty reports whether the import carries nothing worth writing. Import
@@ -218,7 +226,9 @@ func (d importData) isEmpty() bool {
 // no user) so the validation that guards the destructive import — the loop
 // that rejects bad dates, zero/oversized amounts, malformed timestamps and
 // out-of-range macros — can be table-tested directly. Invalid rows are
-// silently skipped; entries and weights are each capped at 10,000 rows.
+// skipped rather than failing the import, but they are counted into
+// skippedEntries/skippedWeights so Import can say so; entries and weights are
+// each capped at 10,000 rows, and the rows past the cap count as skipped too.
 func parseImportData(parsed map[string]any) importData {
 	// Extract calorie goal from various formats
 	var goalCandidate *float64
@@ -244,13 +254,16 @@ func parseImportData(parsed map[string]any) importData {
 
 	// Parse entries
 	var toInsert []importEntry
+	var skippedEntries int
 	if entries, ok := parsed["entries"].([]any); ok {
-		for _, e := range entries {
+		for i, e := range entries {
 			if len(toInsert) >= 10000 {
+				skippedEntries += len(entries) - i
 				break
 			}
 			entry, ok := e.(map[string]any)
 			if !ok {
+				skippedEntries++
 				continue
 			}
 			dateStr := ""
@@ -260,10 +273,12 @@ func parseImportData(parsed map[string]any) importData {
 				dateStr = v
 			}
 			if !isValidDate(dateStr) {
+				skippedEntries++
 				continue
 			}
 			amountResult := service.ParseAmount(fmt.Sprintf("%v", entry["amount"]), MaxEntryCalories)
 			if !amountResult.Ok || amountResult.Value == 0 {
+				skippedEntries++
 				continue
 			}
 			var name *string
@@ -296,13 +311,16 @@ func parseImportData(parsed map[string]any) importData {
 
 	// Parse weight entries
 	var weightToInsert []importWeight
+	var skippedWeights int
 	if weights, ok := parsed["weights"].([]any); ok {
-		for _, w := range weights {
+		for i, w := range weights {
 			if len(weightToInsert) >= 10000 {
+				skippedWeights += len(weights) - i
 				break
 			}
 			wEntry, ok := w.(map[string]any)
 			if !ok {
+				skippedWeights++
 				continue
 			}
 			dateStr := ""
@@ -312,10 +330,12 @@ func parseImportData(parsed map[string]any) importData {
 				dateStr = v
 			}
 			if !isValidDate(dateStr) {
+				skippedWeights++
 				continue
 			}
 			wr := service.ParseWeight(fmt.Sprintf("%v", wEntry["weight"]))
 			if !wr.Ok {
+				skippedWeights++
 				continue
 			}
 			// An unparseable body fat drops just that field — the weight is
@@ -344,7 +364,35 @@ func parseImportData(parsed map[string]any) importData {
 		weights:         weightToInsert,
 		goalCandidate:   goalCandidate,
 		hasUserSettings: hasUserSettings,
+		skippedEntries:  skippedEntries,
+		skippedWeights:  skippedWeights,
 	}
+}
+
+// importMessage renders the success text for a completed import.
+//
+// The skipped count is the point of it. parseImportData drops any row it
+// cannot read — an unparseable amount, a bad date, a row past the 10,000 cap —
+// and the response used to report an unqualified success, so a file whose
+// amounts the server could not parse imported as "Imported 3 entries." with no
+// hint that seven more rows were thrown away (#351). Saying how many were
+// dropped costs nothing and turns silent data loss into something the user can
+// act on.
+//
+// This stays inside the existing `message` string rather than adding a field
+// to the response: Account.tsx renders `message` verbatim, so it reaches the
+// user with no client, OpenAPI or i18n change. Per-row diagnostics (which rows,
+// and why) would need a real response-shape change and are filed as #409.
+func importMessage(parts []string, skipped int) string {
+	msg := fmt.Sprintf("Imported %s.", strings.Join(parts, " and "))
+	if skipped > 0 {
+		unit := "rows"
+		if skipped == 1 {
+			unit = "row"
+		}
+		msg += fmt.Sprintf(" Skipped %d %s that could not be read.", skipped, unit)
+	}
+	return msg
 }
 
 // Import handles POST /settings/import
@@ -511,5 +559,5 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		parts = append(parts, "user settings")
 	}
 
-	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Imported %s.", strings.Join(parts, " and "))})
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": importMessage(parts, data.skippedEntries+data.skippedWeights)})
 }

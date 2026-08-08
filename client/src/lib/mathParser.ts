@@ -1,3 +1,10 @@
+// The decimal literals parseNumber accepts: "5", "5.", "5.0", ".5". This is
+// exactly what strconv.ParseFloat accepts on the Go side once the input
+// alphabet is narrowed to digits and dots — no exponent, no sign, no hex
+// float, no underscores can reach it, because the run that is tested here is
+// built from /[0-9.]/ characters only.
+const NUMBER_RE = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
+
 // Safe mathematical expression evaluator using recursive descent parser
 function safeMathEval(expr: string): number {
   let pos = 0;
@@ -5,12 +12,26 @@ function safeMathEval(expr: string): number {
   function peek() { return pos < expr.length ? expr[pos] : null; }
   function consume() { return pos < expr.length ? expr[pos++] : null; }
 
+  // Consumes a run of [0-9.] and converts it, failing the whole parse when
+  // that run is not a well-formed decimal.
+  //
+  // The run is greedy, so it can swallow more than one decimal point:
+  // "5.0.0", "1.2.3", "5..". parseFloat does not reject those, it *truncates*
+  // to the longest valid prefix — parseFloat("5.0.0") is 5 and
+  // parseFloat("1.2.3") is 1.2 — so a fat-fingered amount used to be accepted
+  // as a plausible different amount (#353). NUMBER_RE is the shape check that
+  // parseFloat does not do; it is the same literal grammar strconv.ParseFloat
+  // enforces on the Go side, restricted to the digits-and-dots alphabet this
+  // run can contain.
+  //
+  // Keep in sync with parseNumber in internal/service/mathparser.go.
   function parseNumber(): number {
     let num = '';
     while (pos < expr.length && /[0-9.]/.test(expr[pos])) {
       num += consume();
     }
-    if (num === '' || num === '.') throw new Error('Invalid number');
+    if (num === '') throw new Error('Invalid number');
+    if (!NUMBER_RE.test(num)) throw new Error('Malformed number: ' + num);
     const value = parseFloat(num);
     if (!Number.isFinite(value)) throw new Error('Number out of range');
     return value;
@@ -21,7 +42,10 @@ function safeMathEval(expr: string): number {
     if (ch === '(') { consume(); const result = parseExpression(); if (consume() !== ')') throw new Error('Missing )'); return result; }
     if (ch === '-') { consume(); return -parseFactor(); }
     if (ch === '+') { consume(); return parseFactor(); }
-    if (/[0-9]/.test(ch!)) return parseNumber();
+    // A leading "." starts a number too — see the matching comment in
+    // parseFactor in internal/service/mathparser.go. parseNumber rejects the
+    // runs that are not real numbers (".", "..5").
+    if (/[0-9.]/.test(ch!)) return parseNumber();
     throw new Error('Unexpected: ' + ch);
   }
 
@@ -59,6 +83,11 @@ function safeMathEval(expr: string): number {
 // normalization is there to support.
 const HEX_LITERAL_RE = /(^|[^0-9.])0[xX][0-9a-fA-F]/;
 
+// Every whitespace character, defined as the union of JavaScript's `\s` and
+// Go's unicode.IsSpace so both parsers strip the identical set. See the call
+// site in parseAmount and stripWhitespace in internal/service/mathparser.go.
+const WHITESPACE_RE = /[\s\u0085]/g;
+
 export function parseAmount(input: string | number | null | undefined, options: { maxAbs?: number } = {}): { ok: boolean; value: number } {
   const maxAbs = options.maxAbs ?? null;
   if (input === undefined || input === null) return { ok: false, value: 0 };
@@ -72,7 +101,16 @@ export function parseAmount(input: string | number | null | undefined, options: 
   if (HEX_LITERAL_RE.test(String(input).replace(/,/g, ''))) return { ok: false, value: 0 };
 
   const expr = String(input)
-    .replace(/\s+/g, '')
+    // Strip every whitespace character, not just U+0020: "1 000" with a NBSP
+    // or a narrow NBSP is what fr-FR / de-CH locales produce, and U+FEFF is
+    // what a BOM-prefixed CSV paste carries. `\s` covers all of those, and
+    // U+0085 NEXT LINE is added because Go's unicode.IsSpace counts it and
+    // `\s` does not — the two sides must strip the identical set or the
+    // server rejects what this accepts (#351). U+200B ZERO WIDTH SPACE is in
+    // neither set and stays rejected on both sides: it is not a space
+    // separator.
+    // Keep in sync with stripWhitespace in internal/service/mathparser.go.
+    .replace(WHITESPACE_RE, '')
     .replace(/,/g, '')
     .replace(/[–—−]/g, '-')
     .replace(/[x×]/gi, '*')
