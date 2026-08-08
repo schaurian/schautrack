@@ -26,6 +26,9 @@ on:
       - 'playwright.config.ts'
       - 'package.json'
       - 'package-lock.json'
+      # The contract suite lives here; same reasoning as the e2e paths above.
+      - 'scripts/**'
+      - 'api/openapi.json'
     tags:
       - 'v*'
   pull_request:
@@ -49,6 +52,8 @@ on:
       - 'playwright.config.ts'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/**'
+      - 'api/openapi.json'
 
 # One concurrency group per COMMIT, not per ref.
 #
@@ -300,6 +305,34 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
           govulncheck ./...
+
+  contract:
+    # Same runner reasoning as `e2e` below: this builds and runs the compose
+    # stack, which the memory-limited single-slot arc-runner cannot host
+    # without serialising the whole pipeline behind it.
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      # No Go or Node step: the script talks to the stack over HTTP and seeds
+      # its token with psql inside the db container. Everything it needs is
+      # docker, curl and uv.
+      - name: Run OpenAPI contract tests
+        run: npm run test:contract
+
+      - name: Upload contract report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: contract-report
+          path: contract-report.xml
+          retention-days: 14
+          if-no-files-found: ignore
 
   e2e:
     # NOTE: deliberately NOT the

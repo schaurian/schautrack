@@ -8,7 +8,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -92,6 +94,22 @@ func (h *V1Handler) withIdempotency(next http.HandlerFunc) http.HandlerFunc {
 		if len(key) > maxIdempotencyKeyLen {
 			apierr.Write(w, r, apierr.BadRequest(
 				"The Idempotency-Key header is too long (maximum 255 characters)."))
+			return
+		}
+
+		// The same defect #378 fixed for JSON bodies, on the one input path
+		// that fix did not cover. The key goes straight into a TEXT column, and
+		// Postgres TEXT holds neither invalid UTF-8 nor a NUL — either one
+		// fails the INSERT with SQLSTATE 22021, which dbFail turns into a 500
+		// for a request that is entirely the caller's fault.
+		//
+		// Headers are raw bytes, so unlike a JSON body there is no decoder in
+		// front of this to reject the input first: Go hands over whatever
+		// arrived on the wire. Found by the contract fuzzer, which sends
+		// arbitrary bytes in every header the document declares.
+		if !utf8.ValidString(key) || strings.ContainsRune(key, 0) {
+			apierr.Write(w, r, apierr.BadRequest(
+				"The Idempotency-Key header must be valid UTF-8 and cannot contain NUL characters."))
 			return
 		}
 

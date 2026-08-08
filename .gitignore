@@ -21,3 +21,7 @@ coverage.out
 coverage.txt
 
 .superpowers/
+
+# Schemathesis contract-test report
+contract-report.xml
+.schemathesis/
