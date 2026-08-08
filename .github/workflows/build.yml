@@ -286,10 +286,9 @@ jobs:
     needs: test
     # Deliberately not serialised: this job only *reads* git state. A group here
     # would be theatre — it is released the moment the job ends, several jobs
-    # before create-tag writes anything, so two `main` runs would still derive
-    # the same version. Job-level concurrency cannot span a multi-job critical
-    # section; closing that gap needs the derivation moved into create-tag
-    # (issue #402).
+    # before create-tag writes anything. Job-level concurrency cannot span a
+    # multi-job critical section, so the derivation is instead re-checked inside
+    # create-tag's lock (#402); see scripts/next-version.sh.
     outputs:
       version: ${{ steps.version.outputs.version }}
       should_tag: ${{ steps.version.outputs.should_tag }}
@@ -312,33 +311,9 @@ jobs:
           fi
 
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            # Get latest tag
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            VERSION="${LATEST_TAG##v}"  # Strip all leading v's
-
-            # Parse semantic version
-            MAJOR=$(echo $VERSION | cut -d. -f1)
-            MINOR=$(echo $VERSION | cut -d. -f2)
-            PATCH=$(echo $VERSION | cut -d. -f3)
-
-            # Check commit messages since last tag
-            COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
-
-            if echo "$COMMITS" | grep -qiE "^(breaking|major):"; then
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-            elif echo "$COMMITS" | grep -qiE "^(feat|feature|minor):"; then
-              MINOR=$((MINOR + 1))
-              PATCH=0
-            elif echo "$COMMITS" | grep -qiE "^(fix|patch|chore|docs|refactor):"; then
-              PATCH=$((PATCH + 1))
-            else
-              # Default to patch bump if no conventional commit prefix
-              PATCH=$((PATCH + 1))
-            fi
-
-            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            # Shared with create-tag, which re-runs it under the tag lock to
+            # verify nothing moved in between (#402).
+            NEW_VERSION=$(sh scripts/next-version.sh)
             echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "should_tag=true" >> $GITHUB_OUTPUT
 
@@ -373,10 +348,10 @@ jobs:
     # now per-commit, so two `main` runs can reach this job at the same time.
     # Serialise the tag writes repo-wide (not per-ref: tags are not scoped to a
     # branch).
-    # This orders the writes; it does NOT make version derivation atomic —
-    # compute-version read `git describe` several jobs earlier. Two `main`
-    # pushes inside one run window still derive the same version, and the second
-    # tag push then fails loudly instead of clobbering. Tracked in issue #402.
+    # The lock orders the writes; the "Re-derive the version" step below closes
+    # the rest of #402 by re-checking the derivation inside it, so a run whose
+    # version was overtaken fails with a diagnosis instead of pushing a tag that
+    # disagrees with the images already published under it.
     concurrency:
       group: build-git-tags
       cancel-in-progress: false
@@ -388,6 +363,31 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
+      - name: Re-derive the version under the tag lock
+        # compute-version read `git describe` several jobs ago, outside this
+        # concurrency group. If another `main` run tagged in the meantime, the
+        # version this run has been building and labelling images with is now
+        # the wrong one — it belongs to that other commit (#402).
+        #
+        # Re-running the SAME script here, inside the lock, is what makes the
+        # check meaningful: it compares against the tag namespace as it stands
+        # at the moment of writing.
+        #
+        # A mismatch fails the release rather than tagging anyway. Tagging the
+        # stale version would point v<x> at this commit while the images
+        # published under it came from the other run, which is the confusing
+        # half-state a "loud failure" exists to avoid. Re-running the workflow
+        # on this commit derives the now-correct version and republishes
+        # cleanly.
+        run: |
+          EXPECTED="${{ needs.compute-version.outputs.version }}"
+          ACTUAL=$(sh scripts/next-version.sh)
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::Version raced: this run built and published images as v$EXPECTED, but the next version is now v$ACTUAL — another main run tagged while this one was building. Re-run this workflow on this commit to republish under v$ACTUAL."
+            exit 1
+          fi
+          echo "v$EXPECTED is still the next version"
 
       - name: Create and push tag
         run: |
