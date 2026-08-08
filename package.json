@@ -1,4 +1,5 @@
 {
+  "name": "schautrack",
   "private": true,
   "scripts": {
     "screenshots": "sh scripts/screenshots.sh",
@@ -11,6 +12,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "bcryptjs": "^3.0.3",
     "tsx": "^4.19.0"
   }
 }

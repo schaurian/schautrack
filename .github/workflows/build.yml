@@ -36,13 +36,31 @@ on:
       - 'cliff.toml'
       - '.github/workflows/build.yml'
 
-# Serialize runs per ref so two quick merges to the same branch cannot race:
-# without this, both runs compute the same next version from the same latest
-# tag and clobber each other's image/tag. Queue rather than cancel so an
-# in-flight image push is never interrupted.
+# One concurrency group per COMMIT, not per ref.
+#
+# GitHub keeps at most one *pending* run per concurrency group: "By default, any
+# existing `pending` job or workflow in the same concurrency group will be
+# canceled and the new queued job or workflow will take its place."
+# `cancel-in-progress: false` only protects the run that is already executing —
+# it does not queue the rest, which is what the previous version of this comment
+# claimed. So `group: build-${{ github.ref }}` silently threw CI away for every
+# merge in a burst except the first and the last: on 2026-08-08 four consecutive
+# `staging` merge commits ran ZERO jobs, and the resulting tip of `staging` was
+# never tested (issue #377). A test job that never runs protects nothing.
+#
+# Keying on the commit gives every pushed commit its own run, which can never be
+# evicted. The serialisation the old group was reaching for now lives on the
+# individual jobs that mutate shared state — see the `concurrency:` blocks on
+# create-tag (git tags), publish-helm (gh-pages) and notify-argocd (the deploy
+# nudge). test / compute-version / build-and-push / create-manifest are
+# deliberately NOT serialised; each of those explains why at the job.
+#
+# Pull requests keep one group per PR and DO cancel in progress: a superseded PR
+# run is wasted work whose result is about to be replaced anyway, and cancelling
+# it frees the runner.
 concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: false
+  group: build-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io
@@ -51,6 +69,32 @@ env:
 jobs:
   test:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    # Without a database, every test guarded by `TEST_DATABASE_URL` skips — and
+    # `go test` reports a skip as a pass. That silently disabled the tests most
+    # worth running, above all
+    # TestRunAllMigrationsIdempotentBodyProfileAndWeightGoals: migrations re-run
+    # on every container start, so a non-idempotent migration's first symptom is
+    # a pod that will not start, in production, on a RollingUpdate with
+    # maxUnavailable: 0.
+    #
+    # The postgres major here must track the one the app actually runs against
+    # (compose.test.yml / the Helm chart's postgres) — testing migrations on a
+    # different major tests the wrong DDL semantics.
+    #
+    # TestIntegrationTestsRunInCI (internal/database/ci_guard_test.go) fails the
+    # build if this block is ever removed while CI keeps reporting green.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,6 +106,8 @@ jobs:
 
       - name: Run Go tests
         run: go test ./...
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 
       # Client type errors were previously caught only inside the Docker build
       # (client "build" is "tsc -b && vite build"), which runs after
@@ -103,6 +149,12 @@ jobs:
   compute-version:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: test
+    # Deliberately not serialised: this job only *reads* git state. A group here
+    # would be theatre — it is released the moment the job ends, several jobs
+    # before create-tag writes anything, so two `main` runs would still derive
+    # the same version. Job-level concurrency cannot span a multi-job critical
+    # section; closing that gap needs the derivation moved into create-tag
+    # (issue #402).
     outputs:
       version: ${{ steps.version.outputs.version }}
       should_tag: ${{ steps.version.outputs.should_tag }}
@@ -182,6 +234,17 @@ jobs:
     # leaves a dangling version tag with no corresponding image or release.
     needs: [compute-version, create-manifest]
     if: needs.compute-version.outputs.should_tag == 'true'
+    # The git tag namespace is repository-wide and the workflow-level group is
+    # now per-commit, so two `main` runs can reach this job at the same time.
+    # Serialise the tag writes repo-wide (not per-ref: tags are not scoped to a
+    # branch).
+    # This orders the writes; it does NOT make version derivation atomic —
+    # compute-version read `git describe` several jobs earlier. Two `main`
+    # pushes inside one run window still derive the same version, and the second
+    # tag push then fails loudly instead of clobbering. Tracked in issue #402.
+    concurrency:
+      group: build-git-tags
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -201,6 +264,15 @@ jobs:
   build-and-push:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: compute-version
+    # Deliberately not serialised. Two reasons:
+    #   1. This is a matrix job, and one job-level concurrency group is shared by
+    #      every matrix leg unless `matrix.platform` is part of the key — so a
+    #      naive group here would queue linux/arm64 behind linux/amd64 and, since
+    #      only one job may be pending per group, cancel one of them outright.
+    #   2. It needs no lock anyway: the image is pushed by digest
+    #      (push-by-digest=true, i.e. content-addressed), so overlapping pushes
+    #      are idempotent, and the human-readable tag is applied later by
+    #      create-manifest from this run's own digest artifacts.
     permissions:
       contents: read
       packages: write
@@ -274,6 +346,9 @@ jobs:
     # Only assemble/push the multi-arch manifest for push events — PR builds
     # do not push images, so there are no digests to reference.
     if: github.event_name == 'push'
+    # Deliberately not serialised: on staging the tag it writes is unique per run
+    # (staging-<run_number>), and the digests it consumes are this run's own
+    # upload-artifact output, so concurrent runs have nothing to contend over.
     permissions:
       contents: read
       packages: write
@@ -334,6 +409,10 @@ jobs:
     # manifest, so this transitively runs after create-manifest too).
     needs: [compute-version, create-tag]
     if: needs.compute-version.outputs.should_tag == 'true'
+    # Deliberately NOT put in the build-git-tags group: it is already ordered
+    # behind create-tag by `needs`, and sharing that group would let a later
+    # run's create-tag cancel this run's pending create-release, leaving a
+    # pushed tag with no GitHub release attached.
     permissions:
       contents: write
     steps:
@@ -410,6 +489,22 @@ jobs:
     # emits an 8-char SHA that is not valid semver (helm package would reject it),
     # and gh-pages must only be written by push events on main/staging.
     if: github.event_name == 'push'
+    # gh-pages is a single branch mutated by a plain `git push` with no rebase or
+    # retry, so two concurrent publishes mean one push is rejected
+    # non-fast-forward and that chart is lost. The group is repository-wide, not
+    # per-ref, because `main` and `staging` write different directories of the
+    # SAME branch — a collision the old per-ref workflow-level group never
+    # covered.
+    # Left on the default `queue: single`, so at most one publish is pending and
+    # a merge burst collapses to the newest chart. That is deliberate: the steps
+    # below `rm -f *.tgz` and re-index (last writer wins) while ArgoCD resolves
+    # `>=0.0.1` to the highest version, so publishing every chart in a burst
+    # would risk leaving the highest index entry pointing at a deleted file —
+    # GitHub does not guarantee queue ordering. Fix issue #405 before switching
+    # this to `queue: max`.
+    concurrency:
+      group: build-gh-pages
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -501,6 +596,15 @@ jobs:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
     needs: [compute-version, publish-helm]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    # One deploy nudge per ref is enough. This job waits up to 15 minutes for
+    # GitHub Pages and then refreshes a single ArgoCD application; in a merge
+    # burst only the newest chart is worth deploying, and serialising per ref
+    # also stops several 15-minute waits from parking on the single self-hosted
+    # runner (issue #406). Dropping a superseded nudge is safe: every step here
+    # is already best-effort and ArgoCD polls the Helm repo every ~3 minutes.
+    concurrency:
+      group: build-argocd-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write # push an empty gh-pages commit when a Pages deployment fails
     steps:

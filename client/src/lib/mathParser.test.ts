@@ -146,4 +146,104 @@ describe('parseAmount', () => {
       expect(parseAmount(input, { maxAbs }), input).toEqual({ ok, value });
     }
   });
+  // The TypeScript twin of TestParseAmountNormalizationEdges in
+  // internal/service/mathparser_test.go. This matters more on this side than
+  // on the Go side: EntryForm parses the box locally and POSTs the resulting
+  // *number*, so for the SPA this parser is the one that decides what gets
+  // stored. Keep the two tables in sync.
+  it('pins the consequences of the normalization pass', () => {
+    const cases: Array<[string, boolean, number, string]> = [
+      // Hex-looking input. "x" -> "*" would make "0x10" read as 0*10 and be
+      // silently accepted as 0 — which EntryForm sends as `amount: 0`, an
+      // empty entry reported as a success. Rejected instead.
+      ['0x10', false, 0, 'hex literal rejected, not silently 0'],
+      ['0X10', false, 0, 'uppercase hex literal rejected'],
+      ['0xff', false, 0, 'hex letters were never valid expression characters'],
+      ['0x', false, 0, 'trailing operator after x->*'],
+      ['0x0', false, 0, 'hex literal even when the value would be 0 anyway'],
+      ['(0x10)', false, 0, 'hex literal rejected inside parentheses'],
+      ['5+0x10', false, 0, 'hex literal rejected as a sub-expression'],
+      // ...without losing the multiplication shorthand it is carved out of.
+      ['2x3', true, 6, 'the multiplication shorthand the rewrite exists for'],
+      ['10x16', true, 160, 'left operand ends in 0, still multiplication'],
+      ['100x2', true, 200, 'left operand ends in 00, still multiplication'],
+      ['1.0x2', true, 2, '0 after a decimal point is not a hex prefix'],
+      ['0 x 10', true, 0, 'spaced form is an explicit multiplication by zero'],
+      ['1,0x2', true, 20, 'comma is stripped first, so this is 10*2'],
+
+      // Space stripping: ALL whitespace goes, so a space inside a number
+      // closes over silently.
+      ['5 5', true, 55, 'digits concatenate: a typo becomes a plausible number'],
+      ['1 000', true, 1000, 'space as a thousands separator, intended'],
+      ['2 x 3', true, 6, 'spaces around operators, intended'],
+      ['5 -', false, 0, 'trailing operator still fails the grammar'],
+      [' 5 ', true, 5, 'surrounding spaces'],
+      ['\t7\n', true, 7, 'tabs and newlines'],
+      // DIVERGENCE from Go: /\s+/ strips Unicode whitespace, Go strips only
+      // U+0020, so the server rejects what this accepts. Harmless for the SPA
+      // (this parser runs first and sends a number) but real for the v1 API.
+      ['5\u00a05', true, 55, 'NBSP stripped here, NOT in the Go parser'],
+
+      // Comma stripping: a comma is ALWAYS a thousands separator, never a
+      // decimal point. In an expression parser it cannot be both.
+      ['1,000', true, 1000, 'comma as a thousands separator, intended'],
+      ['1,234 + 500', true, 1734, 'thousands separator inside an expression'],
+      ['1,5', true, 15, 'European decimal becomes 15, NOT 1.5'],
+      ['1,50', true, 150, 'same, two decimal places'],
+      ['0,4', true, 4, 'same, leading zero'],
+
+      // Sign forms: parseFactor recurses on unary +/-, so signs stack.
+      ['+5', true, 5, 'leading unary plus'],
+      ['--5', true, 5, 'double negation'],
+      ['-+5', true, -5, 'mixed unary signs'],
+      ['5--3', true, 8, 'binary minus then unary minus'],
+      ['5+-3', true, 2, 'binary plus then unary minus'],
+
+      // Decimal forms: parseNumber accepts any run of [0-9.] and hands it to
+      // parseFloat, so a malformed decimal truncates to its valid prefix.
+      // parseFactor needs a leading digit, hence the ".5" / "5." asymmetry.
+      ['5.', true, 5, 'trailing decimal point is tolerated'],
+      ['.5', false, 0, 'leading decimal point is NOT (asymmetric with "5.")'],
+      ['5..', true, 5, 'trailing dots tolerated'],
+      ['..5', false, 0, 'leading dots rejected'],
+      ['5.0.0', true, 5, 'malformed decimal truncates to its valid prefix'],
+      ['1.2.3', true, 1, 'same, and 1.2 rounds to 1'],
+
+      // Scientific notation: "e" is not an allowed character and the grammar
+      // has no exponent operator.
+      ['1e1', false, 0, 'no exponent operator in the grammar'],
+      ['1E1', false, 0, 'same, uppercase'],
+      ['1e+06', false, 0, 'what a stringified 1000000 looks like'],
+      ['1.234567e+06', false, 0, 'what a stringified 1234567 looks like'],
+
+      // Non-ASCII digits: no Unicode digit folding is attempted.
+      ['０', false, 0, 'fullwidth zero'],
+      ['１２３', false, 0, 'fullwidth digits'],
+      ['١٢٣', false, 0, 'Arabic-Indic digits'],
+      ['½', false, 0, 'vulgar fraction'],
+
+      ['', false, 0, 'empty input'],
+    ];
+    for (const [input, ok, value, why] of cases) {
+      expect(parseAmount(input), `${JSON.stringify(input)} (${why})`).toEqual({ ok, value });
+    }
+  });
+
+  // The ok/0 class, which the Go handler reads as "no calorie component" via
+  // `amountResult.Ok && amountResult.Value != 0`. Each of these is arithmetic
+  // the user actually expressed as zero. "0x10" used to be in this class and
+  // is now rejected above.
+  //
+  // Compared with `=== 0` rather than toEqual because a negated zero produces
+  // JavaScript's -0 ('-0', '-0.4'), which Object.is — and therefore toEqual —
+  // distinguishes from 0 while nothing else does: -0 === 0, String(-0) is "0",
+  // and JSON.stringify(-0) is "0", so the server can never receive it. Go's
+  // int(math.Round(-0.4)) is a plain 0.
+  it('accepts honest zeros', () => {
+    for (const input of ['0', '0.0', '-0', '-0.4', '(0)', '0.4', '10-10', '5-5', '0*5', '0/1', '0 x 10']) {
+      const r = parseAmount(input);
+      expect(r.ok, input).toBe(true);
+      expect(r.value === 0, `${input} -> ${r.value}`).toBe(true);
+    }
+  });
 });

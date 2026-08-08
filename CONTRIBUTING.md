@@ -60,10 +60,15 @@ full stack defined in `compose.test.yml` (app on port 3001, PostgreSQL, Mailpit)
 seeds a test user, then runs the Playwright suite in `e2e/`:
 
 ```bash
-npm install                       # installs @playwright/test + tsx (root deps)
+npm ci                            # installs the root harness deps
 npx playwright install chromium   # one-time: download the browser
 npm run test:e2e
 ```
+
+Docker, Node.js and a browser are the only prerequisites — everything else the
+suite needs is a root `devDependency`, so `npm ci` is sufficient. (The seeds hash
+legacy bcrypt passwords with `bcryptjs`, which is pure JavaScript and needs no
+native build step and no Python.)
 
 `test:e2e` **exits with Playwright's status** — a failing suite fails the
 command, so `npm run test:e2e && git push` does the right thing. A failure to
@@ -85,6 +90,13 @@ Related scripts:
   stack does not come up or the seed fails; the leading `docker compose down -v`
   that clears a previous stack is best-effort and its status is ignored.
 - `npm run test:e2e:down` — tear the test stack down and remove its volumes.
+
+`e2e/` is for asserting specs only — everything in it runs in CI. Screenshot
+capture and other ad-hoc browser automation belong in `scripts/`, run directly
+with `npx tsx` (see `npm run screenshots` → `scripts/screenshots.ts`). As a
+backstop, `playwright.config.ts` ignores the `*.helper.spec.ts` suffix in both
+the top-level and the `chromium` `testIgnore`, so a throwaway spec that does land
+in `e2e/` is never picked up — not even when passed on the command line.
 
 Please add or update tests for any behavior you change, and run both `go test
 ./...` and the e2e suite before opening a pull request.

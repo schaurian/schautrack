@@ -2,9 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
 	"schautrack/internal/model"
+	"schautrack/internal/service"
 )
 
 func TestValidateHeightCm(t *testing.T) {
@@ -92,15 +94,81 @@ func TestValidateActivityLevel(t *testing.T) {
 	}
 }
 
+// targetWeightColumnMax is the largest value the weight_goals.target_weight
+// NUMERIC(6,2) column can hold (internal/database/migrations.go). Anything the
+// validator accepts must fit, or the INSERT overflows and the caller gets a 500
+// instead of a 400.
+const targetWeightColumnMax = 9999.99
+
+// fitsTargetWeightColumn reports whether w survives an INSERT into
+// NUMERIC(6,2). Postgres rounds to two decimals on store, so the check is
+// against the rounded value; NaN and ±Inf never fit.
+//
+// "Survives" includes weight_goals_positive CHECK (target_weight > 0), which is
+// evaluated on the ROUNDED value: 0.001 fits the column's width but is stored
+// as 0.00 and rejected (#374).
+func fitsTargetWeightColumn(w float64) bool {
+	if math.IsNaN(w) || math.IsInf(w, 0) {
+		return false
+	}
+	stored := math.Round(w*100) / 100
+	return stored > 0 && stored <= targetWeightColumnMax
+}
+
 func TestValidateTargetWeight(t *testing.T) {
-	if !validateTargetWeight(70) {
-		t.Error("70 should be valid")
+	tests := []struct {
+		name string
+		val  float64
+		want bool
+	}{
+		{"zero", 0, false},
+		{"negative", -5, false},
+		{"NaN", math.NaN(), false},
+		{"positive infinity", math.Inf(1), false},
+		{"negative infinity", math.Inf(-1), false},
+		// Positive, but NUMERIC(6,2) stores it as 0.00 and
+		// weight_goals_positive then rejects the row — a 500 where the caller
+		// should have got a 400 (#374, the same defect #302 fixed in
+		// ParseWeight).
+		{"tiny but positive, rounds to 0.00", 0.001, false},
+		{"rounds up to the smallest storable value", 0.005, true},
+		{"smallest storable value", 0.01, true},
+		{"one", 1, true},
+		{"typical", 70, true},
+		{"ParseWeight cap", service.MaxWeight, true},
+		{"just over the ParseWeight cap", service.MaxWeight + 1, false},
+		{"column max", targetWeightColumnMax, false},
+		{"column max plus one", 10000, false},
+		{"absurdly large", 1e9, false},
 	}
-	if validateTargetWeight(0) {
-		t.Error("0 should be invalid")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validateTargetWeight(tt.val); got != tt.want {
+				t.Errorf("validateTargetWeight(%v) = %v, want %v", tt.val, got, tt.want)
+			}
+		})
 	}
-	if validateTargetWeight(-5) {
-		t.Error("-5 should be invalid")
+}
+
+// TestValidateTargetWeightFitsColumn pins the invariant validateRateKgPerWeek
+// already holds for its own column: every value the validator accepts must be
+// storable in target_weight NUMERIC(6,2). Without an upper bound in the
+// validator, {"target_weight": 100000} passed here and 500d on INSERT.
+func TestValidateTargetWeightFitsColumn(t *testing.T) {
+	candidates := []float64{
+		math.NaN(), math.Inf(1), math.Inf(-1),
+		-1e9, -1, 0,
+		0.001, 0.005, 1, 70, 999.994,
+		service.MaxWeight - 0.01, service.MaxWeight, service.MaxWeight + 0.01,
+		1501, 9999.99, 9999.995, 10000, 1e6, 1e9, math.MaxFloat64,
+	}
+	for f := 0.5; f < 1e12; f *= 3 {
+		candidates = append(candidates, f)
+	}
+	for _, w := range candidates {
+		if validateTargetWeight(w) && !fitsTargetWeightColumn(w) {
+			t.Errorf("validateTargetWeight(%v) accepted a value that does not fit NUMERIC(6,2)", w)
+		}
 	}
 }
 

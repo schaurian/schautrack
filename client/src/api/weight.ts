@@ -10,11 +10,20 @@ export function getWeightDay(date: string, userId?: number) {
 }
 
 /**
- * `body_fat` is three-state on the server: omit the key to leave a stored
- * reading untouched, send null to clear it, send a number to set it. Callers
- * that only deal in weight must omit it rather than sending null.
+ * Both value fields are optional and omitting one leaves whatever is stored
+ * alone, so a save only ever writes what the user actually entered.
+ *
+ * - `body_fat` is three-state: omit the key to keep a stored reading, send null
+ *   to clear it, send a number to set it.
+ * - `weight` is two-state (the column is NOT NULL, so it cannot be cleared):
+ *   omit the key to keep the stored weight, send a number to replace it.
+ *   Callers that only deal in body fat MUST omit it — restating a cached weight
+ *   overwrites a newer one logged from another device. Omitting it on a date
+ *   with no entry yet is an error: there is no weight to attach the reading to.
+ *
+ * At least one of the two must be present.
  */
-export function upsertWeight(data: { date: string; weight: number; body_fat?: number | null }) {
+export function upsertWeight(data: { date: string; weight?: number; body_fat?: number | null }) {
   return api<{ ok: boolean }>('/weight/upsert', {
     method: 'POST',
     body: JSON.stringify(data),

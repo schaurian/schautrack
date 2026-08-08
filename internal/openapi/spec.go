@@ -3,6 +3,7 @@ package openapi
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"schautrack/internal/service"
 )
@@ -94,6 +95,13 @@ served as ` + "`application/problem+json`" + `:
 
 Branch on ` + "`type`" + `, not on ` + "`detail`" + `: the type URI is stable, the prose is not.
 
+The ` + "`type`" + ` URIs are **stable identifiers, not endpoints**. Every instance,
+self-hosted ones included, emits the same ` + "`https://schautrack.com/problems/…`" + `
+URIs on purpose, so a client can recognise a problem type without knowing which
+host produced it. Do not dereference them, and do not expect a self-hosted
+instance to rewrite them to its own domain. This document's ` + "`servers`" + ` URL,
+by contrast, *is* an endpoint, and always names the instance that served it.
+
 ## Dates and time zones
 
 Dates are ` + "`YYYY-MM-DD`" + ` in the **account's** time zone. Omitting a date means
@@ -125,17 +133,70 @@ The first request executes and its response is stored. Any retry with the same
 key replays that response, with ` + "`Idempotency-Replayed: true`" + `, instead of
 logging the meal twice. Reusing a key with a *different* body returns ` + "`409`" + `
 rather than silently discarding the new request. Keys are remembered for 24
-hours.
+hours. A request that fails releases its key, so the retry is a fresh attempt
+rather than a replay of the error.
+
+Every endpoint that creates something accepts the header: ` + "`POST /entries`" + `,
+` + "`POST /todos`" + `, ` + "`POST /saved-foods`" + `, and
+` + "`POST /saved-foods/{id}/track`" + `. The operation parameter lists say which,
+and they are not advisory — the one ` + "`POST`" + ` that does not honour the header
+(` + "`POST /ai/estimate`" + `) rejects it with ` + "`400`" + ` instead of ignoring it.
+An accepted request is therefore always a request whose retry semantics are
+what you asked for.
 
 ## Rate limits
 
-Two limits apply: one per IP address and one per token. Exceeding either
-returns ` + "`429`" + ` with a ` + "`Retry-After`" + ` header giving the number of
-seconds until the window reopens. Honour it rather than retrying blindly.`
+Three limits apply: one per IP address, one per token, and — on the two
+endpoints that cost real resources — one per account. ` + "`POST /ai/estimate`" + `
+and ` + "`GET /barcode/{code}`" + ` reach a paid provider and a third-party food
+database respectively, so they are capped at the same rate the app's own UI
+gets rather than at the API-wide ceiling; a token is not a cheaper route to
+them than a browser.
 
-// Build assembles the OpenAPI document. version is the running build version,
-// surfaced so a reader can tell which deployment served the spec.
-func Build(version string) *Document {
+Exceeding any of the three returns ` + "`429`" + ` with a ` + "`Retry-After`" + `
+header giving the number of seconds until the window reopens. Honour it rather
+than retrying blindly.`
+
+// CanonicalBaseURL is the URL of the Schautrack-hosted instance. It is the base
+// cmd/apidocs bakes into the committed api/openapi.json and docs/api-v1.md, so
+// those two artifacts describe one fixed, reviewable host instead of whatever
+// machine happened to run the generator. A running server never uses it: it
+// serves its own BASE_URL — see Build.
+const CanonicalBaseURL = "https://schautrack.com"
+
+// servers returns the single `servers` entry for the instance serving this
+// document.
+//
+// There is exactly one entry, and it is this instance. A hardcoded list naming
+// schautrack.com used to ship to every deployment, which meant a self-hoster's
+// spec pointed clients — Swagger UI's "Try it out" above all, which sends the
+// caller's `stk_…` bearer token to servers[0] — at a host they do not control.
+// A long-lived token leaked that way is a durable exposure, so the server URL
+// has to follow the instance.
+func servers(baseURL string) []Server {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if base == "" {
+		// No BASE_URL configured. A relative server URL is resolved by the
+		// client against the URL the document itself was fetched from (OpenAPI
+		// 3.1 §4.8.5), which keeps an unconfigured instance pointing at itself.
+		// Deriving an absolute URL from the request's Host header instead would
+		// put an attacker-supplied value into the published contract, so the
+		// relative form is both simpler and safer.
+		return []Server{{URL: "/api/v1", Description: serverDescription}}
+	}
+	return []Server{{URL: base + "/api/v1", Description: serverDescription}}
+}
+
+const serverDescription = "This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's \"Try it out\" included — send credentials only to the host the document came from."
+
+// Build assembles the OpenAPI document.
+//
+// version is the running build version, surfaced so a reader can tell which
+// deployment served the spec. baseURL is the public root this instance is
+// reached at (config.BaseURL / the BASE_URL environment variable); it becomes
+// the sole `servers` entry as <baseURL>/api/v1. An empty baseURL yields the
+// relative "/api/v1", which every client resolves against this instance.
+func Build(version, baseURL string) *Document {
 	d := &Document{
 		OpenAPI: "3.1.0",
 		Info: Info{
@@ -146,10 +207,7 @@ func Build(version string) *Document {
 			License:     &License{Name: "AGPL-3.0-or-later", Identifier: "AGPL-3.0-or-later"},
 			Contact:     &Contact{Name: "Schautrack", URL: "https://schautrack.com"},
 		},
-		Servers: []Server{
-			{URL: "https://schautrack.com/api/v1", Description: "Production"},
-			{URL: "https://staging.schautrack.com/api/v1", Description: "Staging"},
-		},
+		Servers: servers(baseURL),
 		Tags: []Tag{
 			{Name: "Account", Description: "Who the token belongs to and what it may do."},
 			{Name: "Entries", Description: "Calorie entries and their macros."},
@@ -213,8 +271,6 @@ func sharedResponses() map[string]*Response {
 	}
 }
 
-// idempotencyParam documents the opt-in retry-safety header on the two
-// endpoints that create something.
 // linkedUserParam lets a read endpoint return a linked account's data.
 var linkedUserParam = Parameter{
 	Name: "user", In: "query",
@@ -224,6 +280,9 @@ var linkedUserParam = Parameter{
 	Schema: integer(""),
 }
 
+// idempotencyParam documents the opt-in retry-safety header. It belongs on
+// every endpoint that creates something; the endpoints that do not honour it
+// reject it with 400 rather than ignoring it, so this list is not advisory.
 var idempotencyParam = Parameter{
 	Name: "Idempotency-Key", In: "header",
 	Description: "Optional. A key you generate once per logical operation and reuse when retrying. " +
@@ -730,6 +789,7 @@ func paths() map[string]*PathItem {
 				OperationID: "createTodo", Summary: "Create a todo",
 				Tags: []string{"Todos"}, Scope: service.ScopeTodosWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeTodosWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("TodoInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created todo.", ref("Todo"), "URL of the created todo."),
@@ -802,6 +862,7 @@ func paths() map[string]*PathItem {
 				OperationID: "createSavedFood", Summary: "Create a saved food",
 				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsWrite}}},
+				Parameters:  []Parameter{idempotencyParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("SavedFoodInput"))},
 				Responses: merge(map[string]*Response{
 					"201": created201("The created food.", ref("SavedFood"), "URL of the created food."),
@@ -886,6 +947,8 @@ func paths() map[string]*PathItem {
 		"/barcode/{code}": {Get: &Operation{
 			OperationID: "lookupBarcode", Summary: "Look up a product by barcode",
 			Description: "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. " +
+				"Rate limited per account at the same rate as the app's own scanner, since it " +
+				"queries the same third-party database. " +
 				"Returns 404 when barcode lookup is disabled on the server.",
 			Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
 			Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
@@ -907,8 +970,12 @@ func paths() map[string]*PathItem {
 			OperationID: "estimateFromPhoto", Summary: "Estimate nutrition from a food photo",
 			Description: "Requires the `ai:estimate` scope, which no other scope implies — every call " +
 				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
-				"daily AI limit applies here exactly as it does in the app. Returns 404 when no AI " +
-				"provider is configured.",
+				"daily AI limit applies here exactly as it does in the app, as does a per-account " +
+				"rate limit matching the app's own estimate endpoint — this is not a cheaper path " +
+				"to the provider. Returns 404 when no AI provider is configured. This is the one " +
+				"`POST` that does not honour `Idempotency-Key`: sending the header returns 400 " +
+				"rather than being ignored, so a caller is never left believing a retry is safe " +
+				"when it is not.",
 			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
 			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},

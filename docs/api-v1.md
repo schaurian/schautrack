@@ -54,6 +54,13 @@ served as `application/problem+json`:
 
 Branch on `type`, not on `detail`: the type URI is stable, the prose is not.
 
+The `type` URIs are **stable identifiers, not endpoints**. Every instance,
+self-hosted ones included, emits the same `https://schautrack.com/problems/…`
+URIs on purpose, so a client can recognise a problem type without knowing which
+host produced it. Do not dereference them, and do not expect a self-hosted
+instance to rewrite them to its own domain. This document's `servers` URL,
+by contrast, *is* an endpoint, and always names the instance that served it.
+
 ## Dates and time zones
 
 Dates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means
@@ -85,13 +92,29 @@ The first request executes and its response is stored. Any retry with the same
 key replays that response, with `Idempotency-Replayed: true`, instead of
 logging the meal twice. Reusing a key with a *different* body returns `409`
 rather than silently discarding the new request. Keys are remembered for 24
-hours.
+hours. A request that fails releases its key, so the retry is a fresh attempt
+rather than a replay of the error.
+
+Every endpoint that creates something accepts the header: `POST /entries`,
+`POST /todos`, `POST /saved-foods`, and
+`POST /saved-foods/{id}/track`. The operation parameter lists say which,
+and they are not advisory — the one `POST` that does not honour the header
+(`POST /ai/estimate`) rejects it with `400` instead of ignoring it.
+An accepted request is therefore always a request whose retry semantics are
+what you asked for.
 
 ## Rate limits
 
-Two limits apply: one per IP address and one per token. Exceeding either
-returns `429` with a `Retry-After` header giving the number of
-seconds until the window reopens. Honour it rather than retrying blindly.
+Three limits apply: one per IP address, one per token, and — on the two
+endpoints that cost real resources — one per account. `POST /ai/estimate`
+and `GET /barcode/{code}` reach a paid provider and a third-party food
+database respectively, so they are capped at the same rate the app's own UI
+gets rather than at the API-wide ceiling; a token is not a cheaper route to
+them than a browser.
+
+Exceeding any of the three returns `429` with a `Retry-After`
+header giving the number of seconds until the window reopens. Honour it rather
+than retrying blindly.
 
 | Scope | Grants |
 | --- | --- |
@@ -116,8 +139,7 @@ seconds until the window reopens. Honour it rather than retrying blindly.
 
 | URL | |
 | --- | --- |
-| `https://schautrack.com/api/v1` | Production |
-| `https://staging.schautrack.com/api/v1` | Staging |
+| `https://schautrack.com/api/v1` | This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's "Try it out" included — send credentials only to the host the document came from. |
 
 ## Endpoints
 
@@ -461,6 +483,10 @@ POST /api/v1/todos
 
 **Scope:** `todos:write`
 
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
+
 **Request body** (required): [`TodoInput`](#todoinput)
 
 | Status | Response |
@@ -586,7 +612,7 @@ GET /api/v1/barcode/{code}
 
 **Scope:** `foods:read`
 
-Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.
+Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Rate limited per account at the same rate as the app's own scanner, since it queries the same third-party database. Returns 404 when barcode lookup is disabled on the server.
 
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
@@ -634,6 +660,10 @@ POST /api/v1/saved-foods
 ```
 
 **Scope:** `foods:write`
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `Idempotency-Key` | header |  | Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours. |
 
 **Request body** (required): [`SavedFoodInput`](#savedfoodinput)
 
@@ -837,7 +867,7 @@ POST /api/v1/ai/estimate
 
 **Scope:** `ai:estimate`
 
-Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.
+Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured. This is the one `POST` that does not honour `Idempotency-Key`: sending the header returns 400 rather than being ignored, so a caller is never left believing a retry is safe when it is not.
 
 **Request body** (required): [`EstimateInput`](#estimateinput)
 
