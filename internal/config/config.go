@@ -52,6 +52,7 @@ type Config struct {
 	RateLimitStrict   int
 	RateLimitAPI      int
 	RateLimitAPIToken int
+	RateLimitBarcode  int
 	TrustProxy        bool
 
 	// SMTP
@@ -126,6 +127,16 @@ func Load() (*Config, error) {
 		rateLimitAPIToken = 60
 	}
 
+	// The barcode limiter was the only one in the app with no environment
+	// variable (#366), so an operator whose users hit "too many requests" on
+	// scanning had no way to raise it short of rebuilding. 30/min matches the
+	// literal it replaces, and 0/unset means the default, exactly like the
+	// four above.
+	rateLimitBarcode, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_BARCODE"))
+	if rateLimitBarcode == 0 {
+		rateLimitBarcode = 30
+	}
+
 	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	if smtpPort == 0 {
 		smtpPort = 587
@@ -168,6 +179,7 @@ func Load() (*Config, error) {
 		RateLimitStrict:   rateLimitStrict,
 		RateLimitAPI:      rateLimitAPI,
 		RateLimitAPIToken: rateLimitAPIToken,
+		RateLimitBarcode:  rateLimitBarcode,
 		TrustProxy:        os.Getenv("TRUST_PROXY") != "false", // default true for k8s/docker
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),

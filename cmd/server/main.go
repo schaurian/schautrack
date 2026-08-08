@@ -31,12 +31,6 @@ import (
 // Set via -ldflags at build time.
 var version = "dev"
 
-// barcodeRateLimit is the per-minute ceiling on barcode lookups, applied to the
-// session route (per IP) and to GET /api/v1/barcode/{code} (per account). One
-// constant so the public API cannot quietly drift into being the cheaper path
-// to the same third-party database.
-const barcodeRateLimit = 30
-
 func main() {
 	// Structured logging
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -77,7 +71,7 @@ func main() {
 	emailService := service.NewEmailService(cfg)
 	authLimiter := middleware.NewRateLimiter(cfg.RateLimitAuth, 15*time.Minute, cfg.TrustProxy)
 	strictLimiter := middleware.NewRateLimiter(cfg.RateLimitStrict, 5*time.Minute, cfg.TrustProxy)
-	barcodeLimiter := middleware.NewRateLimiter(barcodeRateLimit, time.Minute, cfg.TrustProxy)
+	barcodeLimiter := middleware.NewRateLimiter(cfg.RateLimitBarcode, time.Minute, cfg.TrustProxy)
 
 	// SSE broker. Events are fanned out through Postgres LISTEN/NOTIFY so they
 	// reach subscribers held by *other* instances: with more than one replica
@@ -381,7 +375,7 @@ func main() {
 		// bucketed per account rather than per token — tokens are free to mint,
 		// so a per-token budget is a per-token budget times MaxTokensPerUser.
 		AILimiter:      middleware.NewUserRateLimiter(cfg.RateLimitStrict, 5*time.Minute, cfg.TrustProxy),
-		BarcodeLimiter: middleware.NewUserRateLimiter(barcodeRateLimit, time.Minute, cfg.TrustProxy),
+		BarcodeLimiter: middleware.NewUserRateLimiter(cfg.RateLimitBarcode, time.Minute, cfg.TrustProxy),
 	}
 	apiV1IPLimiter := middleware.NewProblemRateLimiter(cfg.RateLimitAPI, time.Minute, cfg.TrustProxy)
 	r.With(apiV1IPLimiter.Middleware).Mount("/api/v1", v1Handler.MountAPIV1(pool))

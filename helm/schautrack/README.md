@@ -306,6 +306,7 @@ application default, not a value this chart writes into the ConfigMap. See
 | `config.rateLimit.strict` | `RATE_LIMIT_STRICT` | Requests per IP per **5 minutes** on sensitive endpoints: password-reset request/confirm, 2FA reset, email-change request, and **AI estimate**. Raise this to give users more AI throughput. | `""` (`5`) |
 | `config.rateLimit.api` | `RATE_LIMIT_API` | Requests per IP per **minute** on the public API (`/api/v1`). The outer guard and the only limit that throttles unauthenticated traffic; keep it well above the auth limiters. | `""` (`120`) |
 | `config.rateLimit.apiToken` | `RATE_LIMIT_API_TOKEN` | Requests per personal access token per **minute** on `/api/v1`. The limit a legitimate API client hits; per-IP alone means everyone behind one NAT shares a bucket. | `""` (`60`) |
+| `config.rateLimit.barcode` | `RATE_LIMIT_BARCODE` | Barcode lookups per **minute**, per IP on the app's own route and per **account** on `GET /api/v1/barcode/{code}`. One value covers both so the API cannot become the cheaper path to the same third-party database. | `""` (`30`) |
 | `config.trustProxy` | `TRUST_PROXY` | Whether the limiters above key on `X-Forwarded-For` / `X-Real-Ip` instead of the socket peer. Leave default behind an ingress. | `""` (`true`) |
 
 Both API limits reject with `429` and a `Retry-After` header.

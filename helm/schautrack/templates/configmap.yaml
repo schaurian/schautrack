@@ -94,6 +94,9 @@ data:
   {{- if .apiToken }}
   RATE_LIMIT_API_TOKEN: {{ .apiToken | quote }}
   {{- end }}
+  {{- if .barcode }}
+  RATE_LIMIT_BARCODE: {{ .barcode | quote }}
+  {{- end }}
   {{- end }}
   {{- with .Values.config.captcha }}
   {{- /*
