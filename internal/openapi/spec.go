@@ -438,8 +438,8 @@ func schemas() map[string]*Schema {
 				"emoji":    nullStr("`null` clears the emoji."),
 				"calories": withRange(nullInt("Energy per unit."), -9999, 9999),
 			}, macroInputProps())),
-		"SavedFoodList": object("Saved foods, most-used first.", map[string]*Schema{
-			"data": array(ref("SavedFood"), "The foods."),
+		"SavedFoodList": object("Saved foods, most-used first. Never partial.", map[string]*Schema{
+			"data": array(ref("SavedFood"), "Every saved food on the account."),
 		}, "data"),
 		"TrackInput": object("How to log this food.", map[string]*Schema{
 			"date":     dateStr("Defaults to today in the account's time zone."),
@@ -985,13 +985,15 @@ func paths() map[string]*PathItem {
 		"/saved-foods": {
 			Get: &Operation{
 				OperationID: "listSavedFoods", Summary: "List saved foods",
-				Description: "Most-used first, then most-recently-used.",
-				Tags:        []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
-				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
-				Parameters: []Parameter{limitParam},
+				Description: "Most-used first, then most-recently-used, then newest first. " +
+					"Not paginated: an account holds at most 200 saved foods, so this always " +
+					"returns the complete set.",
+				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
+				Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
+				// No 400: the operation takes no input to reject, matching the
+				// other parameterless collections (listTodos, listLinks).
 				Responses: merge(map[string]*Response{
 					"200": ok200("The saved foods.", ref("SavedFoodList")),
-					"400": respRef("BadRequest"),
 				}, errs(nil)),
 			},
 			Post: &Operation{
