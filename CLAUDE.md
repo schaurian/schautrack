@@ -416,6 +416,16 @@ displayTz := targetUser.Timezone // or "UTC" if nil
 - Mobile-first responsive design with `@media (max-width: 768px)`
 - Consistent spacing scale: `--space-xs` (4px), `--space-sm` (8px), `--space-md` (12px), `--space-lg` (16px), `--space-xl` (24px)
 - Dark theme with subtle gradients and glows
+- **Never use a native `<select>`.** Use the Radix `Select` in `components/ui/select.tsx`
+  — a native `<select>` renders an OS popup that ignores the dark theme entirely (light
+  list, no chevron, no checkmark), so it looks broken next to everything else. Pair it
+  with a sibling `<label>`, never a wrapping one: Radix renders a button, and a `<label>`
+  around a button associates with nothing and can double-fire the click. Copy the pattern
+  in `pages/Settings/AISettings.tsx`, and give the trigger a `data-testid` so
+  `e2e/fixtures/select.ts` can drive it. Issue #456 tracks a CI guard for this.
+- Prefer the `components/ui` primitives (`Input`, `Button`, `Card`, `SegmentedControl`)
+  over hand-writing their class strings. Copies drift — the ~15 existing copies of the
+  `Input` class string have already diverged on padding and focus rings.
 
 ## Performance Considerations
 
