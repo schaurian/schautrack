@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,6 +118,92 @@ func TestEveryOperationIsDocumented(t *testing.T) {
 					t.Errorf("%s documents no 400 response", where)
 				}
 			}
+		}
+	}
+}
+
+// TestEverySchemaIsCheckable asserts every schema constrains something: a
+// $ref, an anyOf, or a type.
+//
+// Document.validate returns early on a schema with none of the three — there
+// is nothing to check — and a schema that validates nothing passes every
+// contract test while documenting nothing. That is how the Plan schema drifted
+// for three releases. Nothing in the document relies on that early return
+// today; this is what keeps it that way.
+//
+// Estimate and BarcodeProduct stay free-form, but by a different and much
+// narrower mechanism: they declare `type: object` and waive *unknown* keys via
+// additionalProperties, so anything they do declare is still checked.
+func TestEverySchemaIsCheckable(t *testing.T) {
+	doc := Build("")
+
+	var walk func(path string, s *Schema)
+	walk = func(path string, s *Schema) {
+		if s == nil {
+			return
+		}
+		if s.Ref == "" && len(s.AnyOf) == 0 && len(typeNames(s)) == 0 {
+			t.Errorf("%s declares no type, $ref or anyOf — Validate skips it entirely", path)
+		}
+		for _, field := range sortedKeys(s.Properties) {
+			walk(path+"."+field, s.Properties[field])
+		}
+		if s.Items != nil {
+			walk(path+"[]", s.Items)
+		}
+		for i, alt := range s.AnyOf {
+			walk(fmt.Sprintf("%s|anyOf[%d]", path, i), alt)
+		}
+	}
+
+	for _, name := range sortedKeys(doc.Components.Schemas) {
+		walk(name, doc.Components.Schemas[name])
+	}
+}
+
+// TestEverySchemaIsReachable checks no component schema is orphaned. An unused
+// one is either dead weight or, worse, a response shape someone forgot to wire
+// up — and it is never exercised by the contract tests.
+func TestEverySchemaIsReachable(t *testing.T) {
+	doc := Build("")
+
+	used := map[string]bool{}
+	var mark func(s *Schema)
+	mark = func(s *Schema) {
+		if s == nil {
+			return
+		}
+		if name, ok := strings.CutPrefix(s.Ref, "#/components/schemas/"); ok && !used[name] {
+			used[name] = true
+			mark(doc.Components.Schemas[name])
+		}
+		for _, p := range s.Properties {
+			mark(p)
+		}
+		mark(s.Items)
+		for _, alt := range s.AnyOf {
+			mark(alt)
+		}
+	}
+
+	for _, item := range doc.Paths {
+		for _, op := range item.Operations() {
+			if op.RequestBody != nil {
+				for _, mt := range op.RequestBody.Content {
+					mark(mt.Schema)
+				}
+			}
+			for _, resp := range op.Responses {
+				for _, mt := range resp.Content {
+					mark(mt.Schema)
+				}
+			}
+		}
+	}
+
+	for _, name := range sortedKeys(doc.Components.Schemas) {
+		if !used[name] {
+			t.Errorf("schema %q is not referenced by any operation", name)
 		}
 	}
 }

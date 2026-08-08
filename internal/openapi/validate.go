@@ -16,9 +16,9 @@ import (
 // server no longer sends.
 //
 // It is a targeted validator, not a general JSON Schema implementation. It
-// covers exactly the constructs schemas() actually uses — $ref, type (including
-// ["x","null"] unions), properties, required, items, enum, and numeric bounds —
-// and deliberately nothing else. A general validator would mean a new
+// covers exactly the constructs schemas() actually uses — $ref, anyOf, type
+// (including ["x","null"] unions), properties, required, items, enum, and
+// numeric bounds — and deliberately nothing else. A general validator would mean a new
 // dependency and a second, subtly different interpretation of the same
 // document; this one walks the very structs the document is built from, so the
 // two cannot disagree.
@@ -79,6 +79,14 @@ func (d *Document) validate(s *Schema, v any, path string, errs *[]string) {
 		return
 	}
 
+	// anyOf is checked before the null handling below: a nullable reference
+	// declares no type of its own, and "no type" must not be read as
+	// "accepts anything".
+	if len(s.AnyOf) > 0 {
+		d.validateAnyOf(s, v, path, errs)
+		return
+	}
+
 	types := typeNames(s)
 
 	if v == nil {
@@ -91,7 +99,12 @@ func (d *Document) validate(s *Schema, v any, path string, errs *[]string) {
 	}
 
 	if len(types) == 0 {
-		return // free-form (e.g. the Plan schema)
+		// A schema with no $ref, no anyOf and no type constrains nothing, so
+		// there is nothing to check. No schema in this document is in that
+		// state and TestEverySchemaIsCheckable keeps it that way — this is a
+		// backstop, not an exemption anything relies on. It used to be how the
+		// Plan schema escaped validation entirely.
+		return
 	}
 
 	switch actual := v.(type) {
@@ -149,6 +162,25 @@ func (d *Document) validate(s *Schema, v any, path string, errs *[]string) {
 	}
 }
 
+// validateAnyOf accepts the value if any alternative accepts it. When none
+// does, every alternative's complaint is reported: for a nullable reference
+// that reads as "the object is wrong in these ways, and it is not null
+// either", which is more use than a bare "matched nothing".
+func (d *Document) validateAnyOf(s *Schema, v any, path string, errs *[]string) {
+	var all []string
+	for i, alt := range s.AnyOf {
+		var sub []string
+		d.validate(alt, v, path, &sub)
+		if len(sub) == 0 {
+			return
+		}
+		for _, e := range sub {
+			all = append(all, fmt.Sprintf("(alternative %d of %d) %s", i+1, len(s.AnyOf), e))
+		}
+	}
+	*errs = append(*errs, all...)
+}
+
 func (d *Document) validateObject(s *Schema, obj map[string]any, path string, errs *[]string) {
 	for _, name := range s.Required {
 		if _, present := obj[name]; !present {
@@ -156,8 +188,9 @@ func (d *Document) validateObject(s *Schema, obj map[string]any, path string, er
 		}
 	}
 
-	// additionalProperties: true marks a deliberately free-form object (Plan),
-	// where extra keys are the whole point.
+	// additionalProperties: true marks a deliberately free-form object —
+	// Estimate and BarcodeProduct, whose shape is set by an upstream the API
+	// only relays — where extra keys are the whole point.
 	freeForm := s.AdditionalProperties == true
 
 	for key, val := range obj {
