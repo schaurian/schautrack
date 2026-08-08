@@ -82,7 +82,7 @@ env:
 
 jobs:
   test:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     # Without a database, every test guarded by `TEST_DATABASE_URL` skips — and
     # `go test` reports a skip as a pass. That silently disabled the tests most
     # worth running, above all
@@ -236,12 +236,23 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # These three steps are `npm run test:e2e` split apart on purpose. That
-      # script ends in `; docker compose ... down`, so the shell's exit status
-      # is the teardown's and a failing Playwright run still exits 0 (#320) —
-      # wiring it in verbatim would add a job that can never go red. Splitting
-      # it also lets the reporter be overridden and guarantees teardown via
-      # `if: always()`.
+      # These three steps are `npm run test:e2e` split apart on purpose.
+      #
+      # The original reason is gone: that script used to end in
+      # `; docker compose ... down`, so a failing Playwright run still exited 0
+      # (#320), and calling it here would have added a job that could never go
+      # red. #320 is fixed — scripts/e2e.sh now exits with Playwright's status
+      # and tears down through a trap — so this was revisited (#381).
+      #
+      # It stays split for a reason the script cannot serve: the job has to dump
+      # the stack's container logs BETWEEN the Playwright run and the teardown.
+      # `test:e2e` tears down internally, so a single step would take the
+      # containers away before `Dump test stack logs` could read them, and a red
+      # E2E run would arrive with no way to see why. Splitting also lets the
+      # reporter be overridden for the artifact upload.
+      #
+      # Locally `npm run test:e2e` remains the one command to run; the split
+      # exists only because CI wants a hook in the middle.
       #
       # Cost note: `test:e2e:setup` does a `docker compose up --build`, i.e. it
       # rebuilds the application image that `build-and-push` is building at the
@@ -282,7 +293,7 @@ jobs:
           retention-days: 7
 
   compute-version:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     needs: test
     # Deliberately not serialised: this job only *reads* git state. A group here
     # would be theatre — it is released the moment the job ends, several jobs
@@ -363,7 +374,7 @@ jobs:
           fi
 
   create-tag:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     # Only push the git tag once the image artifact actually exists, so a build
     # failure (e.g. a client tsc error caught inside the Docker build) never
     # leaves a dangling version tag with no corresponding image or release.
@@ -397,7 +408,7 @@ jobs:
           git push origin "v${{ needs.compute-version.outputs.version }}"
 
   build-and-push:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     needs: compute-version
     # Deliberately not serialised. Two reasons:
     #   1. This is a matrix job, and one job-level concurrency group is shared by
@@ -476,7 +487,7 @@ jobs:
           retention-days: 1
 
   create-manifest:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     needs: [compute-version, build-and-push]
     # Only assemble/push the multi-arch manifest for push events — PR builds
     # do not push images, so there are no digests to reference.
@@ -538,7 +549,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.compute-version.outputs.version }}
 
   create-release:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     # Runs after create-tag so the release always references a tag that was
     # pushed only after the image artifact exists (create-tag needs the
     # manifest, so this transitively runs after create-manifest too).
@@ -618,7 +629,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-helm:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     needs: [compute-version, create-manifest]
     # Never package/publish the chart from PR context: for PRs compute-version
     # emits an 8-char SHA that is not valid semver (helm package would reject it),
@@ -725,7 +736,36 @@ jobs:
           cd gh-pages
           git add .
           git commit -m "Update Helm chart (${{ steps.channel.outputs.channel }}) - appVersion ${{ needs.compute-version.outputs.version }}" || exit 0
-          git push
+
+          # Rebase and retry (#405). gh-pages is ONE branch shared by both
+          # channels: main writes / and staging writes /staging/. Two
+          # publish-helm jobs therefore start from the same gh-pages commit and
+          # the second plain `git push` is rejected non-fast-forward — losing
+          # that chart entirely, with the job red for a reason that has nothing
+          # to do with the chart it built.
+          #
+          # The two channels touch disjoint directories, so a rebase resolves
+          # cleanly; there is no content conflict to reason about, only a race
+          # on the branch tip. Retrying with a fresh fetch each time is the
+          # whole fix.
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              echo "pushed the chart on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt), rebasing onto the current gh-pages tip"
+            git fetch origin gh-pages
+            # --rebase keeps our single commit on top; a conflict here would
+            # mean both channels wrote the same file, which the directory split
+            # makes impossible, so failing loudly is right.
+            git rebase origin/gh-pages || {
+              echo "::error::gh-pages rebase hit a conflict — both channels wrote the same path"
+              exit 1
+            }
+            sleep $((attempt * 3))
+          done
+          echo "::error::could not push the Helm chart after 5 attempts"
+          exit 1
 
   notify-argocd:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
