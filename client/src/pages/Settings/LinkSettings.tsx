@@ -162,7 +162,11 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
       <div className="text-xs text-muted-foreground mb-1">{t('link.share.readOnlyNote')}</div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {CATS.map(({ key, label: catLabel }) => (
-          <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+          // The testid is what e2e drives. Addressing these by their visible
+          // text instead couples the suite to the copy: renaming this label
+          // once already broke link-sharing.spec.ts, and the label is
+          // translated into eight locales besides.
+          <label key={key} data-testid={`share-toggle-${key}`} className="flex items-center gap-1.5 text-sm cursor-pointer">
             <input type="checkbox" checked={shares[key]} onChange={() => toggleShare(key)} />
             {catLabel}
           </label>

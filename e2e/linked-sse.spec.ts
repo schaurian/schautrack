@@ -122,7 +122,7 @@ test.describe('Linked User SSE Propagation', () => {
       const linkButton = pageA.getByRole('button', { name: userB.email });
       await expect(linkButton).toBeVisible({ timeout: 10000 });
       const linkRow = linkButton.locator('../..');
-      const nutrition = linkRow.locator('label', { hasText: 'Nutrition' });
+      const nutrition = linkRow.getByTestId('share-toggle-nutrition');
       await expect(nutrition.locator('input')).toBeChecked();
       await nutrition.click();
 
