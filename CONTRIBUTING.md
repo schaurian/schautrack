@@ -77,6 +77,13 @@ Related scripts:
   leave it running (useful for iterating on individual specs).
 - `npm run test:e2e:down` — tear the test stack down and remove its volumes.
 
+`e2e/` is for asserting specs only — everything in it runs in CI. Screenshot
+capture and other ad-hoc browser automation belong in `scripts/`, run directly
+with `npx tsx` (see `npm run screenshots` → `scripts/screenshots.ts`). As a
+backstop, `playwright.config.ts` ignores the `*.helper.spec.ts` suffix in both
+the top-level and the `chromium` `testIgnore`, so a throwaway spec that does land
+in `e2e/` is never picked up — not even when passed on the command line.
+
 Please add or update tests for any behavior you change, and run both `go test
 ./...` and the e2e suite before opening a pull request.
 
