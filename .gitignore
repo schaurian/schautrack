@@ -16,6 +16,10 @@ blob-report/
 # Go binary
 /server
 
+# Coverage profiles, written by the same `go test` invocation CI runs
+coverage.out
+coverage.txt
+
 .superpowers/
 
 # Schemathesis contract-test report

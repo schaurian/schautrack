@@ -1,6 +1,6 @@
 module schautrack
 
-go 1.26.0
+go 1.26.5
 
 require (
 	github.com/alexedwards/argon2id v1.0.0
@@ -13,6 +13,7 @@ require (
 	golang.org/x/crypto v0.54.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.22.0
+	pgregory.net/rapid v1.3.0
 )
 
 require (

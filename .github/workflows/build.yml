@@ -146,10 +146,55 @@ jobs:
           fi
           go vet ./...
 
+      # -race is the point of this step, not a nicety. Almost everything this
+      # app does concurrently is invisible to a serial test run: the SSE broker
+      # fans out per-user channels while Postgres LISTEN/NOTIFY writes into the
+      # same maps, the settings cache mutates shared state on a 1-minute TTL,
+      # and the rate limiters and login-failure tracker are touched from every
+      # request goroutine at once. A data race there is not a test failure, it
+      # is a wrong number served to a user or a nil-map panic that takes the pod
+      # down — and it reproduces roughly never on a developer laptop.
+      #
+      # -covermode=atomic rather than the default `set` because the race
+      # detector requires it. The profile is uploaded below rather than gated on
+      # a threshold: a number to look at during review, not a hurdle that makes
+      # honest work fail.
       - name: Run Go tests
-        run: go test ./...
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+
+      - name: Summarize coverage
+        if: always()
+        run: |
+          [ -f coverage.out ] || exit 0
+          go tool cover -func=coverage.out > coverage.txt
+          {
+            echo "### Go coverage"
+            echo
+            echo '```'
+            tail -n 1 coverage.txt
+            echo '```'
+            echo
+            echo "<details><summary>Per-function coverage</summary>"
+            echo
+            echo '```'
+            cat coverage.txt
+            echo '```'
+            echo
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: go-coverage
+          path: |
+            coverage.out
+            coverage.txt
+          retention-days: 14
+          if-no-files-found: ignore
 
       # Client type errors were previously caught only inside the Docker build
       # (client "build" is "tsc -b && vite build"), which runs after
@@ -187,6 +232,79 @@ jobs:
       - name: Check i18n catalog parity
         run: npm run i18n:check
         working-directory: client
+
+  # A real gate from the first commit, not `continue-on-error` like `e2e`: the
+  # tree is lint-clean as of this change, so there is no red-by-default period
+  # to wait out. It is in `compute-version`'s `needs:` for the same reason
+  # gofmt and go vet already are — those hard-gate the release chain today from
+  # inside the `test` job, and a linter that can be ignored is one nobody fixes.
+  #
+  # Separate job rather than another step in `test` so it runs in parallel with
+  # the tests (both take minutes, and a lint failure is usually the faster and
+  # clearer of the two answers) and reports as its own check.
+  lint:
+    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # The action manages its own analysis cache; setup-go's build cache
+          # on top of it only adds restore time here.
+          cache: false
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          # Pinned rather than floating: a linter that silently gains checks on
+          # its own release schedule turns an unrelated PR red for reasons its
+          # author did not introduce. Renovate bumps this deliberately.
+          version: v2.12.2
+
+  # Deliberately NOT in the `needs` chain of compute-version / build-and-push.
+  # govulncheck fails on vulnerabilities published upstream, which happens on
+  # the Go team's schedule and not this repo's: wiring it into the release path
+  # would mean a stdlib CVE announced at 03:00 blocks an unrelated hotfix from
+  # shipping, with nothing this repo can do about it until a patch release
+  # exists. As a standalone check it still shows a red X on the PR (and can be
+  # made a required check in branch protection) without holding deploys hostage.
+  #
+  # `lint` above IS in that chain, deliberately differently: a lint failure is
+  # in this repo's own code and fixable by the author who caused it.
+  vuln:
+    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # GOTOOLCHAIN=local is load-bearing, not tidiness. For `go install
+      # pkg@version` the toolchain is chosen from the *target* module's `go`
+      # directive, not from this repo's: x/vuln declares `go 1.25.0`, so the
+      # default `auto` announces "requires go >= 1.25.0; switching to go1.25.12"
+      # and builds govulncheck with Go 1.25. That binary then cannot load this
+      # module at all — every package fails with "requires newer Go version
+      # go1.26" and the step exits non-zero having scanned nothing, which is the
+      # worst failure mode available: a security gate that is red for a reason
+      # unrelated to security. `local` pins both the build and govulncheck's own
+      # `go list` subprocess to the toolchain setup-go installed from go.mod.
+      #
+      # govulncheck is call-graph aware: it reports only vulnerabilities that
+      # are actually reachable from this code, so a finding here is a genuine
+      # exposure rather than a transitive-dependency scare.
+      - name: Check for known vulnerabilities
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+          govulncheck ./...
 
   contract:
     # Same runner reasoning as `e2e` below: this builds and runs the compose
@@ -327,7 +445,7 @@ jobs:
 
   compute-version:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, lint]
     # Deliberately not serialised: this job only *reads* git state. A group here
     # would be theatre — it is released the moment the job ends, several jobs
     # before create-tag writes anything. Job-level concurrency cannot span a

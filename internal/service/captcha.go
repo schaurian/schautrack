@@ -119,8 +119,8 @@ func renderCaptchaSVG(text string) string {
 	height := 50
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`, width, height))
-	sb.WriteString(fmt.Sprintf(`<rect width="%d" height="%d" fill="#1a1a2e"/>`, width, height))
+	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`, width, height)
+	fmt.Fprintf(&sb, `<rect width="%d" height="%d" fill="#1a1a2e"/>`, width, height)
 
 	// Draw noise lines
 	colors := []string{"#4a4a6a", "#3a3a5a", "#5a5a7a", "#2a2a4a"}
@@ -129,8 +129,8 @@ func renderCaptchaSVG(text string) string {
 		y1 := randInt(0, height)
 		x2 := randInt(0, width)
 		y2 := randInt(0, height)
-		sb.WriteString(fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1"/>`,
-			x1, y1, x2, y2, colors[i%len(colors)]))
+		fmt.Fprintf(&sb, `<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1"/>`,
+			x1, y1, x2, y2, colors[i%len(colors)])
 	}
 
 	// Draw characters
@@ -142,9 +142,9 @@ func renderCaptchaSVG(text string) string {
 		fontSize := 24 + randInt(-4, 4)
 		rotate := randInt(-15, 15)
 		color := charColors[i%len(charColors)]
-		sb.WriteString(fmt.Sprintf(
+		fmt.Fprintf(&sb,
 			`<text x="%d" y="%d" font-family="monospace" font-size="%d" fill="%s" transform="rotate(%d,%d,%d)" text-anchor="middle">%c</text>`,
-			x, y, fontSize, color, rotate, x, y, ch))
+			x, y, fontSize, color, rotate, x, y, ch)
 	}
 
 	sb.WriteString(`</svg>`)

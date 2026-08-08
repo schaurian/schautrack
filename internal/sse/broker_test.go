@@ -290,7 +290,9 @@ func TestServeHTTPRejectsNilContext(t *testing.T) {
 func TestServeHTTPRejectsWrongContextType(t *testing.T) {
 	b := newTestBroker()
 	req := httptest.NewRequest("GET", "/events", nil)
-	ctx := context.WithValue(req.Context(), "sseUserID", "not-an-int")
+	// Deliberately bypasses WithUserID to store a wrong-typed value under the
+	// real key — the case ServeHTTP's type assertion has to reject.
+	ctx := context.WithValue(req.Context(), userIDKey{}, "not-an-int")
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 

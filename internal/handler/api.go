@@ -222,13 +222,6 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 	}
 }
 
-func nilStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
 func getTimezones() []string {
 	// Common IANA timezone list
 	zones := []string{
