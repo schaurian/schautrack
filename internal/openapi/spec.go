@@ -436,7 +436,7 @@ func schemas() map[string]*Schema {
 			"content": {Type: "string", Description: "Up to 10000 characters.", MaxLength: intp(10000)},
 		}, "content"),
 
-		"Me": object("The authenticated account and token.", map[string]*Schema{
+		"Me": object("The authenticated account, the token, and the account's enabled features.", map[string]*Schema{
 			"user": object("The account this token belongs to.", map[string]*Schema{
 				"id":          integer("Account identifier."),
 				"email":       str("Account email."),
@@ -456,7 +456,24 @@ func schemas() map[string]*Schema {
 				"version": str("The running build version."),
 				"today":   dateStr("Today's date in the account's time zone."),
 			}, "version", "today"),
-		}, "user", "token", "server"),
+			"features": object(
+				"Per-account opt-ins that change how the rest of the API behaves. "+
+					"Read-only: they are switched in the app's settings, not through this API. "+
+					"Every field is always present.",
+				map[string]*Schema{
+					"body_fat": boolean("Body-fat readings are enabled. When `false` a stored " +
+						"reading is not shown in the app."),
+					"todos": boolean("Todos are enabled in the app. The todo endpoints work either " +
+						"way, but a todo created while this is `false` is invisible to the user."),
+					"notes": boolean("Daily notes are enabled. When `false`, `GET` and `PUT " +
+						"/notes/{date}` answer `409`."),
+					"macros": boolean("At least one macro (protein, carbs, fat, fiber, sugar) is " +
+						"enabled for this account, so macro values are shown in the app."),
+					"auto_calc_calories": boolean("Calories are computed from macros. When `true`, " +
+						"`POST /entries` derives `calories` from the macros it was given rather than " +
+						"trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`."),
+				}, "body_fat", "todos", "notes", "macros", "auto_calc_calories"),
+		}, "user", "token", "server", "features"),
 
 		"Plan": {
 			Type: "object",
@@ -612,9 +629,10 @@ func paths() map[string]*PathItem {
 			Get: &Operation{
 				OperationID: "getMe",
 				Summary:     "The authenticated account and token",
-				Description: "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
-				Tags:        []string{"Account"},
-				Responses:   merge(map[string]*Response{"200": ok200("The account, the token, and the server.", ref("Me"))}, errs(nil)),
+				Description: "Requires a valid token but no particular scope — this is how a client discovers " +
+					"which scopes it holds and, via `features`, which optional features the account has on.",
+				Tags:      []string{"Account"},
+				Responses: merge(map[string]*Response{"200": ok200("The account, the token, the server, and the account's enabled features.", ref("Me"))}, errs(nil)),
 			},
 			Patch: &Operation{
 				OperationID: "updateMe",

@@ -171,11 +171,11 @@ GET /api/v1/me
 
 **Scope:** none beyond a valid token.
 
-Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.
+Requires a valid token but no particular scope — this is how a client discovers which scopes it holds and, via `features`, which optional features the account has on.
 
 | Status | Response |
 | --- | --- |
-| `200` | [`Me`](#me) — The account, the token, and the server. |
+| `200` | [`Me`](#me) — The account, the token, the server, and the account's enabled features. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
@@ -1006,10 +1006,11 @@ Macronutrients in grams. `null` means the macro was not recorded, which is disti
 
 ### Me
 
-The authenticated account and token.
+The authenticated account, the token, and the account's enabled features.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `features` | `object` | yes | Per-account opt-ins that change how the rest of the API behaves. Read-only: they are switched in the app's settings, not through this API. Every field is always present. |
 | `server` | `object` | yes | The server answering. |
 | `token` | `object` | yes | The token that authenticated this request. |
 | `user` | `object` | yes | The account this token belongs to. |

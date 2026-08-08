@@ -1012,13 +1012,13 @@
       "get": {
         "operationId": "getMe",
         "summary": "The authenticated account and token",
-        "description": "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds.",
+        "description": "Requires a valid token but no particular scope — this is how a client discovers which scopes it holds and, via `features`, which optional features the account has on.",
         "tags": [
           "Account"
         ],
         "responses": {
           "200": {
-            "description": "The account, the token, and the server.",
+            "description": "The account, the token, the server, and the account's enabled features.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3743,8 +3743,41 @@
       },
       "Me": {
         "type": "object",
-        "description": "The authenticated account and token.",
+        "description": "The authenticated account, the token, and the account's enabled features.",
         "properties": {
+          "features": {
+            "type": "object",
+            "description": "Per-account opt-ins that change how the rest of the API behaves. Read-only: they are switched in the app's settings, not through this API. Every field is always present.",
+            "properties": {
+              "auto_calc_calories": {
+                "type": "boolean",
+                "description": "Calories are computed from macros. When `true`, `POST /entries` derives `calories` from the macros it was given rather than trusting the value sent, and `PATCH /entries/{id}` rejects `calories` with a `422`."
+              },
+              "body_fat": {
+                "type": "boolean",
+                "description": "Body-fat readings are enabled. When `false` a stored reading is not shown in the app."
+              },
+              "macros": {
+                "type": "boolean",
+                "description": "At least one macro (protein, carbs, fat, fiber, sugar) is enabled for this account, so macro values are shown in the app."
+              },
+              "notes": {
+                "type": "boolean",
+                "description": "Daily notes are enabled. When `false`, `GET` and `PUT /notes/{date}` answer `409`."
+              },
+              "todos": {
+                "type": "boolean",
+                "description": "Todos are enabled in the app. The todo endpoints work either way, but a todo created while this is `false` is invisible to the user."
+              }
+            },
+            "required": [
+              "body_fat",
+              "todos",
+              "notes",
+              "macros",
+              "auto_calc_calories"
+            ]
+          },
           "server": {
             "type": "object",
             "description": "The server answering.",
@@ -3859,7 +3892,8 @@
         "required": [
           "user",
           "token",
-          "server"
+          "server",
+          "features"
         ]
       },
       "Note": {

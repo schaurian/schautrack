@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -181,13 +182,68 @@ func TestMeMatchesSchema(t *testing.T) {
 	me.Token.ExpiresAt = &fixedTime
 	me.Server.Version = "v2.4.0"
 	me.Server.Today = "2026-08-05"
+	me.Features = v1Features{
+		BodyFat: true, Todos: true, Notes: true, Macros: true, AutoCalcCalories: true,
+	}
 	checkSchema(t, "Me", me)
 
-	// A never-expiring token on an account with no goal or language set.
+	// A never-expiring token on an account with no goal or language set, and
+	// every optional feature off — the shape a brand-new account takes, and the
+	// one that would expose a features field wrongly declared non-boolean or
+	// accidentally omitted by an `omitempty`.
 	me.Token.ExpiresAt = nil
 	me.User.DailyGoal = nil
 	me.User.Language = nil
+	me.Features = v1Features{}
 	checkSchema(t, "Me", me)
+}
+
+// The features block is a documented contract of its own: a client that reads
+// features.notes to decide whether to offer note editing needs every key to be
+// present on every response, not just the ones that happen to be true. Marshal
+// a zero v1Features and assert the exact key set.
+func TestMeFeaturesAreAlwaysPresent(t *testing.T) {
+	raw, err := json.Marshal(v1Features{})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	want := []string{"body_fat", "todos", "notes", "macros", "auto_calc_calories"}
+	if len(got) != len(want) {
+		t.Errorf("features has %d keys, want %d: %s", len(got), len(want), raw)
+	}
+	for _, k := range want {
+		v, present := got[k]
+		if !present {
+			t.Errorf("features.%s is missing when false — a client cannot tell it from an unknown feature", k)
+			continue
+		}
+		if v != false {
+			t.Errorf("features.%s = %v on a zero value, want false", k, v)
+		}
+	}
+
+	// And the spec must declare exactly those, so neither side can grow a key
+	// the other does not know about.
+	spec := openapi.Build("", "").Components.Schemas["Me"].Properties["features"]
+	if spec == nil {
+		t.Fatal("the Me schema declares no features object")
+	}
+	for _, k := range want {
+		if _, ok := spec.Properties[k]; !ok {
+			t.Errorf("the spec's features object omits %q", k)
+		}
+		if !slices.Contains(spec.Required, k) {
+			t.Errorf("the spec does not mark features.%s required, so a client may not rely on it", k)
+		}
+	}
+	if len(spec.Properties) != len(want) {
+		t.Errorf("the spec declares %d feature keys, the struct emits %d", len(spec.Properties), len(want))
+	}
 }
 
 func TestCompletionMatchesSchema(t *testing.T) {
