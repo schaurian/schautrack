@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -71,7 +71,7 @@ func RequireLinkAuth(pool *pgxpool.Pool, category string) func(http.Handler) htt
 						json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Not authorized"})
 						return
 					}
-					log.Printf("Link auth check failed: %v", err)
+					slog.Error("link auth check failed", "error", err)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
 					json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Authorization check failed"})
