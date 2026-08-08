@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -154,14 +155,47 @@ func decodeV1(w http.ResponseWriter, r *http.Request, dst any) *apierr.Problem {
 		return decodeV1Problem(err)
 	}
 
-	// A second Decode on the *body* must hit EOF; anything else means the
+	// A second Decode on the *body* must hit io.EOF; anything else means the
 	// caller sent more than one JSON value and half of it would be ignored.
 	// Checked last so that a malformed first object is reported as the field
 	// error it is rather than as a multi-value body.
-	if dec.More() {
+	//
+	// Decode, not More(). More() reports whether another value is *in the
+	// current array or object*, and it answers false on any read error —
+	// including the MaxBytesError raised when the reader hits maxV1Body while
+	// looking ahead. A body whose first object is valid, followed by padding
+	// past the limit and a second value, therefore sailed through: More()
+	// swallowed the size error, decodeV1 returned nil, and the trailing value
+	// was silently dropped from a request the caller was told had succeeded
+	// (#411). Decoding into a discard target surfaces both faults instead.
+	var trailing json.RawMessage
+	err := dec.Decode(&trailing)
+	switch {
+	case errors.Is(err, io.EOF):
+		return nil // exactly one value, which is the contract
+
+	case isMaxBytes(err):
+		// The only fault that gets its own answer. "Your request is too big"
+		// and "send exactly one object" are different instructions, and a
+		// caller who padded past 1 MB cannot act on the second one.
+		return decodeV1Problem(err)
+
+	default:
+		// Anything else past the first object — a second value, or trailing
+		// garbage that does not parse — is the same mistake from the caller's
+		// side: the body is not one JSON object. Kept as one message because
+		// naming the structural rule is more actionable than reporting a
+		// syntax error in bytes the server was never going to use.
 		return apierr.BadRequest("The request body must contain exactly one JSON object.")
 	}
-	return nil
+}
+
+// isMaxBytes reports whether err is the size-limit failure raised by
+// http.MaxBytesReader. Split out because decodeV1 has to distinguish it from
+// every other trailing-read failure, while decodeV1Problem only has to map it.
+func isMaxBytes(err error) bool {
+	var maxErr *http.MaxBytesError
+	return errors.As(err, &maxErr)
 }
 
 // decodeV1Problem maps an encoding/json failure onto a problem detail. Shared

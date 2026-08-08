@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"schautrack/internal/apierr"
+	"schautrack/internal/service"
 )
 
 // Characterization tests for the v1 request-parsing helpers in v1_common.go.
@@ -878,5 +880,73 @@ func assertBadRequest(t *testing.T, p *apierr.Problem, wantDetail string) {
 	}
 	if p.Detail != wantDetail {
 		t.Errorf("detail = %q, want %q", p.Detail, wantDetail)
+	}
+}
+
+// TestDecodeV1TrailingValuePastTheSizeLimit is the regression pin for #411.
+//
+// The trailing-value check used to be `if dec.More()`. More() answers false on
+// *any* read error, and the reader here is a MaxBytesReader — so a body whose
+// first object is valid, followed by enough padding to cross maxV1Body and
+// then a second value, produced: pass 1 fine, pass 2 fine, More() false
+// (because looking ahead tripped the size limit), and decodeV1 returned nil.
+// The caller got a 2xx for a request the server had only half read, with the
+// trailing value silently discarded — the same silent-data-loss shape
+// DisallowUnknownFields and the null-body check exist to prevent.
+//
+// Both faults in that body must surface, and the size one is the more useful
+// answer: it tells the caller their request was too big, not that they wrote
+// it wrong.
+func TestDecodeV1TrailingValuePastTheSizeLimit(t *testing.T) {
+	var dst v1CommonTestBody
+
+	// A valid first object, then padding past the cap, then a second value.
+	body := `{"calories":1}` + strings.Repeat(" ", maxV1Body) + `{"calories":2}`
+	got := decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body)), &dst)
+	if got == nil {
+		t.Fatal("decodeV1 accepted a body that runs past the size limit and drops a trailing value")
+	}
+	if got.Status != http.StatusRequestEntityTooLarge {
+		t.Errorf("status = %d, want 413 (got %+v)", got.Status, got)
+	}
+
+	// The ordinary multi-value body, well under the cap, still gets its own
+	// 400 — the fix must not turn every trailing value into a size error.
+	got = decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"calories":1}{"calories":2}`)), &dst)
+	if got == nil || got.Status != http.StatusBadRequest {
+		t.Fatalf("multi-value body = %v, want 400", got)
+	}
+	if got.Detail != "The request body must contain exactly one JSON object." {
+		t.Errorf("detail = %q, want the exactly-one-object detail", got.Detail)
+	}
+
+	// And a single object followed only by whitespace is still valid: the
+	// trailing Decode must read io.EOF, not treat the padding as a value.
+	got = decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"calories":1}   `+"\n\t")), &dst)
+	if got != nil {
+		t.Errorf("object followed by whitespace = %v, want accepted", got)
+	}
+}
+
+// TestV1WeightErrorStatesTheRealCap is the pin for #318. The PUT /weight/{date}
+// rejection used to spell the bound out as the literal 1500, so raising
+// service.MaxWeight would have left the API telling clients a limit its own
+// parser no longer enforced. A wrong limit in an error message is worse than
+// no limit: it is the number a client will code against.
+func TestV1WeightErrorStatesTheRealCap(t *testing.T) {
+	src, err := os.ReadFile("v1_weight.go")
+	if err != nil {
+		t.Fatalf("reading v1_weight.go: %v", err)
+	}
+	if strings.Contains(string(src), "at most 1500") {
+		t.Error("v1_weight.go hardcodes the weight cap in its error string; " +
+			"interpolate service.MaxWeight so the two cannot drift")
+	}
+	want := fmt.Sprintf("at most %g", service.MaxWeight)
+	if want != "at most 1500" {
+		t.Fatalf("this test assumes service.MaxWeight formats as 1500, got %q", want)
 	}
 }
