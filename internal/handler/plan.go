@@ -131,6 +131,13 @@ func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (servic
 	// The latest body-fat reading may be older than the latest weight (body
 	// composition is typically measured less often), so it is looked up
 	// separately and carries the weight it was taken with.
+	//
+	// The lookup is deliberately unbounded: the most recent reading is always
+	// worth *showing*, however old. Whether it is recent enough to pick the BMR
+	// formula is a separate question, decided in AssemblePlan against
+	// service.BodyFatRecencyDays — bounding the query instead would hide the
+	// reading and its date, leaving the user no way to see why the plan
+	// silently went back to Mifflin-St Jeor.
 	var bodyFat *service.BodyFatReading
 	lastBodyFat, err := service.GetLastBodyFatEntry(ctx, h.Pool, user.ID, "")
 	if err != nil {

@@ -7,6 +7,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
 import MetricsForm from './MetricsForm';
 import GoalForm from './GoalForm';
 import PlanChart from './PlanChart';
@@ -154,6 +155,17 @@ export default function Plan() {
                   unit: weightUnit,
                 })}
               </div>
+              {/* Say how old the reading is. The percentage is carried forward
+                  onto today's weight, so an undated number would present a
+                  months-old measurement as if it were current. */}
+              <div className={cn('text-xs mt-1', composition.stale ? 'text-yellow-400' : 'text-muted-foreground')}>
+                {t('plan.status.bodyFatMeasured', { date: formatDate(composition.date) })}
+                {composition.stale && (
+                  /* stale implies ageDays > the server's window, so the plural
+                     wording in this string is always the right one. */
+                  <> · {t('plan.status.bodyFatStale', { days: composition.ageDays })}</>
+                )}
+              </div>
             </div>
           )}
           <div>
@@ -196,11 +208,16 @@ export default function Plan() {
                 <div className="text-xs text-yellow-400 mt-1">{t('plan.recommendedBudget.clampedNotice')}</div>
               )}
               {/* Name the estimator: switching to Katch-McArdle is the payoff
-                  for logging body fat, and it would otherwise be invisible. */}
+                  for logging body fat, and it would otherwise be invisible.
+                  When a reading exists but is too old to use, say that too —
+                  otherwise the fallback to Mifflin looks like the app ignoring
+                  a number the user did log. */}
               <div className="text-xs text-muted-foreground mt-1">
                 {data.computed.bmrFormula === 'katch_mcardle' && composition
                   ? t('plan.recommendedBudget.formulaKatch', { lean: composition.leanMass.toFixed(1), unit: weightUnit })
-                  : t('plan.recommendedBudget.formulaMifflin')}
+                  : composition?.stale
+                    ? t('plan.recommendedBudget.formulaMifflinStale', { days: composition.ageDays })
+                    : t('plan.recommendedBudget.formulaMifflin')}
               </div>
             </div>
             <Button onClick={handleApplyBudget} loading={applying}>{t('plan.recommendedBudget.applyButton')}</Button>

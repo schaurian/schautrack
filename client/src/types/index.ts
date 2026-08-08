@@ -249,10 +249,23 @@ export interface CurvePoint {
 export interface BodyComposition {
   date: string;
   bodyFatPct: number;
-  /** In the user's weight unit, like every other weight on PlanResponse. */
+  /**
+   * In the user's weight unit, like every other weight on PlanResponse. This is
+   * the measured percentage applied to the weight the plan works from, i.e. the
+   * same lean mass the BMR was computed at — not the weight the reading was
+   * originally taken at.
+   */
   leanMass: number;
   fatMass: number;
   category: 'essential' | 'athletic' | 'fitness' | 'average' | 'obese' | null;
+  /** Whole days between the reading and today. Negative if dated ahead. */
+  ageDays: number;
+  /**
+   * True when the reading is too old to pick the BMR formula (server-side
+   * window). A stale reading is still shown — it is the user's latest
+   * measurement — but `computed.bmrFormula` will be `mifflin_st_jeor`.
+   */
+  stale: boolean;
 }
 
 export interface PlanComputed {
