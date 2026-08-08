@@ -210,7 +210,7 @@ export default function PlanChart({
       targetY: targetWeight != null ? y(targetWeight) : null,
       bandY:
         !isSpark && healthyRange
-          ? clampBand(y(healthyRange.maxKg), y(healthyRange.minKg), margin.top, margin.top + plotH)
+          ? clampBand(y(healthyRange.max), y(healthyRange.min), margin.top, margin.top + plotH)
           : null,
       // Where logged history ends and projection begins. Without it the two
       // series just change colour somewhere in the middle of the frame.

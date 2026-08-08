@@ -200,11 +200,21 @@ type WeightPoint struct {
 	BodyFat *float64 // percent, nil on days measured by a weight-only scale
 }
 
+// Trend is TrendAnalysis's result: an internal, kilograms-only value that
+// AssemblePlan copies into the wire type PlanTrend. It is never serialized —
+// it carried snake_case json tags while PlanTrend used camelCase, two
+// conventions for one concept, and neither set ever reached a client. The tags
+// are gone rather than harmonised so the type cannot be mistaken for part of
+// the API surface; the wire shape lives on PlanTrend alone.
+//
+// SlopeKgPerWeek keeps its unit in its name because here the unit is fixed:
+// AssemblePlan's inputs are always kilograms. PlanTrend.SlopePerWeek does not,
+// because by the time it is served it may be pounds.
 type Trend struct {
-	SlopeKgPerWeek float64 `json:"slope_kg_per_week"`
-	HasData        bool    `json:"has_data"`
-	ProjectedWeeks float64 `json:"projected_weeks"` // to target; -1 if not projectable
-	Status         string  `json:"status"`
+	SlopeKgPerWeek float64
+	HasData        bool
+	ProjectedWeeks float64 // to target; -1 if not projectable
+	Status         string
 }
 
 // TrendAnalysis fits a least-squares line over points within windowDays of now.

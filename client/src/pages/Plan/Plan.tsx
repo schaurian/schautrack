@@ -160,7 +160,7 @@ export default function Plan() {
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.healthyRangeLabel')}</div>
             {data.healthyRange ? (
               <div className="text-xl font-bold tabular-nums">
-                {data.healthyRange.minKg.toFixed(1)}&ndash;{data.healthyRange.maxKg.toFixed(1)}
+                {data.healthyRange.min.toFixed(1)}&ndash;{data.healthyRange.max.toFixed(1)}
                 <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
               </div>
             ) : (

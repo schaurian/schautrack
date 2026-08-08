@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -347,6 +348,139 @@ func TestPlanMatchesSchema(t *testing.T) {
 	})
 }
 
+// TestPlanPayloadNamesNoUnit is the guard against schaurian/schautrack#361
+// recurring: a plan field must not name a unit, because the payload's unit is
+// the account's and the account's may be pounds.
+//
+// Four fields called minKg, maxKg, rateKgPerWeek and slopeKgPerWeek were served
+// in pounds to every `lb` account for as long as they existed. Nothing caught
+// it — the values were converted correctly, the schema validated, the docs
+// regenerated. Only the names were wrong, and a name is not something a
+// validator looks at. So this test looks at the names.
+//
+// It walks the serialized payload rather than the Go structs, because the JSON
+// tag is what a client sees, and it walks a real assembled plan so a newly
+// added sub-object is covered without anyone remembering to list it here.
+func TestPlanPayloadNamesNoUnit(t *testing.T) {
+	resp := service.AssemblePlan(service.PlanInputs{
+		CurrentWeight:  ptr(88.4),
+		CurrentBodyFat: &service.BodyFatReading{Date: "2026-07-22", WeightKg: 90.4, Pct: 24.5},
+		HeightCm:       ptr(180.0), BirthYear: ptr(1990),
+		Sex: ptr("male"), ActivityLevel: ptr("moderate"),
+		Goal: activeGoal(), Series: planSeries(),
+		CurrentCalGoal: ptr(2100), Now: fixedTime,
+	})
+	raw, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal plan: %v", err)
+	}
+	var tree any
+	if err := json.Unmarshal(raw, &tree); err != nil {
+		t.Fatalf("unmarshal plan: %v", err)
+	}
+
+	// heightCm is a length, not a weight, and is never converted — its unit is
+	// genuinely fixed, so naming it is honest. rate_kg_per_week is the goal's,
+	// tracked separately in #396: it is also the request body of the app's
+	// PUT /plan/goal, so it cannot be renamed here alone.
+	honest := map[string]bool{"heightCm": true, "rate_kg_per_week": true}
+	unitish := regexp.MustCompile(`(?i)(kg|_?lbs?\b|pound|gram)`)
+
+	var walk func(path string, v any)
+	walk = func(path string, v any) {
+		switch n := v.(type) {
+		case map[string]any:
+			for k, child := range n {
+				if unitish.MatchString(k) && !honest[k] {
+					t.Errorf("plan field %s%s names a unit; the payload is in the account's unit, "+
+						"which may be pounds. Use a unit-neutral name and let the top-level `unit` say which.", path, k)
+				}
+				walk(path+k+".", child)
+			}
+		case []any:
+			for _, child := range n {
+				walk(path, child)
+			}
+		}
+	}
+	walk("", tree)
+}
+
+// TestPlanIsSelfDescribingInPounds is the other half of #361: the payload must
+// say which unit it is in, and say it correctly.
+//
+// Before this, a client holding a plan response had no way to know whether
+// `currentWeight: 195` was kilograms or pounds without a second call to /me —
+// and the four *Kg names actively told it the wrong answer. The check is that
+// every weight-valued field really is in the unit the payload claims, verified
+// by converting a known kg plan and comparing against the exact factor.
+func TestPlanIsSelfDescribingInPounds(t *testing.T) {
+	in := service.PlanInputs{
+		CurrentWeight:  ptr(88.4),
+		CurrentBodyFat: &service.BodyFatReading{Date: "2026-07-22", WeightKg: 90.4, Pct: 24.5},
+		HeightCm:       ptr(180.0), BirthYear: ptr(1990),
+		Sex: ptr("male"), ActivityLevel: ptr("moderate"),
+		Goal: activeGoal(), Series: planSeries(),
+		CurrentCalGoal: ptr(2100), Now: fixedTime,
+	}
+
+	kg := service.AssemblePlan(in)
+	service.ConvertPlanResponseToDisplayUnit(&kg, "kg")
+	lb := service.AssemblePlan(in)
+	service.ConvertPlanResponseToDisplayUnit(&lb, "lb")
+
+	if kg.Unit != "kg" {
+		t.Errorf("a kg account's plan reports unit %q, want \"kg\"", kg.Unit)
+	}
+	if lb.Unit != "lb" {
+		t.Errorf("an lb account's plan reports unit %q, want \"lb\"", lb.Unit)
+	}
+
+	// round1 in the converter means a converted value can sit half a display
+	// step off the exact ratio; 0.05 is that tolerance, well under the 2.2x
+	// error this test exists to catch.
+	const tol = 0.05
+	inPounds := func(t *testing.T, field string, gotLb, wantKg float64) {
+		t.Helper()
+		want := wantKg / service.KgPerLb
+		if diff := gotLb - want; diff > tol || diff < -tol {
+			t.Errorf("%s = %v with unit=lb, but the kg plan says %v, which is %.4f lb. "+
+				"The field is not in the unit the payload claims.", field, gotLb, wantKg, want)
+		}
+	}
+
+	inPounds(t, "currentWeight", *lb.CurrentWeight, *kg.CurrentWeight)
+	inPounds(t, "healthyRange.min", lb.HealthyRange.Min, kg.HealthyRange.Min)
+	inPounds(t, "healthyRange.max", lb.HealthyRange.Max, kg.HealthyRange.Max)
+	inPounds(t, "computed.ratePerWeek", lb.Computed.RatePerWeek, kg.Computed.RatePerWeek)
+	inPounds(t, "trend.slopePerWeek", lb.Trend.SlopePerWeek, kg.Trend.SlopePerWeek)
+	inPounds(t, "composition.leanMass", lb.Composition.LeanMass, kg.Composition.LeanMass)
+	inPounds(t, "composition.fatMass", lb.Composition.FatMass, kg.Composition.FatMass)
+	inPounds(t, "series[0].weight", lb.Series[0].Weight, kg.Series[0].Weight)
+	inPounds(t, "computed.planCurve[0].weight", lb.Computed.PlanCurve[0].Weight, kg.Computed.PlanCurve[0].Weight)
+
+	// Fields that are not weights must be identical in both, or "the whole
+	// payload is in one unit" has quietly become "most of it is".
+	if *lb.BMI != *kg.BMI {
+		t.Errorf("bmi = %v in lb and %v in kg; BMI is unitless and must not be converted", *lb.BMI, *kg.BMI)
+	}
+	if lb.Computed.BudgetKcal != kg.Computed.BudgetKcal {
+		t.Errorf("budgetKcal = %d in lb and %d in kg; kilocalories are not weights",
+			lb.Computed.BudgetKcal, kg.Computed.BudgetKcal)
+	}
+	if lb.Composition.BodyFatPct != kg.Composition.BodyFatPct {
+		t.Errorf("bodyFatPct = %v in lb and %v in kg; a percentage is the same number in both",
+			lb.Composition.BodyFatPct, kg.Composition.BodyFatPct)
+	}
+	if *lb.Metrics.HeightCm != *kg.Metrics.HeightCm {
+		t.Errorf("heightCm = %v in lb and %v in kg; a height is not a weight",
+			*lb.Metrics.HeightCm, *kg.Metrics.HeightCm)
+	}
+	if lb.Computed.ETAWeeks != kg.Computed.ETAWeeks || lb.Trend.ProjectedWeeks != kg.Trend.ProjectedWeeks {
+		t.Error("week counts differ between units; they are durations, not weights")
+	}
+}
+
 // TestPlanWarningsAreDocumented pins the enum: every warning the assembler can
 // emit must be one the schema lists, or a client switching on `code` hits a
 // value the document never mentioned.
@@ -388,11 +522,11 @@ func TestValidatorRejectsDrift(t *testing.T) {
 		// Plan was exempt from all of the above until its schema was written
 		// down; these are the three drifts that actually shipped, plus the
 		// undeclared-key case the old additionalProperties waiver allowed.
-		{"undocumented plan field", "PlanComputed", `{"bmr":1700,"tdee":2635,"budgetKcal":2085,"budgetClamped":false,"rateKgPerWeek":0.5,"etaWeeks":16.8,"etaDate":"2026-11-29","planCurve":[],"bmrFormula":"katch_mcardle","secretMultiplier":1.5}`},
-		{"missing plan sub-object", "Plan", `{"metrics":{"heightCm":180,"birthYear":1990,"sex":"male","activityLevel":"moderate","complete":true}}`},
+		{"undocumented plan field", "PlanComputed", `{"bmr":1700,"tdee":2635,"budgetKcal":2085,"budgetClamped":false,"ratePerWeek":0.5,"etaWeeks":16.8,"etaDate":"2026-11-29","planCurve":[],"bmrFormula":"katch_mcardle","secretMultiplier":1.5}`},
+		{"missing plan sub-object", "Plan", `{"unit":"kg","metrics":{"heightCm":180,"birthYear":1990,"sex":"male","activityLevel":"moderate","complete":true}}`},
 		{"renamed composition field", "BodyComposition", `{"date":"2026-07-22","bodyFatPercent":24.5,"leanMass":68.3,"fatMass":22.1,"category":"average"}`},
-		{"unknown bmr formula", "PlanComputed", `{"bmr":1700,"tdee":2635,"budgetKcal":2085,"budgetClamped":false,"rateKgPerWeek":0.5,"etaWeeks":16.8,"etaDate":null,"planCurve":[],"bmrFormula":"harris_benedict"}`},
-		{"nullable ref given a wrong object", "Plan", `{"metrics":{"heightCm":null,"birthYear":null,"sex":null,"activityLevel":null,"complete":false},"currentWeight":null,"bmi":null,"bmiCategory":null,"composition":{"date":"2026-07-22"},"healthyRange":null,"goal":null,"computed":null,"trend":null,"currentCalorieGoal":null,"series":[],"warnings":[],"disclaimer":"x"}`},
+		{"unknown bmr formula", "PlanComputed", `{"bmr":1700,"tdee":2635,"budgetKcal":2085,"budgetClamped":false,"ratePerWeek":0.5,"etaWeeks":16.8,"etaDate":null,"planCurve":[],"bmrFormula":"harris_benedict"}`},
+		{"nullable ref given a wrong object", "Plan", `{"unit":"kg","metrics":{"heightCm":null,"birthYear":null,"sex":null,"activityLevel":null,"complete":false},"currentWeight":null,"bmi":null,"bmiCategory":null,"composition":{"date":"2026-07-22"},"healthyRange":null,"goal":null,"computed":null,"trend":null,"currentCalorieGoal":null,"series":[],"warnings":[],"disclaimer":"x"}`},
 	}
 
 	for _, c := range cases {

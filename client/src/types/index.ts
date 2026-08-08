@@ -236,9 +236,10 @@ export interface PlanMetrics {
   complete: boolean;
 }
 
+/** Bounds are weights, so they are in `PlanResponse.unit` — not necessarily kg. */
 export interface HealthyRange {
-  minKg: number;
-  maxKg: number;
+  min: number;
+  max: number;
 }
 
 export interface CurvePoint {
@@ -260,7 +261,8 @@ export interface PlanComputed {
   tdee: number;
   budgetKcal: number;
   budgetClamped: boolean;
-  rateKgPerWeek: number;
+  /** A weight per week, in `PlanResponse.unit`. */
+  ratePerWeek: number;
   etaWeeks: number;
   etaDate: string | null;
   planCurve: CurvePoint[];
@@ -268,7 +270,8 @@ export interface PlanComputed {
 }
 
 export interface PlanTrend {
-  slopeKgPerWeek: number;
+  /** A weight per week, in `PlanResponse.unit`. Negative when losing. */
+  slopePerWeek: number;
   hasData: boolean;
   projectedWeeks: number;
   projectedDate: string | null;
@@ -287,6 +290,12 @@ export interface PlanWarning {
 }
 
 export interface PlanResponse {
+  /**
+   * The unit every weight-valued field below is in — the account's, not
+   * necessarily kg. No field on this payload names a unit itself; this is the
+   * one place that says which one they are in.
+   */
+  unit: 'kg' | 'lb';
   metrics: PlanMetrics;
   currentWeight: number | null;
   bmi: number | null;

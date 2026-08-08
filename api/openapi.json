@@ -3348,11 +3348,11 @@
           },
           "fatMass": {
             "type": "number",
-            "description": "Fat mass at that reading. In the account's weight unit."
+            "description": "Fat mass at that reading. In the unit given by the plan's `unit` field."
           },
           "leanMass": {
             "type": "number",
-            "description": "Fat-free mass at that reading. In the account's weight unit."
+            "description": "Fat-free mass at that reading. In the unit given by the plan's `unit` field."
           }
         },
         "required": [
@@ -3412,7 +3412,7 @@
           },
           "weight": {
             "type": "number",
-            "description": "Projected weight that week. In the account's weight unit."
+            "description": "Projected weight that week. In the unit given by the plan's `unit` field."
           }
         },
         "required": [
@@ -3661,18 +3661,18 @@
         "type": "object",
         "description": "The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.",
         "properties": {
-          "maxKg": {
+          "max": {
             "type": "number",
-            "description": "Upper bound. In the account's weight unit. Not necessarily kg, despite the name."
+            "description": "Upper bound. In the unit given by the plan's `unit` field."
           },
-          "minKg": {
+          "min": {
             "type": "number",
-            "description": "Lower bound. In the account's weight unit. Not necessarily kg, despite the name."
+            "description": "Lower bound. In the unit given by the plan's `unit` field."
           }
         },
         "required": [
-          "minKg",
-          "maxKg"
+          "min",
+          "max"
         ]
       },
       "Link": {
@@ -3995,7 +3995,7 @@
       },
       "Plan": {
         "type": "object",
-        "description": "The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Every field is always present; those that depend on data the account has not supplied are `null`. Weight-valued fields are in the account's unit.",
+        "description": "The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Every field is always present; those that depend on data the account has not supplied are `null`. Every weight-valued field is in the unit named by `unit` — read it rather than assuming kilograms.",
         "properties": {
           "bmi": {
             "type": [
@@ -4052,7 +4052,7 @@
               "number",
               "null"
             ],
-            "description": "The most recent weight reading. `null` when none is logged. In the account's weight unit."
+            "description": "The most recent weight reading. `null` when none is logged. In the unit given by the plan's `unit` field."
           },
           "disclaimer": {
             "type": "string",
@@ -4102,6 +4102,14 @@
               }
             ]
           },
+          "unit": {
+            "type": "string",
+            "description": "The unit every weight-valued field in this payload is in: `kg` or `lb`. The plan is computed in kilograms and converted once, on the way out, to the account's configured unit; this field records which one that was, so the numbers can be read without a second call to `/me`.",
+            "enum": [
+              "kg",
+              "lb"
+            ]
+          },
           "warnings": {
             "type": "array",
             "description": "Safety notes about this plan. Empty when there is nothing to flag.",
@@ -4111,6 +4119,7 @@
           }
         },
         "required": [
+          "unit",
           "metrics",
           "currentWeight",
           "bmi",
@@ -4171,9 +4180,9 @@
               "$ref": "#/components/schemas/CurvePoint"
             }
           },
-          "rateKgPerWeek": {
+          "ratePerWeek": {
             "type": "number",
-            "description": "The goal's pace per week. In the account's weight unit. Not necessarily kg, despite the name."
+            "description": "The goal's pace per week. In the unit given by the plan's `unit` field."
           },
           "tdee": {
             "type": "number",
@@ -4185,7 +4194,7 @@
           "tdee",
           "budgetKcal",
           "budgetClamped",
-          "rateKgPerWeek",
+          "ratePerWeek",
           "etaWeeks",
           "etaDate",
           "planCurve",
@@ -4273,9 +4282,9 @@
             "type": "number",
             "description": "Weeks to the target at the observed rate. `-1` when it cannot be projected."
           },
-          "slopeKgPerWeek": {
+          "slopePerWeek": {
             "type": "number",
-            "description": "Fitted change per week, negative when losing. In the account's weight unit. Not necessarily kg, despite the name."
+            "description": "Fitted change per week, negative when losing. In the unit given by the plan's `unit` field."
           },
           "status": {
             "type": "string",
@@ -4291,7 +4300,7 @@
           }
         },
         "required": [
-          "slopeKgPerWeek",
+          "slopePerWeek",
           "hasData",
           "projectedWeeks",
           "projectedDate",
@@ -4642,7 +4651,7 @@
           },
           "weight": {
             "type": "number",
-            "description": "The reading. In the account's weight unit."
+            "description": "The reading. In the unit given by the plan's `unit` field."
           }
         },
         "required": [
@@ -4945,7 +4954,7 @@
           },
           "rate_kg_per_week": {
             "type": "number",
-            "description": "The requested pace per week. Present when `pace_mode` is `rate`. In the account's weight unit. Not necessarily kg, despite the name."
+            "description": "The requested pace per week. Present when `pace_mode` is `rate`. In the unit given by the plan's `unit` field. **Not necessarily kilograms, despite the name** — the name is the `weight_goals.rate_kg_per_week` column's, and the goal is stored and echoed in the account's own unit. Unlike the plan's other weight fields it was not renamed, because the same key is the request body of the app's `PUT /plan/goal`; see schaurian/schautrack#396."
           },
           "start_date": {
             "type": "string",
@@ -4956,7 +4965,7 @@
           },
           "start_weight": {
             "type": "number",
-            "description": "Weight when the goal was set. In the account's weight unit."
+            "description": "Weight when the goal was set. In the unit given by the plan's `unit` field."
           },
           "status": {
             "type": "string",
@@ -4976,7 +4985,7 @@
           },
           "target_weight": {
             "type": "number",
-            "description": "The target. In the account's weight unit."
+            "description": "The target. In the unit given by the plan's `unit` field."
           },
           "updated_at": {
             "type": "string",

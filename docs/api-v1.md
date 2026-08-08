@@ -887,8 +887,8 @@ Body composition derived from the most recent body-fat reading. That reading can
 | `bodyFatPct` | `number` | yes | Body fat as a percentage of total mass. A percentage, so never unit-converted. |
 | `category` | `string` or `null` | yes | The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one. |
 | `date` | `string` (date) | yes | The day the body-fat reading was recorded. |
-| `fatMass` | `number` | yes | Fat mass at that reading. In the account's weight unit. |
-| `leanMass` | `number` | yes | Fat-free mass at that reading. In the account's weight unit. |
+| `fatMass` | `number` | yes | Fat mass at that reading. In the unit given by the plan's `unit` field. |
+| `leanMass` | `number` | yes | Fat-free mass at that reading. In the unit given by the plan's `unit` field. |
 
 ### Completion
 
@@ -915,7 +915,7 @@ One week of the projected curve.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `week` | `integer` | yes | Weeks from now. Week 0 is the starting weight. |
-| `weight` | `number` | yes | Projected weight that week. In the account's weight unit. |
+| `weight` | `number` | yes | Projected weight that week. In the unit given by the plan's `unit` field. |
 
 ### Entry
 
@@ -992,8 +992,8 @@ The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `maxKg` | `number` | yes | Upper bound. In the account's weight unit. Not necessarily kg, despite the name. |
-| `minKg` | `number` | yes | Lower bound. In the account's weight unit. Not necessarily kg, despite the name. |
+| `max` | `number` | yes | Upper bound. In the unit given by the plan's `unit` field. |
+| `min` | `number` | yes | Lower bound. In the unit given by the plan's `unit` field. |
 
 ### Link
 
@@ -1058,7 +1058,7 @@ The note's full content. Writing an empty string deletes it.
 
 ### Plan
 
-The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Every field is always present; those that depend on data the account has not supplied are `null`. Weight-valued fields are in the account's unit.
+The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Every field is always present; those that depend on data the account has not supplied are `null`. Every weight-valued field is in the unit named by `unit` — read it rather than assuming kilograms.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -1067,13 +1067,14 @@ The weight-loss plan: body metrics, active goal, computed budget, projected curv
 | `composition` | [`BodyComposition`](#bodycomposition) or `null` | yes | Derived from the most recent body-fat reading. `null` when none was recorded. |
 | `computed` | [`PlanComputed`](#plancomputed) or `null` | yes | The budget and projection. `null` unless the body metrics are complete AND an active goal has a usable pace. |
 | `currentCalorieGoal` | `integer` or `null` | yes | The account's daily calorie target as it stands now, which need not equal `computed.budgetKcal` — the recommendation is only applied when the user accepts it. |
-| `currentWeight` | `number` or `null` | yes | The most recent weight reading. `null` when none is logged. In the account's weight unit. |
+| `currentWeight` | `number` or `null` | yes | The most recent weight reading. `null` when none is logged. In the unit given by the plan's `unit` field. |
 | `disclaimer` | `string` | yes | Fixed text to show alongside the numbers. The plan is an estimate, not medical advice. |
 | `goal` | [`WeightGoal`](#weightgoal) or `null` | yes | The active weight goal. `null` when none is set. |
 | `healthyRange` | [`HealthyRange`](#healthyrange) or `null` | yes | The healthy weight range for the account's height. `null` without a height and a weight. |
 | `metrics` | [`PlanMetrics`](#planmetrics) | yes | The body metrics the plan is computed from. |
 | `series` | array of [`SeriesPoint`](#seriespoint) | yes | Logged weight readings from the last 180 days, oldest first. |
 | `trend` | [`PlanTrend`](#plantrend) or `null` | yes | Observed progress. `null` when no goal is set; present but flagged `insufficient_data` when there are too few readings. |
+| `unit` | `string` | yes | The unit every weight-valued field in this payload is in: `kg` or `lb`. The plan is computed in kilograms and converted once, on the way out, to the account's configured unit; this field records which one that was, so the numbers can be read without a second call to `/me`. |
 | `warnings` | array of [`PlanWarning`](#planwarning) | yes | Safety notes about this plan. Empty when there is nothing to flag. |
 
 ### PlanComputed
@@ -1089,7 +1090,7 @@ The energy budget and the projection it produces.
 | `etaDate` | `string` or `null` | yes | The date `etaWeeks` lands on. `null` when the ETA is not a finite number. |
 | `etaWeeks` | `number` | yes | Weeks to the target at that pace. |
 | `planCurve` | array of [`CurvePoint`](#curvepoint) | yes | Projected weight week by week. It decelerates: BMR is recomputed at each simulated weight, so the deficit shrinks as the weight does. Stops at the target, at a plateau, or after 160 weeks. |
-| `rateKgPerWeek` | `number` | yes | The goal's pace per week. In the account's weight unit. Not necessarily kg, despite the name. |
+| `ratePerWeek` | `number` | yes | The goal's pace per week. In the unit given by the plan's `unit` field. |
 | `tdee` | `number` | yes | Total daily energy expenditure: BMR times the activity factor, kcal/day. |
 
 ### PlanMetrics
@@ -1113,7 +1114,7 @@ Observed progress: a least-squares fit over the readings from the last 30 days. 
 | `hasData` | `boolean` | yes | Whether there were enough readings — two, at least a week apart — to fit a line. |
 | `projectedDate` | `string` or `null` | yes | The date `projectedWeeks` lands on. `null` when it cannot be projected. |
 | `projectedWeeks` | `number` | yes | Weeks to the target at the observed rate. `-1` when it cannot be projected. |
-| `slopeKgPerWeek` | `number` | yes | Fitted change per week, negative when losing. In the account's weight unit. Not necessarily kg, despite the name. |
+| `slopePerWeek` | `number` | yes | Fitted change per week, negative when losing. In the unit given by the plan's `unit` field. |
 | `status` | `string` | yes | Progress against the plan's pace: `ahead` from 110%, `on_track` from 85%, `behind` below that. `stalled` when the fitted change is under 0.05 per week, `wrong_direction` when it moves away from the target, `insufficient_data` when `hasData` is false. |
 
 ### PlanWarning
@@ -1210,7 +1211,7 @@ One logged weight reading, as charted.
 | --- | --- | --- | --- |
 | `bodyFat` | `number` |  | Body fat percentage recorded with it. Absent when the scale reported weight only. |
 | `date` | `string` (date) | yes | The day of the reading. |
-| `weight` | `number` | yes | The reading. In the account's weight unit. |
+| `weight` | `number` | yes | The reading. In the unit given by the plan's `unit` field. |
 
 ### SettingsPatch
 
@@ -1317,12 +1318,12 @@ The active weight goal, echoed in the account's unit. Read-only here: setting a 
 | `created_at` | `string` (date-time) | yes | When the goal was created (UTC). |
 | `id` | `integer` | yes | Goal identifier. |
 | `pace_mode` | `string` | yes | `rate` sets a weekly pace directly; `date` derives one from `target_date`. |
-| `rate_kg_per_week` | `number` |  | The requested pace per week. Present when `pace_mode` is `rate`. In the account's weight unit. Not necessarily kg, despite the name. |
+| `rate_kg_per_week` | `number` |  | The requested pace per week. Present when `pace_mode` is `rate`. In the unit given by the plan's `unit` field. **Not necessarily kilograms, despite the name** — the name is the `weight_goals.rate_kg_per_week` column's, and the goal is stored and echoed in the account's own unit. Unlike the plan's other weight fields it was not renamed, because the same key is the request body of the app's `PUT /plan/goal`; see schaurian/schautrack#396. |
 | `start_date` | `string` (date) | yes | The day the goal was set. |
-| `start_weight` | `number` | yes | Weight when the goal was set. In the account's weight unit. |
+| `start_weight` | `number` | yes | Weight when the goal was set. In the unit given by the plan's `unit` field. |
 | `status` | `string` | yes | `active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal. |
 | `target_date` | `string` (date) |  | The requested finish date. Present when `pace_mode` is `date`. |
-| `target_weight` | `number` | yes | The target. In the account's weight unit. |
+| `target_weight` | `number` | yes | The target. In the unit given by the plan's `unit` field. |
 | `updated_at` | `string` (date-time) | yes | When it was last changed (UTC). |
 | `user_id` | `integer` | yes | The account that owns it. |
 

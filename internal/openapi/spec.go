@@ -493,19 +493,29 @@ func schemas() map[string]*Schema {
 // page renders a field table for each — an inline object renders as the word
 // "object" and nothing else.
 //
-// Weight-valued fields are in the account's unit throughout, including the four
-// whose names say Kg (minKg, maxKg, rateKgPerWeek, slopeKgPerWeek):
-// service.ConvertPlanResponseToDisplayUnit converts them like every other
-// weight. The names are historical and misleading — schaurian/schautrack#361.
+// Weight-valued fields are in the account's unit throughout, and the payload
+// says which unit that is in its top-level `unit`. Nothing here is named after
+// a unit: four fields used to be (minKg, maxKg, rateKgPerWeek, slopeKgPerWeek)
+// while service.ConvertPlanResponseToDisplayUnit converted them like every
+// other weight, so a pound account was served pounds in a field called `minKg`
+// — a silent 2.2x for any client that believed the name.
+// schaurian/schautrack#361 renamed them and added `unit`.
 func planSchemas() map[string]*Schema {
-	const inUnit = " In the account's weight unit."
+	// Appended to every weight-valued description. It names the field that
+	// resolves the unit rather than saying "the account's unit", because a
+	// client holding the payload can act on the former and not the latter.
+	const inUnit = " In the unit given by the plan's `unit` field."
 
 	return map[string]*Schema{
 		"Plan": object("The weight-loss plan: body metrics, active goal, computed budget, "+
 			"projected curve, and trend analysis. Every field is always present; those that depend "+
-			"on data the account has not supplied are `null`. Weight-valued fields are in the "+
-			"account's unit.",
+			"on data the account has not supplied are `null`. Every weight-valued field is in the "+
+			"unit named by `unit` — read it rather than assuming kilograms.",
 			map[string]*Schema{
+				"unit": enumStr("The unit every weight-valued field in this payload is in: `kg` or `lb`. "+
+					"The plan is computed in kilograms and converted once, on the way out, to the account's "+
+					"configured unit; this field records which one that was, so the numbers can be read "+
+					"without a second call to `/me`.", "kg", "lb"),
 				"metrics":       describedRef("PlanMetrics", "The body metrics the plan is computed from."),
 				"currentWeight": nullable(number("The most recent weight reading. `null` when none is logged." + inUnit)),
 				"bmi":           nullable(number("Body mass index. `null` without both a height and a weight.")),
@@ -521,7 +531,7 @@ func planSchemas() map[string]*Schema {
 				"warnings":   array(ref("PlanWarning"), "Safety notes about this plan. Empty when there is nothing to flag."),
 				"disclaimer": str("Fixed text to show alongside the numbers. The plan is an estimate, not medical advice."),
 			},
-			"metrics", "currentWeight", "bmi", "bmiCategory", "composition", "healthyRange", "goal",
+			"unit", "metrics", "currentWeight", "bmi", "bmiCategory", "composition", "healthyRange", "goal",
 			"computed", "trend", "currentCalorieGoal", "series", "warnings", "disclaimer"),
 
 		"PlanMetrics": object("The body metrics the plan is computed from. Each is `null` until the account supplies it; they are set in the app, not over this API.",
@@ -545,26 +555,30 @@ func planSchemas() map[string]*Schema {
 
 		"HealthyRange": object("The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.",
 			map[string]*Schema{
-				"minKg": number("Lower bound." + inUnit + " Not necessarily kg, despite the name."),
-				"maxKg": number("Upper bound." + inUnit + " Not necessarily kg, despite the name."),
-			}, "minKg", "maxKg"),
+				"min": number("Lower bound." + inUnit),
+				"max": number("Upper bound." + inUnit),
+			}, "min", "max"),
 
 		"WeightGoal": object("The active weight goal, echoed in the account's unit. Read-only here: setting a goal has "+
 			"real health implications, so it stays in the app where the numbers can be explained.",
 			map[string]*Schema{
-				"id":               integer("Goal identifier."),
-				"user_id":          integer("The account that owns it."),
-				"start_weight":     number("Weight when the goal was set." + inUnit),
-				"start_date":       dateStr("The day the goal was set."),
-				"target_weight":    number("The target." + inUnit),
-				"pace_mode":        enumStr("`rate` sets a weekly pace directly; `date` derives one from `target_date`.", "rate", "date"),
-				"rate_kg_per_week": number("The requested pace per week. Present when `pace_mode` is `rate`." + inUnit + " Not necessarily kg, despite the name."),
-				"target_date":      dateStr("The requested finish date. Present when `pace_mode` is `date`."),
-				"activity_level":   enumStr("The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`.", "sedentary", "light", "moderate", "active", "very_active"),
-				"status":           enumStr("`active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal.", "active", "achieved", "abandoned"),
-				"achieved_at":      dateTime("When the goal was met (UTC). Absent while it is active."),
-				"created_at":       dateTime("When the goal was created (UTC)."),
-				"updated_at":       dateTime("When it was last changed (UTC)."),
+				"id":            integer("Goal identifier."),
+				"user_id":       integer("The account that owns it."),
+				"start_weight":  number("Weight when the goal was set." + inUnit),
+				"start_date":    dateStr("The day the goal was set."),
+				"target_weight": number("The target." + inUnit),
+				"pace_mode":     enumStr("`rate` sets a weekly pace directly; `date` derives one from `target_date`.", "rate", "date"),
+				"rate_kg_per_week": number("The requested pace per week. Present when `pace_mode` is `rate`." + inUnit +
+					" **Not necessarily kilograms, despite the name** — the name is the `weight_goals.rate_kg_per_week` " +
+					"column's, and the goal is stored and echoed in the account's own unit. Unlike the plan's other " +
+					"weight fields it was not renamed, because the same key is the request body of the app's " +
+					"`PUT /plan/goal`; see schaurian/schautrack#396."),
+				"target_date":    dateStr("The requested finish date. Present when `pace_mode` is `date`."),
+				"activity_level": enumStr("The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`.", "sedentary", "light", "moderate", "active", "very_active"),
+				"status":         enumStr("`active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal.", "active", "achieved", "abandoned"),
+				"achieved_at":    dateTime("When the goal was met (UTC). Absent while it is active."),
+				"created_at":     dateTime("When the goal was created (UTC)."),
+				"updated_at":     dateTime("When it was last changed (UTC)."),
 			}, "id", "user_id", "start_weight", "start_date", "target_weight", "pace_mode", "status", "created_at", "updated_at"),
 
 		"PlanComputed": object("The energy budget and the projection it produces.",
@@ -573,14 +587,14 @@ func planSchemas() map[string]*Schema {
 				"tdee":          number("Total daily energy expenditure: BMR times the activity factor, kcal/day."),
 				"budgetKcal":    integer("The recommended daily intake, kcal."),
 				"budgetClamped": boolean("Whether the budget was raised to the safe floor for this sex. The matching `budget_clamped` warning is also emitted."),
-				"rateKgPerWeek": number("The goal's pace per week." + inUnit + " Not necessarily kg, despite the name."),
+				"ratePerWeek":   number("The goal's pace per week." + inUnit),
 				"etaWeeks":      number("Weeks to the target at that pace."),
 				"etaDate":       nullable(dateStr("The date `etaWeeks` lands on. `null` when the ETA is not a finite number.")),
 				"planCurve": array(ref("CurvePoint"), "Projected weight week by week. It decelerates: BMR is recomputed at each "+
 					"simulated weight, so the deficit shrinks as the weight does. Stops at the target, at a plateau, or after 160 weeks."),
 				"bmrFormula": enumStr("Which estimator produced `bmr`: `katch_mcardle` when a body-fat reading was available (it works off lean mass, the more accurate basis), `mifflin_st_jeor` otherwise.",
 					"mifflin_st_jeor", "katch_mcardle"),
-			}, "bmr", "tdee", "budgetKcal", "budgetClamped", "rateKgPerWeek", "etaWeeks", "etaDate", "planCurve", "bmrFormula"),
+			}, "bmr", "tdee", "budgetKcal", "budgetClamped", "ratePerWeek", "etaWeeks", "etaDate", "planCurve", "bmrFormula"),
 
 		"CurvePoint": object("One week of the projected curve.", map[string]*Schema{
 			"week":   integer("Weeks from now. Week 0 is the starting weight."),
@@ -590,7 +604,7 @@ func planSchemas() map[string]*Schema {
 		"PlanTrend": object("Observed progress: a least-squares fit over the readings from the last 30 days. "+
 			"Independent of the body metrics, so it works even when `computed` is `null`.",
 			map[string]*Schema{
-				"slopeKgPerWeek": number("Fitted change per week, negative when losing." + inUnit + " Not necessarily kg, despite the name."),
+				"slopePerWeek":   number("Fitted change per week, negative when losing." + inUnit),
 				"hasData":        boolean("Whether there were enough readings — two, at least a week apart — to fit a line."),
 				"projectedWeeks": number("Weeks to the target at the observed rate. `-1` when it cannot be projected."),
 				"projectedDate":  nullable(dateStr("The date `projectedWeeks` lands on. `null` when it cannot be projected.")),
@@ -598,7 +612,7 @@ func planSchemas() map[string]*Schema {
 					"`stalled` when the fitted change is under 0.05 per week, `wrong_direction` when it moves away from the target, "+
 					"`insufficient_data` when `hasData` is false.",
 					"insufficient_data", "stalled", "wrong_direction", "behind", "on_track", "ahead"),
-			}, "slopeKgPerWeek", "hasData", "projectedWeeks", "projectedDate", "status"),
+			}, "slopePerWeek", "hasData", "projectedWeeks", "projectedDate", "status"),
 
 		"SeriesPoint": object("One logged weight reading, as charted.", map[string]*Schema{
 			"date":    dateStr("The day of the reading."),
