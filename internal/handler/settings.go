@@ -534,11 +534,6 @@ func (h *SettingsHandler) RegenerateBackupCodes(w http.ResponseWriter, r *http.R
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "backupCodes": plainCodes})
 }
 
-// verifyAndUseBackupCode checks a backup code against stored hashes and marks it used atomically.
-func (h *SettingsHandler) verifyAndUseBackupCode(r *http.Request, userID int, code string) bool {
-	return verifyAndMarkBackupCode(r, h.Pool, userID, code)
-}
-
 // --- Links handler ---
 
 type LinksHandler struct {

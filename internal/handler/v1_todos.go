@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -347,7 +348,7 @@ func (h *V1Handler) UpdateTodoV1(w http.ResponseWriter, r *http.Request) {
 		"UPDATE todos SET %s WHERE id = $%d AND user_id = $%d AND archived = FALSE RETURNING %s",
 		strings.Join(sets, ", "), len(args)-1, len(args), todoSelect), args...))
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			apierr.Write(w, r, apierr.NotFound("No todo with that id."))
 			return
 		}

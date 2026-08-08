@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,6 +46,6 @@ func TestDeferredSaveWriterUnwrapReachesWriteDeadline(t *testing.T) {
 	if clearErr != nil {
 		t.Fatalf("SetWriteDeadline through deferredSaveWriter returned %v (ErrNotSupported=%v); "+
 			"the Unwrap chain is broken and SSE streams would be force-closed by WriteTimeout",
-			clearErr, clearErr == http.ErrNotSupported)
+			clearErr, errors.Is(clearErr, http.ErrNotSupported))
 	}
 }
