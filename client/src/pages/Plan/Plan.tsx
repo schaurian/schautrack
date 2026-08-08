@@ -71,7 +71,15 @@ export default function Plan() {
     return <div className="flex items-center justify-center py-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
   }
 
-  const weightUnit = user?.weightUnit || 'kg';
+  // The unit the plan's numbers are actually in, taken from the payload (#410).
+  //
+  // This used to read user?.weightUnit from the auth context. That is a second
+  // source for the same fact, and the two can disagree: the server converts the
+  // whole payload with ConvertPlanResponseToDisplayUnit and stamps the unit it
+  // left them in, so a stale or still-loading auth context labelled real
+  // pounds as "kg". Falling back to the context only while `unit` is absent
+  // keeps older servers working.
+  const weightUnit = data.unit || user?.weightUnit || 'kg';
 
   const handleApplyBudget = async () => {
     setApplying(true);

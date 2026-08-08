@@ -10,9 +10,15 @@ interface Props {
   weightUnit: string;
 }
 
-export default function PlanCard({ weightUnit }: Props) {
+export default function PlanCard({ weightUnit: contextUnit }: Props) {
   const { t } = useTranslation('dashboard');
   const { data } = useQuery({ queryKey: ['plan'], queryFn: getPlan });
+
+  // Label from the plan payload, not from the dashboard's copy of the account
+  // setting (#410). The server already converted these numbers and said which
+  // unit they are in; the prop is only a fallback for a server that predates
+  // the field.
+  const weightUnit = data?.unit || contextUnit;
 
   // Small local mapping — mirrors the status→label/color approach in Plan.tsx
   // (not exported there, so duplicated here rather than reaching across pages).
