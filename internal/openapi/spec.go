@@ -366,12 +366,20 @@ func schemas() map[string]*Schema {
 		"Weight": object("A weight reading. One per account per day.", map[string]*Schema{
 			"date":       dateStr("The day this reading belongs to."),
 			"weight":     number("The reading, in `unit`."),
+			"body_fat":   nullable(number("Body fat as a percentage, or `null` when the day carries no measurement.")),
 			"unit":       {Type: "string", Enum: []any{"kg", "lb"}, Description: "The account's weight unit. Readings are stored as entered and never converted."},
 			"created_at": dateTime("When first recorded (UTC)."),
 			"updated_at": dateTime("When last changed (UTC)."),
-		}, "date", "weight", "unit", "created_at", "updated_at"),
+		}, "date", "weight", "body_fat", "unit", "created_at", "updated_at"),
 		"WeightInput": object("A weight reading.", map[string]*Schema{
 			"weight": withRange(number("The reading, in the account's unit."), 0.01, 1500),
+			"body_fat": nullable(withRange(number(
+				"Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored "+
+					"reading for that day untouched — which is what makes a weight-only scale "+
+					"integration safe to retry. Send `null` to clear it. Writing a value switches "+
+					"the account's body-fat field on if it was off, so the reading is visible in "+
+					"the app; clearing never switches it back off."),
+				0.1, service.MaxBodyFatPct)),
 		}, "weight"),
 		"WeightList": object("A page of weight readings, newest first.", map[string]*Schema{
 			"data":        array(ref("Weight"), "The readings."),
@@ -891,7 +899,8 @@ func paths() map[string]*PathItem {
 			},
 			Put: &Operation{
 				OperationID: "putWeight", Summary: "Record a day's weight",
-				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.",
+				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. " +
+					"`body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.",
 				Tags:        []string{"Weight"}, Scope: service.ScopeWeightWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeWeightWrite}}},
 				Parameters:  []Parameter{dateParam},

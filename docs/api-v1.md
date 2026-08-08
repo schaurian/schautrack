@@ -412,7 +412,7 @@ PUT /api/v1/weight/{date}
 
 **Scope:** `weight:write`
 
-Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter.
+Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. `body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.
 
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
@@ -1325,6 +1325,7 @@ A weight reading. One per account per day.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `body_fat` | `number` or `null` | yes | Body fat as a percentage, or `null` when the day carries no measurement. |
 | `created_at` | `string` (date-time) | yes | When first recorded (UTC). |
 | `date` | `string` (date) | yes | The day this reading belongs to. |
 | `unit` | `string` | yes | The account's weight unit. Readings are stored as entered and never converted. |
@@ -1357,6 +1358,7 @@ A weight reading.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `body_fat` | `number` or `null` |  | Body fat as a percentage, rounded to one decimal. **Omit** to leave any stored reading for that day untouched — which is what makes a weight-only scale integration safe to retry. Send `null` to clear it. Writing a value switches the account's body-fat field on if it was off, so the reading is visible in the app; clearing never switches it back off. |
 | `weight` | `number` | yes | The reading, in the account's unit. |
 
 ### WeightList
