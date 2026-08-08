@@ -187,19 +187,11 @@ jobs:
       - name: Install E2E dependencies
         run: npm ci
 
-      # `e2e/setup-test-user.ts` and `e2e/fixtures/helpers.ts` mint bcrypt
-      # hashes by shelling out to `python3 -c "import bcrypt; ..."`. Neither
-      # python3 nor the bcrypt module is guaranteed on a runner, and the failure
-      # mode is an opaque "Setup failed" long before any spec runs, so install
-      # both explicitly.
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.13'
-
-      - name: Install bcrypt for the E2E seed script
-        run: pip install bcrypt
-
+      # No Python step: the seed used to mint bcrypt hashes by shelling out to
+      # `python3 -c "import bcrypt; ..."`, which needed both python3 and the
+      # bcrypt module installed here. #323 replaced that with bcryptjs, so
+      # `npm ci` above is now the whole prerequisite. Nothing in e2e/ or
+      # scripts/ shells to python3 any more — re-check before adding it back.
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
