@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,12 +28,12 @@ import (
 // accepts the header and ignores it, and because an unknown header — unlike an
 // unknown body field — is rejected nowhere, the caller reads the 201 as
 // retry-safety it does not have.
-var idempotencyRejectingPosts = map[string]bool{
-	// Not a create, and not replayable today: the estimate is billed per call
-	// and produced by the app's own handler. Honouring the header here is a
-	// feature, not a bug fix; until then it says so rather than pretending.
-	"POST /ai/estimate": true,
-}
+// Empty since #359: POST /ai/estimate was the last entry and now honours the
+// header like every other create. The map stays because the structural guard
+// below needs the third option to exist — a future POST that genuinely cannot
+// replay should be listed here and wrapped in rejectIdempotencyKey, not left
+// silently unwrapped.
+var idempotencyRejectingPosts = map[string]bool{}
 
 // specIdempotentRoutes returns the routes whose OpenAPI entry declares the
 // Idempotency-Key header — the client-visible half of the same promise.
@@ -202,7 +203,21 @@ func newIdemHarness(t *testing.T, email string) *idemHarness {
 		t.Fatalf("minting a token failed: %v", err)
 	}
 
-	h := &V1Handler{Pool: pool}
+	// A stub AI provider, so /ai/estimate can be replay-tested like every other
+	// idempotent POST (#359). Without it the route answers 404 feature-disabled
+	// and the replay assertion below could never run — which is exactly how an
+	// endpoint ends up "covered" by a test that never exercises it.
+	//
+	// The body embeds a counter so a genuine second execution would produce
+	// DIFFERENT bytes: the replay assertion compares the two responses, and an
+	// identical constant would pass whether or not anything was replayed.
+	aiCalls := 0
+	h := &V1Handler{Pool: pool, AIEstimate: func(w http.ResponseWriter, r *http.Request) {
+		aiCalls++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"calories":%d,"name":"stub estimate"}`, 100+aiCalls)
+	}}
 	return &idemHarness{pool: pool, router: h.MountAPIV1(pool), token: raw, userID: userID, ctx: ctx}
 }
 
@@ -259,6 +274,7 @@ func TestIdempotentPostsReplayInsteadOfDuplicating(t *testing.T) {
 		"POST /todos":                  {"/todos", `{"name":"Replay probe","schedule":{"type":"daily"}}`},
 		"POST /saved-foods":            {"/saved-foods", `{"name":"Replay probe food","calories":95}`},
 		"POST /saved-foods/{id}/track": {"/saved-foods/" + strconv.Itoa(seeded.ID) + "/track", `{}`},
+		"POST /ai/estimate":            {"/ai/estimate", `{"image":"ZmFrZQ=="}`},
 	}
 
 	for route := range specIdempotentRoutes(t) {
@@ -368,27 +384,27 @@ func TestFailedRequestReleasesTheIdempotencyKey(t *testing.T) {
 	}
 }
 
-// TestUnsupportedIdempotencyKeyIsRejectedByTheRouter proves the guard is wired
-// ahead of the handler on the one POST that does not honour the header: the
-// same request without the header reaches the handler and 404s (no AI provider
-// is configured here), so the 400 can only come from the guard.
-func TestUnsupportedIdempotencyKeyIsRejectedByTheRouter(t *testing.T) {
-	hh := newIdemHarness(t, "idempotency-unsupported@handler.test")
+// TestAIEstimateNoLongerRejectsTheHeader is what #359 turned the old
+// "rejected by the router" assertion into.
+//
+// The header used to be refused with 400 on this one route. It is now honoured,
+// so the observable change is that sending it no longer short-circuits: the
+// request reaches the handler and gets whatever the handler answers — here a
+// 404, because this harness configures no AI provider. A 400 would mean the
+// reject guard is still wired.
+func TestAIEstimateNoLongerRejectsTheHeader(t *testing.T) {
+	hh := newIdemHarness(t, "idempotency-ai-estimate@handler.test")
 
-	rec := hh.post(t, "/ai/estimate", "some-key", `{"image":"x"}`)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400 (body %s)", rec.Code, rec.Body.String())
-	}
-	var p map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
-		t.Fatalf("body is not JSON: %v", err)
-	}
-	if detail, _ := p["detail"].(string); !strings.Contains(detail, "Idempotency-Key") {
-		t.Errorf("detail = %q, want it to name the header so the client knows what to drop", detail)
+	withKey := hh.post(t, "/ai/estimate", "some-key", `{"image":"x"}`)
+	if withKey.Code == http.StatusBadRequest {
+		t.Fatalf("Idempotency-Key is still rejected on /ai/estimate (body %s)", withKey.Body.String())
 	}
 
-	if rec := hh.post(t, "/ai/estimate", "", `{"image":"x"}`); rec.Code == http.StatusBadRequest {
-		t.Errorf("the same request without the header also 400s (body %s); "+
-			"the rejection above proves nothing", rec.Body.String())
+	// And it reaches the same place the header-less request does, which is what
+	// "honoured rather than special-cased" means.
+	without := hh.post(t, "/ai/estimate", "", `{"image":"x"}`)
+	if withKey.Code != without.Code {
+		t.Errorf("with header = %d, without = %d; the header changed the outcome",
+			withKey.Code, without.Code)
 	}
 }

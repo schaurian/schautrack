@@ -39,8 +39,34 @@ type v1Me struct {
 	Server struct {
 		Version string `json:"version"`
 		Today   string `json:"today"`
+
+		// Features reports which OPTIONAL endpoints this deployment actually
+		// serves. Distinct from the account-level `features` below, and kept
+		// under `server` for exactly that reason: one is what the user turned
+		// on, the other is how the operator configured the instance, and
+		// merging them would make a client unable to tell "you disabled this"
+		// from "this server does not offer it".
+		Features v1ServerFeatures `json:"features"`
 	} `json:"server"`
 	Features v1Features `json:"features"`
+}
+
+// v1ServerFeatures reports the endpoints that exist in the route table and the
+// OpenAPI document unconditionally but answer 404 feature-disabled depending on
+// how the server is configured (#392).
+//
+// Without this, discovering that an instance has no AI provider meant sending a
+// photo and reading the 404 — and a client cannot tell that apart from a
+// genuine not-found without parsing the problem `type`. Both fields are always
+// present so a client never has to distinguish false from absent.
+type v1ServerFeatures struct {
+	// Barcode is true when BarcodeV1 is wired, i.e. GET /barcode/{code} will
+	// attempt a lookup rather than answering feature-disabled.
+	Barcode bool `json:"barcode"`
+
+	// AIEstimate is true when an AI provider is configured. The account's own
+	// daily cap still applies on top — this only says the endpoint is live.
+	AIEstimate bool `json:"ai_estimate"`
 }
 
 // v1Features reports the per-account opt-ins that change how the rest of the

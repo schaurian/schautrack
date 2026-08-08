@@ -23,7 +23,7 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
   const queryClient = useQueryClient();
   const [targetWeight, setTargetWeight] = useState(goal ? String(goal.target_weight) : '');
   const [paceMode, setPaceMode] = useState<'rate' | 'date'>(goal?.pace_mode || 'rate');
-  const [rate, setRate] = useState(goal?.rate_kg_per_week != null ? String(goal.rate_kg_per_week) : '');
+  const [rate, setRate] = useState(goal?.rate_per_week != null ? String(goal.rate_per_week) : '');
   const [targetDate, setTargetDate] = useState(goal?.target_date || '');
 
   // Autosaves like every other form. A goal is only writable once it has a
@@ -40,7 +40,7 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
       target_weight: parseFloat(d.targetWeight),
       pace_mode: d.paceMode,
       ...(d.paceMode === 'rate'
-        ? { rate_kg_per_week: parseFloat(d.rate) }
+        ? { rate_per_week: parseFloat(d.rate) }
         : { target_date: d.targetDate }),
     });
     queryClient.invalidateQueries({ queryKey: ['plan'] });

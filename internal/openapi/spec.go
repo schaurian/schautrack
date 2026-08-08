@@ -560,7 +560,19 @@ func schemas() map[string]*Schema {
 			"server": object("The server answering.", map[string]*Schema{
 				"version": str("The running build version."),
 				"today":   dateStr("Today's date in the account's time zone."),
-			}, "version", "today"),
+				"features": object(
+					"Which OPTIONAL endpoints this deployment actually serves. Separate from the "+
+						"account-level `features` below on purpose: this is how the operator configured "+
+						"the instance, that is what the user switched on, and a client needs to tell "+
+						"\"you turned this off\" apart from \"this server does not offer it\". Both fields "+
+						"are always present.",
+					map[string]*Schema{
+						"barcode": boolean("`GET /barcode/{code}` will attempt a lookup. When `false` it " +
+							"answers 404 `feature-disabled`."),
+						"ai_estimate": boolean("An AI provider is configured, so `POST /ai/estimate` is " +
+							"live. The account's daily cap still applies on top."),
+					}, "barcode", "ai_estimate"),
+			}, "version", "today", "features"),
 			"features": object(
 				"Per-account opt-ins that change how the rest of the API behaves. "+
 					"Read-only: they are switched in the app's settings, not through this API. "+
@@ -732,11 +744,10 @@ func planSchemas() map[string]*Schema {
 				"start_date":    dateStr("The day the goal was set."),
 				"target_weight": number("The target." + inUnit),
 				"pace_mode":     enumStr("`rate` sets a weekly pace directly; `date` derives one from `target_date`.", "rate", "date"),
-				"rate_kg_per_week": number("The requested pace per week. Present when `pace_mode` is `rate`." + inUnit +
-					" **Not necessarily kilograms, despite the name** — the name is the `weight_goals.rate_kg_per_week` " +
-					"column's, and the goal is stored and echoed in the account's own unit. Unlike the plan's other " +
-					"weight fields it was not renamed, because the same key is the request body of the app's " +
-					"`PUT /plan/goal`; see schaurian/schautrack#396."),
+				"rate_per_week": number("The requested pace per week. Present when `pace_mode` is `rate`." + inUnit +
+					" Renamed from `rate_kg_per_week`, which was not necessarily kilograms: the goal is stored and " +
+					"echoed in the account's own unit. `PUT /plan/goal` still accepts the old key on input so existing " +
+					"clients keep working."),
 				"target_date":    dateStr("The requested finish date. Present when `pace_mode` is `date`."),
 				"activity_level": enumStr("The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`.", "sedentary", "light", "moderate", "active", "very_active"),
 				"status":         enumStr("`active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal.", "active", "achieved", "abandoned"),
@@ -1248,12 +1259,14 @@ func paths() map[string]*PathItem {
 				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
 				"daily AI limit applies here exactly as it does in the app, as does a per-account " +
 				"rate limit matching the app's own estimate endpoint — this is not a cheaper path " +
-				"to the provider. Returns 404 when no AI provider is configured. This is the one " +
-				"`POST` that does not honour `Idempotency-Key`: sending the header returns 400 " +
-				"rather than being ignored, so a caller is never left believing a retry is safe " +
-				"when it is not.",
+				"to the provider. Returns 404 when no AI provider is configured; `GET /me` reports " +
+				"whether it is, under `server.features.ai_estimate`. " +
+				"Honours `Idempotency-Key`, and this is the endpoint it matters most on: a retried " +
+				"estimate would spend the AI budget twice and burn a second slot in the account's " +
+				"daily cap, for a photo already analysed.",
 			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
+			Parameters:  []Parameter{idempotencyParam},
 			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},
 			Responses: merge(map[string]*Response{
 				"200": ok200("The estimate.", ref("Estimate")),

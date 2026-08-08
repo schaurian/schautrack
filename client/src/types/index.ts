@@ -219,7 +219,7 @@ export interface WeightGoal {
   start_date: string;
   target_weight: number;
   pace_mode: 'rate' | 'date';
-  rate_kg_per_week: number | null;
+  rate_per_week: number | null;
   target_date: string | null;
   activity_level: string | null;
   status: 'active' | 'achieved' | 'abandoned';

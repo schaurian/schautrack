@@ -70,13 +70,17 @@ type WeightEntry struct {
 }
 
 type WeightGoal struct {
-	ID            int        `json:"id"`
-	UserID        int        `json:"user_id"`
-	StartWeight   float64    `json:"start_weight"`
-	StartDate     string     `json:"start_date"`
-	TargetWeight  float64    `json:"target_weight"`
-	PaceMode      string     `json:"pace_mode"` // "rate" | "date"
-	RateKgPerWeek *float64   `json:"rate_kg_per_week,omitempty"`
+	ID           int     `json:"id"`
+	UserID       int     `json:"user_id"`
+	StartWeight  float64 `json:"start_weight"`
+	StartDate    string  `json:"start_date"`
+	TargetWeight float64 `json:"target_weight"`
+	PaceMode     string  `json:"pace_mode"` // "rate" | "date"
+	// Wire name is rate_per_week: the value is in the ACCOUNT's unit, so
+	// "kg" in the JSON was a lie for every lb account (#396). The Go field
+	// and the column keep their names — those really are the kg-era
+	// identifiers, and renaming a column is a migration this does not need.
+	RateKgPerWeek *float64   `json:"rate_per_week,omitempty"`
 	TargetDate    *string    `json:"target_date,omitempty"`
 	ActivityLevel *string    `json:"activity_level,omitempty"`
 	Status        string     `json:"status"`

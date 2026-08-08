@@ -330,6 +330,13 @@ func (h *V1Handler) buildMe(r *http.Request, user *model.User) v1Me {
 	// second interpretation here would eventually disagree with the 422 that
 	// UpdateEntryV1 returns, which is exactly the confusion #344 is about.
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
+	// Mirrors the nil checks BarcodeV1 and EstimateV1 make before answering
+	// feature-disabled, so /me and the endpoints cannot disagree.
+	out.Server.Features = v1ServerFeatures{
+		Barcode:    h.Barcode != nil,
+		AIEstimate: h.AIEstimate != nil,
+	}
+
 	out.Features = v1Features{
 		BodyFat:          user.BodyFatEnabled,
 		Todos:            user.TodosEnabled,

@@ -271,14 +271,24 @@ func (h *PlanHandler) ClearMetrics(w http.ResponseWriter, r *http.Request) {
 // UpsertGoal handles PUT /plan/goal
 func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		TargetWeight  float64  `json:"target_weight"`
-		PaceMode      string   `json:"pace_mode"`
-		RateKgPerWeek *float64 `json:"rate_kg_per_week"`
-		TargetDate    *string  `json:"target_date"`
+		TargetWeight float64  `json:"target_weight"`
+		PaceMode     string   `json:"pace_mode"`
+		RatePerWeek  *float64 `json:"rate_per_week"`
+		TargetDate   *string  `json:"target_date"`
+
+		// LegacyRateKgPerWeek accepts the pre-#396 spelling. The response
+		// renamed to rate_per_week because the value is in the account's unit,
+		// but this is a REQUEST field too — refusing the old name would break
+		// any client written against the previous shape for no benefit, and
+		// the two cannot disagree because only one is ever read.
+		LegacyRateKgPerWeek *float64 `json:"rate_kg_per_week"`
 	}
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
 		return
+	}
+	if body.RatePerWeek == nil {
+		body.RatePerWeek = body.LegacyRateKgPerWeek
 	}
 
 	now := time.Now()
@@ -287,7 +297,7 @@ func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 	startDate := service.FormatDateInTz(now, tz)
 
 	if !validateTargetWeight(body.TargetWeight) || !validatePaceMode(body.PaceMode) ||
-		!validateRateKgPerWeek(body.PaceMode, body.RateKgPerWeek) ||
+		!validateRateKgPerWeek(body.PaceMode, body.RatePerWeek) ||
 		!validateTargetDate(body.PaceMode, body.TargetDate, startDate) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid goal.")
 		return
@@ -309,7 +319,7 @@ func (h *PlanHandler) UpsertGoal(w http.ResponseWriter, r *http.Request) {
 		StartDate:     startDate,
 		TargetWeight:  body.TargetWeight,
 		PaceMode:      body.PaceMode,
-		RateKgPerWeek: body.RateKgPerWeek,
+		RateKgPerWeek: body.RatePerWeek,
 		TargetDate:    body.TargetDate,
 		ActivityLevel: user.ActivityLevel,
 	}
