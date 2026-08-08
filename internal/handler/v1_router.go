@@ -49,6 +49,16 @@ type V1Handler struct {
 func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 	r := chi.NewRouter()
 
+	// Panics are an error path like any other, so they must answer in the v1
+	// error format too. The globally-mounted middleware.Recovery writes the
+	// legacy {"ok": false} envelope, which would break invariant #3 at exactly
+	// the moment a client most needs a machine-readable error. Recovering here
+	// — inside the mount, so this runs first and the global one never sees the
+	// panic — keeps the decision in the route table rather than in a path
+	// prefix check somewhere else. Same reasoning as the 404/405 overrides
+	// below.
+	r.Use(middleware.ProblemRecovery)
+
 	// The spec is public: a client must be able to fetch it before it has a
 	// token, and it contains no user data.
 	r.Get("/openapi.json", h.OpenAPI)
