@@ -9,13 +9,36 @@ test.describe('SSE Real-time Updates', () => {
     user = createIsolatedUser('sse');
   });
 
+  /**
+   * Log in and wait until the tab is actually *subscribed* to the event stream.
+   *
+   * The broker fans out only to clients it currently holds a channel for
+   * (internal/sse/broker.go: Subscribe / getTargets). An event broadcast before
+   * a tab's EventSource exists is therefore lost for good — nothing replays it
+   * on connect, so the observing tab waits out its whole timeout on an update
+   * that will never arrive.
+   *
+   * Reaching /dashboard is far too early a signal: `useSSE` only opens
+   * `/events/entries` once App has mounted, several hundred ms of hydration and
+   * initial queries later. Every "propagates via SSE" test was racing that gap,
+   * and the todo test papered over it with `waitForTimeout(2000)`.
+   *
+   * Waiting on the stream's response instead closes the gap deterministically:
+   * the handler flushes those headers and then subscribes the channel with no
+   * I/O in between. Armed before the login so a fast connect cannot slip past.
+   */
   async function loginAndGo(page: import('@playwright/test').Page, targetPath = '/dashboard') {
+    const streamOpen = page.waitForResponse(
+      (res) => res.url().includes('/events/entries') && res.status() === 200,
+      { timeout: 30000 },
+    );
     await page.goto(`${baseURL}/login`);
     await page.waitForLoadState('domcontentloaded');
     await page.getByLabel('Email').fill(user.email);
     await page.getByLabel('Password').fill(user.password);
     await page.getByRole('button', { name: 'Log In' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await streamOpen;
     if (targetPath !== '/dashboard') {
       await page.goto(`${baseURL}${targetPath}`);
       await page.waitForURL(new RegExp(targetPath), { timeout: 10000 });
@@ -78,8 +101,8 @@ test.describe('SSE Real-time Updates', () => {
     await loginAndGo(pageA);
     await loginAndGo(pageB);
 
-    // Allow SSE connections to establish on both pages
-    await pageB.waitForTimeout(2000);
+    // No sleep needed to let the streams settle — loginAndGo already waited for
+    // each tab's /events/entries response, which is what that guessed at.
 
     // Complete the todo on page A
     const todoRowA = pageA.locator('li').filter({ hasText: 'SSE Todo Test' });

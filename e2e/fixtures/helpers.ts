@@ -140,12 +140,37 @@ export async function clearMailpit(): Promise<void> {
 const DEFAULT_PASSWORD = 'test1234test';
 
 /**
+ * Playwright runs `beforeAll` once per *worker process*, and `fullyParallel`
+ * spreads the tests of a single file across every worker. A spec that seeds its
+ * account in `beforeAll` therefore re-enters this function — destructive
+ * cleanup and all — while its own sibling tests are already mid-flight in the
+ * other workers, deleting the entries/todos/notes they just created.
+ *
+ * That is not a UI race, but it is indistinguishable from one at the assertion:
+ * the entry is gone, so `POST /entries/:id/update` 404s ("Entry not found"),
+ * `/entries/day` no longer lists it, and an SSE peer never sees the completion
+ * or note it is waiting for. It hit entry-edit, sse-realtime, macro-colors and
+ * the two shell specs alike.
+ *
+ * Partitioning the account by TEST_PARALLEL_INDEX fixes it at the source:
+ * Playwright keeps at most one live worker per parallel index, so each worker
+ * owns a private row and its cleanup can only ever touch data it created
+ * itself. Nothing is serialised, so the suite keeps its parallelism.
+ *
+ * The suffix is omitted outside a worker (setup scripts, ad-hoc `tsx` runs) so
+ * those keep addressing the unsuffixed account.
+ */
+const WORKER_SUFFIX = process.env.TEST_PARALLEL_INDEX ? `-w${process.env.TEST_PARALLEL_INDEX}` : '';
+
+/**
  * Create or reset an isolated test user for a specific spec file.
  * Returns { email, password, id }. Call in beforeAll() for test isolation.
  * The user gets all features enabled (macros, todos, notes) and clean data.
+ *
+ * The account is per worker, not per spec file — see WORKER_SUFFIX above.
  */
 export function createIsolatedUser(specName: string, opts: { features?: boolean } = {}): { email: string; password: string; id: string } {
-  const email = `e2e-${specName}@test.local`;
+  const email = `e2e-${specName}${WORKER_SUFFIX}@test.local`;
   const password = DEFAULT_PASSWORD;
   const hash = bcryptHash(password);
   const features = opts.features !== false;
@@ -159,14 +184,16 @@ export function createIsolatedUser(specName: string, opts: { features?: boolean 
      RETURNING id`,
     { email, hash }
   );
-  psql(`DELETE FROM totp_backup_codes WHERE user_id = ${id}`);
-  // Clean all data
-  psql(`DELETE FROM calorie_entries WHERE user_id = ${id}`);
-  psql(`DELETE FROM weight_entries WHERE user_id = ${id}`);
-  psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${id})`);
-  psql(`DELETE FROM todos WHERE user_id = ${id}`);
-  psql(`DELETE FROM daily_notes WHERE user_id = ${id}`);
-  psql(`DELETE FROM ai_usage WHERE user_id = ${id}`);
+  // Clean all data. One round-trip: every `psql()` is its own `docker exec`,
+  // and this ran seven of them on every call, in every worker, for every spec.
+  psql(`DELETE FROM totp_backup_codes WHERE user_id = ${id};
+    DELETE FROM calorie_entries WHERE user_id = ${id};
+    DELETE FROM weight_entries WHERE user_id = ${id};
+    DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${id});
+    DELETE FROM todos WHERE user_id = ${id};
+    DELETE FROM daily_notes WHERE user_id = ${id};
+    DELETE FROM ai_usage WHERE user_id = ${id};
+    DELETE FROM saved_foods WHERE user_id = ${id};`);
 
   if (features) {
     psql(`UPDATE users SET
