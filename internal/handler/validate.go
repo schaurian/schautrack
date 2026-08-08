@@ -37,6 +37,33 @@ const (
 	// Blake2b-hash a multi-megabyte string on every write — a cheap CPU-burn
 	// vector. The bound is in bytes because hashing cost is byte-driven.
 	MaxPasswordBytes = 1024
+
+	// MaxVerifyPasswordBytes bounds a client-supplied password at the paths
+	// that *verify* one rather than set one: login, the 2FA-reset request,
+	// and step-up re-authentication (all of which funnel through
+	// verifyPassword), plus equalizeLoginTiming on the unknown-email login
+	// path.
+	//
+	// It exists because MaxPasswordBytes deliberately does not apply here.
+	// The write validator encodes policy — minimum length, no whitespace-only
+	// secrets — and applying policy to a login would lock out any account
+	// created before the policy existed. This constant encodes something
+	// narrower and non-negotiable: a hard ceiling on how many bytes may reach
+	// a password hash function. argon2id's Blake2b pre-hash is linear in
+	// input size, so an unbounded string is a free CPU-burn primitive, and on
+	// the login endpoint it is reachable *without a valid account* —
+	// equalizeLoginTiming hashes whatever was submitted for an email that
+	// does not exist. (bcrypt is not affected: Go's blowfish key schedule
+	// reads only the first 72 bytes, so a legacy hash costs the same for a
+	// 72-byte password and a 5 MB one.)
+	//
+	// The value is 4x MaxPasswordBytes, not equal to it. A password's byte
+	// length is not recoverable from its argon2id hash, so it cannot be
+	// proven against the live database that no account predating
+	// MaxPasswordBytes holds a longer secret. Four times the current write
+	// policy is far above anything a password manager emits and still bounds
+	// the hash input to a few kilobytes. See issue #340.
+	MaxVerifyPasswordBytes = 4 * MaxPasswordBytes
 )
 
 // Sentinel errors returned by validateEmail / validatePassword. Callers
@@ -135,6 +162,18 @@ func validatePassword(password string) error {
 		return errPasswordTooShort
 	}
 	return nil
+}
+
+// passwordExceedsVerifyCap reports whether a client-supplied password is too
+// long to be handed to a password hash function on a *verification* path.
+//
+// It is deliberately not validatePassword: this is a cost bound, not the
+// password policy. A grandfathered 9-character password must still log in;
+// a 5 MB one must not be hashed. Callers treat a true result exactly like a
+// wrong password — same response, same duration — so this must never grow
+// into a second policy check whose outcome depends on anything but length.
+func passwordExceedsVerifyCap(password string) bool {
+	return len(password) > MaxVerifyPasswordBytes
 }
 
 // truncateUTF8 caps s at maxBytes bytes without splitting a multi-byte UTF-8

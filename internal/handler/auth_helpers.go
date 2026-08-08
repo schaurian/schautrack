@@ -26,8 +26,35 @@ func derefLang(s *string) string {
 	return *s
 }
 
+// argon2Compare is the argon2id verification every password check goes
+// through. It is a variable solely so tests can observe what reaches the KDF:
+// "argon2id is never handed an unbounded client-supplied string" (issue #340)
+// is a property of the *argument*, and there is no other way to assert it
+// without measuring wall-clock time. Production code must never reassign it.
+var argon2Compare = argon2id.ComparePasswordAndHash
+
+// verifyPassword reports whether password matches hash, supporting both the
+// current argon2id format and legacy bcrypt hashes.
+//
+// This is the single choke point for every path that checks a password
+// against a stored hash — login, the 2FA-reset request, and step-up
+// re-authentication — which is why the length bound lives here rather than at
+// the three call sites: a verification path added later inherits it.
 func verifyPassword(hash, password string) (bool, error) {
 	if hash == "" || password == "" {
+		return false, nil
+	}
+	if passwordExceedsVerifyCap(password) {
+		// Over the cost bound: the submitted string must not reach argon2id.
+		// Burn the standard verification cost against the dummy hash instead,
+		// so this is indistinguishable from a wrong password in both the
+		// response the caller writes and the time it takes to get there.
+		// Returning early *without* the burn would turn "is this email
+		// registered?" into a stopwatch question — the unknown-email path
+		// pays the same cost via equalizeLoginTiming.
+		slog.Warn("rejected over-long password at a verification path",
+			"bytes", len(password), "limit", MaxVerifyPasswordBytes)
+		burnPasswordVerifyCost(oversizedPasswordStandIn)
 		return false, nil
 	}
 	if strings.HasPrefix(hash, "$2b$") || strings.HasPrefix(hash, "$2a$") {
@@ -35,7 +62,7 @@ func verifyPassword(hash, password string) (bool, error) {
 		return err == nil, nil
 	}
 	// Argon2 format: $argon2id$...
-	return argon2id.ComparePasswordAndHash(password, hash)
+	return argon2Compare(password, hash)
 }
 
 func hashPassword(password string) (string, error) {
@@ -94,13 +121,37 @@ var dummyPasswordHash = sync.OnceValue(func() string {
 	return hash
 })
 
+// oversizedPasswordStandIn is hashed in place of a client-supplied password
+// that exceeds MaxVerifyPasswordBytes. Nothing is compared against it — the
+// point is only to pay the argon2id cost with a bounded input, so an
+// over-long password costs the server exactly one normal verification instead
+// of one verification plus a Blake2b pass over megabytes.
+const oversizedPasswordStandIn = "schautrack-oversized-password-stand-in"
+
+// burnPasswordVerifyCost performs one argon2id verification against the
+// precomputed dummy hash. Callers use it to spend the cost of a password
+// check they are not actually performing.
+func burnPasswordVerifyCost(password string) {
+	if hash := dummyPasswordHash(); hash != "" {
+		_, _ = argon2Compare(password, hash)
+	}
+}
+
 // equalizeLoginTiming burns the same argon2id verification cost as a real
 // password check. Called on the unknown-email login path so its duration is
 // indistinguishable from a wrong password on an existing account.
+//
+// It applies the same MaxVerifyPasswordBytes bound as verifyPassword, and it
+// must: this is the branch an attacker reaches by inventing an email address,
+// so it is the *cheapest* way to make the server hash a multi-megabyte string
+// — no account required. Bounding only verifyPassword would also have made
+// the two branches diverge in duration for an over-long password, handing
+// back the account-existence oracle this function exists to close.
 func equalizeLoginTiming(password string) {
-	if hash := dummyPasswordHash(); hash != "" {
-		_, _ = argon2id.ComparePasswordAndHash(password, hash)
+	if passwordExceedsVerifyCap(password) {
+		password = oversizedPasswordStandIn
 	}
+	burnPasswordVerifyCost(password)
 }
 
 func verifyAndUseBackupCodeForLogin(r *http.Request, pool *pgxpool.Pool, userID int, code string) bool {
