@@ -71,12 +71,49 @@ type PlanComputed struct {
 // FatMass are weights and therefore converted to the user's display unit
 // alongside every other weight in the payload; BodyFatPct is a percentage and
 // is never converted.
+//
+// LeanMass/FatMass are the percentage carried onto the weight the plan works
+// from — the same weight the BMR is computed at, never the weight the reading
+// happened to be taken at. Splitting those two produced a displayed lean mass
+// that disagreed with the lean mass the budget came from.
 type BodyComposition struct {
 	Date       string  `json:"date"`
 	BodyFatPct float64 `json:"bodyFatPct"`
 	LeanMass   float64 `json:"leanMass"`
 	FatMass    float64 `json:"fatMass"`
 	Category   *string `json:"category"` // nil when sex is unknown
+	// AgeDays is how many whole days before today the reading was taken, and
+	// Stale reports whether that puts it outside BodyFatRecencyDays. A stale
+	// reading is still returned — it is the user's most recent measurement and
+	// worth showing — but it does not drive BMR. Both fields exist so the UI can
+	// say how old the number is instead of presenting a two-year-old percentage
+	// as current.
+	AgeDays int  `json:"ageDays"`
+	Stale   bool `json:"stale"`
+}
+
+// BodyFatRecencyDays bounds how old a body-fat reading may be and still choose
+// the BMR formula. Body composition drifts; a percentage measured long ago and
+// carried onto today's weight can move the daily budget by well over 100 kcal
+// while reporting itself as the *more* accurate Katch-McArdle estimate. 90 days
+// is about as long as a reading stays credible for someone who actually owns a
+// composition scale, and it mirrors the recency bound the plan already applies
+// to the weight series. Outside the window the plan falls back to
+// Mifflin-St Jeor, which needs no composition input at all.
+const BodyFatRecencyDays = 90
+
+// BodyFatReadingAgeDays returns how many whole days old a YYYY-MM-DD reading is
+// relative to now's calendar date, plus whether the date parsed at all. A
+// reading dated ahead of now yields a negative age (the reading date is the
+// user's local date while now is the server's, so a few hours of skew is
+// normal); callers treat that as fresh rather than as an error.
+func BodyFatReadingAgeDays(readingDate string, now time.Time) (int, bool) {
+	d, err := time.Parse("2006-01-02", readingDate)
+	if err != nil {
+		return 0, false
+	}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	return int(today.Sub(d).Hours() / 24), true
 }
 
 const (
@@ -143,16 +180,46 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 		out.Series = append(out.Series, SeriesPoint{Date: p.Date.Format("2006-01-02"), Weight: p.Weight, BodyFat: p.BodyFat})
 	}
 
+	// baseWeight is the single weight everything downstream is anchored on: the
+	// latest logged weight, or the goal's start weight when nothing has been
+	// logged yet. It is resolved here, above the composition block, so the
+	// lean/fat split shown to the user is derived from exactly the weight the
+	// BMR is derived from. Computing them from two different weights is what let
+	// the displayed lean mass disagree with the lean mass the budget came from.
+	var baseWeight float64
+	var haveBaseWeight bool
+	switch {
+	case in.CurrentWeight != nil:
+		baseWeight, haveBaseWeight = *in.CurrentWeight, true
+	case in.Goal != nil:
+		baseWeight, haveBaseWeight = in.Goal.StartWeight, true
+	}
+
 	// Composition needs only a body-fat reading — no height, age or sex — so it
 	// is derived before (and independently of) the metrics-complete gate below.
+	// bodyFatFresh is the one place the recency window is decided; the BMR
+	// branch further down consults it rather than re-deriving the rule.
+	bodyFatFresh := false
 	if r := in.CurrentBodyFat; r != nil {
-		lean := LeanBodyMass(r.WeightKg, r.Pct)
+		// Carry the percentage onto baseWeight, not onto the weight the reading
+		// was taken at, so the split reported here is the split the BMR uses.
+		compWeight := r.WeightKg
+		if haveBaseWeight {
+			compWeight = baseWeight
+		}
+		lean := LeanBodyMass(compWeight, r.Pct)
 		if lean > 0 {
+			ageDays, dated := BodyFatReadingAgeDays(r.Date, in.Now)
+			// An unparseable date cannot be shown to be recent, so it is not
+			// trusted to pick the formula.
+			bodyFatFresh = dated && ageDays <= BodyFatRecencyDays
 			comp := &BodyComposition{
 				Date:       r.Date,
 				BodyFatPct: r.Pct,
 				LeanMass:   round1(lean),
-				FatMass:    round1(FatMass(r.WeightKg, r.Pct)),
+				FatMass:    round1(FatMass(compWeight, r.Pct)),
+				AgeDays:    ageDays,
+				Stale:      !bodyFatFresh,
 			}
 			if in.Sex != nil {
 				if cat := BodyFatCategory(Sex(*in.Sex), r.Pct); cat != "" {
@@ -215,19 +282,22 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 	heightCm := *in.HeightCm
 	ageYears := in.Now.Year() - *in.BirthYear
 
-	baseWeight := goal.StartWeight
-	if in.CurrentWeight != nil {
-		baseWeight = *in.CurrentWeight
-	}
+	// baseWeight was resolved above the composition block; reaching here implies
+	// a non-nil goal, so it is always set.
 
 	// A measured body fat beats an estimate from height/age/sex: Katch–McArdle
 	// works off lean mass, which is what actually burns the calories. Anchor it
 	// on baseWeight (not the reading's own weight) so the projection starts
 	// where the plan does; the percentage is carried over on the assumption
-	// that composition has not swung since it was measured.
+	// that composition has not swung since it was measured — an assumption that
+	// only holds for a recent reading, which is what bodyFatFresh enforces.
+	// Outside BodyFatRecencyDays the reading is still reported (see
+	// out.Composition) but Mifflin-St Jeor drives the budget, because a stale
+	// percentage dressed up as Katch-McArdle is a wrong answer claiming to be
+	// the more accurate one.
 	bmrModel := MifflinModel(sex, heightCm, ageYears)
 	formula := BMRFormulaMifflin
-	if r := in.CurrentBodyFat; r != nil && LeanBodyMass(baseWeight, r.Pct) > 0 {
+	if r := in.CurrentBodyFat; r != nil && bodyFatFresh {
 		bmrModel = KatchMcArdleModel(baseWeight, r.Pct)
 		formula = BMRFormulaKatch
 	}

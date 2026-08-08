@@ -40,10 +40,21 @@ func scanTodo(row pgx.Row) (*v1Todo, error) {
 }
 
 // ListTodosV1 handles GET /api/v1/todos — every non-archived todo definition.
+//
+// It honours ?user= under the same `todos` share category as
+// GET /todos/day/{date}: the two answer different questions about the same
+// data, and supporting the parameter on one but not the other would mean a
+// client could see what a linked account has due today but not what their
+// todos are.
 func (h *V1Handler) ListTodosV1(w http.ResponseWriter, r *http.Request) {
+	tgt, prob := h.resolveTarget(r, service.ShareTodos)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
 	rows, err := h.Pool.Query(r.Context(),
 		"SELECT "+todoSelect+" FROM todos WHERE user_id = $1 AND archived = FALSE ORDER BY sort_order, id",
-		v1User(r).ID)
+		tgt.User.ID)
 	if err != nil {
 		apierr.Write(w, r, dbFail("list todos", err))
 		return

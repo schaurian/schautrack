@@ -36,6 +36,19 @@ func TestFormatTimeInTz(t *testing.T) {
 	}
 }
 
+// assertOkImpliesPositive pins the invariant both weight parsers share with the
+// database: an accepted value must be strictly positive. weight_entries_positive
+// is CHECK (weight > 0) and weight_entries_body_fat_range is
+// CHECK (body_fat IS NULL OR (body_fat > 0 AND body_fat <= 75)), so a parser that
+// reports success for a value of 0 turns a clean 400 into a 500 from the DB.
+func assertOkImpliesPositive(t *testing.T, parser, input string, ok bool, value float64) {
+	t.Helper()
+	if ok && !(value > 0) {
+		t.Errorf("%s(%q) reported ok with value %v — ok == true must imply value > 0 "+
+			"(the DB CHECK rejects anything <= 0)", parser, input, value)
+	}
+}
+
 func TestParseWeight(t *testing.T) {
 	tests := []struct {
 		input string
@@ -49,6 +62,15 @@ func TestParseWeight(t *testing.T) {
 		{"1501", false, 0},
 		{"", false, 0},
 		{"abc", false, 0},
+
+		// Rounding boundary. ParseWeight rounds to two decimals, so anything
+		// below 0.005 rounds to exactly 0 — which CHECK (weight > 0) rejects.
+		// These must be refused by the parser, not by the database.
+		{"0.001", false, 0},
+		{"0.004", false, 0},
+		{"0.0049", false, 0},
+		{"0.005", true, 0.01}, // first value that rounds up to 0.01
+		{"0.01", true, 0.01},
 	}
 	for _, tt := range tests {
 		got := ParseWeight(tt.input)
@@ -58,6 +80,7 @@ func TestParseWeight(t *testing.T) {
 		if got.Ok && got.Value != tt.value {
 			t.Errorf("ParseWeight(%q).Value = %v, want %v", tt.input, got.Value, tt.value)
 		}
+		assertOkImpliesPositive(t, "ParseWeight", tt.input, got.Ok, got.Value)
 	}
 }
 

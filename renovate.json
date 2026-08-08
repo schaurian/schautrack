@@ -7,6 +7,7 @@
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "dependencyDashboard": false,
+  "osvVulnerabilityAlerts": true,
   "packageRules": [
     {
       "description": "Block PostgreSQL major upgrades: a new major (e.g. 18 -> 19) makes the existing /var/lib/postgresql data directory incompatible with no pg_upgrade path in these compose/helm deployments, so the db container crashloops. Majors require a deliberate manual migration plan.",

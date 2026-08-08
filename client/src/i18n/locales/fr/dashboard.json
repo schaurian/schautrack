@@ -148,7 +148,9 @@
       "addHeightWeight": "Ajoutez taille et poids",
       "healthyRangeLabel": "Plage saine",
       "bodyFatLabel": "Masse grasse",
-      "leanFatSplit": "{{lean}} {{unit}} de masse maigre · {{fat}} {{unit}} de masse grasse"
+      "leanFatSplit": "{{lean}} {{unit}} de masse maigre · {{fat}} {{unit}} de masse grasse",
+      "bodyFatMeasured": "Mesuré le {{date}}",
+      "bodyFatStale": "{{days}} jours d’ancienneté — non utilisé pour votre budget"
     },
     "recommendedBudget": {
       "title": "Budget recommandé",
@@ -156,7 +158,8 @@
       "clampedNotice": "Limité à un minimum sûr",
       "applyButton": "Appliquer comme objectif calorique",
       "formulaKatch": "Selon Katch-McArdle, à partir de {{lean}} {{unit}} de masse maigre",
-      "formulaMifflin": "Selon Mifflin-St Jeor. Enregistrez un pourcentage de masse grasse pour une estimation par masse maigre."
+      "formulaMifflin": "Selon Mifflin-St Jeor. Enregistrez un pourcentage de masse grasse pour une estimation par masse maigre.",
+      "formulaMifflinStale": "Basé sur Mifflin-St Jeor — votre mesure de masse grasse date de {{days}} jours, trop ancienne pour estimer la masse maigre. Enregistrez-en une nouvelle."
     },
     "progress": {
       "title": "Progression",
@@ -325,6 +328,7 @@
     "bodyFatNeedsWeight": "Masse grasse % : enregistrez d’abord un poids ci-dessus pour la débloquer.",
     "toastBodyFatTracked": "Masse grasse suivie",
     "toastBodyFatCleared": "Masse grasse supprimée",
+    "toastBodyFatInvalid": "La masse grasse doit être comprise entre 0 et {{max}} %",
     "toastBodyFatSaveFailed": "Échec de l’enregistrement de la masse grasse",
     "bodyFatHint": "La seconde case est votre % de masse grasse, si votre balance le mesure.",
     "bodyFatPlaceholder": "% gras"

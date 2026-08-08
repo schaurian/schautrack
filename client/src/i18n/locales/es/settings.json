@@ -197,6 +197,8 @@
     "createFailed": "No se pudo crear el token",
     "dismiss": "Listo",
     "empty": "No hay tokens de API. Crea uno para usar Schautrack desde scripts u otras aplicaciones.",
+    "expiredBadge": "Caducado",
+    "expiredOn": "caducó el {{date}}",
     "expires": "caduca el {{date}}",
     "expiry30": "Caduca en 30 días",
     "expiry365": "Caduca en 1 año",

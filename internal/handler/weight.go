@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -90,6 +90,33 @@ func weightUpsertDate(body map[string]any, now time.Time, tz string) string {
 	return service.FormatDateInTz(now, tz)
 }
 
+// parseWeightUpdate is the weight counterpart of parseBodyFatUpdate: an absent,
+// null or empty weight leaves the stored one alone, a number replaces it. The
+// bool is false only when a value was supplied but is unusable.
+//
+// Making the key optional is what lets a body-fat-only save stop restating a
+// weight it never measured. The old contract forced the dashboard to send back
+// whatever weight its cache held, which silently reverted a newer one logged
+// from another device.
+//
+// Reads through optionalString rather than coercing with %v and testing the
+// result against "<nil>". That sentinel arrived with the three-state weight
+// key and is the last copy of the bug this branch removes (#386): it made a
+// caller who typed the literal characters <nil> indistinguishable from one who
+// sent JSON null, so instead of a 400 the request silently kept the stored
+// weight. A literal "<nil>" is now just an unparseable weight.
+func parseWeightUpdate(body map[string]any) (service.WeightUpdate, bool) {
+	raw, present := optionalString(body, "weight")
+	if !present || raw == nil || *raw == "" {
+		return service.KeepWeight, true
+	}
+	wr := service.ParseWeight(*raw)
+	if !wr.Ok {
+		return service.WeightUpdate{}, false
+	}
+	return service.SetWeight(wr.Value), true
+}
+
 // WeightDay handles GET /weight/day
 func (h *WeightHandler) WeightDay(w http.ResponseWriter, r *http.Request) {
 	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
@@ -150,9 +177,8 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	weightStr := fmt.Sprintf("%v", body["weight"])
-	wr := service.ParseWeight(weightStr)
-	if !wr.Ok {
+	weightUpd, ok := parseWeightUpdate(body)
+	if !ok {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid weight")
 		return
 	}
@@ -163,8 +189,19 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := service.UpsertWeightEntry(r.Context(), h.Pool, user.ID, dateStr, wr.Value, bodyFat)
+	// Both omitted would be a write that changes nothing but updated_at, which
+	// is never what a caller meant — answer instead of quietly touching the row.
+	if !weightUpd.Set && !bodyFat.Set {
+		ErrorJSON(w, http.StatusBadRequest, "Nothing to save")
+		return
+	}
+
+	entry, err := service.UpsertWeightEntryPartial(r.Context(), h.Pool, user.ID, dateStr, weightUpd, bodyFat)
 	if err != nil {
+		if errors.Is(err, service.ErrNoWeightEntry) {
+			ErrorJSON(w, http.StatusBadRequest, "Log a weight for that date first")
+			return
+		}
 		ErrorJSON(w, http.StatusInternalServerError, "Could not save weight")
 		return
 	}
