@@ -150,7 +150,7 @@ type Store struct {
 
 func NewStore(pool *pgxpool.Pool, secret string) *Store {
 	s := &Store{pool: pool, secret: secret}
-	go s.pruneLoop()
+	go s.pruneLoop(context.Background())
 	return s
 }
 
@@ -310,15 +310,28 @@ func (s *Store) setCookie(w http.ResponseWriter, r *http.Request, sess *Session)
 	})
 }
 
-func (s *Store) pruneLoop() {
+// pruneLoop deletes expired session rows every PruneInterval until stopped.
+//
+// It takes a context rather than looping forever so it has a shutdown path:
+// NewStore passes context.Background(), preserving the previous
+// runs-for-the-process-lifetime behaviour, while tests can pass a context they
+// cancel. Without that, the loop is untestable — a bubbled test would wait on
+// a goroutine that never exits, and an unbubbled one would wait five real
+// minutes for the first tick.
+func (s *Store) pruneLoop(ctx context.Context) {
 	ticker := time.NewTicker(PruneInterval)
 	defer ticker.Stop()
-	for range ticker.C {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		if _, err := s.pool.Exec(ctx, `DELETE FROM "session" WHERE expire < NOW()`); err != nil {
-			slog.Error("failed to prune expired sessions", "error", err)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			if _, err := s.pool.Exec(execCtx, `DELETE FROM "session" WHERE expire < NOW()`); err != nil {
+				slog.Error("failed to prune expired sessions", "error", err)
+			}
+			cancel()
 		}
-		cancel()
 	}
 }
 

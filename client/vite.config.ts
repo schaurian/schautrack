@@ -43,11 +43,36 @@ export default defineConfig({
     sourcemap: false,
   },
   test: {
-    // Pure logic modules under src/lib need no DOM; keep the runner lean.
-    environment: 'node',
-    // tests/ holds build/dependency-boundary tests that read the lockfile and
-    // node_modules via node builtins. They live outside src so `tsc -b` (which
-    // includes only src and has no @types/node) stays clean.
-    include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.ts'],
+    // Two projects rather than one jsdom environment for everything, so the
+    // original intent here survives: pure logic needs no DOM, and paying for
+    // one on every `*.test.ts` would make the fast suite slow to no purpose.
+    // The split is by file extension, which needs no per-file opt-in — a
+    // component test is a .tsx, a logic test is a .ts.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'logic',
+          // Pure logic modules under src/lib need no DOM; keep the runner lean.
+          environment: 'node',
+          // tests/ holds build/dependency-boundary tests that read the lockfile
+          // and node_modules via node builtins. They live outside src so
+          // `tsc -b` (which includes only src and has no @types/node) stays
+          // clean.
+          include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'components',
+          environment: 'jsdom',
+          include: ['src/**/*.test.tsx'],
+          setupFiles: ['./src/test/setup.ts'],
+          // Testing Library's auto-cleanup relies on the global afterEach.
+          globals: true,
+        },
+      },
+    ],
   },
 });
