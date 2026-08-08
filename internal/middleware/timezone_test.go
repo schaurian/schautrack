@@ -9,7 +9,7 @@ func TestNormalizeTimezone(t *testing.T) {
 		{"", ""},
 		{"UTC", "UTC"},
 		{"Europe/Berlin", "Europe/Berlin"},
-		{"Europe%2FBerlin", "Europe/Berlin"},                     // legacy URL-encoded cookies
+		{"Europe%2FBerlin", "Europe/Berlin"}, // legacy URL-encoded cookies
 		{"America%2FArgentina%2FBuenos_Aires", "America/Argentina/Buenos_Aires"},
 		{"Not/A/Zone", ""},
 		{"Europe%ZZBerlin", ""}, // invalid percent-encoding falls through to LoadLocation, which fails

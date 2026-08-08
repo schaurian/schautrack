@@ -13,13 +13,13 @@ import (
 
 func TestStepUpResponse(t *testing.T) {
 	tests := []struct {
-		name           string
-		hasPassword    bool
-		passkeyCount   int
-		oidcCount      int
-		totpEnabled    bool
-		wantMethods    []string
-		wantTotpReq    bool
+		name         string
+		hasPassword  bool
+		passkeyCount int
+		oidcCount    int
+		totpEnabled  bool
+		wantMethods  []string
+		wantTotpReq  bool
 	}{
 		{"password only", true, 0, 0, false, []string{"password"}, false},
 		{"password + totp", true, 0, 0, true, []string{"password"}, true},

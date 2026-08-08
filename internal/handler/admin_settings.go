@@ -20,14 +20,14 @@ import (
 // (then also wire it through SettingsCache.GetEffectiveSetting in the
 // relevant handler).
 type AdminSetting struct {
-	Key      string                  // DB key in admin_settings + JSON key
-	Env      string                  // matching environment variable name
-	Section  string                  // grouping for the UI ("general", "ai", …)
-	Tier     string                  // "hot" = takes effect next request; "restart" = needs server restart
-	Secret   bool                    // mask the value in the UI; don't include the value in audit logs
-	Dangerous bool                   // shows a typed-confirmation dialog before save
-	Help     string                  // short help text shown under the field
-	Validate func(value string) error // optional value validator; called server-side on every save
+	Key       string                   // DB key in admin_settings + JSON key
+	Env       string                   // matching environment variable name
+	Section   string                   // grouping for the UI ("general", "ai", …)
+	Tier      string                   // "hot" = takes effect next request; "restart" = needs server restart
+	Secret    bool                     // mask the value in the UI; don't include the value in audit logs
+	Dangerous bool                     // shows a typed-confirmation dialog before save
+	Help      string                   // short help text shown under the field
+	Validate  func(value string) error // optional value validator; called server-side on every save
 }
 
 // adminSettings is the canonical ordered list. Order is the display order
@@ -47,7 +47,7 @@ var adminSettings = []AdminSetting{
 	// AI Features
 	// =========================================================================
 	{Key: "ai_provider", Env: "AI_PROVIDER", Section: "ai", Tier: "hot",
-		Help: `One of: openai, claude, ollama.`,
+		Help:     `One of: openai, claude, ollama.`,
 		Validate: oneOf("openai", "claude", "ollama", "")},
 	{Key: "ai_key", Env: "AI_KEY", Section: "ai", Tier: "hot", Secret: true,
 		Help: "Global API key (fallback when users don't have their own)."},
@@ -67,7 +67,7 @@ var adminSettings = []AdminSetting{
 	// OIDC / SSO
 	// =========================================================================
 	{Key: "oidc_issuer", Env: "OIDC_ISSUER", Section: "oidc", Tier: "restart",
-		Help: "OIDC issuer URL. Setting this enables OIDC sign-in.",
+		Help:     "OIDC issuer URL. Setting this enables OIDC sign-in.",
 		Validate: validURL},
 	{Key: "oidc_client_id", Env: "OIDC_CLIENT_ID", Section: "oidc", Tier: "restart",
 		Help: "OAuth2 client ID from your provider."},

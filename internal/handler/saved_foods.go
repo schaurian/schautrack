@@ -93,13 +93,13 @@ func (h *SavedFoodsHandler) List(w http.ResponseWriter, r *http.Request) {
 // JSON body. Returns the parsed values or an error message + status code.
 // Used by both Create and Update; pass forCreate=true to require a non-empty name.
 type savedFoodInput struct {
-	hasName    bool
-	name       string
-	hasEmoji   bool
-	emoji      *string
-	hasAmount  bool
-	amount     *int
-	macros     map[string]*int // only keys present in body are populated
+	hasName   bool
+	name      string
+	hasEmoji  bool
+	emoji     *string
+	hasAmount bool
+	amount    *int
+	macros    map[string]*int // only keys present in body are populated
 }
 
 // Every field below reads through optionalString (entries_helpers.go), which
@@ -578,4 +578,3 @@ func hasKey(m map[string]any, k string) bool {
 	_, ok := m[k]
 	return ok
 }
-

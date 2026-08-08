@@ -85,7 +85,11 @@ func TestParseWeight(t *testing.T) {
 }
 
 func TestSubtractDaysUTC(t *testing.T) {
-	tests := []struct{ date string; days int; want string }{
+	tests := []struct {
+		date string
+		days int
+		want string
+	}{
 		{"2025-03-15", 13, "2025-03-02"},
 		{"2025-03-01", 1, "2025-02-28"},
 		{"2024-03-01", 1, "2024-02-29"},

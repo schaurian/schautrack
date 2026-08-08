@@ -118,6 +118,29 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Ahead of the tests on purpose: both are fast, and a vet failure is
+      # usually the honest explanation for a confusing test failure below.
+      #
+      # gofmt is enforced because "formatted by whatever the author's editor
+      # did" produces diffs where a real change hides among reflowed lines —
+      # exactly the reviewing cost this repo's commit style exists to avoid.
+      # `gofmt -l` prints offending files and exits 0, so the file list has to
+      # be turned into the failure itself.
+      #
+      # go vet catches the class this repo keeps hitting: a helper redeclared
+      # in a package after two branches merge cleanly, a Printf verb that does
+      # not match its argument, a lock copied by value. None of those are
+      # compile errors, and none produce a conflict marker.
+      - name: Check gofmt and go vet
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofmt-formatted. Run 'gofmt -w .' and commit:"
+            echo "$unformatted" | while read -r f; do echo "::error file=$f::not gofmt-formatted"; done
+            exit 1
+          fi
+          go vet ./...
+
       - name: Run Go tests
         run: go test ./...
         env:

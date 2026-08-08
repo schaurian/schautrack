@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	CookieName     = "schautrack.sid"
-	AnonMaxAge     = 15 * time.Minute
-	AuthMaxAge     = 30 * 24 * time.Hour
-	PruneInterval  = 5 * time.Minute
+	CookieName       = "schautrack.sid"
+	AnonMaxAge       = 15 * time.Minute
+	AuthMaxAge       = 30 * 24 * time.Hour
+	PruneInterval    = 5 * time.Minute
 	defaultStepUpTTL = 30 * time.Minute
 )
 

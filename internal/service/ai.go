@@ -92,10 +92,10 @@ func DecryptApiKey(ciphertext, secretHex string) string {
 }
 
 type AIResult struct {
-	Calories   int               `json:"calories"`
-	Food       string            `json:"food"`
-	Confidence string            `json:"confidence"`
-	Macros     map[string]int    `json:"macros"`
+	Calories   int            `json:"calories"`
+	Food       string         `json:"food"`
+	Confidence string         `json:"confidence"`
+	Macros     map[string]int `json:"macros"`
 }
 
 // AIProviderError reports a non-2xx response from the upstream AI provider.
@@ -349,4 +349,3 @@ func unhex(c byte) byte {
 	}
 	return 0xFF
 }
-

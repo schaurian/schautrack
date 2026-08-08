@@ -31,6 +31,7 @@ type AdminHandler struct {
 //   - the key must be in the allowlist
 //   - the env var must not override the setting
 //   - the value must pass the per-key validator (if any)
+//
 // All checks run before any write, so a batch save is all-or-nothing.
 func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {

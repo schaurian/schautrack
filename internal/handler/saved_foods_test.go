@@ -204,8 +204,8 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "name is trimmed then truncated to MaxSavedFoodName",
-			body: map[string]any{"name": "  " + strings.Repeat("a", 100) + "  "},
+			name:      "name is trimmed then truncated to MaxSavedFoodName",
+			body:      map[string]any{"name": "  " + strings.Repeat("a", 100) + "  "},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if len(in.name) != MaxSavedFoodName {
@@ -232,8 +232,8 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "amount arithmetic expression evaluated",
-			body: map[string]any{"name": "x", "amount": "2*3"},
+			name:      "amount arithmetic expression evaluated",
+			body:      map[string]any{"name": "x", "amount": "2*3"},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if !in.hasAmount || in.amount == nil || *in.amount != 6 {
@@ -242,18 +242,18 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "amount unparseable rejected",
-			body: map[string]any{"name": "x", "amount": "abc"},
+			name:      "amount unparseable rejected",
+			body:      map[string]any{"name": "x", "amount": "abc"},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "amount over MaxEntryCalories rejected",
-			body: map[string]any{"name": "x", "amount": "99999"},
+			name:      "amount over MaxEntryCalories rejected",
+			body:      map[string]any{"name": "x", "amount": "99999"},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "explicit nil amount leaves hasAmount false",
-			body: map[string]any{"name": "x", "amount": nil},
+			name:      "explicit nil amount leaves hasAmount false",
+			body:      map[string]any{"name": "x", "amount": nil},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if in.hasAmount {
@@ -262,8 +262,8 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "valid macro parsed",
-			body: map[string]any{"name": "x", "protein_g": float64(50)},
+			name:      "valid macro parsed",
+			body:      map[string]any{"name": "x", "protein_g": float64(50)},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				if v, ok := in.macros["protein"]; !ok || v == nil || *v != 50 {
@@ -272,18 +272,18 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			},
 		},
 		{
-			name: "macro over MaxEntryMacro rejected",
-			body: map[string]any{"name": "x", "protein_g": float64(1500)},
+			name:      "macro over MaxEntryMacro rejected",
+			body:      map[string]any{"name": "x", "protein_g": float64(1500)},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "negative macro rejected",
-			body: map[string]any{"name": "x", "carbs_g": float64(-5)},
+			name:      "negative macro rejected",
+			body:      map[string]any{"name": "x", "carbs_g": float64(-5)},
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name: "explicit nil macro recorded as nil",
-			body: map[string]any{"name": "x", "fat_g": nil},
+			name:      "explicit nil macro recorded as nil",
+			body:      map[string]any{"name": "x", "fat_g": nil},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
 				v, ok := in.macros["fat"]
