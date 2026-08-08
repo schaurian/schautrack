@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"schautrack/internal/database"
 	"schautrack/internal/model"
 	"schautrack/internal/openapi"
@@ -157,7 +155,7 @@ func TestMeFeaturesRoundTripFromDatabase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, url)
+	pool, err := database.NewPool(ctx, url)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}

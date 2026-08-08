@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"schautrack/internal/database"
 	"schautrack/internal/middleware"
 	"schautrack/internal/model"
@@ -36,7 +34,7 @@ func TestOnboardingCompleteKeepsFirstTimestamp(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, url)
+	pool, err := database.NewPool(ctx, url)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}

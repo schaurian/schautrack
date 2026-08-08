@@ -46,7 +46,7 @@ func linkTestDB(t *testing.T) (context.Context, *pgxpool.Pool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
 
-	pool, err := pgxpool.New(ctx, url)
+	pool, err := database.NewPool(ctx, url)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}

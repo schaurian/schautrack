@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestRetrySchemaInitReturnsLastError is a regression guard for the fail-fast
@@ -135,7 +133,7 @@ func TestAccountLinksShareColumns(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, url)
+	pool, err := NewPool(ctx, url)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}

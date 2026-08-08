@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"schautrack/internal/apierr"
 	"schautrack/internal/database"
@@ -52,7 +51,7 @@ func TestV1BodyLimitBeatsTheGlobalLimit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, url)
+	pool, err := database.NewPool(ctx, url)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}
