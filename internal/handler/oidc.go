@@ -304,6 +304,25 @@ func (h *OIDCHandler) handleLogin(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 
+	// Auto-provisioning is a user-creating write, so it goes through the same
+	// gate as credential registration: an IdP that asserts a malformed or
+	// absurdly long address must not be able to plant it in users.email.
+	//
+	// Note this is deliberately below the auto-link lookup above. That lookup
+	// is a read against an existing account, and an account created before
+	// this validator existed must keep being able to sign in.
+	emailClean, verr := validateEmail(email)
+	if verr != nil {
+		slog.Warn("OIDC auto-create rejected: invalid email from IdP",
+			"provider", provider, "subject", subject, "error", verr)
+		// Reuse the existing invalid_claims code rather than minting a new
+		// one: it already means "the IdP returned invalid information", and
+		// it is already translated in every locale.
+		http.Redirect(w, r, "/login?error=invalid_claims", http.StatusFound)
+		return
+	}
+	email = emailClean
+
 	tx, err := h.Pool.Begin(ctx)
 	if err != nil {
 		http.Redirect(w, r, "/login?error=internal", http.StatusFound)

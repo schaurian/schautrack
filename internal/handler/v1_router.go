@@ -21,6 +21,19 @@ type V1Handler struct {
 	// server it is talking to.
 	BuildVersion string
 
+	// BaseURL is the public root this instance is reached at (config.BaseURL,
+	// i.e. the BASE_URL environment variable). It becomes the sole `servers`
+	// entry of GET /api/v1/openapi.json, so that a self-hosted instance's spec
+	// points clients — including Swagger UI's "Try it out", which is where a
+	// bearer token gets sent — at that instance and not at schautrack.com.
+	// Empty means "not configured", which yields a relative server URL that
+	// clients resolve against this instance anyway.
+	BaseURL string
+
+	// spec caches the built OpenAPI document for this handler. Per-handler, not
+	// package-level, so one instance's BaseURL can never be served to another.
+	spec specCache
+
 	// Barcode and AIEstimate are the app's own handlers, injected rather than
 	// reimplemented so the API and the UI cannot disagree about what a barcode
 	// resolves to or how an estimate is billed. Nil when the feature is
@@ -34,6 +47,40 @@ type V1Handler struct {
 	// RequireAPIToken has run. Nil disables it, which is what the route-parity
 	// test relies on to build the tree without dependencies.
 	TokenLimiter *middleware.RateLimiter
+
+	// AILimiter and BarcodeLimiter are sized to the operation, not to the API.
+	// TokenLimiter guards the surface as a whole (dozens of cheap reads a
+	// minute); an AI estimate spends the operator's money on every call and a
+	// barcode lookup hammers a third-party database, and both are reachable
+	// through the app at far lower ceilings. Without these, a token was the
+	// cheapest path to the most expensive operations the server can perform.
+	//
+	// They compose with TokenLimiter rather than replacing it, and bucket per
+	// ACCOUNT (see middleware.NewUserRateLimiter) so that minting more tokens
+	// does not multiply the budget. Nil disables, as above.
+	AILimiter      *middleware.RateLimiter
+	BarcodeLimiter *middleware.RateLimiter
+
+	// Auth guards everything except GET /openapi.json. Nil means
+	// middleware.RequireAPIToken(pool) — the production wiring — so forgetting
+	// to set it cannot leave the surface unauthenticated.
+	//
+	// It exists as a field because the token lookup is the one dependency in
+	// the chain that needs a database, and CI has none. A test that stubs it
+	// drives the REAL route table, so what runs above each handler — scopes,
+	// per-token and per-operation limiters, and their order — is asserted
+	// against the thing production actually serves rather than a copy of it.
+	Auth func(http.Handler) http.Handler
+}
+
+// optionalLimiter returns rl's middleware, or a pass-through when rl is nil, so
+// the route table can name a limiter unconditionally and still be buildable
+// from a zero-value V1Handler.
+func optionalLimiter(rl *middleware.RateLimiter) func(http.Handler) http.Handler {
+	if rl == nil {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return rl.Middleware
 }
 
 // MountAPIV1 builds the /api/v1 sub-router.
@@ -49,12 +96,27 @@ type V1Handler struct {
 func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 	r := chi.NewRouter()
 
+	// Panics are an error path like any other, so they must answer in the v1
+	// error format too. The globally-mounted middleware.Recovery writes the
+	// legacy {"ok": false} envelope, which would break invariant #3 at exactly
+	// the moment a client most needs a machine-readable error. Recovering here
+	// — inside the mount, so this runs first and the global one never sees the
+	// panic — keeps the decision in the route table rather than in a path
+	// prefix check somewhere else. Same reasoning as the 404/405 overrides
+	// below.
+	r.Use(middleware.ProblemRecovery)
+
 	// The spec is public: a client must be able to fetch it before it has a
 	// token, and it contains no user data.
 	r.Get("/openapi.json", h.OpenAPI)
 
+	auth := h.Auth
+	if auth == nil {
+		auth = middleware.RequireAPIToken(pool)
+	}
+
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAPIToken(pool))
+		r.Use(auth)
 		if h.TokenLimiter != nil {
 			r.Use(h.TokenLimiter.Middleware)
 		}
@@ -69,10 +131,17 @@ func (h *V1Handler) MountAPIV1(pool *pgxpool.Pool) chi.Router {
 
 		// Barcode lookup is food data, so it rides on foods:read rather than
 		// getting a scope of its own.
-		r.With(middleware.RequireScope(service.ScopeFoodsRead)).Get("/barcode/{code}", h.BarcodeV1)
+		//
+		// The scope check runs BEFORE the limiter on both of the routes below:
+		// a 403 costs nothing to serve, and letting a wrongly-scoped token burn
+		// the account's estimate budget would let it deny service to the
+		// correctly-scoped token beside it.
+		r.With(middleware.RequireScope(service.ScopeFoodsRead),
+			optionalLimiter(h.BarcodeLimiter)).Get("/barcode/{code}", h.BarcodeV1)
 
 		// Its own scope, implied by nothing: every call spends real money.
-		r.With(middleware.RequireScope(service.ScopeAIEstimate)).Post("/ai/estimate", h.EstimateV1)
+		r.With(middleware.RequireScope(service.ScopeAIEstimate),
+			optionalLimiter(h.AILimiter)).Post("/ai/estimate", h.EstimateV1)
 
 		r.Route("/entries", func(r chi.Router) {
 			r.With(middleware.RequireScope(service.ScopeEntriesRead)).Get("/", h.ListEntries)

@@ -25,9 +25,14 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	userTz := getUserTimezone(r, user)
 	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
 
-	rawAmount := fmt.Sprintf("%v", body["amount"])
-	amountResult := service.ParseAmount(rawAmount, MaxEntryCalories)
-	hasCalorieEntry := amountResult.Ok && amountResult.Value != 0
+	// An absent or null amount reads as the empty string, which ParseAmount
+	// rejects — the same outcome the old fmt.Sprintf("%v", nil) => "<nil>"
+	// coercion reached, without the sentinel.
+	rawAmount := ""
+	if v, _ := optionalString(body, "amount"); v != nil {
+		rawAmount = *v
+	}
+	amount := classifyAmount(rawAmount, MaxEntryCalories)
 
 	entryDate, _ := body["entry_date"].(string)
 	entryDate = strings.TrimSpace(entryDate)
@@ -38,22 +43,18 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid date")
 		return
 	}
-	entryName := ""
-	if v, ok := body["entry_name"].(string); ok {
-		entryName = truncateUTF8(strings.TrimSpace(v), 120)
-	}
+	// Absent and null both mean "no name"; there is nothing to preserve on a
+	// create, so the two collapse to a NULL entry_name.
+	entryName, _ := optionalEntryName(body, "entry_name")
 
 	// Parse weight (frontend may send as string or number)
 	var weightVal float64
 	hasWeight := false
-	if wv, exists := body["weight"]; exists && wv != nil {
-		weightStr := fmt.Sprintf("%v", wv)
-		if weightStr != "" && weightStr != "<nil>" {
-			wr := service.ParseWeight(weightStr)
-			if wr.Ok {
-				weightVal = wr.Value
-				hasWeight = true
-			}
+	if wv, _ := optionalString(body, "weight"); wv != nil && *wv != "" {
+		wr := service.ParseWeight(*wv)
+		if wr.Ok {
+			weightVal = wr.Value
+			hasWeight = true
 		}
 	}
 
@@ -67,19 +68,16 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	macroValues := map[string]int{}
 	for _, key := range service.MacroKeys {
 		fieldName := key + "_g"
-		if v, exists := body[fieldName]; exists {
-			vStr := fmt.Sprintf("%v", v)
-			vStr = strings.TrimSpace(vStr)
-			if vStr == "" || vStr == "<nil>" {
-				continue
-			}
-			n, err := strconv.Atoi(vStr)
-			if err != nil || n < 0 || n > MaxEntryMacro {
-				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Macro values must be between 0 and %d", MaxEntryMacro))
-				return
-			}
-			macroValues[key] = n
+		v, _ := optionalString(body, fieldName)
+		if v == nil || *v == "" {
+			continue
 		}
+		n, err := strconv.Atoi(*v)
+		if err != nil || n < 0 || n > MaxEntryMacro {
+			ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Macro values must be between 0 and %d", MaxEntryMacro))
+			return
+		}
+		macroValues[key] = n
 	}
 	hasMacroEntry := len(macroValues) > 0
 
@@ -93,18 +91,18 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories computed from macros exceed the maximum of %d", MaxEntryCalories))
 				return
 			}
-			amountResult.Value = *computed
-			amountResult.Ok = true
-			hasCalorieEntry = true
+			// A computed amount replaces whatever the request sent, so an
+			// unparseable `amount` field is no longer grounds for a 400.
+			amount = amountDecision{Value: *computed, HasCalorieEntry: true}
 		}
 	}
 
-	if rawAmount != "" && rawAmount != "<nil>" && !amountResult.Ok {
+	if amount.Reject {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories))
 		return
 	}
 
-	if !hasCalorieEntry && !hasMacroEntry && !hasWeight {
+	if !amount.HasCalorieEntry && !hasMacroEntry && !hasWeight {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid entry data")
 		return
 	}
@@ -116,15 +114,15 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	if hasCalorieEntry || hasMacroEntry {
+	if amount.HasCalorieEntry || hasMacroEntry {
 		entryAmount := 0
-		if hasCalorieEntry {
-			entryAmount = amountResult.Value
+		if amount.HasCalorieEntry {
+			entryAmount = amount.Value
 		}
 		// Build dynamic query
 		cols := "user_id, entry_date, amount, entry_name"
 		vals := "$1, $2, $3, $4"
-		args := []any{user.ID, entryDate, entryAmount, nilString(entryName)}
+		args := []any{user.ID, entryDate, entryAmount, entryName}
 		idx := 5
 		for _, key := range service.MacroKeys {
 			if v, ok := macroValues[key]; ok {
@@ -154,7 +152,7 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hasCalorieEntry || hasMacroEntry {
+	if amount.HasCalorieEntry || hasMacroEntry {
 		h.Broker.BroadcastEntryChange(user.ID)
 	}
 	OkJSON(w)
@@ -179,60 +177,20 @@ func (h *EntriesHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	autoCalc := service.IsAutoCalcCalories(mu)
 	userTz := getUserTimezone(r, user)
 
-	var updates []string
-	var values []any
-	idx := 1
-
-	if v, ok := body["name"]; ok {
-		name := truncateUTF8(strings.TrimSpace(fmt.Sprintf("%v", v)), 120)
-		updates = append(updates, fmt.Sprintf("entry_name = $%d", idx))
-		values = append(values, nilString(name))
-		idx++
-	}
-
-	if v, ok := body["amount"]; ok && !autoCalc {
-		vStr := strings.TrimSpace(fmt.Sprintf("%v", v))
-		if vStr == "" || vStr == "<nil>" || vStr == "0" {
-			updates = append(updates, fmt.Sprintf("amount = $%d", idx))
-			values = append(values, 0)
-			idx++
-		} else {
-			result := service.ParseAmount(vStr, MaxEntryCalories)
-			if !result.Ok {
-				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories))
-				return
-			}
-			updates = append(updates, fmt.Sprintf("amount = $%d", idx))
-			values = append(values, result.Value)
-			idx++
-		}
-	}
-
-	for _, key := range service.MacroKeys {
-		fieldName := key + "_g"
-		if v, ok := body[fieldName]; ok {
-			vStr := strings.TrimSpace(fmt.Sprintf("%v", v))
-			if vStr == "" || vStr == "<nil>" || vStr == "0" {
-				updates = append(updates, fmt.Sprintf("%s = $%d", fieldName, idx))
-				values = append(values, nil)
-				idx++
-			} else {
-				n, err := strconv.Atoi(vStr)
-				if err != nil || n < 0 || n > MaxEntryMacro {
-					ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Macro values must be between 0 and %d", MaxEntryMacro))
-					return
-				}
-				updates = append(updates, fmt.Sprintf("%s = $%d", fieldName, idx))
-				values = append(values, n)
-				idx++
-			}
-		}
+	updates, values, badRequest := buildEntryUpdates(body, autoCalc)
+	if badRequest != "" {
+		ErrorJSON(w, http.StatusBadRequest, badRequest)
+		return
 	}
 
 	if len(updates) == 0 {
 		ErrorJSON(w, http.StatusBadRequest, "No updates provided")
 		return
 	}
+
+	// buildEntryUpdates numbered its placeholders $1..$len(updates), so the id
+	// and user_id predicates continue from there.
+	idx := len(updates) + 1
 
 	query := fmt.Sprintf(
 		"UPDATE calorie_entries SET %s WHERE id = $%d AND user_id = $%d RETURNING id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g",
