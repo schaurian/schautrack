@@ -28,12 +28,28 @@ export default defineConfig({
   },
 
   projects: [
-    // Setup: login as main test user, save session
+    // Setup: re-seed the shared test users, then log in as the main one and
+    // save the session.
+    //
+    // This project is the ONLY place a destructive, suite-wide database write
+    // may live, and everything below is what makes that true: `dependencies`
+    // runs a dependency project to completion before any dependent starts, and
+    // every other project depends on `setup` directly or transitively —
+    // `shutdown` excepted, and that one signals a throwaway container clone and
+    // touches no shared user. So a write here cannot be observed half-applied.
+    //
+    // The corollary is the maintenance rule: a seed, a truncate or any other
+    // rewrite of state a spec elsewhere owns belongs HERE and nowhere else.
+    // Putting it in a project that has siblings — anything that merely declares
+    // `dependencies: ['setup']`, i.e. admin-setup, auth, 2fa, stepup, passkey
+    // and chromium — makes it race by design, because siblings are not ordered
+    // against each other. That is exactly what #461 was. Enforced by
+    // TestSeedIsInvokedOnlyFromGlobalSetup in internal/e2eguard.
     {
       name: 'setup',
       testMatch: /global-setup\.ts/,
     },
-    // Admin setup: login as admin user, save session
+    // Admin setup: login as admin user, save session. Seeds nothing — see above.
     {
       name: 'admin-setup',
       testMatch: /admin-setup\.ts/,
