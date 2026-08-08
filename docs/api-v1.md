@@ -12,8 +12,8 @@ The Schautrack public API.
 
 ## Authentication
 
-Every endpoint except `/openapi.json` requires a **personal access token**,
-sent as a bearer token:
+Every endpoint except `/openapi.json` and `/docs` requires a
+**personal access token**, sent as a bearer token:
 
 ```
 Authorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -173,6 +173,7 @@ than retrying blindly.
 | [`GET /plan`](#getplan) | `plan:read` | The weight-loss plan |
 | [`GET /links`](#listlinks) | `links:read` | List linked accounts |
 | [`POST /ai/estimate`](#estimatefromphoto) | `ai:estimate` | Estimate nutrition from a food photo |
+| [`GET /docs`](#getdocs) | — | This document, rendered for humans |
 | [`GET /openapi.json`](#getopenapi) | — | This document |
 
 ## Account
@@ -911,6 +912,20 @@ Requires the `ai:estimate` scope, which no other scope implies — every call sp
 
 The API's own description.
 
+### This document, rendered for humans
+
+```http
+GET /api/v1/docs
+```
+
+**Authentication:** none — this endpoint is public.
+
+The same description as `/openapi.json`, rendered as a self-contained HTML reference page. Needs no token.
+
+| Status | Response |
+| --- | --- |
+| `200` | The API reference page. |
+
 ### This document
 
 ```http
@@ -919,7 +934,7 @@ GET /api/v1/openapi.json
 
 **Authentication:** none — this endpoint is public.
 
-Returns this OpenAPI description. The only endpoint that needs no token.
+Returns this OpenAPI description. Needs no token.
 
 | Status | Response |
 | --- | --- |
