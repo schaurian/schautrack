@@ -523,6 +523,15 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 // Logout handles POST /api/auth/logout
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess := session.GetSession(r)
-	h.SessionStore.Destroy(w, r, sess)
+	// This must not be best-effort. Store.Destroy returns BEFORE clearing the
+	// cookie if the DELETE fails, so ignoring the error answered "ok" to a
+	// logout that left the session row live and the cookie in place — the user
+	// is told they are signed out and is not. On a shared machine that is the
+	// whole point of the button.
+	if err := h.SessionStore.Destroy(w, r, sess); err != nil {
+		slog.Error("failed to destroy the session on logout", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not sign you out. Please try again.")
+		return
+	}
 	OkJSON(w)
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -29,6 +30,29 @@ func ReadJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64)
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
 	if err != nil {
 		return err
+	}
+	return json.Unmarshal(body, dst)
+}
+
+// ReadOptionalJSON decodes a request body that the caller is allowed to omit.
+//
+// It exists because several handlers take a body whose fields are all optional
+// and were therefore calling ReadJSON and dropping the error entirely. That
+// conflates two very different situations: "no body was sent", which is
+// legitimate and must leave dst at its zero value, and "a body was sent and it
+// is malformed", which is a client bug that was being answered with a 200 and
+// the zero value. POST /api/todos/toggle-enabled with a broken body silently
+// DISABLED the user's todos, because the decode failure left Enabled nil and
+// nil is not true.
+//
+// An absent or whitespace-only body is not an error. Anything else must parse.
+func ReadOptionalJSON(r *http.Request, dst any) error {
+	body, err := io.ReadAll(http.MaxBytesReader(nil, r.Body, 10<<20))
+	if err != nil {
+		return err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return nil
 	}
 	return json.Unmarshal(body, dst)
 }

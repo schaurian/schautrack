@@ -96,7 +96,11 @@ func validateTargetDate(paceMode string, dateStr *string, todayStr string) bool 
 // falling back to the legacy daily_goal column.
 func currentCalorieGoal(user *model.User) *int {
 	var macroGoals map[string]any
-	json.Unmarshal(user.MacroGoals, &macroGoals)
+	// Decoding a json/jsonb column this process wrote. A NULL or empty column
+	// yields an error and leaves the destination at its zero value, which is
+	// exactly the intended fallback (an unset setting reads as empty), so the
+	// error is discarded deliberately rather than by omission.
+	_ = json.Unmarshal(user.MacroGoals, &macroGoals)
 	if v, ok := macroGoals["calories"]; ok {
 		if n, ok := v.(float64); ok {
 			i := int(n)
@@ -355,7 +359,11 @@ func (h *PlanHandler) ApplyBudget(w http.ResponseWriter, r *http.Request) {
 	// Mirrors internal/handler/settings.go's Macros update: read-modify-write
 	// the macro_goals JSONB, only touching the calories key.
 	var macroGoals map[string]any
-	json.Unmarshal(user.MacroGoals, &macroGoals)
+	// Decoding a json/jsonb column this process wrote. A NULL or empty column
+	// yields an error and leaves the destination at its zero value, which is
+	// exactly the intended fallback (an unset setting reads as empty), so the
+	// error is discarded deliberately rather than by omission.
+	_ = json.Unmarshal(user.MacroGoals, &macroGoals)
 	if macroGoals == nil {
 		macroGoals = map[string]any{}
 	}

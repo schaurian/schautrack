@@ -146,7 +146,10 @@ func (h *AdminHandler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Email string `json:"email"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 
 	// The invite email is bound to an account that does not exist yet, so it
 	// is a credential write like any other and goes through the same gate.

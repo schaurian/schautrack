@@ -12,22 +12,6 @@ linters:
   # `standard` is errcheck + govet + ineffassign + staticcheck + unused.
   default: standard
 
-  disable:
-    # TEMPORARY, and the only linter here that is off because of findings
-    # rather than fit. errcheck reports 19 unchecked errors in non-test code,
-    # and they are not noise — the notable ones are four unchecked `rows.Scan`
-    # calls in the todos handlers (a failed scan appends a row of zero values
-    # to the response instead of erroring), both `Store.Save` calls in the
-    # session middleware (a session that fails to persist looks like a
-    # successful login until the next request), and both `Destroy` calls on
-    # logout (a failed destroy leaves the row alive while the client is told it
-    # is signed out).
-    #
-    # Every one of those is a behaviour change to fix properly, with tests.
-    # Doing it here would bury three real bug fixes inside a config change and
-    # make this diff unreviewable. Re-enable in the follow-up that fixes them.
-    - errcheck
-
   enable:
     # Every one of these is here because the repo actually does the thing it
     # catches, not for completeness.
@@ -64,7 +48,9 @@ linters:
         # Writes to the client. By the time these fail the status line is long
         # sent and the body is partly on the wire; the only honest response to
         # a disconnected client is to stop, which returning already does.
+        # net/http itself logs the connection error, so nothing is lost.
         - (*encoding/json.Encoder).Encode
+        - (net/http.ResponseWriter).Write
 
   exclusions:
     generated: lax

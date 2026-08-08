@@ -367,7 +367,10 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 		EntryDate string `json:"entry_date"`
 		Quantity  int    `json:"quantity"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 
 	user := middleware.GetCurrentUser(r)
 	userTz := getUserTimezone(r, user)
@@ -538,12 +541,24 @@ func (h *SavedFoodsHandler) SaveFromEntry(w http.ResponseWriter, r *http.Request
 	var body struct {
 		Emoji *string `json:"emoji"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 
 	cleanName := truncateUTF8(strings.TrimSpace(*name), MaxSavedFoodName)
 
+	// A failed count must not read as "zero saved foods". Ignoring this error
+	// left count at 0, which passes the cap check below unconditionally — so a
+	// transient database problem silently turned MaxSavedFoods off rather than
+	// failing the request.
 	var count int
-	h.Pool.QueryRow(r.Context(), "SELECT COUNT(*)::int FROM saved_foods WHERE user_id = $1", user.ID).Scan(&count)
+	if err := h.Pool.QueryRow(r.Context(),
+		"SELECT COUNT(*)::int FROM saved_foods WHERE user_id = $1", user.ID).Scan(&count); err != nil {
+		slog.Error("counting saved foods for the cap check", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not save the food")
+		return
+	}
 	if count >= MaxSavedFoods {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Maximum %d saved foods allowed", MaxSavedFoods))
 		return
