@@ -343,6 +343,7 @@
     "bodyFatNeedsWeight": "Tkanka tłuszczowa %: najpierw zapisz wagę powyżej, wtedy pole się odblokuje.",
     "toastBodyFatTracked": "Tkanka tłuszczowa zapisana",
     "toastBodyFatCleared": "Tkanka tłuszczowa usunięta",
+    "toastBodyFatInvalid": "Tkanka tłuszczowa musi wynosić od 0 do {{max}} %",
     "toastBodyFatSaveFailed": "Nie udało się zapisać tkanki tłuszczowej",
     "bodyFatHint": "Drugie pole to Twój procent tkanki tłuszczowej, jeśli waga go mierzy.",
     "bodyFatPlaceholder": "% tł."

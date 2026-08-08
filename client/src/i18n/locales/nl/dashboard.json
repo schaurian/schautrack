@@ -325,6 +325,7 @@
     "bodyFatNeedsWeight": "Vetpercentage %: registreer eerst hierboven een gewicht, dan wordt het beschikbaar.",
     "toastBodyFatTracked": "Vetpercentage bijgehouden",
     "toastBodyFatCleared": "Vetpercentage verwijderd",
+    "toastBodyFatInvalid": "Vetpercentage moet tussen 0 en {{max}} % liggen",
     "toastBodyFatSaveFailed": "Opslaan van vetpercentage mislukt",
     "bodyFatHint": "Het tweede vak is je vetpercentage, als je weegschaal dat meet.",
     "bodyFatPlaceholder": "% vet"

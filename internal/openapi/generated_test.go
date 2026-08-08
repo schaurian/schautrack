@@ -20,8 +20,11 @@ func repoFile(t *testing.T, rel string) string {
 // failure without needing anyone to remember a separate step. Changing the API
 // and forgetting to regenerate is the normal failure mode; this is what catches
 // it.
+//
+// The base URL must match the one cmd/apidocs builds with, or this test fails
+// on the `servers` entry alone and says nothing useful about the rest.
 func TestGeneratedArtifactsAreCurrent(t *testing.T) {
-	doc := Build("")
+	doc := Build("", CanonicalBaseURL)
 
 	spec, err := doc.JSON()
 	if err != nil {
@@ -54,11 +57,11 @@ func TestGeneratedArtifactsAreCurrent(t *testing.T) {
 // would break the CI diff check in a way that is maddening to debug — assert it
 // instead.
 func TestBuildIsDeterministic(t *testing.T) {
-	first, err := Build("").JSON()
+	first, err := Build("", CanonicalBaseURL).JSON()
 	if err != nil {
 		t.Fatalf("first build: %v", err)
 	}
-	second, err := Build("").JSON()
+	second, err := Build("", CanonicalBaseURL).JSON()
 	if err != nil {
 		t.Fatalf("second build: %v", err)
 	}
@@ -70,11 +73,11 @@ func TestBuildIsDeterministic(t *testing.T) {
 // TestBuildVersionAppearsInServedSpecOnly checks the build version reaches a
 // served document but never the committed one.
 func TestBuildVersionAppearsInServedSpecOnly(t *testing.T) {
-	served := Build("v2.3.5")
+	served := Build("v2.3.5", CanonicalBaseURL)
 	if !strings.Contains(served.Info.Description, "v2.3.5") {
 		t.Error("the served spec should name the build serving it")
 	}
-	committed := Build("")
+	committed := Build("", CanonicalBaseURL)
 	if strings.Contains(committed.Info.Description, "Served by build") {
 		t.Error("the committed spec must not carry a build stamp, or it churns on every release")
 	}
@@ -83,7 +86,7 @@ func TestBuildVersionAppearsInServedSpecOnly(t *testing.T) {
 // TestEveryOperationIsDocumented checks each operation carries the metadata the
 // reference page renders. A missing summary produces an empty heading.
 func TestEveryOperationIsDocumented(t *testing.T) {
-	doc := Build("")
+	doc := Build("", CanonicalBaseURL)
 	ids := map[string]string{}
 
 	for path, item := range doc.Paths {
@@ -124,7 +127,7 @@ func TestEveryOperationIsDocumented(t *testing.T) {
 // TestMarkdownRendersEveryEndpoint checks no operation is dropped by the
 // renderer's tag grouping.
 func TestMarkdownRendersEveryEndpoint(t *testing.T) {
-	doc := Build("")
+	doc := Build("", CanonicalBaseURL)
 	md := doc.Markdown()
 
 	for _, op := range doc.Operations() {

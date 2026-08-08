@@ -250,6 +250,14 @@ data into a dashboard.
 Create a token under **Settings → Account → API tokens**. Tokens are scoped, can
 be given an expiry, and can be revoked at any time. The secret is shown once.
 
+The examples below use `schautrack.com`; on your own instance use your own host.
+A running server puts *its* URL in the OpenAPI document's `servers` entry (from
+`BASE_URL`), so tools that read the served spec — Swagger UI's "Try it out"
+included — send your token to your instance and nowhere else. The
+`https://schautrack.com/problems/…` URIs in error responses are the exception:
+they are stable identifiers, not endpoints, and are the same on every instance
+on purpose so clients can branch on them.
+
 ```bash
 curl -H "Authorization: Bearer stk_…" https://schautrack.com/api/v1/me
 
