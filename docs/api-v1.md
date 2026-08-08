@@ -96,9 +96,16 @@ hours.
 
 ## Rate limits
 
-Two limits apply: one per IP address and one per token. Exceeding either
-returns `429` with a `Retry-After` header giving the number of
-seconds until the window reopens. Honour it rather than retrying blindly.
+Three limits apply: one per IP address, one per token, and — on the two
+endpoints that cost real resources — one per account. `POST /ai/estimate`
+and `GET /barcode/{code}` reach a paid provider and a third-party food
+database respectively, so they are capped at the same rate the app's own UI
+gets rather than at the API-wide ceiling; a token is not a cheaper route to
+them than a browser.
+
+Exceeding any of the three returns `429` with a `Retry-After`
+header giving the number of seconds until the window reopens. Honour it rather
+than retrying blindly.
 
 | Scope | Grants |
 | --- | --- |
@@ -592,7 +599,7 @@ GET /api/v1/barcode/{code}
 
 **Scope:** `foods:read`
 
-Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.
+Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Rate limited per account at the same rate as the app's own scanner, since it queries the same third-party database. Returns 404 when barcode lookup is disabled on the server.
 
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
@@ -843,7 +850,7 @@ POST /api/v1/ai/estimate
 
 **Scope:** `ai:estimate`
 
-Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.
+Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured.
 
 **Request body** (required): [`EstimateInput`](#estimateinput)
 

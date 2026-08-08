@@ -137,9 +137,16 @@ hours.
 
 ## Rate limits
 
-Two limits apply: one per IP address and one per token. Exceeding either
-returns ` + "`429`" + ` with a ` + "`Retry-After`" + ` header giving the number of
-seconds until the window reopens. Honour it rather than retrying blindly.`
+Three limits apply: one per IP address, one per token, and — on the two
+endpoints that cost real resources — one per account. ` + "`POST /ai/estimate`" + `
+and ` + "`GET /barcode/{code}`" + ` reach a paid provider and a third-party food
+database respectively, so they are capped at the same rate the app's own UI
+gets rather than at the API-wide ceiling; a token is not a cheaper route to
+them than a browser.
+
+Exceeding any of the three returns ` + "`429`" + ` with a ` + "`Retry-After`" + `
+header giving the number of seconds until the window reopens. Honour it rather
+than retrying blindly.`
 
 // CanonicalBaseURL is the URL of the Schautrack-hosted instance. It is the base
 // cmd/apidocs bakes into the committed api/openapi.json and docs/api-v1.md, so
@@ -928,6 +935,8 @@ func paths() map[string]*PathItem {
 		"/barcode/{code}": {Get: &Operation{
 			OperationID: "lookupBarcode", Summary: "Look up a product by barcode",
 			Description: "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. " +
+				"Rate limited per account at the same rate as the app's own scanner, since it " +
+				"queries the same third-party database. " +
 				"Returns 404 when barcode lookup is disabled on the server.",
 			Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
 			Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
@@ -949,8 +958,9 @@ func paths() map[string]*PathItem {
 			OperationID: "estimateFromPhoto", Summary: "Estimate nutrition from a food photo",
 			Description: "Requires the `ai:estimate` scope, which no other scope implies — every call " +
 				"spends the operator's AI budget, so it must be granted deliberately. The account's " +
-				"daily AI limit applies here exactly as it does in the app. Returns 404 when no AI " +
-				"provider is configured.",
+				"daily AI limit applies here exactly as it does in the app, as does a per-account " +
+				"rate limit matching the app's own estimate endpoint — this is not a cheaper path " +
+				"to the provider. Returns 404 when no AI provider is configured.",
 			Tags: []string{"AI"}, Scope: service.ScopeAIEstimate,
 			Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeAIEstimate}}},
 			RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("EstimateInput"))},
