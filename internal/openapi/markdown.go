@@ -6,15 +6,16 @@ import (
 	"strings"
 )
 
-// Markdown renders the document as a reference page.
+// Markdown renders the document as a reference page for the repo
+// (docs/api-v1.md); HTML() in html.go is the same reference rendered for the
+// served GET /api/v1/docs.
 //
-// Markdown rather than a bundled Redoc/Scalar page, deliberately: those load
-// their JavaScript from a CDN, which the app's Content-Security-Policy blocks,
-// and vendoring a megabyte of minified JS into the repo to work around that is
-// a bad trade for a document people mostly read on GitHub. The served
-// openapi.json remains the machine-readable artifact — point Scalar, Bruno,
-// Insomnia, or openapi-generator at it and get the interactive experience
-// without the app hosting it.
+// Neither is a bundled Redoc/Scalar page, deliberately: those load their
+// JavaScript from a CDN, which the app's Content-Security-Policy blocks, and
+// vendoring a megabyte of minified JS into the repo to work around that is a
+// bad trade. The served openapi.json remains the machine-readable artifact —
+// point Scalar, Bruno, Insomnia, or openapi-generator at it and get the
+// interactive experience without the app hosting it.
 func (d *Document) Markdown() string {
 	var b strings.Builder
 
