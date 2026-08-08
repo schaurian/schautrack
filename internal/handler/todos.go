@@ -27,7 +27,10 @@ func (h *TodosHandler) ToggleEnabled(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Enabled any `json:"enabled"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 	enabled := body.Enabled == true || body.Enabled == "true"
 	user := middleware.GetCurrentUser(r)
 	if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET todos_enabled = $1 WHERE id = $2", enabled, user.ID); err != nil {
@@ -54,7 +57,13 @@ func (h *TodosHandler) List(w http.ResponseWriter, r *http.Request) {
 		var schedule json.RawMessage
 		var timeOfDay *string
 		var createdAt time.Time
-		rows.Scan(&id, &name, &schedule, &timeOfDay, &sortOrder, &createdAt)
+		// A failed scan used to append a row of zero values — an id-0,
+		// empty-named todo in the response rather than an error.
+		if err := rows.Scan(&id, &name, &schedule, &timeOfDay, &sortOrder, &createdAt); err != nil {
+			slog.Error("scanning a todo row", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not load todos")
+			return
+		}
 		todos = append(todos, map[string]any{
 			"id": id, "name": name, "schedule": json.RawMessage(schedule),
 			"time_of_day": timeOfDay, "sort_order": sortOrder, "created_at": createdAt,
@@ -261,7 +270,11 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 	var scheduled []todoItem
 	for rows.Next() {
 		var t todoItem
-		rows.Scan(&t.ID, &t.Name, &t.Schedule, &t.TimeOfDay, &t.SortOrder)
+		if err := rows.Scan(&t.ID, &t.Name, &t.Schedule, &t.TimeOfDay, &t.SortOrder); err != nil {
+			slog.Error("scanning a scheduled todo row", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not load todos")
+			return
+		}
 		if service.IsScheduledForDate(t.Schedule, dateStr) {
 			scheduled = append(scheduled, t)
 		}
@@ -291,7 +304,14 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 			defer cRows.Close()
 			for cRows.Next() {
 				var tid int
-				cRows.Scan(&tid)
+				// Best-effort, matching the tolerated Query error above: a
+				// missing completion mark renders an unchecked box, which is
+				// recoverable, whereas failing the whole day view is not. It
+				// must not be silent, though.
+				if err := cRows.Scan(&tid); err != nil {
+					slog.Error("scanning a todo completion", "error", err)
+					continue
+				}
 				completions[tid] = true
 			}
 		}
@@ -310,7 +330,10 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 			for sRows.Next() {
 				var tid int
 				var d string
-				sRows.Scan(&tid, &d)
+				if err := sRows.Scan(&tid, &d); err != nil {
+					slog.Error("scanning a todo completion date", "error", err)
+					continue
+				}
 				datesByTodo[tid] = append(datesByTodo[tid], d)
 			}
 			for _, t := range scheduled {
@@ -350,7 +373,10 @@ func (h *TodosHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Date string `json:"date"`
 	}
-	ReadJSON(r, &body)
+	if err := ReadOptionalJSON(r, &body); err != nil {
+		ErrorJSON(w, http.StatusBadRequest, "The request body is not valid JSON.")
+		return
+	}
 
 	user := middleware.GetCurrentUser(r)
 	dateStr := strings.TrimSpace(body.Date)

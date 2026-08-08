@@ -929,7 +929,11 @@ func (h *LinksHandler) SetShares(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var savedMap map[string]bool
-	json.Unmarshal(saved, &savedMap)
+	// Decoding a json/jsonb column this process wrote. A NULL or empty column
+	// yields an error and leaves the destination at its zero value, which is
+	// exactly the intended fallback (an unset setting reads as empty), so the
+	// error is discarded deliberately rather than by omission.
+	_ = json.Unmarshal(saved, &savedMap)
 	savedMap = service.SanitizeShareMap(savedMap)
 	// Notify both sides: the caller may have another settings tab open, while
 	// the linked user must immediately gain/lose the affected dashboard data.

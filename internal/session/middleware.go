@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 )
 
@@ -46,7 +47,15 @@ func Middleware(store *Store) func(http.Handler) http.Handler {
 
 			// Save if handler didn't write anything (e.g. SSE, or empty response)
 			if !rw.saved {
-				store.Save(w, r, holder.sess)
+				// A session that fails to persist is indistinguishable from a
+				// successful request until the NEXT one, which arrives with a
+				// cookie naming a row that was never written and is treated as
+				// a fresh anonymous session — i.e. the user is silently signed
+				// out. The response has already been written by here, so this
+				// cannot become an error; it must at least be visible.
+				if err := store.Save(w, r, holder.sess); err != nil {
+					slog.Error("failed to save the session after the handler returned", "error", err)
+				}
 			}
 		})
 	}
@@ -66,7 +75,12 @@ func (w *deferredSaveWriter) saveOnce() {
 		return
 	}
 	w.saved = true
-	w.store.Save(w.ResponseWriter, w.request, w.holder.sess)
+	// Runs before the first byte of the response, so a failure here means the
+	// Set-Cookie header never went out. Same consequence as above: the caller
+	// believes it is signed in and the next request says otherwise.
+	if err := w.store.Save(w.ResponseWriter, w.request, w.holder.sess); err != nil {
+		slog.Error("failed to save the session before the first write", "error", err)
+	}
 }
 
 func (w *deferredSaveWriter) WriteHeader(code int) {

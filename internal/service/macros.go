@@ -48,8 +48,12 @@ type MacroUser struct {
 func ParseMacroUser(macrosEnabledJSON, macroGoalsJSON json.RawMessage, dailyGoal *int, goalThreshold int) MacroUser {
 	me := make(map[string]any)
 	mg := make(map[string]any)
-	json.Unmarshal(macrosEnabledJSON, &me)
-	json.Unmarshal(macroGoalsJSON, &mg)
+	// Decoding a json/jsonb column this process wrote. A NULL or empty column
+	// yields an error and leaves the destination at its zero value, which is
+	// exactly the intended fallback (an unset setting reads as empty), so the
+	// error is discarded deliberately rather than by omission.
+	_ = json.Unmarshal(macrosEnabledJSON, &me)
+	_ = json.Unmarshal(macroGoalsJSON, &mg)
 	return MacroUser{MacrosEnabled: me, MacroGoals: mg, DailyGoal: dailyGoal, GoalThreshold: goalThreshold}
 }
 
