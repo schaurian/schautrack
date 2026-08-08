@@ -1,7 +1,37 @@
-import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
+import { test, expect, Browser } from '@playwright/test';
+import { createIsolatedUser, loginUser, openAddFood } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+const ADMIN_STORAGE = 'e2e/.auth/admin.json';
 
 let user: { email: string; password: string; id: string };
+
+/**
+ * Flip a global admin setting through the admin API rather than with a direct
+ * INSERT.
+ *
+ * The server memoises admin_settings for a minute (database.SettingsCache) and
+ * only invalidates that cache on writes it performs itself. A raw psql write
+ * therefore takes effect at some unpredictable point up to 60s later — for the
+ * disable step that means asserting against a setting that may not be live yet,
+ * and for the restore step it means leaving enable_barcode reading `false` for
+ * up to a minute after this spec is done, which is exactly what would break the
+ * barcode readers that `playwright.config.ts` schedules right after it.
+ */
+async function setAdminSetting(browser: Browser, key: string, value: string) {
+  const ctx = await browser.newContext({ storageState: ADMIN_STORAGE });
+  try {
+    const csrfRes = await ctx.request.get(`${baseURL}/api/csrf`);
+    const { token } = await csrfRes.json();
+    const res = await ctx.request.post(`${baseURL}/admin/settings`, {
+      headers: { 'X-CSRF-Token': token, 'Content-Type': 'application/json' },
+      data: JSON.stringify({ settings: { [key]: value } }),
+    });
+    expect(res.status(), `failed to set ${key}=${value}`).toBe(200);
+  } finally {
+    await ctx.close();
+  }
+}
 
 test.describe('Barcode Extended', () => {
   test.describe.configure({ mode: 'serial' });
@@ -10,13 +40,13 @@ test.describe('Barcode Extended', () => {
     user = createIsolatedUser('barcode-ext');
   });
 
-  test.afterAll(() => {
+  test.afterAll(async ({ browser }) => {
     // Restore barcode setting
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_barcode', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
+    await setAdminSetting(browser, 'enable_barcode', 'true');
   });
 
   test('barcode button is hidden when admin disables barcode scanning', async ({ browser }) => {
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_barcode', 'false') ON CONFLICT (key) DO UPDATE SET value = 'false'`);
+    await setAdminSetting(browser, 'enable_barcode', 'false');
 
     const { context: ctx, page } = await loginUser(browser, user.email, user.password);
     await page.goto('/dashboard');
@@ -29,7 +59,7 @@ test.describe('Barcode Extended', () => {
     await expect(barcodeButton).not.toBeVisible({ timeout: 5000 });
 
     // Restore
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_barcode', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
+    await setAdminSetting(browser, 'enable_barcode', 'true');
     await ctx.close();
   });
 
