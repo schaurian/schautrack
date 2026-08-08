@@ -8,25 +8,21 @@ import (
 	"schautrack/internal/service"
 )
 
-// A NUL byte in a text field is a 500. See #378.
+// A NUL byte in a text field is a 400. See #378, now fixed.
 //
 // nulEscape below is the six characters backslash-u-zero-zero-zero-zero: a
 // perfectly legal JSON escape that decodes to a Go string containing 0x00.
-// Postgres TEXT cannot store that byte, so the INSERT fails with SQLSTATE 22021
-// and dbFail turns a client mistake into an internal-error problem.
+// Postgres TEXT cannot store that byte, so the INSERT used to fail with
+// SQLSTATE 22021 and dbFail turned a client mistake into a 500.
 //
-// These tests assert the CURRENT behaviour deliberately. Writing them the right
-// way round would mean committing a red suite; writing them loosely ("4xx or
-// 5xx, whatever") would mean the fix lands with nothing noticing. Pinned to 500
-// with a pointer to #378, they fail the moment someone fixes it — which is the
-// signal the fixer needs to invert them.
-//
-// TODO(#378): when a NUL is rejected before it reaches SQL, change every
-// expected status below to the 4xx it should have been all along and rename
-// this file to say what it now guards.
+// These assertions were pinned to 500 on purpose while the bug stood, with a
+// TODO asking whoever fixed it to invert them. That is what happened: decodeV1
+// now refuses the escape on the raw body before anything is decoded, so every
+// v1 endpoint answers 400 rather than ten handlers each learning the lesson
+// separately.
 const nulEscape = `\u0000`
 
-func TestV1NulByteInATextFieldIsAn500(t *testing.T) {
+func TestV1NulByteInATextFieldIsRejected(t *testing.T) {
 	e := newV1Env(t)
 	token := e.allScopesToken()
 
@@ -72,9 +68,9 @@ func TestV1NulByteInATextFieldIsAn500(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			rec := e.do(call{Method: c.method, Path: c.path, Token: token, Body: c.body})
 
-			if rec.Code != http.StatusInternalServerError {
-				t.Fatalf("status = %d — if this is now a 4xx, #378 is fixed: invert every assertion "+
-					"in this file and rename it (body: %s)", rec.Code, rec.Body.String())
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400 — a NUL is the caller's mistake, never a server "+
+					"failure (body: %s)", rec.Code, rec.Body.String())
 			}
 			// Whatever the status, the contract's error format still holds.
 			requireProblemShape(t, rec)
@@ -82,11 +78,16 @@ func TestV1NulByteInATextFieldIsAn500(t *testing.T) {
 	}
 }
 
-// TestV1ValidatedFieldsRejectNulProperly is the other half of #378, and the
-// reason the fix is worth making: the fields that go through a parser or a
-// closed set already answer 422. The string columns are the exception, not the
-// rule.
-func TestV1ValidatedFieldsRejectNulProperly(t *testing.T) {
+// TestV1ValidatedFieldsRejectNul covers the fields that have their own parser
+// or closed set. They used to answer 422 — the value was well-formed JSON but
+// not a legal timezone/language/date — while the free-text columns 500d.
+//
+// Both are 400 now, because the check that fires first is about the ENCODING
+// rather than the value: a NUL cannot be stored in any text column, so which
+// field it landed in does not change the answer. Uniform is the right trade
+// here; the alternative is a rule whose status depends on whether the field
+// happens to have a validator, which no client could predict.
+func TestV1ValidatedFieldsRejectNul(t *testing.T) {
 	e := newV1Env(t)
 	token := e.allScopesToken()
 
@@ -102,8 +103,8 @@ func TestV1ValidatedFieldsRejectNulProperly(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			rec := e.do(call{Method: c.method, Path: c.path, Token: token, Body: c.body})
-			if rec.Code != http.StatusUnprocessableEntity {
-				t.Fatalf("status = %d, want 422 (body: %s)", rec.Code, rec.Body.String())
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400 (body: %s)", rec.Code, rec.Body.String())
 			}
 			requireProblemShape(t, rec)
 		})

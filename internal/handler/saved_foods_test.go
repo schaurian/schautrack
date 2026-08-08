@@ -252,12 +252,17 @@ func TestParseSavedFoodPayload(t *testing.T) {
 			forCreate: true, wantStatus: 400,
 		},
 		{
-			name:      "explicit nil amount leaves hasAmount false",
+			// #388: a nil amount is a clear, not a no-op — see the amount table
+			// in TestParseSavedFoodPayloadAmount for why.
+			name:      "explicit nil amount clears the column",
 			body:      map[string]any{"name": "x", "amount": nil},
 			forCreate: true, wantStatus: 0,
 			check: func(t *testing.T, in *savedFoodInput) {
-				if in.hasAmount {
-					t.Errorf("hasAmount = true, want false for nil amount")
+				if !in.hasAmount {
+					t.Errorf("hasAmount = false, want true for nil amount")
+				}
+				if in.amount != nil {
+					t.Errorf("amount = %v, want nil (cleared)", *in.amount)
 				}
 			},
 		},
@@ -496,7 +501,11 @@ func TestParseSavedFoodPayloadAmount(t *testing.T) {
 		wantMsg   bool
 	}{
 		{"key absent leaves the column alone", `{"name":"x"}`, false, true, 0, false},
-		{"null leaves hasAmount false", `{"name":"x","amount":null}`, false, true, 0, false},
+		// #388: null clears the amount, exactly like "" and "   " below. It used to
+		// leave hasAmount false, so a body of only {"amount": null} — what the UI
+		// sends when the field is emptied — answered 400 "No updates provided" and
+		// left the stored calories in place.
+		{"null clears it", `{"name":"x","amount":null}`, true, true, 0, false},
 		{"empty string clears it", `{"name":"x","amount":""}`, true, true, 0, false},
 		{"whitespace clears it", `{"name":"x","amount":"   "}`, true, true, 0, false},
 		{"a numeric string sets it", `{"name":"x","amount":"500"}`, true, false, 500, false},

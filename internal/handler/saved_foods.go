@@ -142,12 +142,20 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 		}
 	}
 
-	// An explicit null amount is deliberately *not* a clear: it leaves
-	// hasAmount false, so Update omits the column entirely. Only an empty
-	// string clears it. Preserved from before the refactor.
-	if amount, present := optionalString(body, "amount"); present && amount != nil {
+	// An explicit null clears the amount, exactly like an empty string (#388).
+	//
+	// Null used to leave hasAmount false, so Update omitted the column and — if
+	// nothing else was in the body — answered 400 "No updates provided" while
+	// the stored calories stayed put. That is precisely what the UI sends when
+	// the field is emptied (SavedFoodsModal: `payload.amount = raw.trim() === ''
+	// ? null : Number(raw)`), so clearing a saved food's calories reported an
+	// error and silently did nothing.
+	//
+	// The macro fields below already treated null and "" the same way; amount
+	// was the odd one out.
+	if amount, present := optionalString(body, "amount"); present {
 		out.hasAmount = true
-		if *amount != "" {
+		if amount != nil && *amount != "" {
 			parsed := service.ParseAmount(*amount, MaxEntryCalories)
 			if !parsed.Ok {
 				return nil, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)

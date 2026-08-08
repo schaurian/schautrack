@@ -147,6 +147,23 @@ func decodeV1(w http.ResponseWriter, r *http.Request, dst any) *apierr.Problem {
 		return apierr.BadRequest("The request body must be a JSON object.")
 	}
 
+	// A NUL byte in any string is refused here rather than by Postgres (#378).
+	//
+	// `"a\u0000b"` is valid JSON and encoding/json decodes it to a Go string
+	// holding a NUL. Postgres TEXT cannot store one, so the INSERT failed with
+	// SQLSTATE 22021 and dbFail turned that into a 500 — ten error paths across
+	// five handlers answering "internal server error" for a request that is
+	// entirely the caller's fault.
+	//
+	// Checked on the raw bytes, which is both the cheapest and the most complete
+	// place: a literal NUL cannot appear unescaped in valid JSON (it is a control
+	// character, and encoding/json rejects it), so the \u0000 escape is the only
+	// spelling that reaches a decoded string. One scan here covers every field of
+	// every v1 endpoint, present and future, without each handler remembering.
+	if bytes.Contains(raw, []byte(`\u0000`)) {
+		return apierr.BadRequest("Text fields cannot contain NUL characters.")
+	}
+
 	// Pass 2 fills dst from the object. It runs over the bytes pass 1 already
 	// read, so the body is never read twice.
 	obj := json.NewDecoder(bytes.NewReader(raw))
