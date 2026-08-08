@@ -51,6 +51,32 @@ env:
 jobs:
   test:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
+    # Without a database, every test guarded by `TEST_DATABASE_URL` skips — and
+    # `go test` reports a skip as a pass. That silently disabled the tests most
+    # worth running, above all
+    # TestRunAllMigrationsIdempotentBodyProfileAndWeightGoals: migrations re-run
+    # on every container start, so a non-idempotent migration's first symptom is
+    # a pod that will not start, in production, on a RollingUpdate with
+    # maxUnavailable: 0.
+    #
+    # The postgres major here must track the one the app actually runs against
+    # (compose.test.yml / the Helm chart's postgres) — testing migrations on a
+    # different major tests the wrong DDL semantics.
+    #
+    # TestIntegrationTestsRunInCI (internal/database/ci_guard_test.go) fails the
+    # build if this block is ever removed while CI keeps reporting green.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,6 +88,8 @@ jobs:
 
       - name: Run Go tests
         run: go test ./...
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 
       # Client type errors were previously caught only inside the Docker build
       # (client "build" is "tsc -b && vite build"), which runs after
