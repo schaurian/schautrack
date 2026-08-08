@@ -132,7 +132,7 @@ func GetWeightEntry(ctx context.Context, pool *pgxpool.Pool, userID int, dateStr
 		"SELECT "+weightColumns+" FROM weight_entries WHERE user_id = $1 AND entry_date = $2 LIMIT 1",
 		userID, dateStr).Scan(&w.ID, &w.Date, &w.Weight, &w.BodyFat, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -152,7 +152,7 @@ func GetLastWeightEntry(ctx context.Context, pool *pgxpool.Pool, userID int, bef
 	var w WeightResult
 	err := pool.QueryRow(ctx, query, args...).Scan(&w.ID, &w.Date, &w.Weight, &w.BodyFat, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -177,7 +177,7 @@ func GetLastBodyFatEntry(ctx context.Context, pool *pgxpool.Pool, userID int, be
 	var w WeightResult
 	err := pool.QueryRow(ctx, query, args...).Scan(&w.ID, &w.Date, &w.Weight, &w.BodyFat, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -194,7 +195,7 @@ func (h *V1Handler) GetEntryV1(w http.ResponseWriter, r *http.Request) {
 
 	e, err := scanEntry(row, tgt.tz())
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			apierr.Write(w, r, apierr.NotFound("No entry with that id."))
 			return
 		}
@@ -472,7 +473,7 @@ func (h *V1Handler) UpdateEntryV1(w http.ResponseWriter, r *http.Request) {
 	tz := v1Tz(r)
 	e, err := scanEntry(tx.QueryRow(r.Context(), q, args...), tz)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			apierr.Write(w, r, apierr.NotFound("No entry with that id."))
 			return
 		}

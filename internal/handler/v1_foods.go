@@ -308,7 +308,7 @@ func (h *V1Handler) UpdateSavedFoodV1(w http.ResponseWriter, r *http.Request) {
 		"UPDATE saved_foods SET %s WHERE id = $%d AND user_id = $%d RETURNING %s",
 		strings.Join(sets, ", "), len(args)-1, len(args), savedFoodSelect), args...))
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			apierr.Write(w, r, apierr.NotFound("No saved food with that id."))
 			return
 		}
@@ -403,7 +403,7 @@ func (h *V1Handler) TrackSavedFoodV1(w http.ResponseWriter, r *http.Request) {
 		`SELECT name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g
 		 FROM saved_foods WHERE id = $1 AND user_id = $2`, id, user.ID,
 	).Scan(&name, &emoji, &amount, &protein, &carbs, &fat, &fiber, &sugar); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			apierr.Write(w, r, apierr.NotFound("No saved food with that id."))
 			return
 		}

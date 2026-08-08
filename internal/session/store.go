@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -147,7 +146,6 @@ type dbExecutor interface {
 type Store struct {
 	pool   dbExecutor
 	secret string
-	mu     sync.Mutex
 }
 
 func NewStore(pool *pgxpool.Pool, secret string) *Store {

@@ -246,7 +246,12 @@ func TestCaloriesFromMacrosMatchAtwater(t *testing.T) {
 		}
 
 		if got == nil {
+			// The explicit return is for staticcheck, not for control flow:
+			// rapid.T.Fatalf does terminate, but it is not testing.T, so the
+			// analyser cannot know that and reads every deref below as a
+			// possible nil dereference.
 			t.Fatalf("ComputeCaloriesFromMacros(%d, %d, %d) = nil, want a value", protein, carbs, fat)
+			return
 		}
 		if want := protein*4 + carbs*4 + fat*9; *got != want {
 			t.Fatalf("ComputeCaloriesFromMacros(%d, %d, %d) = %d, want %d", protein, carbs, fat, *got, want)
@@ -267,7 +272,11 @@ func TestCaloriesFromMacrosIsMonotonic(t *testing.T) {
 
 		base := ComputeCaloriesFromMacros(protein, carbs, fat)
 		if base == nil {
+			// See the note in TestCaloriesFromMacrosMatchAtwater: the return is
+			// there so staticcheck can see that nothing below dereferences a
+			// nil pointer.
 			t.Fatalf("unexpected nil for (%d, %d, %d) with fat >= 1", protein, carbs, fat)
+			return
 		}
 
 		for _, c := range []struct {
