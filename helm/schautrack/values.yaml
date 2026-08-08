@@ -85,6 +85,29 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
+# Liveness probe for the app container — restarts it if the process stops
+# responding. Rendered as-is via toYaml, so any valid Pod probe (httpGet,
+# tcpSocket, exec) plus the usual timing fields (initialDelaySeconds,
+# periodSeconds, timeoutSeconds, failureThreshold, successThreshold) may be
+# substituted wholesale. These defaults match what the chart hardcoded before
+# probes became overridable.
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+# Readiness probe for the app container — pulls the pod out of the Service
+# endpoints (without restarting it) while the check fails, e.g. the database
+# is unreachable. Same override shape as livenessProbe above.
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
@@ -271,6 +294,30 @@ postgresql:
     # Password (required) - generate with: openssl rand -hex 16
     # DO NOT use default passwords in production
     password: ""
+  # Liveness probe for the postgres container. The default command is a
+  # literal string baked in at chart-author time — it embeds the *default*
+  # auth.database/auth.username above (schautrack/schautrack), not whatever
+  # you set them to. If you override auth.database or auth.username, override
+  # this probe's command too so pg_isready checks the right database/user.
+  # Rendered as-is via toYaml, so any valid Pod probe form works here.
+  livenessProbe:
+    exec:
+      command:
+        - sh
+        - -c
+        - pg_isready -U schautrack -d schautrack
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  # Readiness probe for the postgres container. Same caveat as livenessProbe
+  # above: the default command does not track auth.database/auth.username.
+  readinessProbe:
+    exec:
+      command:
+        - sh
+        - -c
+        - pg_isready -U schautrack -d schautrack
+    initialDelaySeconds: 5
+    periodSeconds: 5
   # Persistence configuration
   persistence:
     enabled: true

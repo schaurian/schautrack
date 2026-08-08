@@ -57,17 +57,9 @@ spec:
             - configMapRef:
                 name: {{ include "schautrack.fullname" . }}
           livenessProbe:
-            httpGet:
-              path: /api/health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
+            {{- include "schautrack.renderProbe" (dict "block" .Values.livenessProbe "indent" 12 "name" "livenessProbe") }}
           readinessProbe:
-            httpGet:
-              path: /api/health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            {{- include "schautrack.renderProbe" (dict "block" .Values.readinessProbe "indent" 12 "name" "readinessProbe") }}
           lifecycle:
             preStop:
               exec:
