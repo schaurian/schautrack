@@ -85,7 +85,7 @@ test.describe('Granular link sharing', () => {
     setOwnerShares({ nutrition: false, weight: false, todos: false, notes: false });
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
-    // Log in as the OWNER and toggle "Daily notes" on for the viewer link.
+    // Log in as the OWNER and toggle notes sharing on for the viewer link.
     await page.goto(`${baseURL}/login`);
     await page.waitForLoadState('domcontentloaded');
     await page.getByLabel('Email').fill(owner.email);
@@ -94,8 +94,9 @@ test.describe('Granular link sharing', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     await page.goto(`${baseURL}/settings`);
     await page.waitForLoadState('domcontentloaded');
-    // The label wraps the checkbox — clicking the label text toggles it.
-    const notesLabel = page.locator('label', { hasText: 'Daily notes' }).first();
+    // The label wraps the checkbox — clicking the label toggles it. Addressed
+    // by testid, not by text: the visible copy is translated and has changed.
+    const notesLabel = page.getByTestId('share-toggle-notes').first();
     await notesLabel.scrollIntoViewIfNeeded({ timeout: 5000 });
     await notesLabel.click();
     // Assert it persisted server-side.
