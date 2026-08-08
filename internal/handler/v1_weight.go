@@ -244,11 +244,21 @@ func (h *V1Handler) PutWeightV1(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Reuse the app's own parser so the API accepts exactly the values the UI
-	// does, including its rounding to two decimals and its 0 < w <= 1500 bound.
+	// does, including its rounding to two decimals and its
+	// 0 < w <= service.MaxWeight bound.
+	//
+	// The bound is interpolated from service.MaxWeight rather than written out,
+	// so raising the cap cannot leave this endpoint telling clients a number
+	// the parser no longer enforces — the comment and the error string are the
+	// only places the API states the limit, and a stale limit in an error
+	// message is worse than none.
 	parsed := service.ParseWeight(fmt.Sprintf("%v", in.Weight))
 	if !parsed.Ok {
 		apierr.Write(w, r, apierr.Unprocessable("The weight value is not usable.",
-			apierr.InvalidParam{Name: "weight", Reason: "must be a number greater than 0 and at most 1500"}))
+			apierr.InvalidParam{
+				Name:   "weight",
+				Reason: fmt.Sprintf("must be a number greater than 0 and at most %g", service.MaxWeight),
+			}))
 		return
 	}
 
