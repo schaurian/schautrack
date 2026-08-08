@@ -46,20 +46,24 @@ type PlanMetrics struct {
 	Complete      bool     `json:"complete"`
 }
 
+// HealthyRange is the weight band for a BMI of 18.5–24.9 at the account's
+// height. Min/Max are weights, so they are in PlanResponse.Unit — which is why
+// they are not called MinKg/MaxKg: for a pound account they are pounds.
 type HealthyRange struct {
-	MinKg float64 `json:"minKg"`
-	MaxKg float64 `json:"maxKg"`
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
 }
 
 type PlanComputed struct {
-	BMR           float64      `json:"bmr"`
-	TDEE          float64      `json:"tdee"`
-	BudgetKcal    int          `json:"budgetKcal"`
-	BudgetClamped bool         `json:"budgetClamped"`
-	RateKgPerWeek float64      `json:"rateKgPerWeek"`
-	ETAWeeks      float64      `json:"etaWeeks"`
-	ETADate       *string      `json:"etaDate"`
-	PlanCurve     []CurvePoint `json:"planCurve"`
+	BMR           float64 `json:"bmr"`
+	TDEE          float64 `json:"tdee"`
+	BudgetKcal    int     `json:"budgetKcal"`
+	BudgetClamped bool    `json:"budgetClamped"`
+	// RatePerWeek is a weight per week and therefore in PlanResponse.Unit.
+	RatePerWeek float64      `json:"ratePerWeek"`
+	ETAWeeks    float64      `json:"etaWeeks"`
+	ETADate     *string      `json:"etaDate"`
+	PlanCurve   []CurvePoint `json:"planCurve"`
 	// BMRFormula names the estimator behind BMR: "katch_mcardle" when a
 	// body-fat reading was available, "mifflin_st_jeor" otherwise. Surfaced so
 	// the UI can say which one produced the budget instead of the accuracy
@@ -122,7 +126,8 @@ const (
 )
 
 type PlanTrend struct {
-	SlopeKgPerWeek float64 `json:"slopeKgPerWeek"`
+	// SlopePerWeek is a weight per week and therefore in PlanResponse.Unit.
+	SlopePerWeek   float64 `json:"slopePerWeek"`
 	HasData        bool    `json:"hasData"`
 	ProjectedWeeks float64 `json:"projectedWeeks"`
 	ProjectedDate  *string `json:"projectedDate"`
@@ -136,7 +141,18 @@ type SeriesPoint struct {
 }
 
 // PlanResponse is the fully-computed GET /plan payload.
+//
+// Every weight-valued field in it — currentWeight, series[].weight,
+// composition.leanMass/fatMass, healthyRange.min/max, computed.ratePerWeek,
+// computed.planCurve[].weight, trend.slopePerWeek and the echoed goal's
+// weights — is in Unit. None of them is named after a unit, because none of
+// them is always kilograms; Unit is the single place the payload says which
+// unit it is in. See ConvertPlanResponseToDisplayUnit.
 type PlanResponse struct {
+	// Unit is "kg" or "lb": the unit every weight-valued field below is in.
+	// AssemblePlan computes in kilograms and labels itself accordingly;
+	// ConvertPlanResponseToDisplayUnit restamps it when it converts.
+	Unit               string            `json:"unit"`
 	Metrics            PlanMetrics       `json:"metrics"`
 	CurrentWeight      *float64          `json:"currentWeight"`
 	BMI                *float64          `json:"bmi"`
@@ -161,7 +177,16 @@ type PlanResponse struct {
 // is fully unit-testable.
 func AssemblePlan(in PlanInputs) PlanResponse {
 	out := PlanResponse{
-		CurrentWeight:      in.CurrentWeight,
+		// AssemblePlan's inputs are kilograms throughout (the handlers convert
+		// on the way in), so the payload starts out honestly labelled kg. The
+		// display-unit conversion restamps it.
+		Unit: UnitKg,
+		// Copied, not aliased. CurrentWeight is the one pointer in the payload
+		// that ConvertPlanResponseToDisplayUnit writes through, and handing
+		// back in.CurrentWeight would make that conversion reach backwards
+		// into the caller's PlanInputs — assembling one plan twice and
+		// converting either copy would then corrupt the other.
+		CurrentWeight:      copyFloat(in.CurrentWeight),
 		Goal:               in.Goal,
 		CurrentCalorieGoal: in.CurrentCalGoal,
 		Series:             make([]SeriesPoint, 0, len(in.Series)),
@@ -236,7 +261,7 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 		minKg, maxKg := HealthyWeightRange(*in.HeightCm)
 		out.BMI = &bmi
 		out.BMICategory = &cat
-		out.HealthyRange = &HealthyRange{MinKg: round1(minKg), MaxKg: round1(maxKg)}
+		out.HealthyRange = &HealthyRange{Min: round1(minKg), Max: round1(maxKg)}
 	}
 
 	goal := in.Goal
@@ -252,7 +277,8 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 	// when Metrics.Complete is false.
 	trend := TrendAnalysis(in.Series, goal.TargetWeight, rate, 30, in.Now)
 	pt := &PlanTrend{
-		SlopeKgPerWeek: trend.SlopeKgPerWeek,
+		SlopePerWeek: trend.SlopeKgPerWeek, // kg here; converted with the rest below
+
 		HasData:        trend.HasData,
 		ProjectedWeeks: trend.ProjectedWeeks,
 		Status:         trend.Status,
@@ -321,7 +347,7 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 		TDEE:          round1(tdee),
 		BudgetKcal:    budget,
 		BudgetClamped: clamped,
-		RateKgPerWeek: rate,
+		RatePerWeek:   rate, // kg/week here; converted with the rest of the payload
 		ETAWeeks:      etaWeeks,
 		ETADate:       etaDate,
 		PlanCurve:     curve,
@@ -355,6 +381,18 @@ func AssemblePlan(in PlanInputs) PlanResponse {
 	}
 
 	return out
+}
+
+// copyFloat returns a pointer to a copy of *p, or nil. It exists so the
+// assembled payload owns its own weights: everything else in PlanResponse that
+// the unit conversion touches is a value or a freshly built struct, and this
+// keeps CurrentWeight from being the exception.
+func copyFloat(p *float64) *float64 {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
 }
 
 // goalRate returns the goal's pace as a positive kg/week magnitude, from

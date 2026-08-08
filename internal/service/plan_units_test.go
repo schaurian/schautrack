@@ -48,14 +48,17 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 			CurrentWeight: f64(90),
 			BMI:           &bmi,
 			Series:        []SeriesPoint{{Date: "2026-07-01", Weight: 91}},
-			HealthyRange:  &HealthyRange{MinKg: 59.9, MaxKg: 80.7},
-			Composition:   &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9, AgeDays: 120, Stale: true},
+			// This branch renames MinKg/MaxKg to Min/Max (#361); AgeDays and
+			// Stale arrived from #300 while it was open and are unit-independent,
+			// so they belong in the fixture but must survive conversion unchanged.
+			HealthyRange: &HealthyRange{Min: 59.9, Max: 80.7},
+			Composition:  &BodyComposition{Date: "2026-07-01", BodyFatPct: 24.3, LeanMass: 68.1, FatMass: 21.9, AgeDays: 120, Stale: true},
 			Computed: &PlanComputed{
-				BudgetKcal:    2000,
-				RateKgPerWeek: 0.34,
-				PlanCurve:     []CurvePoint{{Week: 0, Weight: 90}},
+				BudgetKcal:  2000,
+				RatePerWeek: 0.34,
+				PlanCurve:   []CurvePoint{{Week: 0, Weight: 90}},
 			},
-			Trend: &PlanTrend{SlopeKgPerWeek: -0.3, Status: "on_track"},
+			Trend: &PlanTrend{SlopePerWeek: -0.3, Status: "on_track"},
 		}
 	}
 
@@ -84,20 +87,20 @@ func TestConvertPlanResponseToDisplayUnit(t *testing.T) {
 		if !almost(r.Series[0].Weight, 200.6, 0.1) {
 			t.Errorf("Series[0].Weight = %v, want ≈200.6", r.Series[0].Weight)
 		}
-		if !almost(r.HealthyRange.MinKg, 132.1, 0.1) {
-			t.Errorf("HealthyRange.MinKg = %v, want ≈132.1", r.HealthyRange.MinKg)
+		if !almost(r.HealthyRange.Min, 132.1, 0.1) {
+			t.Errorf("HealthyRange.Min = %v, want ≈132.1", r.HealthyRange.Min)
 		}
-		if !almost(r.HealthyRange.MaxKg, 177.9, 0.1) {
-			t.Errorf("HealthyRange.MaxKg = %v, want ≈177.9", r.HealthyRange.MaxKg)
+		if !almost(r.HealthyRange.Max, 177.9, 0.1) {
+			t.Errorf("HealthyRange.Max = %v, want ≈177.9", r.HealthyRange.Max)
 		}
-		if !almost(r.Computed.RateKgPerWeek, 0.7, 0.1) {
-			t.Errorf("Computed.RateKgPerWeek = %v, want ≈0.7", r.Computed.RateKgPerWeek)
+		if !almost(r.Computed.RatePerWeek, 0.7, 0.1) {
+			t.Errorf("Computed.RatePerWeek = %v, want ≈0.7", r.Computed.RatePerWeek)
 		}
 		if !almost(r.Computed.PlanCurve[0].Weight, 198.4, 0.1) {
 			t.Errorf("PlanCurve[0].Weight = %v, want ≈198.4", r.Computed.PlanCurve[0].Weight)
 		}
-		if !almost(r.Trend.SlopeKgPerWeek, -0.7, 0.1) {
-			t.Errorf("Trend.SlopeKgPerWeek = %v, want ≈-0.7", r.Trend.SlopeKgPerWeek)
+		if !almost(r.Trend.SlopePerWeek, -0.7, 0.1) {
+			t.Errorf("Trend.SlopePerWeek = %v, want ≈-0.7", r.Trend.SlopePerWeek)
 		}
 
 		if !almost(r.Composition.LeanMass, 150.1, 0.1) {
