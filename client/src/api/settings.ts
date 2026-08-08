@@ -79,10 +79,43 @@ export function cancelEmailChange() {
 // Routed through api() so the step-up modal can intercept the 403 and retry
 // after re-auth. FormData body is left untouched (api() only auto-sets
 // Content-Type for string bodies, so the multipart boundary stays intact).
-export function importData(file: File): Promise<{ ok: boolean; message?: string; error?: string }> {
+/** One row the server could not read, and why. `reason` is a stable code. */
+export interface ImportSkippedRow {
+  /** `entry` or `weight` — the two arrays are indexed separately. */
+  kind: string;
+  /** Position in that array in the uploaded file. */
+  index: number;
+  /** The row's date when it had a readable one; absent when the date is why it failed. */
+  date?: string;
+  /** `not_an_object` | `invalid_date` | `invalid_amount` | `invalid_weight` | `row_limit` */
+  reason: string;
+}
+
+export interface ImportResult {
+  ok: boolean;
+  message?: string;
+  error?: string;
+  /** True when nothing was written. */
+  dry_run?: boolean;
+  skipped?: {
+    /** Every dropped row, including those past the report cap. */
+    total: number;
+    /** How many are listed in `rows`. */
+    reported: number;
+    rows: ImportSkippedRow[];
+  };
+}
+
+/**
+ * @param dryRun Parse and report without writing. The real import DELETEs the
+ * account's existing entries before inserting, so this is the only way to see
+ * what a file would do while that is still reversible.
+ */
+export function importData(file: File, dryRun = false): Promise<ImportResult> {
   const formData = new FormData();
   formData.append('import_file', file);
-  return api<{ ok: boolean; message?: string; error?: string }>('/settings/import', {
+  if (dryRun) formData.append('dry_run', 'true');
+  return api<ImportResult>('/settings/import', {
     method: 'POST',
     body: formData,
   });
