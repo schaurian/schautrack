@@ -8,6 +8,7 @@ import {
   type ScopeInfo,
 } from '@/api/apiTokens';
 import { Button } from '@/components/ui/Button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isAtTokenLimit, isTokenExpired } from '@/lib/apiTokenLimits';
 import { useToastStore } from '@/stores/toastStore';
 
@@ -262,21 +263,20 @@ export default function ApiTokenSettings() {
               ))}
             </div>
 
-            <label className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">
                 {t('apiTokens.expiryLabel')}
               </span>
-              <select
-                className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
-                value={expiry}
-                onChange={(e) => setExpiry(e.target.value)}
-              >
-                <option value="30">{t('apiTokens.expiry30')}</option>
-                <option value="90">{t('apiTokens.expiry90')}</option>
-                <option value="365">{t('apiTokens.expiry365')}</option>
-                <option value="never">{t('apiTokens.expiryNever')}</option>
-              </select>
-            </label>
+              <Select value={expiry} onValueChange={setExpiry}>
+                <SelectTrigger data-testid="api-token-expiry"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">{t('apiTokens.expiry30')}</SelectItem>
+                  <SelectItem value="90">{t('apiTokens.expiry90')}</SelectItem>
+                  <SelectItem value="365">{t('apiTokens.expiry365')}</SelectItem>
+                  <SelectItem value="never">{t('apiTokens.expiryNever')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="flex gap-2">
               <Button
