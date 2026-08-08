@@ -9,6 +9,13 @@ export interface ApiToken {
   expires_at: string | null;
   last_used_at: string | null;
   created_at: string;
+  /**
+   * Whether the token has lapsed, decided by the SERVER's clock — the same one
+   * the mint limit is enforced against. Optional only because a freshly loaded
+   * bundle can briefly talk to a pod that predates the field; see
+   * `isTokenExpired` in `@/lib/apiTokenLimits` for the fallback.
+   */
+  expired?: boolean;
 }
 
 export interface ScopeInfo {

@@ -211,6 +211,34 @@ func LooksLikeAPIToken(s string) bool {
 // tokens.
 var ErrTokenLimit = fmt.Errorf("token limit reached (maximum %d)", MaxTokensPerUser)
 
+// activeTokenCountSQL is the single definition of "counts against
+// MaxTokensPerUser": unrevoked and unexpired, judged by the database clock.
+//
+// It is shared rather than copied because the copies drifted once already.
+// ListAPITokens keeps expired tokens, this count ignores them, and the token UI
+// gated its "New token" button on the raw list length — so a user holding 20
+// tokens of which 8 had lapsed was told they were at the limit while the server
+// would happily have minted eight more, with no way out of the UI except
+// revoking dead tokens one at a time (issue #299). Anything answering "is this
+// user at the limit?" must go through here.
+const activeTokenCountSQL = `
+	SELECT COUNT(*)::int FROM api_tokens
+	WHERE user_id = $1 AND revoked_at IS NULL
+	  AND (expires_at IS NULL OR expires_at > NOW())`
+
+// CountActiveAPITokens returns how many of a user's tokens count against
+// MaxTokensPerUser.
+//
+// It takes a Querier so the mint path can run it inside its transaction while
+// callers outside one pass the pool.
+func CountActiveAPITokens(ctx context.Context, db Querier, userID int) (int, error) {
+	var n int
+	if err := db.QueryRow(ctx, activeTokenCountSQL, userID).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // CreateAPIToken mints a token for a user and returns it along with the raw
 // secret. The raw secret is the only copy — it is never recoverable again.
 func CreateAPIToken(ctx context.Context, pool *pgxpool.Pool, userID int, name string, scopes []string, expiresAt *time.Time) (*model.APIToken, string, error) {
@@ -239,11 +267,8 @@ func CreateAPIToken(ctx context.Context, pool *pgxpool.Pool, userID int, name st
 	}
 	defer tx.Rollback(ctx)
 
-	var active int
-	if err := tx.QueryRow(ctx,
-		`SELECT COUNT(*)::int FROM api_tokens
-		 WHERE user_id = $1 AND revoked_at IS NULL
-		   AND (expires_at IS NULL OR expires_at > NOW())`, userID).Scan(&active); err != nil {
+	active, err := CountActiveAPITokens(ctx, tx, userID)
+	if err != nil {
 		return nil, "", err
 	}
 	if active >= MaxTokensPerUser {
@@ -274,6 +299,18 @@ func CreateAPIToken(ctx context.Context, pool *pgxpool.Pool, userID int, name st
 // ListAPITokens returns a user's tokens, newest first. Revoked tokens are
 // excluded: they are dead weight in a management UI, and the row is retained
 // only so the digest stays burned.
+//
+// Expired tokens ARE returned, deliberately. A token that quietly lapsed is the
+// likeliest explanation for "my script started getting 401s", so dropping it
+// from the list would delete the only place the user could discover that, and
+// leave them no way to tidy the row away either.
+//
+// The consequence: len(the returned slice) is NOT the number of tokens that
+// count against MaxTokensPerUser. Callers deciding whether a user may mint
+// another must use CountActiveAPITokens or filter on model.APIToken.Active —
+// counting the raw list is exactly the bug in issue #299. The handler stamps
+// each row with an Expired flag so the UI can gate on the active subset (and
+// grey the dead ones out) without trusting the browser clock.
 func ListAPITokens(ctx context.Context, pool *pgxpool.Pool, userID int) ([]model.APIToken, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT id, name, prefix, scopes, expires_at, last_used_at, created_at, revoked_at
