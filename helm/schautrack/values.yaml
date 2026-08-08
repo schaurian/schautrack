@@ -122,6 +122,30 @@ config:
   # Trust X-Forwarded-For headers for rate limiting (default: true)
   # Set to "false" for direct-access deployments without a reverse proxy
   trustProxy: ""
+  # Rate limits. Every value here is OPTIONAL: leave it empty and the chart
+  # omits the environment variable entirely, so the app's own compiled-in
+  # default applies. Do not copy the defaults in — pinning them here freezes
+  # your deployment at whatever the app shipped when you wrote the file.
+  # A value of 0 is treated as unset by the app, so it also means "default".
+  # Which client each bucket is keyed by depends on config.trustProxy.
+  rateLimit:
+    # RATE_LIMIT_AUTH — auth attempts per IP per 15 minutes on
+    # login / register / step-up (app default: 10)
+    auth: ""
+    # RATE_LIMIT_STRICT — requests per IP per 5 minutes on sensitive endpoints:
+    # password-reset request/confirm, 2FA reset, email-change request, and AI
+    # estimate (app default: 5). This is the AI-estimate ceiling — raise it if
+    # your users hit "too many requests" on photo estimation.
+    strict: ""
+    # RATE_LIMIT_API — requests per IP per minute on the public API /api/v1
+    # (app default: 120). The outer guard, and the only limit that throttles
+    # unauthenticated traffic. Keep well above the auth limiters: a client
+    # syncing a day of entries makes dozens of calls in a burst.
+    api: ""
+    # RATE_LIMIT_API_TOKEN — requests per personal access token per minute on
+    # /api/v1 (app default: 60). The limit a legitimate API client actually
+    # runs into; per-IP alone means everyone behind one NAT shares a bucket.
+    apiToken: ""
   # Allow search engine indexing (sets ROBOTS_INDEX env var)
   robotsIndex: false
   # Base URL for SEO meta tags and the `servers` entry of the API's OpenAPI
