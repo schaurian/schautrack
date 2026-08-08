@@ -57,8 +57,30 @@ const Y_TICK_TARGET = 6;
 /** Fewer ticks on the secondary body-fat axis so it stays subordinate. */
 const FAT_TICK_TARGET = 3;
 
-const fmtTickDate = (ts: number) => formatDate(ts, undefined, { month: 'short', day: 'numeric' });
+// The year is always present, not just when the range crosses a boundary: with
+// only three ticks a reader cannot tell a Nov→Feb span from a Feb→Nov one, and
+// a year that appears only sometimes is worse than one that always does.
+const fmtTickDate = (ts: number) =>
+  formatDate(ts, undefined, { month: 'short', day: 'numeric', year: '2-digit' });
 const fmtWeight = (w: number) => (Number.isInteger(w) ? String(w) : w.toFixed(1));
+
+/** Tick label font size, shared by the renderer and the fits-in-plot estimate below. */
+const TICK_FONT_PX = 10;
+
+/** Smallest acceptable gap between two adjacent x-axis labels. */
+const MIN_TICK_GAP = 12;
+
+/**
+ * Rough advance width of a tick label. A real measurement would need a canvas
+ * or a layout pass; this only has to decide "do three of these fit", and 0.55em
+ * is a safe average for the digits and lowercase these labels are made of.
+ *
+ * Worth estimating rather than assuming: label width varies ~2.5x across the
+ * supported locales once the year is included — en renders "Feb 14, 25" (10
+ * chars) where pt renders "14 de fev. de 25" (16). Three Portuguese labels
+ * overflow a phone-width plot; three English ones fit with room to spare.
+ */
+const estTickLabelW = (s: string) => s.length * TICK_FONT_PX * 0.55;
 
 function LegendItem({ swatch, label }: { swatch: ReactNode; label: string }) {
   return (
@@ -199,6 +221,11 @@ export default function PlanChart({
       fatTicks = niceTicks(fMinPadded, fMaxPadded, FAT_TICK_TARGET).map((v) => ({ v, y: fatScale!(v) }));
     }
 
+    const candidateTs = [tMin, (tMin + tMax) / 2, tMax];
+    const labelsFit =
+      candidateTs.reduce((sum, t) => sum + estTickLabelW(fmtTickDate(t)), 0) + 2 * MIN_TICK_GAP <= plotW;
+    const xTickTs = labelsFit ? candidateTs : [tMin, tMax];
+
     return {
       margin,
       plotW,
@@ -215,7 +242,10 @@ export default function PlanChart({
       // Where logged history ends and projection begins. Without it the two
       // series just change colour somewhere in the middle of the frame.
       todayX: !isSpark && plan.length > 0 && today >= tMin && today <= tMax ? x(today) : null,
-      xAxisTicks: isSpark ? [] : [tMin, (tMin + tMax) / 2, tMax].map((t) => ({ t, x: x(t) })),
+      // Three ticks when the labels fit, otherwise just the endpoints. The
+      // midpoint is the only one that can collide — the outer two are anchored
+      // start/end, so they stay inside the frame at any width.
+      xAxisTicks: isSpark ? [] : xTickTs.map((t) => ({ t, x: x(t) })),
       yAxisTicks: isSpark ? [] : niceTicks(wMinPadded, wMaxPadded, Y_TICK_TARGET).map((w) => ({ w, y: y(w) })),
     };
   }, [series, planCurve, targetWeight, healthyRange, isSpark, showBodyFat, size]);
@@ -379,7 +409,7 @@ export default function PlanChart({
             textAnchor={i === 0 ? 'start' : i === xAxisTicks.length - 1 ? 'end' : 'middle'}
             className="text-muted-foreground"
             fill="currentColor"
-            fontSize={10}
+            fontSize={TICK_FONT_PX}
           >
             {fmtTickDate(t)}
           </text>
