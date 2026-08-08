@@ -3,7 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -83,7 +83,7 @@ func AttachUser(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 
 			user, err := GetUserByID(r.Context(), pool, userID)
 			if err != nil {
-				log.Printf("Failed to load user from session: %v", err)
+				slog.Error("failed to load user from session", "error", err)
 				next.ServeHTTP(w, r)
 				return
 			}

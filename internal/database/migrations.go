@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"time"
 
@@ -544,17 +544,17 @@ func retrySchemaInit(maxRetries int, initialDelay time.Duration, run func() erro
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		lastErr = run()
 		if lastErr == nil {
-			log.Println("Schema initialization successful")
+			slog.Info("schema initialization successful")
 			return nil
 		}
 
 		delay := time.Duration(float64(initialDelay) * math.Pow(2, float64(attempt-1)))
-		log.Printf("Schema init failed (attempt %d/%d): %v", attempt, maxRetries, lastErr)
+		slog.Error("schema init failed", "attempt", attempt, "max_attempts", maxRetries, "error", lastErr)
 		if attempt < maxRetries {
-			log.Printf("Retrying in %v...", delay)
+			slog.Warn("retrying schema init", "delay", delay)
 			time.Sleep(delay)
 		} else {
-			log.Println("Schema initialization failed after all retries; aborting startup.")
+			slog.Error("schema initialization failed after all retries; aborting startup", "attempts", maxRetries, "error", lastErr)
 		}
 	}
 	return lastErr
@@ -987,7 +987,7 @@ func runAllMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 			// replica's migrations until this process exits. Close it so the
 			// server releases the lock; Release then destroys it instead of
 			// returning it to the pool.
-			log.Printf("failed to release migration advisory lock, closing connection: %v", err)
+			slog.Error("failed to release migration advisory lock, closing connection", "error", err)
 			conn.Conn().Close(unlockCtx)
 		}
 		conn.Release()
