@@ -315,6 +315,7 @@
     "copyLink": "Link kopieren",
     "copied": "Kopiert!",
     "expiresOn": "läuft ab am {{date}}",
+    "inviteUnredeemable": "nicht einlösbar — löschen und neu erstellen",
     "usersHeading_one": "Nutzer ({{count}})",
     "usersHeading_other": "Nutzer ({{count}})"
   },

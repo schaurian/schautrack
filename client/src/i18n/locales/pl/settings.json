@@ -328,6 +328,7 @@
     "copyLink": "Kopiuj link",
     "copied": "Skopiowano!",
     "expiresOn": "wygasa {{date}}",
+    "inviteUnredeemable": "nie do wykorzystania — usuń i utwórz nowy",
     "usersHeading_one": "Użytkownicy ({{count}})",
     "usersHeading_other": "Użytkownicy ({{count}})",
     "usersHeading_few": "Użytkownicy ({{count}})",

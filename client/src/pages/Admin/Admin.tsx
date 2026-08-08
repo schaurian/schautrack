@@ -417,7 +417,18 @@ function InviteManager() {
             <div key={invite.id} data-testid="invite-row" className="flex items-center gap-3 px-3 py-2 text-sm">
               <div className="flex-1 min-w-0">
                 <code className="text-xs font-mono text-foreground break-all">{invite.code}</code>
-                {invite.email && <span className="text-xs text-muted-foreground ml-2">{invite.email}</span>}
+                {invite.email && (
+                  <span className={`text-xs ml-2 ${invite.unredeemable ? 'text-destructive line-through' : 'text-muted-foreground'}`}>
+                    {invite.email}
+                  </span>
+                )}
+                {/* A dead code looked identical to a good one in this list, which is
+                    how it stayed invisible: the recipient just kept being told the
+                    address was wrong. Struck through and labelled so it is obvious
+                    at a glance which row to delete and reissue. */}
+                {invite.unredeemable && !invite.used_by && (
+                  <span className="text-xs text-destructive ml-2">{t('admin.inviteUnredeemable')}</span>
+                )}
                 {invite.expires_at && !invite.used_by && (
                   <span className={`text-xs ml-2 ${new Date(invite.expires_at) < new Date() ? 'text-destructive' : 'text-muted-foreground/60'}`}>
                     {t('admin.expiresOn', { date: new Date(invite.expires_at).toLocaleDateString() })}

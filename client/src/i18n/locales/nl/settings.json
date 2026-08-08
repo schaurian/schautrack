@@ -324,6 +324,7 @@
     "copyLink": "Link kopiëren",
     "copied": "Gekopieerd!",
     "expiresOn": "verloopt op {{date}}",
+    "inviteUnredeemable": "niet inwisselbaar — verwijderen en opnieuw aanmaken",
     "usersHeading_one": "Gebruikers ({{count}})",
     "usersHeading_other": "Gebruikers ({{count}})"
   },

@@ -301,6 +301,24 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		// keeps working for any row a future path writes.
 		if inviteEmail != nil {
 			if want := canonicalizeEmail(*inviteEmail); want != "" && want != emailClean {
+				// Distinguish "this code is for someone else" from "this code
+				// is broken" (#382). A row written before #342 can hold a
+				// value that is not an address at all — "not an email",
+				// "foo@" — which no registrant address can ever equal, so the
+				// code is permanently dead.
+				//
+				// Telling that recipient their address is wrong sends them to
+				// re-check their own spelling for a problem on the server that
+				// only an admin can fix. Both answers stay 400 and neither
+				// reveals the bound address, so this leaks nothing a correct
+				// guess would not already confirm.
+				if _, err := validateEmail(*inviteEmail); err != nil {
+					slog.Warn("invite code is bound to an address that is not valid; it can never be redeemed",
+						"invite_code", inviteCode)
+					ErrorJSON(w, http.StatusBadRequest,
+						"This invite code is not usable. Please ask whoever sent it for a new one.")
+					return
+				}
 				ErrorJSON(w, http.StatusBadRequest, "This invite code is for a different email address.")
 				return
 			}

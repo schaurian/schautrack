@@ -324,6 +324,7 @@
     "copyLink": "Copier le lien",
     "copied": "Copié !",
     "expiresOn": "expire le {{date}}",
+    "inviteUnredeemable": "non utilisable — supprimez-le et recréez-en un",
     "usersHeading_one": "Utilisateurs ({{count}})",
     "usersHeading_other": "Utilisateurs ({{count}})"
   },

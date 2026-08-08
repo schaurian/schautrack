@@ -324,6 +324,7 @@
     "copyLink": "Copiar enlace",
     "copied": "¡Copiado!",
     "expiresOn": "expira el {{date}}",
+    "inviteUnredeemable": "no se puede canjear: elimínalo y crea uno nuevo",
     "usersHeading_one": "Usuarios ({{count}})",
     "usersHeading_other": "Usuarios ({{count}})"
   },

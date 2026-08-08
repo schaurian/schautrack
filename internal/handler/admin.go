@@ -235,10 +235,31 @@ func (h *AdminHandler) ListInvites(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&id, &code, &email, &usedBy, &usedByEmail, &expiresAt, &createdAt); err != nil {
 			continue
 		}
+		// unredeemable marks a row bound to an address that is not an address
+		// (#382). #342 made CreateInvite validate the binding and made
+		// redemption canonicalize the stored side, so rows differing only in
+		// case or whitespace redeem now — but a row written BEFORE that fix
+		// holding "not an email" or "foo@" can never equal a valid registrant
+		// address, so the code is permanently dead.
+		//
+		// Nothing surfaced that: the admin list rendered ic.email verbatim, so
+		// a garbage binding looked exactly like a good one, and the recipient
+		// got "This invite code is for a different email address" — which
+		// sends them to check their own spelling for a problem on the server.
+		// Computed here rather than stored so it needs no migration and cannot
+		// go stale if validateEmail changes.
+		unredeemable := false
+		if email != nil && strings.TrimSpace(*email) != "" {
+			if _, err := validateEmail(*email); err != nil {
+				unredeemable = true
+			}
+		}
+
 		invites = append(invites, map[string]any{
 			"id": id, "code": code, "email": email,
 			"used_by": usedBy, "used_by_email": usedByEmail,
 			"expires_at": expiresAt, "created_at": createdAt,
+			"unredeemable": unredeemable,
 		})
 	}
 	if invites == nil {

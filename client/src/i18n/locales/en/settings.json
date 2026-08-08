@@ -22,6 +22,7 @@
     "emailOptionalPlaceholder": "Email (optional)",
     "envBadge": "ENV",
     "expiresOn": "expires {{date}}",
+    "inviteUnredeemable": "cannot be redeemed — delete and reissue",
     "inviteCodesHeading": "Invite Codes",
     "loadingMore": "Loading more…",
     "noChanges": "No changes to save.",
