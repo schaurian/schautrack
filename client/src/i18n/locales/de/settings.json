@@ -197,6 +197,8 @@
     "createFailed": "Token konnte nicht erstellt werden",
     "dismiss": "Fertig",
     "empty": "Keine API-Tokens. Erstelle eines, um Schautrack aus Skripten oder anderen Apps zu nutzen.",
+    "expiredBadge": "Abgelaufen",
+    "expiredOn": "am {{date}} abgelaufen",
     "expires": "läuft am {{date}} ab",
     "expiry30": "Läuft in 30 Tagen ab",
     "expiry365": "Läuft in 1 Jahr ab",
