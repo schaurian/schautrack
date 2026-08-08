@@ -12,12 +12,55 @@ let twoFaUserId = '';
 let capturedSecret = '';
 let capturedBackupCodes: string[] = [];
 
+/**
+ * Both steps of the login — credentials and 2FA code — POST to this one
+ * endpoint, so both are awaited the same way.
+ */
+function loginPosted(page: import('@playwright/test').Page) {
+  return page.waitForResponse(
+    (res) => res.url().includes('/api/auth/login') && res.request().method() === 'POST',
+    { timeout: 30000 },
+  );
+}
+
+/**
+ * Submit the credentials form and wait for the server's answer before
+ * returning.
+ *
+ * Callers used to click and immediately assert on the UI, which quietly made
+ * every one of those assertions pay for the request as well: the 10s allowed
+ * for "the 2FA prompt rendered" was really "bcrypt compared the password while
+ * three other workers hammered the same container, *and* the prompt rendered".
+ * That is what timed out under load. Awaiting the POST separates the two, so
+ * the render assertion gets its own full budget without anything being
+ * lengthened.
+ */
 async function loginAs2faUser(page: import('@playwright/test').Page) {
   await page.goto('/login');
   await page.waitForLoadState('domcontentloaded');
   await page.getByLabel('Email').fill(EMAIL);
   await page.getByLabel('Password').fill(PASSWORD);
+  const posted = loginPosted(page);
   await page.getByRole('button', { name: 'Log In' }).click();
+  await posted;
+}
+
+/**
+ * Enter a TOTP or backup code and land on the dashboard.
+ *
+ * Checking the verify response before waiting for the URL turns the one
+ * failure that actually matters here — the server rejecting the code — into
+ * "expected 200, received 401" instead of a 15s wait for a navigation that was
+ * never coming, which is how it used to present.
+ */
+async function submit2faCode(page: import('@playwright/test').Page, code: string) {
+  const codeInput = page.getByLabel('2FA Code');
+  await expect(codeInput).toBeVisible({ timeout: 10000 });
+  await codeInput.fill(code);
+  const posted = loginPosted(page);
+  await page.getByRole('button', { name: /verify/i }).click();
+  expect((await posted).status()).toBe(200);
+  await page.waitForURL('/dashboard', { timeout: 15000 });
 }
 
 async function logout(page: import('@playwright/test').Page) {
@@ -26,7 +69,9 @@ async function logout(page: import('@playwright/test').Page) {
   // which is why this needed visibility-aware matching to stay unambiguous.
   await page.goto('/account');
   await page.getByRole('button', { name: 'Logout' }).click();
-  await page.waitForURL(/\/login|\//, { timeout: 10000 });
+  // useLogout() navigates to /login. The old /\/login|\// matched any URL with
+  // a slash in it, so this returned before the logout had happened at all.
+  await page.waitForURL(/\/login/, { timeout: 10000 });
 }
 
 test.describe('Two-Factor Authentication', () => {
@@ -112,16 +157,8 @@ test.describe('Two-Factor Authentication', () => {
     // Start from settings (already logged in from previous test — need fresh login)
     await loginAs2faUser(page);
 
-    // Should see TOTP prompt (not redirect to dashboard yet)
-    const totpInput = page.getByLabel('2FA Code');
-    await expect(totpInput).toBeVisible({ timeout: 10000 });
-
-    // Generate code and verify
-    const totpCode = generateTOTP(capturedSecret);
-    await totpInput.fill(totpCode);
-    await page.getByRole('button', { name: /verify/i }).click();
-
-    await page.waitForURL('/dashboard', { timeout: 15000 });
+    // Should see the TOTP prompt (not redirect to dashboard yet), then verify.
+    await submit2faCode(page, generateTOTP(capturedSecret));
     await expect(page).toHaveURL(/\/dashboard/);
 
     await logout(page);
@@ -134,18 +171,9 @@ test.describe('Two-Factor Authentication', () => {
 
     await loginAs2faUser(page);
 
-    // Should see 2FA prompt — same input accepts both TOTP and backup codes
-    const codeInput = page.getByLabel('2FA Code');
-    await expect(codeInput).toBeVisible({ timeout: 10000 });
-
-    // Enter a backup code (the login page accepts it in the same field)
+    // The same input accepts both TOTP and backup codes.
     expect(capturedBackupCodes.length).toBeGreaterThan(0);
-    const backupCodeToUse = capturedBackupCodes[0];
-    await codeInput.fill(backupCodeToUse);
-
-    await page.getByRole('button', { name: /verify/i }).click();
-
-    await page.waitForURL('/dashboard', { timeout: 15000 });
+    await submit2faCode(page, capturedBackupCodes[0]);
     await expect(page).toHaveURL(/\/dashboard/);
 
     await logout(page);
@@ -158,11 +186,7 @@ test.describe('Two-Factor Authentication', () => {
 
     // Login with TOTP
     await loginAs2faUser(page);
-    const totpInput = page.getByLabel('2FA Code');
-    await expect(totpInput).toBeVisible({ timeout: 10000 });
-    await totpInput.fill(generateTOTP(capturedSecret));
-    await page.getByRole('button', { name: /verify/i }).click();
-    await page.waitForURL('/dashboard', { timeout: 15000 });
+    await submit2faCode(page, generateTOTP(capturedSecret));
 
     await page.goto('/account');
     await page.waitForURL('/account');
@@ -209,11 +233,7 @@ test.describe('Two-Factor Authentication', () => {
 
     // Login with TOTP
     await loginAs2faUser(page);
-    const totpInput = page.getByLabel('2FA Code');
-    await expect(totpInput).toBeVisible({ timeout: 10000 });
-    await totpInput.fill(generateTOTP(capturedSecret));
-    await page.getByRole('button', { name: /verify/i }).click();
-    await page.waitForURL('/dashboard', { timeout: 15000 });
+    await submit2faCode(page, generateTOTP(capturedSecret));
 
     await page.goto('/account');
     await page.waitForURL('/account');

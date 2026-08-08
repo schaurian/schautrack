@@ -218,15 +218,23 @@ test.describe('Mobile shell (redesign)', () => {
     await expect(page.getByText('Undo overlap')).toBeVisible({ timeout: 10000 });
 
     await page.getByRole('button', { name: 'Delete entry' }).first().click();
-    const undo = page.getByRole('button', { name: 'Undo' });
+    // Scope Undo to the toast and match its label exactly. Accessible-name
+    // matching is substring-based and case-insensitive, so a bare
+    // `{ name: 'Undo' }` on the page also matches the entry button named
+    // "Undo overlap" this test just created — and the two genuinely coexist,
+    // because handleDelete() shows the toast before the invalidated entry
+    // query has refetched the row away. That is a strict-mode violation, not a
+    // wait: the locator resolves to 2 elements.
+    const toast = page.locator('[role="status"] > div').first();
+    const undo = toast.getByRole('button', { name: 'Undo', exact: true });
     await expect(undo).toBeVisible({ timeout: 10000 });
 
-    const fab = await page.getByRole('button', { name: 'Add food' }).boundingBox();
-    const toast = await page.locator('[role="status"] > div').first().boundingBox();
-    expect(fab).not.toBeNull();
-    expect(toast).not.toBeNull();
+    const fabBox = await page.getByRole('button', { name: 'Add food' }).boundingBox();
+    const toastBox = await toast.boundingBox();
+    expect(fabBox).not.toBeNull();
+    expect(toastBox).not.toBeNull();
     // The toast stack sits fully above the FAB, so Undo stays tappable.
-    expect(toast!.y + toast!.height).toBeLessThanOrEqual(fab!.y);
+    expect(toastBox!.y + toastBox!.height).toBeLessThanOrEqual(fabBox!.y);
 
     await ctx.close();
   });
