@@ -286,15 +286,17 @@ func TestV1IdempotencyAppliesToTrackingASavedFood(t *testing.T) {
 	}
 }
 
-// TestV1IdempotencyIsIgnoredWhereItIsNotImplemented documents today's behaviour
-// on the two creates that are NOT wrapped, so the gap is visible in the test
-// output rather than only in prose.
+// TestV1IdempotencyAppliesToCreatingATodo is the replay assertion the TODO on
+// this test asked for. #294 wrapped POST /todos and POST /saved-foods in
+// withIdempotency, so a retried create now replays the stored response instead
+// of writing a second row.
 //
-// TODO(#294): once POST /todos and POST /saved-foods are wrapped, these become
-// replay assertions like the ones above. Asserting the current behaviour keeps
-// the suite honest in the meantime: the header is accepted and ignored, which
-// is exactly the silent double-create #294 describes.
-func TestV1IdempotencyIsIgnoredWhereItIsNotImplemented(t *testing.T) {
+// It previously asserted the opposite — two todos, no Idempotency-Replayed —
+// to keep the gap visible in the test output while it existed. Left as a
+// pinned assertion rather than deleted: the silent double-create is the exact
+// failure #294 was filed for, and a retry after a timeout is the normal way to
+// hit it.
+func TestV1IdempotencyAppliesToCreatingATodo(t *testing.T) {
 	e := newV1Env(t)
 	token := e.token(service.ScopeTodosWrite)
 
@@ -316,11 +318,10 @@ func TestV1IdempotencyIsIgnoredWhereItIsNotImplemented(t *testing.T) {
 		`SELECT COUNT(*)::int FROM todos WHERE user_id = $1 AND archived = FALSE`, e.UserID).Scan(&todos); err != nil {
 		t.Fatalf("counting todos: %v", err)
 	}
-	if todos != 2 {
-		t.Fatalf("got %d todos; this test asserts the CURRENT (buggy) behaviour of #294 — "+
-			"if POST /todos now honours Idempotency-Key, turn this into a replay assertion", todos)
+	if todos != 1 {
+		t.Fatalf("got %d todos after a retried create with the same Idempotency-Key, want 1", todos)
 	}
-	if second.Header().Get("Idempotency-Replayed") != "" {
-		t.Error("Idempotency-Replayed appeared on an endpoint that does not implement replay")
+	if second.Header().Get("Idempotency-Replayed") != "true" {
+		t.Error("the retried create was not marked as a replay; a client cannot tell it from a second create")
 	}
 }

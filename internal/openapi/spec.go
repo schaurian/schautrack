@@ -625,7 +625,9 @@ func planSchemas() map[string]*Schema {
 				"leanMass":   number("Fat-free mass at that reading." + inUnit),
 				"fatMass":    number("Fat mass at that reading." + inUnit),
 				"category":   nullEnumStr("The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one.", "essential", "athletic", "fitness", "average", "obese"),
-			}, "date", "bodyFatPct", "leanMass", "fatMass", "category"),
+				"ageDays":    integer("Whole days between `date` and today. Negative is possible and means fresh: `date` is the account's local date while today is the server's, so a few hours of timezone skew can put the reading marginally ahead."),
+				"stale":      boolean("Whether the reading is too old to choose the BMR formula (older than 90 days). A stale reading is still reported — it is the account's most recent measurement — but `computed.bmrFormula` falls back to `mifflin_st_jeor` instead of `katch_mcardle`."),
+			}, "date", "bodyFatPct", "leanMass", "fatMass", "category", "ageDays", "stale"),
 
 		"HealthyRange": object("The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.",
 			map[string]*Schema{
@@ -919,7 +921,7 @@ func paths() map[string]*PathItem {
 				OperationID: "putWeight", Summary: "Record a day's weight",
 				Description: "Idempotent: repeating the same request is harmless, which makes it safe for a scale integration to retry. Returns 201 the first time a date is written and 200 thereafter. " +
 					"`body_fat` is three-state: omit it and any stored reading for that day is left alone, send `null` to clear it, send a number to record it.",
-				Tags:        []string{"Weight"}, Scope: service.ScopeWeightWrite,
+				Tags: []string{"Weight"}, Scope: service.ScopeWeightWrite,
 				Security:    []SecurityRequirement{{"bearerAuth": {service.ScopeWeightWrite}}},
 				Parameters:  []Parameter{dateParam},
 				RequestBody: &RequestBody{Required: true, Content: jsonBody(ref("WeightInput"))},
