@@ -193,15 +193,25 @@ func TestDecodeV1(t *testing.T) {
 			wantDetail: "The request body must be a JSON object.",
 		},
 		{
-			// KNOWN GAP, pinned rather than fixed here: encoding/json treats a
-			// null literal as "leave the destination alone", so decodeV1
-			// accepts it and the handler proceeds with a zero-valued struct —
-			// indistinguishable from `{}`. On PUT /api/v1/notes/{date} that
-			// means a body of `null` deletes the note. Tracked separately; if
-			// this case starts failing because null is now rejected, that is
-			// the fix landing and this expectation should flip.
-			name:    "bare JSON null is accepted as an empty object",
-			body:    `null`,
+			// Was accepted, and that was the data-loss bug in #347:
+			// encoding/json treats a null literal as "leave the destination
+			// alone", so Decode returned no error and the handler ran on a
+			// zero-valued struct — indistinguishable from `{}`. On
+			// PUT /api/v1/notes/{date} that deleted the note and answered 200.
+			// A null is not an object, so it lands in the same bucket as a
+			// bare array. See TestPutNoteV1RejectsNullBody.
+			name:       "bare JSON null",
+			body:       `null`,
+			wantStatus: http.StatusBadRequest,
+			wantSlug:   "bad-request",
+			wantDetail: "The request body must be a JSON object.",
+		},
+		{
+			// Not a special case of the above: `null` inside a field is a
+			// perfectly good instruction ("this field has no value") and must
+			// keep working. Only the top-level literal is refused.
+			name:    "null in a field is not a null body",
+			body:    `{"name":null,"calories":null}`,
 			wantDst: v1CommonTestBody{},
 		},
 	}
@@ -283,6 +293,35 @@ func paramReasons(p *apierr.Problem) []string {
 	return out
 }
 
+// TestDecodeV1EmptyObjectIsNotRejected pins the deliberate line drawn in #347.
+//
+// `{}` and `null` both leave dst zero-valued, so it is tempting to reject both
+// together. They are not the same request:
+//
+//   - `{}` IS a JSON object. It says "here is the resource, with every field at
+//     its default" — a complete, well-formed statement. On a PUT whole-content
+//     replace, `PUT /notes/{date}` with `{}` meaning "this note has no content"
+//     is a defensible reading, and it is the same one `{"content":""}` gets.
+//   - `null` is not an object at all. It carries no statement about the
+//     resource, which is exactly why acting on it is wrong.
+//
+// Rejecting `{}` as well would be a second behavioural change, would break
+// every caller that sends `{}` to a PATCH to mean "no-op" (they get the
+// existing 400 "contained no updatable fields", which already tells them so),
+// and belongs in the individual handlers — a note whose `content` key must be
+// present is a v1NoteInput decision, not a decodeV1 one. Tracked separately.
+func TestDecodeV1EmptyObjectIsNotRejected(t *testing.T) {
+	var dst v1CommonTestBody
+	got := decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPut, "/", strings.NewReader(`{}`)), &dst)
+	if got != nil {
+		t.Fatalf("decodeV1(`{}`) = %d %q, want success — #347 fixed null only", got.Status, got.Detail)
+	}
+	if dst != (v1CommonTestBody{}) {
+		t.Errorf("dst = %+v, want the zero value", dst)
+	}
+}
+
 // TestDecodeV1UnknownFieldBeatsOtherErrors pins the ordering inside decodeV1:
 // the unknown-field string match runs after the typed checks, so a body that
 // is both oversize and wrong-typed reports the size first. Ordering matters
@@ -306,6 +345,55 @@ func TestDecodeV1ErrorPrecedence(t *testing.T) {
 	}
 	if got.Detail != `Unknown field "nope".` {
 		t.Errorf("detail = %q, want the unknown field named", got.Detail)
+	}
+
+	// --- ordering around the top-level "must be an object" check ------------
+	//
+	// #347 split decodeV1 into two parses: the body is read as a raw value and
+	// checked for being an object before the fields are decoded into dst. That
+	// moves the top-level shape check ahead of the unknown-field and
+	// wrong-type checks, so the cases below pin where it sits relative to each
+	// of the other four.
+
+	// Size still wins: an oversize body is refused before anyone asks what
+	// shape it is, because the shape cannot be known without reading it all.
+	got = decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPost, "/",
+			strings.NewReader(`["`+strings.Repeat("x", maxV1Body)+`"]`)), &dst)
+	if got == nil || got.Status != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversize bare array = %v, want 413", got)
+	}
+
+	// A syntax error wins for the same reason — there is no value to inspect.
+	got = decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`[1,`)), &dst)
+	if got == nil || got.Detail != "The request body is not valid JSON." {
+		t.Fatalf("truncated bare array = %v, want the not-valid-JSON detail", got)
+	}
+
+	// The shape check wins over the multi-value check. Both are 400s and both
+	// say the body is malformed; naming the shape is the more useful of the
+	// two, and this is the pre-#347 answer for a bare array followed by
+	// garbage, kept unchanged.
+	for _, body := range []string{`[1,2]{}`, `null{}`, `42 42`} {
+		got = decodeV1(httptest.NewRecorder(),
+			httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body)), &dst)
+		if got == nil || got.Status != http.StatusBadRequest {
+			t.Fatalf("decodeV1(%q) = %v, want 400", body, got)
+		}
+		if got.Detail != "The request body must be a JSON object." {
+			t.Errorf("decodeV1(%q) detail = %q, want the must-be-an-object detail", body, got.Detail)
+		}
+	}
+
+	// ...but the multi-value check still wins over the field-level checks, so
+	// an object with a bad field followed by a second object reports the field.
+	// Pinned because the two parses could easily have been ordered the other
+	// way round, which would have changed this answer.
+	got = decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"nope":1}{}`)), &dst)
+	if got == nil || got.Detail != `Unknown field "nope".` {
+		t.Fatalf("unknown field in the first of two objects = %v, want the field named", got)
 	}
 }
 
