@@ -99,9 +99,11 @@ func TestParseBodyFat(t *testing.T) {
 		{"24.34", 24.3},
 		{"75", 75}, // exactly at MaxBodyFatPct
 		{"0.1", 0.1},
+		{"0.05", 0.1}, // first value that rounds up to 0.1
 	}
 	for _, tt := range valid {
 		got, ok := ParseBodyFat(tt.input)
+		assertOkImpliesPositive(t, "ParseBodyFat", tt.input, ok, got)
 		if !ok {
 			t.Errorf("ParseBodyFat(%q) = not ok, want %v", tt.input, tt.value)
 			continue
@@ -118,13 +120,28 @@ func TestParseBodyFat(t *testing.T) {
 		{"0", "zero"},
 		{"-5", "negative"},
 		{"75.1", "just above the 75% ceiling"},
+		// The ceiling is checked before rounding, so a value that would round
+		// back down to 75.0 is still out of range as typed. Pinned deliberately:
+		// the parser is strict at both ends rather than silently accepting an
+		// input the user can see is above the limit.
+		{"75.04", "above the ceiling even though it rounds to 75.0"},
 		{"100", "a percentage no body can reach"},
 		{"NaN", "NaN string"},
 		{"Inf", "infinity string"},
 		{"1234567890123", "longer than 12 chars"},
+		// Rounding boundary: ParseBodyFat rounds to one decimal, so anything
+		// below 0.05 rounds to exactly 0 — which
+		// CHECK (body_fat > 0 AND body_fat <= 75) rejects. The parser must
+		// refuse these itself so the failure is a 400, not a 500.
+		{"0.01", "rounds to 0"},
+		{"0.04", "rounds to 0"},
+		{"0.0499", "rounds to 0"},
+		{"1e-07", "rounds to 0"},
 	}
 	for _, tt := range invalid {
-		if got, ok := ParseBodyFat(tt.input); ok {
+		got, ok := ParseBodyFat(tt.input)
+		assertOkImpliesPositive(t, "ParseBodyFat", tt.input, ok, got)
+		if ok {
 			t.Errorf("ParseBodyFat(%q) [%s] = %v, want not ok", tt.input, tt.desc, got)
 		}
 	}
