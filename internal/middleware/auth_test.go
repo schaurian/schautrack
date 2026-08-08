@@ -245,11 +245,14 @@ func TestRequireLocalAuth(t *testing.T) {
 		{"oidc session", &session.Session{Data: map[string]any{"auth_method": "oidc"}}, false, http.StatusForbidden},
 		{"session with no auth_method", &session.Session{Data: map[string]any{}}, true, http.StatusOK},
 
-		// Documented, deliberate: the middleware is always mounted BELOW
-		// RequireLogin, which has already rejected a request with no session.
-		// It is recorded here so that anyone who mounts it on its own knows it
-		// does not authenticate.
-		{"no session at all (RequireLogin's job)", nil, true, http.StatusOK},
+		// No session is refused outright (#373). This used to pass through on
+		// the grounds that RequireLogin is always mounted above it — true of
+		// all nine current registrations, and enforced by nothing. An
+		// unwritten ordering convention guarding the password change, the
+		// email-change flow and every 2FA route is one refactor away from
+		// being no guard at all, so the middleware now fails closed on its
+		// own.
+		{"no session at all", nil, false, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

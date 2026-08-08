@@ -33,11 +33,32 @@ func RequireLinkAuth(pool *pgxpool.Pool, category string) func(http.Handler) htt
 				return
 			}
 
+			// A `user` that does not parse is a 400, not a silent fallback.
+			//
+			// This used to discard the parse error and answer with the
+			// CALLER'S OWN data: `?user=abc` returned 200 and your entries,
+			// while `?user=<a real linked id>` returned theirs. Same URL
+			// shape, same status, different account — and no way for the
+			// client to tell which it got. A typo'd or truncated id therefore
+			// looked like a successful read of the wrong person's day.
+			//
+			// resolveTarget on /api/v1 already rejects this (v1_links.go); the
+			// two surfaces read the same parameter and disagreeing about what
+			// it means is the actual defect. Matching the stricter one costs a
+			// caller one obvious error instead of one wrong answer.
 			targetUserID := currentUser.ID
 			if userParam := r.URL.Query().Get("user"); userParam != "" {
-				if id, err := strconv.Atoi(userParam); err == nil {
-					targetUserID = id
+				id, err := strconv.Atoi(userParam)
+				if err != nil || id <= 0 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]any{
+						"ok":    false,
+						"error": "The \"user\" parameter must be the numeric id of a linked account.",
+					})
+					return
 				}
+				targetUserID = id
 			}
 
 			var targetUser *model.User
