@@ -161,6 +161,13 @@ type Schema struct {
 	Required             []string           `json:"required,omitempty"`
 	Items                *Schema            `json:"items,omitempty"`
 	AdditionalProperties any                `json:"additionalProperties,omitempty"`
+
+	// AnyOf exists for one construct this document needs and $ref cannot
+	// express: a reference that may also be null. Nullability is a type union
+	// inside the referenced schema, so it cannot be attached at the reference
+	// site — `{"$ref": X, "type": ["object","null"]}` means "matches X AND is
+	// object-or-null", and X still forbids null. See nullableRef.
+	AnyOf []*Schema `json:"anyOf,omitempty"`
 }
 
 // JSON renders the document as indented JSON. Go sorts map keys when
@@ -191,6 +198,24 @@ func nullable(s *Schema) *Schema {
 func nullInt(desc string) *Schema { return nullable(integer(desc)) }
 func nullStr(desc string) *Schema { return nullable(str(desc)) }
 
+// enumStr is a string limited to a fixed set of values.
+func enumStr(desc string, values ...string) *Schema {
+	s := str(desc)
+	for _, v := range values {
+		s.Enum = append(s.Enum, v)
+	}
+	return s
+}
+
+// nullEnumStr is enumStr that may also be null. `null` is listed in the enum as
+// well as in the type union, because enum is a membership test over the whole
+// value: a null absent from the list fails even though the union permits it.
+func nullEnumStr(desc string, values ...string) *Schema {
+	s := nullable(enumStr(desc, values...))
+	s.Enum = append(s.Enum, nil)
+	return s
+}
+
 // dateStr is a YYYY-MM-DD calendar date.
 func dateStr(desc string) *Schema {
 	s := str(desc)
@@ -208,6 +233,21 @@ func dateTime(desc string) *Schema {
 }
 
 func ref(name string) *Schema { return &Schema{Ref: "#/components/schemas/" + name} }
+
+// describedRef is a reference that carries its own description. OpenAPI 3.1
+// allows the annotation beside $ref, and without it the docs table renders the
+// field with an empty description cell.
+func describedRef(name, desc string) *Schema {
+	s := ref(name)
+	s.Description = desc
+	return s
+}
+
+// nullableRef references a named schema that may also be null — the shape of
+// every plan sub-object whose data the account has not supplied yet.
+func nullableRef(name, desc string) *Schema {
+	return &Schema{Description: desc, AnyOf: []*Schema{ref(name), {Type: "null"}}}
+}
 
 func array(items *Schema, desc string) *Schema {
 	return &Schema{Type: "array", Items: items, Description: desc}

@@ -148,7 +148,9 @@
       "addHeightWeight": "Größe & Gewicht hinzufügen",
       "healthyRangeLabel": "Gesunder Bereich",
       "bodyFatLabel": "Körperfett",
-      "leanFatSplit": "{{lean}} {{unit}} Magermasse · {{fat}} {{unit}} Fett"
+      "leanFatSplit": "{{lean}} {{unit}} Magermasse · {{fat}} {{unit}} Fett",
+      "bodyFatMeasured": "Gemessen am {{date}}",
+      "bodyFatStale": "{{days}} Tage alt – nicht für dein Budget verwendet"
     },
     "recommendedBudget": {
       "title": "Empfohlenes Budget",
@@ -156,7 +158,8 @@
       "clampedNotice": "Auf ein sicheres Minimum begrenzt",
       "applyButton": "Als mein Kalorienziel übernehmen",
       "formulaKatch": "Nach Katch-McArdle, aus {{lean}} {{unit}} Magermasse",
-      "formulaMifflin": "Nach Mifflin-St Jeor. Trag einen Körperfettanteil ein für eine Schätzung über die Magermasse."
+      "formulaMifflin": "Nach Mifflin-St Jeor. Trag einen Körperfettanteil ein für eine Schätzung über die Magermasse.",
+      "formulaMifflinStale": "Basiert auf Mifflin-St Jeor – dein Körperfettwert ist {{days}} Tage alt und damit zu alt, um die Magermasse zu schätzen. Miss neu."
     },
     "progress": {
       "title": "Fortschritt",
@@ -325,6 +328,7 @@
     "bodyFatNeedsWeight": "Körperfett %: trag zuerst oben ein Gewicht ein, dann wird es freigeschaltet.",
     "toastBodyFatTracked": "Körperfett getrackt",
     "toastBodyFatCleared": "Körperfett entfernt",
+    "toastBodyFatInvalid": "Körperfett muss zwischen 0 und {{max}} % liegen",
     "toastBodyFatSaveFailed": "Körperfett konnte nicht gespeichert werden",
     "bodyFatHint": "Das zweite Feld ist dein Körperfettanteil in %, falls deine Waage ihn misst.",
     "bodyFatPlaceholder": "% Fett"

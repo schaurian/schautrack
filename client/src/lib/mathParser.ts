@@ -52,9 +52,24 @@ function safeMathEval(expr: string): number {
   return result;
 }
 
+// Matches a C-style hex literal ("0x10", "0XfF") anywhere in the input. The
+// `(^|[^0-9.])` prefix keeps genuine multiplications whose left operand merely
+// ends in a zero — "10x16", "100x2", "1.0x2" — out of the match: there the "0"
+// continues a longer number and the "x" is the multiplication symbol the
+// normalization is there to support.
+const HEX_LITERAL_RE = /(^|[^0-9.])0[xX][0-9a-fA-F]/;
+
 export function parseAmount(input: string | number | null | undefined, options: { maxAbs?: number } = {}): { ok: boolean; value: number } {
   const maxAbs = options.maxAbs ?? null;
   if (input === undefined || input === null) return { ok: false, value: 0 };
+
+  // Reject hex-looking literals before "x" becomes "*". Without this, "0x10"
+  // normalizes to "0*10" and is silently accepted as 0, which the entry form
+  // sends as `amount: 0` — an empty entry reported as a success. Checked
+  // before whitespace is stripped so an explicitly spaced "0 x 10" is still
+  // the multiplication it looks like.
+  // Keep in sync with hexLiteralRe in internal/service/mathparser.go.
+  if (HEX_LITERAL_RE.test(String(input).replace(/,/g, ''))) return { ok: false, value: 0 };
 
   const expr = String(input)
     .replace(/\s+/g, '')

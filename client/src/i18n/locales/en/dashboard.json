@@ -213,12 +213,15 @@
       "currentGoalLabel": "Current calorie goal: {{value}} kcal/day",
       "formulaKatch": "Based on Katch-McArdle, from {{lean}} {{unit}} of lean mass",
       "formulaMifflin": "Based on Mifflin-St Jeor. Log a body-fat percentage for a lean-mass estimate.",
+      "formulaMifflinStale": "Based on Mifflin-St Jeor — your body-fat reading is {{days}} days old, too old to estimate lean mass from. Log a new one.",
       "title": "Recommended Budget"
     },
     "status": {
       "addHeightWeight": "Add height & weight",
       "bmiLabel": "BMI",
       "bodyFatLabel": "Body Fat",
+      "bodyFatMeasured": "Measured {{date}}",
+      "bodyFatStale": "{{days}} days old — not used for your budget",
       "currentWeightLabel": "Current Weight",
       "healthyRangeLabel": "Healthy Range",
       "leanFatSplit": "{{lean}} {{unit}} lean · {{fat}} {{unit}} fat",
@@ -322,6 +325,7 @@
     "deleteEntryTitle": "Delete weight entry",
     "sectionTitle": "Weight",
     "toastBodyFatCleared": "Body fat removed",
+    "toastBodyFatInvalid": "Body fat must be between 0 and {{max}}%",
     "toastBodyFatSaveFailed": "Failed to save body fat",
     "toastBodyFatTracked": "Body fat tracked",
     "toastDeleteFailed": "Failed to delete weight",

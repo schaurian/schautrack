@@ -80,3 +80,50 @@ func TestParseBodyFatUpdate(t *testing.T) {
 		}
 	})
 }
+
+func TestParseWeightUpdate(t *testing.T) {
+	t.Run("absent key preserves the stored weight", func(t *testing.T) {
+		// The case the endpoint was missing: a body-fat-only save. Before
+		// this, the dashboard had to restate its cached weight, which
+		// overwrote a newer one logged from another device.
+		got, ok := parseWeightUpdate(decodeBody(t, `{"body_fat":24.3}`))
+		if !ok {
+			t.Fatal("expected a body-fat-only body to be accepted")
+		}
+		if got.Set {
+			t.Errorf("Set = true for an absent weight key, want false (preserve)")
+		}
+	})
+
+	t.Run("null and empty string also preserve", func(t *testing.T) {
+		for _, raw := range []string{`{"weight":null,"body_fat":24.3}`, `{"weight":"","body_fat":24.3}`, `{"weight":"   ","body_fat":24.3}`} {
+			got, ok := parseWeightUpdate(decodeBody(t, raw))
+			if !ok || got.Set {
+				t.Errorf("%s: got {Set:%v ok:%v}, want a preserve", raw, got.Set, ok)
+			}
+		}
+	})
+
+	t.Run("a number sets the weight", func(t *testing.T) {
+		for _, raw := range []string{`{"weight":82}`, `{"weight":"82"}`, `{"weight":"82,0"}`} {
+			got, ok := parseWeightUpdate(decodeBody(t, raw))
+			if !ok {
+				t.Errorf("%s: expected acceptance", raw)
+				continue
+			}
+			if !got.Set || got.Value != 82 {
+				t.Errorf("%s: got {Set:%v Value:%v}, want {true 82}", raw, got.Set, got.Value)
+			}
+		}
+	})
+
+	t.Run("an unusable value is rejected rather than dropped", func(t *testing.T) {
+		// Rejected, not treated as "preserve": silently ignoring a weight the
+		// user did type would look like a successful save.
+		for _, raw := range []string{`{"weight":0}`, `{"weight":-5}`, `{"weight":1501}`, `{"weight":"abc"}`} {
+			if _, ok := parseWeightUpdate(decodeBody(t, raw)); ok {
+				t.Errorf("%s: expected rejection so the caller can answer 400", raw)
+			}
+		}
+	})
+}

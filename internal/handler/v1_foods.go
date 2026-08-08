@@ -30,6 +30,17 @@ type v1SavedFood struct {
 const savedFoodSelect = `id, name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g,
 	use_count, last_used_at, created_at, updated_at`
 
+// savedFoodRank is the ranking shared by both saved-food list endpoints:
+// SavedFoodsHandler.List (the app) and ListSavedFoodsV1 (the API).
+//
+// It is one constant because the two must not drift. They previously
+// disagreed on the final tiebreaker — the app used `id DESC`, v1 used `id`
+// ascending — so two foods with the same use_count and last_used_at (both
+// never used, which is every food right after you create a few) came back in
+// opposite orders from the API and the app, despite v1 documenting itself as
+// "ranked the way the app ranks them".
+const savedFoodRank = `use_count DESC, last_used_at DESC NULLS LAST, id DESC`
+
 func scanSavedFood(row pgx.Row) (*v1SavedFood, error) {
 	var f v1SavedFood
 	if err := row.Scan(&f.ID, &f.Name, &f.Emoji, &f.Calories,
@@ -41,17 +52,32 @@ func scanSavedFood(row pgx.Row) (*v1SavedFood, error) {
 }
 
 // ListSavedFoodsV1 handles GET /api/v1/saved-foods, ranked the way the app
-// ranks them: most-used first, then most-recently-used.
+// ranks them: most-used first, then most-recently-used, then newest first.
+//
+// Deliberately unpaginated — it returns the account's complete set, always.
+// Saved foods are hard-bounded: every insert path refuses at MaxSavedFoods
+// (200), and 200 is also the largest page queryLimit would ever hand out, so a
+// "page" could never have held a row the whole set does not. All the old
+// `LIMIT $2` achieved was dropping everything past the 50-row default while
+// v1List's has_more and next_cursor — both omitempty — stayed absent, leaving
+// a caller with 60 foods no way to tell their 50-item response was partial.
+// A syncing client reasonably concluded the missing 10 had been deleted.
+//
+// Reporting has_more instead would need a cursor to be actionable, and the
+// (date, id) cursor here cannot encode a (use_count, last_used_at, id)
+// position — machinery a 200-row ceiling does not justify. The other bounded
+// collections, /todos and /links, already return everything with no
+// pagination fields; this one now matches them, and matches the SavedFoodList
+// schema, which never declared has_more or next_cursor in the first place.
+//
+// `limit` is consequently no longer read. Ignoring it can only ever return
+// more than a caller asked for, never fewer rows than exist — the safe
+// direction. It is dropped from this operation in the OpenAPI document.
 func (h *V1Handler) ListSavedFoodsV1(w http.ResponseWriter, r *http.Request) {
-	limit, prob := queryLimit(r)
-	if prob != nil {
-		apierr.Write(w, r, prob)
-		return
-	}
 	rows, err := h.Pool.Query(r.Context(),
 		"SELECT "+savedFoodSelect+` FROM saved_foods WHERE user_id = $1
-		 ORDER BY use_count DESC, last_used_at DESC NULLS LAST, id LIMIT $2`,
-		v1User(r).ID, limit)
+		 ORDER BY `+savedFoodRank,
+		v1User(r).ID)
 	if err != nil {
 		apierr.Write(w, r, dbFail("list saved foods", err))
 		return

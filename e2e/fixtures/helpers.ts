@@ -1,6 +1,8 @@
 import { execSync, execFileSync } from 'child_process';
 import * as crypto from 'crypto';
 
+import { bcryptHash } from './bcrypt';
+
 const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
@@ -60,16 +62,10 @@ export function psql(sql: string, vars: Record<string, string | number> = {}): s
   return lines.join('\n').trim();
 }
 
-/** Generate a bcrypt hash for the given password. */
-export function bcryptHash(password: string): string {
-  // Pass the password as an argv element (read via sys.argv[1]) instead of interpolating it
-  // into the -c script string, so a password containing quotes can't break the shell command.
-  return execFileSync(
-    'python3',
-    ['-c', 'import bcrypt, sys; print(bcrypt.hashpw(sys.argv[1].encode(), bcrypt.gensalt(10)).decode())', password],
-    { encoding: 'utf-8' }
-  ).trim();
-}
+// Re-exported so the specs that already import bcryptHash from this module keep working.
+// The implementation lives in ./bcrypt so setup-test-user.ts can use it without pulling in
+// this module's container-detection side effects. See that file for why it is bcrypt at all.
+export { bcryptHash };
 
 /** Generate a valid TOTP code from a base32 secret.
  *  Waits if we're near the end of a 30s window to avoid edge-case expiry. */

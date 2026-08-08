@@ -239,7 +239,13 @@ func (c *captureWriter) statusOr(fallback int) int {
 // Gated on its own ai:estimate scope, implied by nothing — every call spends
 // the operator's money, so a token minted to log breakfast must not be able to
 // run up an AI bill. The per-user daily cap the app already enforces applies
-// unchanged; the API is not a way around it.
+// unchanged, and the route carries its own per-account rate limit sized to the
+// same ceiling the app's own /api/ai/estimate enforces (V1Handler.AILimiter):
+// the API is not a cheaper path to the provider than the browser.
+//
+// That rate limit used not to exist, which made a token worth ~60x a logged-in
+// session in estimates per minute, with the daily cap — unlimited by default
+// outside the Helm chart — as the only backstop. See issue #292.
 func (h *V1Handler) EstimateV1(w http.ResponseWriter, r *http.Request) {
 	if h.AIEstimate == nil {
 		apierr.Write(w, r, apierr.New(http.StatusNotFound, "feature-disabled",
@@ -317,6 +323,20 @@ func (h *V1Handler) buildMe(r *http.Request, user *model.User) v1Me {
 	out.User.WeightUnit = unit
 	out.User.DailyGoal = user.DailyGoal
 	out.User.Language = user.Language
+
+	// The three stored booleans map straight across. Macros do not: the column
+	// is a JSONB map of per-macro toggles, so both macro fields are derived
+	// from it through the same service helpers the entry handlers use — a
+	// second interpretation here would eventually disagree with the 422 that
+	// UpdateEntryV1 returns, which is exactly the confusion #344 is about.
+	mu := service.ParseMacroUser(user.MacrosEnabled, user.MacroGoals, user.DailyGoal, user.GoalThreshold)
+	out.Features = v1Features{
+		BodyFat:          user.BodyFatEnabled,
+		Todos:            user.TodosEnabled,
+		Notes:            user.NotesEnabled,
+		Macros:           len(service.GetEnabledMacros(mu)) > 0,
+		AutoCalcCalories: service.IsAutoCalcCalories(mu),
+	}
 
 	if token := middleware.GetAPIToken(r); token != nil {
 		out.Token.ID = token.ID
