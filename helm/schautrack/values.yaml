@@ -186,6 +186,11 @@ config:
     # /api/v1 (app default: 60). The limit a legitimate API client actually
     # runs into; per-IP alone means everyone behind one NAT shares a bucket.
     apiToken: ""
+    # RATE_LIMIT_BARCODE — barcode lookups per minute, per IP on the app's own
+    # route and per account on GET /api/v1/barcode/{code} (app default: 30).
+    # One value covers both so the API cannot become the cheaper path to the
+    # same third-party database.
+    barcode: ""
   # Allow search engine indexing (sets ROBOTS_INDEX env var)
   robotsIndex: false
   # Base URL for SEO meta tags and the `servers` entry of the API's OpenAPI
