@@ -209,9 +209,9 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 |----------|---------|-------------|
 | `TRUST_PROXY` | `true` | Trust `X-Forwarded-For` / `X-Real-Ip` headers for rate limiting. Set `false` for direct-access deployments without a reverse proxy. |
 | `RATE_LIMIT_AUTH` | `10` | Max authentication attempts per 15 minutes per IP |
-| `RATE_LIMIT_STRICT` | `5` | Max requests per 5-minute window per IP on sensitive endpoints (password-reset request/confirm, 2FA reset, email-change request, AI estimate) |
+| `RATE_LIMIT_STRICT` | `5` | Max requests per 5-minute window per IP on sensitive endpoints (password-reset request/confirm, 2FA reset, email-change request, AI estimate). Also caps `POST /api/v1/ai/estimate`, there per **account** — otherwise a token would be a 60x cheaper route to the same paid provider than a browser. |
 | `RATE_LIMIT_API` | `120` | Max requests per minute per **IP** on the public API (`/api/v1`). The outer guard: it is the only limit that can throttle an unauthenticated flood. Set well above the auth limiters — a script syncing a day of entries makes dozens of calls in a burst. |
-| `RATE_LIMIT_API_TOKEN` | `60` | Max requests per minute per **token** on `/api/v1`. The limit that matters for a legitimate client: per-IP alone means everyone behind one CGNAT shares a bucket. Both limits return `429` with `Retry-After`. |
+| `RATE_LIMIT_API_TOKEN` | `60` | Max requests per minute per **token** on `/api/v1`. The limit that matters for a legitimate client: per-IP alone means everyone behind one CGNAT shares a bucket. Both limits return `429` with `Retry-After`. The two endpoints that cost real resources — `POST /ai/estimate` and `GET /barcode/{code}` — are additionally capped per **account** at the app's own rates (`RATE_LIMIT_STRICT` and 30/min); minting more tokens does not raise those. |
 | `LOGIN_CAPTCHA_GLOBAL_THRESHOLD` | `3` | Failed-login count per account email or client IP (cross-session, 15-minute window) at which login demands a captcha. The per-session threshold stays fixed at 3. Raise only in test harnesses where all clients share one IP (read in `internal/handler/login_failures.go`, outside the config package). |
 | `STEP_UP_TTL` | `30m` | Grace window after fresh primary auth during which sensitive auth-method changes (delete passkey, disable 2FA, change password/email, etc.) are accepted without re-prompting. Any `time.ParseDuration` value. |
 
@@ -249,6 +249,14 @@ data into a dashboard.
 
 Create a token under **Settings → Account → API tokens**. Tokens are scoped, can
 be given an expiry, and can be revoked at any time. The secret is shown once.
+
+The examples below use `schautrack.com`; on your own instance use your own host.
+A running server puts *its* URL in the OpenAPI document's `servers` entry (from
+`BASE_URL`), so tools that read the served spec — Swagger UI's "Try it out"
+included — send your token to your instance and nowhere else. The
+`https://schautrack.com/problems/…` URIs in error responses are the exception:
+they are stable identifiers, not endpoints, and are the same on every instance
+on purpose so clients can branch on them.
 
 ```bash
 curl -H "Authorization: Bearer stk_…" https://schautrack.com/api/v1/me

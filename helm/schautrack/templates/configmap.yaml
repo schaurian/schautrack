@@ -57,6 +57,20 @@ data:
   {{- if .Values.config.trustProxy }}
   TRUST_PROXY: {{ .Values.config.trustProxy | quote }}
   {{- end }}
+  {{- with .Values.config.rateLimit }}
+  {{- if .auth }}
+  RATE_LIMIT_AUTH: {{ .auth | quote }}
+  {{- end }}
+  {{- if .strict }}
+  RATE_LIMIT_STRICT: {{ .strict | quote }}
+  {{- end }}
+  {{- if .api }}
+  RATE_LIMIT_API: {{ .api | quote }}
+  {{- end }}
+  {{- if .apiToken }}
+  RATE_LIMIT_API_TOKEN: {{ .apiToken | quote }}
+  {{- end }}
+  {{- end }}
   {{- if .Values.config.robotsIndex }}
   ROBOTS_INDEX: {{ .Values.config.robotsIndex | quote }}
   {{- end }}

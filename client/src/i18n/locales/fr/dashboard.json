@@ -325,6 +325,7 @@
     "bodyFatNeedsWeight": "Masse grasse % : enregistrez d’abord un poids ci-dessus pour la débloquer.",
     "toastBodyFatTracked": "Masse grasse suivie",
     "toastBodyFatCleared": "Masse grasse supprimée",
+    "toastBodyFatInvalid": "La masse grasse doit être comprise entre 0 et {{max}} %",
     "toastBodyFatSaveFailed": "Échec de l’enregistrement de la masse grasse",
     "bodyFatHint": "La seconde case est votre % de masse grasse, si votre balance le mesure.",
     "bodyFatPlaceholder": "% gras"

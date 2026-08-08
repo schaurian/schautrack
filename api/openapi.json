@@ -4,7 +4,7 @@
     "title": "Schautrack API",
     "version": "1.0.0",
     "summary": "Read and write your Schautrack calorie, weight, todo, and food data.",
-    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` and `GET /weight` are paginated by keyset. Pass the\n`next_cursor` from a response back as `cursor` to fetch the next\npage; stop when `has_more` is false. Cursors are opaque — do not\nconstruct them.\n\n## Retrying safely\n\nEvery `PUT` here is idempotent by construction: the URL names the resource\nand the body states the desired state, so repeating one changes nothing.\n\n`POST` is different. If a request to create an entry times out, you cannot\nknow whether it landed. Send an `Idempotency-Key` header — any string you\ngenerate once per logical operation and reuse when retrying:\n\n```\nIdempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05\n```\n\nThe first request executes and its response is stored. Any retry with the same\nkey replays that response, with `Idempotency-Replayed: true`, instead of\nlogging the meal twice. Reusing a key with a *different* body returns `409`\nrather than silently discarding the new request. Keys are remembered for 24\nhours.\n\n## Rate limits\n\nTwo limits apply: one per IP address and one per token. Exceeding either\nreturns `429` with a `Retry-After` header giving the number of\nseconds until the window reopens. Honour it rather than retrying blindly.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n| `links:read` | Read data that linked accounts have shared with you. |\n| `settings:read` | Read account settings (goal, timezone, units, language). |\n| `settings:write` | Change account settings (goal, timezone, units, language). |\n| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |\n",
+    "description": "The Schautrack public API.\n\n## Authentication\n\nEvery endpoint except `/openapi.json` requires a **personal access token**,\nsent as a bearer token:\n\n```\nAuthorization: Bearer stk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nCreate one under **Settings → API tokens**. The token is shown once and cannot be\nretrieved again. Tokens can be scoped and given an expiry, and can be revoked at\nany time.\n\nSession cookies are **not** accepted here. Because the API never treats a cookie\nas authentication, no cross-site request can carry credentials to it — which is\nwhy there is no CSRF token to manage.\n\n## Scopes\n\nA token carries an explicit set of scopes. A `:write` scope implies the\nmatching `:read`, so `entries:write` alone is enough to both read and\nwrite entries.\n\nCalling an endpoint without its scope returns `403` with a\n`required_scope` field naming what is missing.\n\n## Errors\n\nErrors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,\nserved as `application/problem+json`:\n\n```json\n{\n  \"type\": \"https://schautrack.com/problems/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"One or more macro values are out of range.\",\n  \"instance\": \"/api/v1/entries\",\n  \"invalid_params\": [{ \"name\": \"protein_g\", \"reason\": \"must be between 0 and 999\" }]\n}\n```\n\nBranch on `type`, not on `detail`: the type URI is stable, the prose is not.\n\nThe `type` URIs are **stable identifiers, not endpoints**. Every instance,\nself-hosted ones included, emits the same `https://schautrack.com/problems/…`\nURIs on purpose, so a client can recognise a problem type without knowing which\nhost produced it. Do not dereference them, and do not expect a self-hosted\ninstance to rewrite them to its own domain. This document's `servers` URL,\nby contrast, *is* an endpoint, and always names the instance that served it.\n\n## Dates and time zones\n\nDates are `YYYY-MM-DD` in the **account's** time zone. Omitting a date means\n\"today\" for that account, not for the machine making the request. Timestamps are\nRFC 3339 UTC; each entry also carries `local_time` rendered in the account's\nzone.\n\n## Pagination\n\n`GET /entries` and `GET /weight` are paginated by keyset. Pass the\n`next_cursor` from a response back as `cursor` to fetch the next\npage; stop when `has_more` is false. Cursors are opaque — do not\nconstruct them.\n\n## Retrying safely\n\nEvery `PUT` here is idempotent by construction: the URL names the resource\nand the body states the desired state, so repeating one changes nothing.\n\n`POST` is different. If a request to create an entry times out, you cannot\nknow whether it landed. Send an `Idempotency-Key` header — any string you\ngenerate once per logical operation and reuse when retrying:\n\n```\nIdempotency-Key: 5f8c1e2a-meal-breakfast-2026-08-05\n```\n\nThe first request executes and its response is stored. Any retry with the same\nkey replays that response, with `Idempotency-Replayed: true`, instead of\nlogging the meal twice. Reusing a key with a *different* body returns `409`\nrather than silently discarding the new request. Keys are remembered for 24\nhours. A request that fails releases its key, so the retry is a fresh attempt\nrather than a replay of the error.\n\nEvery endpoint that creates something accepts the header: `POST /entries`,\n`POST /todos`, `POST /saved-foods`, and\n`POST /saved-foods/{id}/track`. The operation parameter lists say which,\nand they are not advisory — the one `POST` that does not honour the header\n(`POST /ai/estimate`) rejects it with `400` instead of ignoring it.\nAn accepted request is therefore always a request whose retry semantics are\nwhat you asked for.\n\n## Rate limits\n\nThree limits apply: one per IP address, one per token, and — on the two\nendpoints that cost real resources — one per account. `POST /ai/estimate`\nand `GET /barcode/{code}` reach a paid provider and a third-party food\ndatabase respectively, so they are capped at the same rate the app's own UI\ngets rather than at the API-wide ceiling; a token is not a cheaper route to\nthem than a browser.\n\nExceeding any of the three returns `429` with a `Retry-After`\nheader giving the number of seconds until the window reopens. Honour it rather\nthan retrying blindly.\n\n| Scope | Grants |\n| --- | --- |\n| `entries:read` | Read calorie entries and their macros. |\n| `entries:write` | Create, update, and delete calorie entries. |\n| `weight:read` | Read weight entries. |\n| `weight:write` | Record and delete weight entries. |\n| `todos:read` | Read todos and their completion state. |\n| `todos:write` | Create, update, delete, and complete todos. |\n| `foods:read` | Read saved foods. |\n| `foods:write` | Create, update, and delete saved foods. |\n| `notes:read` | Read daily notes. |\n| `notes:write` | Write daily notes. |\n| `plan:read` | Read the weight-loss plan, its goal, and its projections. |\n| `links:read` | Read data that linked accounts have shared with you. |\n| `settings:read` | Read account settings (goal, timezone, units, language). |\n| `settings:write` | Change account settings (goal, timezone, units, language). |\n| `ai:estimate` | Estimate nutrition from a food photo. Costs money per call — grant sparingly. |\n",
     "license": {
       "name": "AGPL-3.0-or-later",
       "identifier": "AGPL-3.0-or-later"
@@ -17,11 +17,7 @@
   "servers": [
     {
       "url": "https://schautrack.com/api/v1",
-      "description": "Production"
-    },
-    {
-      "url": "https://staging.schautrack.com/api/v1",
-      "description": "Staging"
+      "description": "This instance. Every deployment serves its own URL here, so tools that read this document — Swagger UI's \"Try it out\" included — send credentials only to the host the document came from."
     }
   ],
   "tags": [
@@ -71,7 +67,7 @@
       "post": {
         "operationId": "estimateFromPhoto",
         "summary": "Estimate nutrition from a food photo",
-        "description": "Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app. Returns 404 when no AI provider is configured.",
+        "description": "Requires the `ai:estimate` scope, which no other scope implies — every call spends the operator's AI budget, so it must be granted deliberately. The account's daily AI limit applies here exactly as it does in the app, as does a per-account rate limit matching the app's own estimate endpoint — this is not a cheaper path to the provider. Returns 404 when no AI provider is configured. This is the one `POST` that does not honour `Idempotency-Key`: sending the header returns 400 rather than being ignored, so a caller is never left believing a retry is safe when it is not.",
         "tags": [
           "AI"
         ],
@@ -188,7 +184,7 @@
       "get": {
         "operationId": "lookupBarcode",
         "summary": "Look up a product by barcode",
-        "description": "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Returns 404 when barcode lookup is disabled on the server.",
+        "description": "Resolves an EAN-8, UPC-A, or EAN-13 barcode via OpenFoodFacts. Rate limited per account at the same rate as the app's own scanner, since it queries the same third-party database. Returns 404 when barcode lookup is disabled on the server.",
         "tags": [
           "Saved foods"
         ],
@@ -1551,22 +1547,9 @@
       "get": {
         "operationId": "listSavedFoods",
         "summary": "List saved foods",
-        "description": "Most-used first, then most-recently-used.\n\n**Your own foods only, deliberately.** This endpoint does not accept `user`: account linking shares nutrition, weight, todos, and notes, and saved foods are none of those, so there is no share category that could authorize reading another account's. Passing `user` is ignored.",
+        "description": "Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.\n\n**Your own foods only, deliberately.** This endpoint does not accept `user`: account linking shares nutrition, weight, todos, and notes, and saved foods are none of those, so there is no share category that could authorize reading another account's. Passing `user` is ignored.",
         "tags": [
           "Saved foods"
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum results to return. Values above 200 are clamped to 200.",
-            "schema": {
-              "type": "integer",
-              "default": 50,
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
         ],
         "responses": {
           "200": {
@@ -1575,16 +1558,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SavedFoodList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1651,6 +1624,16 @@
         "summary": "Create a saved food",
         "tags": [
           "Saved foods"
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -2258,6 +2241,16 @@
         "summary": "Create a todo",
         "tags": [
           "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Optional. A key you generate once per logical operation and reuse when retrying. The first request executes and its response is stored; a retry with the same key replays that response instead of creating a second record, and carries `Idempotency-Replayed: true`. Reusing a key for a different request body is rejected with 409. Keys are remembered for 24 hours.",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -3354,6 +3347,53 @@
         "description": "The product as resolved from OpenFoodFacts, or a not-found result.",
         "additionalProperties": true
       },
+      "BodyComposition": {
+        "type": "object",
+        "description": "Body composition derived from the most recent body-fat reading. That reading can be older than the current weight — body composition is measured less often — so `date` says when it was taken.",
+        "properties": {
+          "bodyFatPct": {
+            "type": "number",
+            "description": "Body fat as a percentage of total mass. A percentage, so never unit-converted."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The band `bodyFatPct` falls in for this sex: `essential`, `athletic`, `fitness`, `average` or `obese`. `null` when the sex is unknown — the bands genuinely differ by sex, so no label is given rather than a wrong one.",
+            "enum": [
+              "essential",
+              "athletic",
+              "fitness",
+              "average",
+              "obese",
+              null
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day the body-fat reading was recorded.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "fatMass": {
+            "type": "number",
+            "description": "Fat mass at that reading. In the account's weight unit."
+          },
+          "leanMass": {
+            "type": "number",
+            "description": "Fat-free mass at that reading. In the account's weight unit."
+          }
+        },
+        "required": [
+          "date",
+          "bodyFatPct",
+          "leanMass",
+          "fatMass",
+          "category"
+        ]
+      },
       "Completion": {
         "type": "object",
         "description": "A todo's completion state on a date.",
@@ -3391,6 +3431,24 @@
         },
         "required": [
           "completed"
+        ]
+      },
+      "CurvePoint": {
+        "type": "object",
+        "description": "One week of the projected curve.",
+        "properties": {
+          "week": {
+            "type": "integer",
+            "description": "Weeks from now. Week 0 is the starting weight."
+          },
+          "weight": {
+            "type": "number",
+            "description": "Projected weight that week. In the account's weight unit."
+          }
+        },
+        "required": [
+          "week",
+          "weight"
         ]
       },
       "Entry": {
@@ -3628,6 +3686,24 @@
         },
         "required": [
           "image"
+        ]
+      },
+      "HealthyRange": {
+        "type": "object",
+        "description": "The weight range corresponding to a BMI of 18.5 to 24.9 at the account's height.",
+        "properties": {
+          "maxKg": {
+            "type": "number",
+            "description": "Upper bound. In the account's weight unit. Not necessarily kg, despite the name."
+          },
+          "minKg": {
+            "type": "number",
+            "description": "Lower bound. In the account's weight unit. Not necessarily kg, despite the name."
+          }
+        },
+        "required": [
+          "minKg",
+          "maxKg"
         ]
       },
       "Link": {
@@ -3950,8 +4026,332 @@
       },
       "Plan": {
         "type": "object",
-        "description": "The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Weight-valued fields are in the account's unit.",
-        "additionalProperties": true
+        "description": "The weight-loss plan: body metrics, active goal, computed budget, projected curve, and trend analysis. Every field is always present; those that depend on data the account has not supplied are `null`. Weight-valued fields are in the account's unit.",
+        "properties": {
+          "bmi": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Body mass index. `null` without both a height and a weight."
+          },
+          "bmiCategory": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The band `bmi` falls in: `underweight`, `normal`, `overweight` or `obese`.",
+            "enum": [
+              "underweight",
+              "normal",
+              "overweight",
+              "obese",
+              null
+            ]
+          },
+          "composition": {
+            "description": "Derived from the most recent body-fat reading. `null` when none was recorded.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyComposition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "computed": {
+            "description": "The budget and projection. `null` unless the body metrics are complete AND an active goal has a usable pace.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanComputed"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currentCalorieGoal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The account's daily calorie target as it stands now, which need not equal `computed.budgetKcal` — the recommendation is only applied when the user accepts it."
+          },
+          "currentWeight": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The most recent weight reading. `null` when none is logged. In the account's weight unit."
+          },
+          "disclaimer": {
+            "type": "string",
+            "description": "Fixed text to show alongside the numbers. The plan is an estimate, not medical advice."
+          },
+          "goal": {
+            "description": "The active weight goal. `null` when none is set.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeightGoal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "healthyRange": {
+            "description": "The healthy weight range for the account's height. `null` without a height and a weight.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthyRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/PlanMetrics",
+            "description": "The body metrics the plan is computed from."
+          },
+          "series": {
+            "type": "array",
+            "description": "Logged weight readings from the last 180 days, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            }
+          },
+          "trend": {
+            "description": "Observed progress. `null` when no goal is set; present but flagged `insufficient_data` when there are too few readings.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanTrend"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "type": "array",
+            "description": "Safety notes about this plan. Empty when there is nothing to flag.",
+            "items": {
+              "$ref": "#/components/schemas/PlanWarning"
+            }
+          }
+        },
+        "required": [
+          "metrics",
+          "currentWeight",
+          "bmi",
+          "bmiCategory",
+          "composition",
+          "healthyRange",
+          "goal",
+          "computed",
+          "trend",
+          "currentCalorieGoal",
+          "series",
+          "warnings",
+          "disclaimer"
+        ]
+      },
+      "PlanComputed": {
+        "type": "object",
+        "description": "The energy budget and the projection it produces.",
+        "properties": {
+          "bmr": {
+            "type": "number",
+            "description": "Basal metabolic rate, kcal/day, per `bmrFormula`."
+          },
+          "bmrFormula": {
+            "type": "string",
+            "description": "Which estimator produced `bmr`: `katch_mcardle` when a body-fat reading was available (it works off lean mass, the more accurate basis), `mifflin_st_jeor` otherwise.",
+            "enum": [
+              "mifflin_st_jeor",
+              "katch_mcardle"
+            ]
+          },
+          "budgetClamped": {
+            "type": "boolean",
+            "description": "Whether the budget was raised to the safe floor for this sex. The matching `budget_clamped` warning is also emitted."
+          },
+          "budgetKcal": {
+            "type": "integer",
+            "description": "The recommended daily intake, kcal."
+          },
+          "etaDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The date `etaWeeks` lands on. `null` when the ETA is not a finite number.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "etaWeeks": {
+            "type": "number",
+            "description": "Weeks to the target at that pace."
+          },
+          "planCurve": {
+            "type": "array",
+            "description": "Projected weight week by week. It decelerates: BMR is recomputed at each simulated weight, so the deficit shrinks as the weight does. Stops at the target, at a plateau, or after 160 weeks.",
+            "items": {
+              "$ref": "#/components/schemas/CurvePoint"
+            }
+          },
+          "rateKgPerWeek": {
+            "type": "number",
+            "description": "The goal's pace per week. In the account's weight unit. Not necessarily kg, despite the name."
+          },
+          "tdee": {
+            "type": "number",
+            "description": "Total daily energy expenditure: BMR times the activity factor, kcal/day."
+          }
+        },
+        "required": [
+          "bmr",
+          "tdee",
+          "budgetKcal",
+          "budgetClamped",
+          "rateKgPerWeek",
+          "etaWeeks",
+          "etaDate",
+          "planCurve",
+          "bmrFormula"
+        ]
+      },
+      "PlanMetrics": {
+        "type": "object",
+        "description": "The body metrics the plan is computed from. Each is `null` until the account supplies it; they are set in the app, not over this API.",
+        "properties": {
+          "activityLevel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`sedentary`, `light`, `moderate`, `active` or `very_active`. Decides the multiplier applied to BMR to reach TDEE.",
+            "enum": [
+              "sedentary",
+              "light",
+              "moderate",
+              "active",
+              "very_active",
+              null
+            ]
+          },
+          "birthYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Year of birth; age is derived from it."
+          },
+          "complete": {
+            "type": "boolean",
+            "description": "Whether all four are set. `computed` stays `null` while this is `false`."
+          },
+          "heightCm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Height in centimetres. Never converted — this is not a weight."
+          },
+          "sex": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`male`, `female` or `other`. Used by the Mifflin–St Jeor formula and the calorie floor.",
+            "enum": [
+              "male",
+              "female",
+              "other",
+              null
+            ]
+          }
+        },
+        "required": [
+          "heightCm",
+          "birthYear",
+          "sex",
+          "activityLevel",
+          "complete"
+        ]
+      },
+      "PlanTrend": {
+        "type": "object",
+        "description": "Observed progress: a least-squares fit over the readings from the last 30 days. Independent of the body metrics, so it works even when `computed` is `null`.",
+        "properties": {
+          "hasData": {
+            "type": "boolean",
+            "description": "Whether there were enough readings — two, at least a week apart — to fit a line."
+          },
+          "projectedDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The date `projectedWeeks` lands on. `null` when it cannot be projected.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "projectedWeeks": {
+            "type": "number",
+            "description": "Weeks to the target at the observed rate. `-1` when it cannot be projected."
+          },
+          "slopeKgPerWeek": {
+            "type": "number",
+            "description": "Fitted change per week, negative when losing. In the account's weight unit. Not necessarily kg, despite the name."
+          },
+          "status": {
+            "type": "string",
+            "description": "Progress against the plan's pace: `ahead` from 110%, `on_track` from 85%, `behind` below that. `stalled` when the fitted change is under 0.05 per week, `wrong_direction` when it moves away from the target, `insufficient_data` when `hasData` is false.",
+            "enum": [
+              "insufficient_data",
+              "stalled",
+              "wrong_direction",
+              "behind",
+              "on_track",
+              "ahead"
+            ]
+          }
+        },
+        "required": [
+          "slopeKgPerWeek",
+          "hasData",
+          "projectedWeeks",
+          "projectedDate",
+          "status"
+        ]
+      },
+      "PlanWarning": {
+        "type": "object",
+        "description": "A safety note about the plan. Branch on `code`; `message` is English prose that can change.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "What is being flagged: `budget_clamped` (the budget was raised to the safe floor), `aggressive_rate` (the pace exceeds 1% of body weight per week), `target_underweight` or `target_obese` (the target weight falls in that BMI band).",
+            "enum": [
+              "budget_clamped",
+              "aggressive_rate",
+              "target_underweight",
+              "target_obese"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable explanation, in English."
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
       },
       "Problem": {
         "type": "object",
@@ -4144,11 +4544,11 @@
       },
       "SavedFoodList": {
         "type": "object",
-        "description": "Saved foods, most-used first.",
+        "description": "Saved foods, most-used first. Never partial.",
         "properties": {
           "data": {
             "type": "array",
-            "description": "The foods.",
+            "description": "Every saved food on the account.",
             "items": {
               "$ref": "#/components/schemas/SavedFood"
             }
@@ -4254,6 +4654,31 @@
         },
         "required": [
           "type"
+        ]
+      },
+      "SeriesPoint": {
+        "type": "object",
+        "description": "One logged weight reading, as charted.",
+        "properties": {
+          "bodyFat": {
+            "type": "number",
+            "description": "Body fat percentage recorded with it. Absent when the scale reported weight only."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day of the reading.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "weight": {
+            "type": "number",
+            "description": "The reading. In the account's weight unit."
+          }
+        },
+        "required": [
+          "date",
+          "weight"
         ]
       },
       "SettingsPatch": {
@@ -4508,6 +4933,100 @@
           "date",
           "weight",
           "unit",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "WeightGoal": {
+        "type": "object",
+        "description": "The active weight goal, echoed in the account's unit. Read-only here: setting a goal has real health implications, so it stays in the app where the numbers can be explained.",
+        "properties": {
+          "achieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the goal was met (UTC). Absent while it is active."
+          },
+          "activity_level": {
+            "type": "string",
+            "description": "The activity level recorded with the goal: `sedentary`, `light`, `moderate`, `active` or `very_active`.",
+            "enum": [
+              "sedentary",
+              "light",
+              "moderate",
+              "active",
+              "very_active"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the goal was created (UTC)."
+          },
+          "id": {
+            "type": "integer",
+            "description": "Goal identifier."
+          },
+          "pace_mode": {
+            "type": "string",
+            "description": "`rate` sets a weekly pace directly; `date` derives one from `target_date`.",
+            "enum": [
+              "rate",
+              "date"
+            ]
+          },
+          "rate_kg_per_week": {
+            "type": "number",
+            "description": "The requested pace per week. Present when `pace_mode` is `rate`. In the account's weight unit. Not necessarily kg, despite the name."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day the goal was set.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "start_weight": {
+            "type": "number",
+            "description": "Weight when the goal was set. In the account's weight unit."
+          },
+          "status": {
+            "type": "string",
+            "description": "`active`, `achieved` or `abandoned` — always `active` here, since this endpoint only returns the active goal.",
+            "enum": [
+              "active",
+              "achieved",
+              "abandoned"
+            ]
+          },
+          "target_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The requested finish date. Present when `pace_mode` is `date`.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-08-05"
+          },
+          "target_weight": {
+            "type": "number",
+            "description": "The target. In the account's weight unit."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was last changed (UTC)."
+          },
+          "user_id": {
+            "type": "integer",
+            "description": "The account that owns it."
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "start_weight",
+          "start_date",
+          "target_weight",
+          "pace_mode",
+          "status",
           "created_at",
           "updated_at"
         ]

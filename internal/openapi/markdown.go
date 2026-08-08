@@ -284,6 +284,13 @@ func typeName(s *Schema) string {
 	if name, ok := strings.CutPrefix(s.Ref, "#/components/schemas/"); ok {
 		return fmt.Sprintf("[`%s`](#%s)", name, anchor(name))
 	}
+	if len(s.AnyOf) > 0 {
+		var parts []string
+		for _, alt := range s.AnyOf {
+			parts = append(parts, typeName(alt))
+		}
+		return strings.Join(parts, " or ")
+	}
 	switch t := s.Type.(type) {
 	case string:
 		if t == "array" {

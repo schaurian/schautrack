@@ -192,6 +192,33 @@ smtp:
   secure: false
 ```
 
+### Tuning rate limits
+
+Every limit the application enforces is exposed under `config.rateLimit`. Each
+one is **optional**: leave it empty and the chart omits the environment
+variable entirely, so the application's own default applies.
+
+```yaml
+config:
+  # Trust X-Forwarded-For — decides whether buckets key on the real client IP
+  # or on your ingress controller's. Leave at the default (true) behind an
+  # ingress; set "false" for direct-access deployments.
+  trustProxy: ""
+  rateLimit:
+    strict: 15   # let API clients run 15 AI estimates per 5 min instead of 5
+    apiToken: 120
+```
+
+> **Do not paste the defaults in.** Setting `auth: 10` looks harmless but pins
+> your deployment to the value the chart author last copied; if the application
+> changes its default, your release will not follow. Set only what you actually
+> want to differ. A value of `0` is treated as unset by the application, so it
+> means "use the default" rather than "block everything".
+
+Behind an ingress, `config.trustProxy` must stay at its default (`true`) or
+every request will share one bucket keyed by the ingress controller's IP, and
+the per-IP limits below become effectively global.
+
 ## Parameters
 
 ### Global
@@ -223,10 +250,30 @@ smtp:
 | `config.enableRegistration` | `open` or `false`/`invite` (requires invite code) | `""` (open) |
 | `config.trustProxy` | Trust X-Forwarded-For headers for rate limiting | `""` (true) |
 | `config.robotsIndex` | Allow search engine indexing | `false` |
-| `config.baseUrl` | Base URL for SEO meta tags (auto-detects if empty) | `""` |
+| `config.baseUrl` | Base URL for SEO meta tags and the OpenAPI `servers` entry (auto-detects if empty) | `""` |
 | `config.stepUpTTL` | Step-up auth grace window after login before sensitive auth-method changes require re-prompting. Any Go duration (e.g. `5s`, `10m`, `1h`); empty = server default of 30m | `""` |
 | `config.androidPackageName` | Package name for Android App Links (`/.well-known/assetlinks.json`) | `to.schauer.schautrack` |
 | `config.androidCertFingerprints` | Comma-separated SHA-256 signing-cert fingerprint(s) for App Links (**deployment-specific**; empty disables the endpoint) | `""` |
+
+### Rate limiting
+
+All optional. An empty value omits the environment variable, leaving the
+application's own default in force — the "Default" column below is that
+application default, not a value this chart writes into the ConfigMap. See
+[Tuning rate limits](#tuning-rate-limits).
+
+| Parameter | Env var | Description | Default |
+|-----------|---------|-------------|---------|
+| `config.rateLimit.auth` | `RATE_LIMIT_AUTH` | Authentication attempts per IP per **15 minutes** on login, register, and step-up re-auth | `""` (`10`) |
+| `config.rateLimit.strict` | `RATE_LIMIT_STRICT` | Requests per IP per **5 minutes** on sensitive endpoints: password-reset request/confirm, 2FA reset, email-change request, and **AI estimate**. Raise this to give users more AI throughput. | `""` (`5`) |
+| `config.rateLimit.api` | `RATE_LIMIT_API` | Requests per IP per **minute** on the public API (`/api/v1`). The outer guard and the only limit that throttles unauthenticated traffic; keep it well above the auth limiters. | `""` (`120`) |
+| `config.rateLimit.apiToken` | `RATE_LIMIT_API_TOKEN` | Requests per personal access token per **minute** on `/api/v1`. The limit a legitimate API client hits; per-IP alone means everyone behind one NAT shares a bucket. | `""` (`60`) |
+| `config.trustProxy` | `TRUST_PROXY` | Whether the limiters above key on `X-Forwarded-For` / `X-Real-Ip` instead of the socket peer. Leave default behind an ingress. | `""` (`true`) |
+
+Both API limits reject with `429` and a `Retry-After` header.
+
+The barcode-lookup limiter (30 per minute) is not configurable in this release;
+see [issue #366](https://github.com/schaurian/schautrack/issues/366).
 
 ### AI
 
@@ -336,7 +383,14 @@ smtp:
 ## Upgrading
 
 The chart follows semantic versioning; no breaking changes have been released
-through the current `0.2.x` series. `helm upgrade` in place is safe.
+through the current `0.3.x` series. `helm upgrade` in place is safe.
+
+### 0.3.0
+
+- Exposed the rate limits (`config.rateLimit.auth`, `.strict`, `.api`,
+  `.apiToken`). All default to empty, which omits the environment variable and
+  leaves the application's own default in force — so upgrading from `0.2.x`
+  changes no running limit.
 
 ### 0.2.x
 

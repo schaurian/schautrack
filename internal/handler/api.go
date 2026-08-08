@@ -341,22 +341,7 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 		for i := range adminSettings {
 			s := &adminSettings[i]
 			effective := settingsCache.GetEffectiveSetting(r.Context(), s.Key, os.Getenv(s.Env))
-			val := ""
-			isSet := effective.Value != nil && *effective.Value != ""
-			if isSet && !s.Secret {
-				val = *effective.Value
-			}
-			settings[s.Key] = map[string]any{
-				"value":     val,
-				"source":    effective.Source,
-				"section":   s.Section,
-				"tier":      s.Tier,
-				"secret":    s.Secret,
-				"dangerous": s.Dangerous,
-				"help":      s.Help,
-				"isSet":     isSet, // for secret fields: tells the UI "something is stored" without revealing it
-				"envVar":    s.Env,
-			}
+			settings[s.Key] = adminSettingResponse(s, effective)
 		}
 
 		// Order metadata so the client can render sections in the canonical order.

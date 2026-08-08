@@ -181,7 +181,7 @@ func TestLinkedReadRejectsMalformedUserParam(t *testing.T) {
 func specGETsWithUserParam(t *testing.T) []string {
 	t.Helper()
 	var out []string
-	for path, item := range openapi.Build("test").Paths {
+	for path, item := range openapi.Build("test", "").Paths {
 		for method, op := range item.Operations() {
 			for _, p := range op.Parameters {
 				if p.Name == "user" && p.In == "query" {
@@ -240,7 +240,7 @@ func TestV1SpecDocumentsUserParamExactlyWhereItWorks(t *testing.T) {
 // their data. An absent parameter is indistinguishable from an oversight, so
 // the reason has to be written down where a reader of the spec will find it.
 func TestV1SelfOnlyReadsSayWhyTheyAreSelfOnly(t *testing.T) {
-	doc := openapi.Build("test")
+	doc := openapi.Build("test", "")
 	for _, path := range []string{"/saved-foods", "/plan"} {
 		item, ok := doc.Paths[path]
 		if !ok || item.Get == nil {
