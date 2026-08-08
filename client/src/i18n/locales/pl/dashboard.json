@@ -154,7 +154,9 @@
       "addHeightWeight": "Dodaj wzrost i wagę",
       "healthyRangeLabel": "Zdrowy zakres",
       "bodyFatLabel": "Tkanka tłuszczowa",
-      "leanFatSplit": "{{lean}} {{unit}} masy beztłuszczowej · {{fat}} {{unit}} tłuszczu"
+      "leanFatSplit": "{{lean}} {{unit}} masy beztłuszczowej · {{fat}} {{unit}} tłuszczu",
+      "bodyFatMeasured": "Zmierzono {{date}}",
+      "bodyFatStale": "sprzed {{days}} dni — nieużywane do Twojego budżetu"
     },
     "recommendedBudget": {
       "title": "Zalecany budżet",
@@ -162,7 +164,8 @@
       "clampedNotice": "Ograniczono do bezpiecznego minimum",
       "applyButton": "Zastosuj jako mój cel kaloryczny",
       "formulaKatch": "Według Katch-McArdle, na podstawie {{lean}} {{unit}} masy beztłuszczowej",
-      "formulaMifflin": "Według Mifflin-St Jeor. Zapisz procent tkanki tłuszczowej, aby oszacować na podstawie masy beztłuszczowej."
+      "formulaMifflin": "Według Mifflin-St Jeor. Zapisz procent tkanki tłuszczowej, aby oszacować na podstawie masy beztłuszczowej.",
+      "formulaMifflinStale": "Na podstawie Mifflin-St Jeor — Twój pomiar tkanki tłuszczowej ma {{days}} dni i jest zbyt stary, aby oszacować masę beztłuszczową. Zapisz nowy."
     },
     "progress": {
       "title": "Postęp",
