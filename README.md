@@ -168,6 +168,9 @@ Configuring SMTP enables all transactional email flows: password reset, registra
 | `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
 | `ENABLE_REGISTRATION` | `open` | `open` (anyone can register) or `false` / `invite` (requires invite code). Also configurable via `/admin`. |
 | `UPDATE_CHECK_ENABLED` | `true` | Check GitHub (`api.github.com`) for a newer release so the footer can flag an outdated instance. Set `false` to opt out of the outbound request — recommended for privacy-sensitive or air-gapped self-hosts. |
+| `UPDATE_PROVIDER` | `github` | Which forge hosts the release feed the check reads. `github` or `gitlab`. |
+| `UPDATE_REPO` | `schaurian/schautrack` | The `owner/name` the check asks about. Point it at your own fork to track your releases rather than upstream's. |
+| `UPDATE_BASE_URL` | _(empty)_ | API base for a self-hosted forge, e.g. `https://gitlab.example.com/api/v4`. Empty means the provider's public API. |
 
 ### OIDC (Single Sign-On)
 
