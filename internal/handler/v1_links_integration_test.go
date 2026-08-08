@@ -259,14 +259,18 @@ func TestV1LinksListsWhatEachSideShares(t *testing.T) {
 	}
 }
 
-// TestV1LinkedEntryIdsAreNotFetchableIndividually documents the bug #293 owns:
-// GET /entries?user= hands out ids that GET /entries/{id} cannot resolve,
-// because that endpoint never calls resolveTarget.
+// TestV1LinkedEntryIdsAreFetchableIndividually is the assertion #293's TODO was
+// waiting for: GET /entries?user= hands out ids, so GET /entries/{id}?user= has
+// to resolve them. Until that endpoint called resolveTarget it did not, and
+// every id the collection returned was a dead end — list-then-fetch, the most
+// obvious thing to do with a paginated collection, simply did not work across
+// a link.
 //
-// TODO(#293): when GET /entries/{id} honours ?user=, this becomes a 200 and the
-// assertion flips. It is here as the current behaviour rather than as a
-// weakened version of the right one, so the fix has a test waiting for it.
-func TestV1LinkedEntryIdsAreNotFetchableIndividually(t *testing.T) {
+// The 404 was not a security boundary and flipping it to 200 does not weaken
+// one: resolveTarget still scopes the row to a single user_id, so an id
+// belonging to an account that is not linked (or does not share nutrition)
+// remains unreadable — TestV1LinkedReadsRejectAnUnlinkedAccount covers that.
+func TestV1LinkedEntryIdsAreFetchableIndividually(t *testing.T) {
 	e := newV1Env(t)
 
 	friendID, _ := e.seedUser("-friend")
@@ -287,11 +291,19 @@ func TestV1LinkedEntryIdsAreNotFetchableIndividually(t *testing.T) {
 	}
 
 	one := e.get(fmt.Sprintf("/api/v1/entries/%d?user=%d", theirs.ID, friendID), token)
-	if one.Code != http.StatusNotFound {
-		t.Fatalf("status = %d; if GET /entries/{id} now honours ?user= (#293), update this test "+
-			"to assert 200 and the entry's contents (body: %s)", one.Code, one.Body.String())
+	if one.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 — an id from the linked collection must resolve (body: %s)",
+			one.Code, one.Body.String())
 	}
-	requireProblemShape(t, one)
+	var got v1Entry
+	decodeJSON(t, one, &got)
+	if got.ID != theirs.ID {
+		t.Errorf("id = %d, want %d", got.ID, theirs.ID)
+	}
+	if got.Calories != 777 {
+		t.Errorf("calories = %d, want 777 — the linked account's entry, not the caller's",
+			got.Calories)
+	}
 }
 
 func containsAny(s string, subs ...string) bool {

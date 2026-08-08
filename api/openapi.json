@@ -604,6 +604,7 @@
       "get": {
         "operationId": "getEntry",
         "summary": "Fetch one calorie entry",
+        "description": "Pass the same `user` you listed with: an id from `GET /entries?user=42` belongs to account 42, so fetching it needs `?user=42` too. Without it the lookup is scoped to your own account and returns 404.",
         "tags": [
           "Entries"
         ],
@@ -613,6 +614,14 @@
             "in": "path",
             "description": "The resource's identifier.",
             "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
             "schema": {
               "type": "integer"
             }
@@ -1461,7 +1470,7 @@
       "get": {
         "operationId": "getPlan",
         "summary": "The weight-loss plan",
-        "description": "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.",
+        "description": "Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.\n\n**Your own plan only, deliberately.** This endpoint does not accept `user`: the plan is a projection over body metrics and a weight goal, and account linking has no share category covering either. A linked account's weight readings are readable via `GET /weight?user=`; the plan built from them is not.",
         "tags": [
           "Plan"
         ],
@@ -1538,7 +1547,7 @@
       "get": {
         "operationId": "listSavedFoods",
         "summary": "List saved foods",
-        "description": "Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.",
+        "description": "Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.\n\n**Your own foods only, deliberately.** This endpoint does not accept `user`: account linking shares nutrition, weight, todos, and notes, and saved foods are none of those, so there is no share category that could authorize reading another account's. Passing `user` is ignored.",
         "tags": [
           "Saved foods"
         ],
@@ -2135,9 +2144,19 @@
       "get": {
         "operationId": "listTodos",
         "summary": "List todo definitions",
-        "description": "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.",
+        "description": "The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`. Accepts `user` under the same `todos` share category as that endpoint.",
         "tags": [
           "Todos"
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -2146,6 +2165,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TodoList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed — unparseable JSON, an unknown field, or a bad query parameter.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -2957,6 +2986,7 @@
       "get": {
         "operationId": "getWeight",
         "summary": "Fetch one day's weight",
+        "description": "Pass the same `user` you listed with — a date from `GET /weight?user=42` is a reading on account 42, and without `?user=42` this looks in your own readings and returns 404. `unit` is always the unit of whoever the reading belongs to; readings are never converted.",
         "tags": [
           "Weight"
         ],
@@ -2971,6 +3001,14 @@
               "format": "date",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
               "example": "2026-08-05"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "description": "Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this.",
+            "schema": {
+              "type": "integer"
             }
           }
         ],

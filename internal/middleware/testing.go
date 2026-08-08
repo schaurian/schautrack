@@ -21,7 +21,8 @@ func WithTestUser(ctx context.Context, u *model.User) context.Context {
 // Same reasoning as WithTestUser: apiTokenContextKey is unexported, so this is
 // the only way a test outside this package can drive a token-authenticated
 // route — scope checks, per-token and per-user rate limits included — without a
-// live database behind the token lookup.
+// live database behind the token lookup. That covers scope decisions
+// (GetAPIToken + ScopeSatisfies) without minting a real token row.
 func WithTestAPIToken(ctx context.Context, t *model.APIToken) context.Context {
 	return context.WithValue(ctx, apiTokenContextKey, t)
 }

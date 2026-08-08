@@ -287,9 +287,12 @@ GET /api/v1/entries/{id}
 
 **Scope:** `entries:read`
 
+Pass the same `user` you listed with: an id from `GET /entries?user=42` belongs to account 42, so fetching it needs `?user=42` too. Without it the lookup is scoped to your own account and returns 404.
+
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `id` | path | yes | The resource's identifier. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -390,9 +393,12 @@ GET /api/v1/weight/{date}
 
 **Scope:** `weight:read`
 
+Pass the same `user` you listed with — a date from `GET /weight?user=42` is a reading on account 42, and without `?user=42` this looks in your own readings and returns 404. `unit` is always the unit of whoever the reading belongs to; readings are never converted.
+
 | Parameter | In | Required | Description |
 | --- | --- | --- | --- |
 | `date` | path | yes | A calendar date in the account's time zone. |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -465,11 +471,16 @@ GET /api/v1/todos
 
 **Scope:** `todos:read`
 
-The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`.
+The recurring todos themselves. For what is due on a given day, use `/todos/day/{date}`. Accepts `user` under the same `todos` share category as that endpoint.
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
 | `200` | [`TodoList`](#todolist) — The todos. |
+| `400` | [`Problem`](#problem) — The request is malformed — unparseable JSON, an unknown field, or a bad query parameter. |
 | `401` | [`Problem`](#problem) — No token, or the token is unknown, revoked, or expired. |
 | `403` | [`Problem`](#problem) — The token is valid but lacks the scope this endpoint requires. The `required_scope` field names it. |
 | `429` | [`Problem`](#problem) — Too many requests. The `Retry-After` header gives the number of seconds until the window reopens. |
@@ -639,6 +650,8 @@ GET /api/v1/saved-foods
 **Scope:** `foods:read`
 
 Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.
+
+**Your own foods only, deliberately.** This endpoint does not accept `user`: account linking shares nutrition, weight, todos, and notes, and saved foods are none of those, so there is no share category that could authorize reading another account's. Passing `user` is ignored.
 
 | Status | Response |
 | --- | --- |
@@ -819,6 +832,8 @@ GET /api/v1/plan
 **Scope:** `plan:read`
 
 Read-only. Unlike the app's own plan endpoint, this one never writes — a `plan:read` token cannot change state, so a goal that has been reached is reported but not transitioned.
+
+**Your own plan only, deliberately.** This endpoint does not accept `user`: the plan is a projection over body metrics and a weight goal, and account linking has no share category covering either. A linked account's weight readings are readable via `GET /weight?user=`; the plan built from them is not.
 
 | Status | Response |
 | --- | --- |

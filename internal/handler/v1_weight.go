@@ -32,8 +32,21 @@ type v1Weight struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// weightUnit is the caller's own unit. Write endpoints are self-only, so they
+// use this; reads go through target.weightUnit, which reports the unit of
+// whoever's readings are actually being returned.
 func (h *V1Handler) weightUnit(r *http.Request) string {
 	if u := v1User(r).WeightUnit; u != "" {
+		return u
+	}
+	return "kg"
+}
+
+// weightUnit returns the unit a target's readings are stored in. A linked
+// account's readings are in THEIR unit — the app never converts, so reporting
+// the caller's unit would mislabel every number.
+func (t target) weightUnit() string {
+	if u := t.User.WeightUnit; u != "" {
 		return u
 	}
 	return "kg"
@@ -109,10 +122,7 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	// A linked account's readings are in THEIR unit, not the caller's.
-	unit := tgt.User.WeightUnit
-	if unit == "" {
-		unit = "kg"
-	}
+	unit := tgt.weightUnit()
 	out := []v1Weight{}
 	for rows.Next() {
 		e := v1Weight{Unit: unit}
@@ -142,13 +152,23 @@ func (h *V1Handler) ListWeight(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetWeightV1 handles GET /api/v1/weight/{date}.
+//
+// It honours ?user= so a date picked out of a linked account's GET /weight page
+// can actually be fetched. Without it the list advertises dates this endpoint
+// then reports as having no reading, which is a lie about someone else's data
+// rather than a permission error.
 func (h *V1Handler) GetWeightV1(w http.ResponseWriter, r *http.Request) {
 	date, prob := pathDate(r)
 	if prob != nil {
 		apierr.Write(w, r, prob)
 		return
 	}
-	entry, err := service.GetWeightEntry(r.Context(), h.Pool, v1User(r).ID, date)
+	tgt, prob := h.resolveTarget(r, service.ShareWeight)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+	entry, err := service.GetWeightEntry(r.Context(), h.Pool, tgt.User.ID, date)
 	if err != nil {
 		apierr.Write(w, r, dbFail("get weight", err))
 		return
@@ -159,7 +179,9 @@ func (h *V1Handler) GetWeightV1(w http.ResponseWriter, r *http.Request) {
 	}
 	writeV1(w, http.StatusOK, v1Weight{
 		Date: entry.Date, Weight: entry.Weight, BodyFat: entry.BodyFat,
-		Unit:      h.weightUnit(r),
+		// The target's unit, not the caller's: a linked reading must be
+		// reported in the unit it was recorded in.
+		Unit:      tgt.weightUnit(),
 		CreatedAt: entry.CreatedAt, UpdatedAt: entry.UpdatedAt,
 	})
 }
