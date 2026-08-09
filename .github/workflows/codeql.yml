@@ -1,0 +1,113 @@
+name: CodeQL
+
+# Static analysis for the Go backend and the TypeScript/React client
+# (part of #464).
+#
+# Deliberately a SEPARATE workflow with no place in build.yml's release chain —
+# the same philosophy as build.yml's `vuln` job, for the same reason: CodeQL
+# findings arrive on GitHub's schedule, not this repo's. A new or sharpened
+# query shipped upstream can turn an *unchanged* tree red overnight, and wiring
+# that into the release path would let it block an unrelated hotfix from
+# shipping, with nothing this repo can do about it until the code (or the
+# query) changes. As a standalone check it still shows a red X on the PR — and
+# can be made a required check in branch protection — without holding deploys
+# hostage.
+
+on:
+  # NO path filters, unlike build.yml — deliberate, not an oversight. If this
+  # check is ever required in branch protection, a path-filtered workflow that
+  # does not trigger for (say) a docs-only PR reports no status at all, and the
+  # required check sits "Expected" forever, blocking the merge. CodeQL on this
+  # tree costs a few runner-minutes; scanning every push is cheaper than
+  # debugging a merge that will never unblock.
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+  # Re-scan the unchanged tree weekly: the query packs improve continuously,
+  # so last month's clean scan says nothing about what this month's queries
+  # would find in the same code. (This is also exactly why the workflow is not
+  # in the release chain — see the header comment.) 04:30 Monday sits clear of
+  # the nightly fuzz run's 04:00 slot only to keep the Actions timeline
+  # readable; they share no runner or cache.
+  schedule:
+    - cron: '30 4 * * 1'
+
+permissions:
+  # Upload SARIF results to the repository's code-scanning tab.
+  security-events: write
+  # Checkout.
+  contents: read
+  # CodeQL packs are fetched from GHCR; the action's docs list this scope for
+  # that fetch. Only the default public packs are used today, but the read
+  # scope is inert and dropping it is the kind of minimalism that breaks the
+  # day a custom pack is added.
+  packages: read
+
+# Same key shape as build.yml, for the same reason (#377): GitHub keeps at most
+# one *pending* run per concurrency group, so a per-ref group on push events
+# throws scans away in a merge burst — and an unscanned tip is exactly the gap
+# this workflow exists to close. Keying pushes on the commit gives every push
+# its own group, which can never be evicted. Pull requests keep one group per
+# PR and DO cancel in progress: a superseded PR scan's results are about to be
+# replaced by the next push anyway, and cancelling it frees the runner.
+concurrency:
+  group: codeql-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    # Both analyses finish in single-digit minutes on this tree; a wedged
+    # extractor must not sit on a runner for the default 6 hours.
+    timeout-minutes: 30
+    strategy:
+      # One language's failure says nothing about the other's findings.
+      fail-fast: false
+      matrix:
+        # Build modes differ per language and neither is a free choice.
+        # javascript-typescript is always analyzed straight from source
+        # (`none` is its only mode). Go does NOT support `none` — the CodeQL
+        # CLI (2.26.2) rejects it outright with "Go does not support the none
+        # build mode", learned from this workflow's own first run — so the go
+        # leg uses `autobuild`, which the analyze step runs implicitly; no
+        # explicit build step is needed below.
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The Go autobuild compiles the module, so give it the toolchain go.mod
+      # asks for instead of gambling on whatever the runner image ships plus a
+      # GOTOOLCHAIN auto-download. Same pin and go-version-file as build.yml.
+      - name: Setup Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # The default `code-scanning` query suite on purpose, not
+      # security-extended: the extended suite trades precision for recall, and
+      # low-precision findings are alerts nobody triages. A check only stays
+      # meaningful while its findings stay actionable.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
+        with:
+          # One category per matrix leg so the two SARIF uploads register as
+          # distinct analyses instead of overwriting each other.
+          category: "/language:${{ matrix.language }}"
