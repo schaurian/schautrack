@@ -94,7 +94,6 @@ A Helm chart is available for Kubernetes deployments with bundled PostgreSQL.
 helm repo add schautrack https://helm.schautrack.com
 helm repo update
 helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
   --set postgresql.auth.password="$(openssl rand -base64 16)"
 ```
 
@@ -120,7 +119,6 @@ Settings follow a strict priority hierarchy: **environment variables** > **admin
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | *(empty)* | PostgreSQL connection string (e.g. `postgresql://user:pass@host:5432/db`) |
-| `SESSION_SECRET` | *(empty)* | Random secret for session encryption |
 
 ### General
 
@@ -222,6 +220,16 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 **CAPTCHA:** A self-generated SVG CAPTCHA guards against brute-force and abuse. It is always required to complete registration and to resend a verification email, and is triggered on login after 3 failed attempts (counted per session, per account, and per client IP). No third-party CAPTCHA service or key is needed — it works out of the box.
 
 > **`CAPTCHA_BYPASS`** (default: unset) — a **test-only** escape hatch. When set to `true`, `VerifyCaptcha` accepts *any* non-empty answer, disabling CAPTCHA protection entirely. It exists so the end-to-end test suite (`compose.test.yml`) can drive auth flows headlessly. **Never set this in production** — doing so removes all brute-force protection from login and registration.
+
+**Sessions:** there is no session signing or encryption key, and none is needed. Sessions are server-side — the cookie carries only a session ID of 32 bytes from `crypto/rand`, and all session data lives in the `session` table. Authenticity is "this row exists", so there is nothing to sign and no key to rotate. (A signed-cookie design needs one because the cookie carries the session data itself; this one does not.) The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` whenever the request arrives over TLS or with `X-Forwarded-Proto: https`.
+
+Consequently, **restarting the app or changing configuration does not log anyone out.** Sessions are invalidated by deleting their rows, which the app does automatically on every credential change — password reset and change, disabling or resetting 2FA, email change, and account deletion. A login additionally issues a fresh session ID and deletes the old row, so a session fixed before login cannot survive it. To end every session for an account out of band, delete its rows directly:
+
+```sql
+DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = <user_id>;
+```
+
+Earlier releases required a `SESSION_SECRET` environment variable. It was a leftover from the Node backend, where `express-session` used it to HMAC-sign the session cookie; the Go rewrite never read it. It has been removed, and setting it now has no effect. The Helm chart still accepts `config.sessionSecret` so existing values files keep validating, but ignores it.
 
 ### Legal Pages
 

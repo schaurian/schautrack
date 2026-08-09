@@ -21,7 +21,6 @@ helm repo add schautrack https://helm.schautrack.com
 helm repo update
 
 helm install schautrack schautrack/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
   --set postgresql.auth.password="$(openssl rand -base64 16)"
 ```
 
@@ -32,7 +31,6 @@ git clone https://github.com/schaurian/schautrack.git
 cd schautrack
 
 helm install schautrack ./helm/schautrack \
-  --set config.sessionSecret="$(openssl rand -base64 32)" \
   --set postgresql.auth.password="$(openssl rand -base64 16)"
 ```
 
@@ -42,7 +40,6 @@ Create a `values.yaml` file:
 
 ```yaml
 config:
-  sessionSecret: ""  # Use sealed-secrets or external-secrets
   adminEmail: "admin@example.com"
 
 postgresql:
@@ -90,7 +87,7 @@ For production environments with external secret management (e.g., External Secr
 existingSecret: "my-schautrack-secrets"
 
 # These values are ignored when existingSecret is set:
-# config.sessionSecret, smtp.user, smtp.pass, ai.key, ai.keyEncryptionSecret,
+# smtp.user, smtp.pass, ai.key, ai.keyEncryptionSecret,
 # oidc.clientSecret, postgresql.auth.password, externalDatabase.url
 ```
 
@@ -99,7 +96,6 @@ The referenced Secret must contain these keys:
 | Key | Required | Description |
 |-----|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `SESSION_SECRET` | Yes | Session encryption key |
 | `POSTGRES_PASSWORD` | If postgresql.enabled | Password for bundled PostgreSQL |
 | `SMTP_USER` | No | SMTP username |
 | `SMTP_PASS` | No | SMTP password |
@@ -125,10 +121,6 @@ spec:
       remoteRef:
         key: schautrack/database
         property: url
-    - secretKey: SESSION_SECRET
-      remoteRef:
-        key: schautrack/session
-        property: secret
     # ... additional keys as needed
 ```
 
@@ -277,7 +269,6 @@ GitLab for `schaurian/schautrack`, which does not exist there.
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `config.port` | Port the application listens on | `3000` |
-| `config.sessionSecret` | Session encryption key (**required**) | `""` |
 | `config.adminEmail` | Email with admin access | `""` |
 | `config.supportEmail` | Support contact email | `""` |
 | `config.enableLegal` | Enable /imprint, /privacy, /terms | `false` |

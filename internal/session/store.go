@@ -143,13 +143,25 @@ type dbExecutor interface {
 }
 
 // Store manages sessions in PostgreSQL.
+//
+// There is deliberately no signing or encryption key here. Sessions are
+// server-side: the cookie carries only the session ID, and the ID is 32 bytes
+// of crypto/rand (see generateSID) whose authority is the row it addresses in
+// the "session" table. Authenticity is "this row exists", which needs no key —
+// unlike a signed-cookie design, where the cookie carries the session data
+// itself and an HMAC is what stops the client editing it.
+//
+// The Node backend this replaced used express-session, whose secret HMAC-signed
+// the SID cookie; the Go rewrite kept a SESSION_SECRET env var and a Store
+// field for ~5 months without ever reading either. Both are gone. Rotating a
+// secret never invalidated a session here — invalidateUserSessions does, and it
+// is wired to every credential change.
 type Store struct {
-	pool   dbExecutor
-	secret string
+	pool dbExecutor
 }
 
-func NewStore(pool *pgxpool.Pool, secret string) *Store {
-	s := &Store{pool: pool, secret: secret}
+func NewStore(pool *pgxpool.Pool) *Store {
+	s := &Store{pool: pool}
 	go s.pruneLoop(context.Background())
 	return s
 }

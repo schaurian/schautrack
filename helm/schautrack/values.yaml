@@ -13,7 +13,6 @@ imagePullSecrets: []
 # Use an existing secret instead of creating one from values
 # The secret must contain these keys:
 #   - DATABASE_URL (required)
-#   - SESSION_SECRET (required)
 #   - POSTGRES_PASSWORD (required if postgresql.enabled)
 #   - SMTP_USER (optional)
 #   - SMTP_PASS (optional)
@@ -121,10 +120,6 @@ config:
   # Any time.ParseDuration value (e.g. "5s", "10m", "1h"). Empty = server
   # default of 30 min.
   stepUpTTL: ""
-  # ⚠️  SECURITY WARNING: Change sessionSecret before production deployment!
-  # Session secret (required) - generate with: openssl rand -base64 32
-  # DO NOT commit real secrets to Git - use existingSecret instead
-  sessionSecret: ""
   # Admin email - gets access to /admin page
   adminEmail: ""
   # Support email shown on support pages
