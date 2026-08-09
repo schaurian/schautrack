@@ -534,7 +534,10 @@ func spaFallback(clientDir, publicDir string) http.Handler {
 		// Check client/dist/ (built React assets)
 		if _, err := fs.Stat(clientFS, path); err == nil {
 			if strings.HasPrefix(path, "assets/") {
-				w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+				// Vite fingerprints every file it emits under assets/, so a changed
+				// build receives a different URL and these responses are safe to
+				// cache for a year.
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			} else if path == "index.html" {
 				w.Header().Set("Cache-Control", "no-cache")
 			}

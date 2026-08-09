@@ -70,7 +70,7 @@ export default function Landing() {
             <div className="mb-4 size-14 rounded-xl bg-gradient-to-br from-primary/15 to-secondary/15 grid place-items-center text-foreground">
               {f.icon}
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-foreground">{t(`features.${f.key}.title`)}</h3>
+            <h2 className="mb-2 text-lg font-semibold text-foreground">{t(`features.${f.key}.title`)}</h2>
             <p className="text-[0.95rem] leading-relaxed text-muted-foreground">{t(`features.${f.key}.desc`)}</p>
           </div>
         ))}
@@ -78,7 +78,7 @@ export default function Landing() {
 
       <section className="text-center">
         <a href="https://play.google.com/store/apps/details?id=to.schauer.schautrack" target="_blank" rel="noopener">
-          <img src="/google-play-badge.png" alt={t('googlePlay.alt')} className="h-14 mx-auto" />
+          <img src="/google-play-badge.png" alt={t('googlePlay.alt')} width={646} height={250} className="h-14 mx-auto" />
         </a>
       </section>
     </div>

@@ -25,7 +25,7 @@ test.describe('Infrastructure', () => {
     if (match) {
       const assetResponse = await page.request.get(match[1]);
       const cacheControl = assetResponse.headers()['cache-control'] || '';
-      expect(cacheControl).toContain('immutable');
+      expect(cacheControl).toBe('public, max-age=31536000, immutable');
     }
     // If no hashed asset found (dev mode), skip gracefully
   });
