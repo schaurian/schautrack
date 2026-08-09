@@ -251,6 +251,7 @@ func (s *Store) Destroy(w http.ResponseWriter, r *http.Request, sess *Session) e
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   requestSecure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 	// Mark so the middleware's deferred-save doesn't undo the destroy when
@@ -297,15 +298,22 @@ func (s *Store) newSession() *Session {
 	}
 }
 
+// requestSecure reports whether the request arrived over TLS, terminated
+// either here or at the reverse proxy in front. Both Set-Cookie sites use it,
+// so the clearing cookie in Destroy carries the same Secure flag as the
+// session cookie it removes.
+func requestSecure(r *http.Request) bool {
+	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+}
+
 func (s *Store) setCookie(w http.ResponseWriter, r *http.Request, sess *Session) {
-	secure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
 		Value:    sess.ID,
 		Path:     "/",
 		MaxAge:   int(sess.MaxAge.Seconds()),
 		HttpOnly: true,
-		Secure:   secure,
+		Secure:   requestSecure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 }

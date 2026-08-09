@@ -19,6 +19,7 @@ linters:
     - copyloopvar # loop-variable capture, now that Go 1.22+ changed semantics
     - durationcheck # time.Duration multiplied by a Duration — silently ns²
     - errorlint # == on errors; breaks the moment anything wraps them
+    - gosec # sessions, tokens, cookies, taint tracking — most of this repo is attack surface
     - makezero # append to a make([]T, n) slice, producing n leading zeros
     - sqlclosecheck # rows/stmt never closed
     - usetesting # t.Context()/t.Chdir over the hand-rolled equivalents
@@ -51,6 +52,14 @@ linters:
         # net/http itself logs the connection error, so nothing is lost.
         - (*encoding/json.Encoder).Encode
         - (net/http.ResponseWriter).Write
+
+    gosec:
+      excludes:
+        # G104 is errcheck again — unhandled errors — minus the curated
+        # exclude list above, so it re-reports every deliberately dropped
+        # ResponseWriter.Write that errcheck was just told about. One linter
+        # owns dropped errors, and it is errcheck.
+        - G104
 
   exclusions:
     generated: lax
@@ -99,6 +108,16 @@ linters:
       - path: _test\.go
         linters: [bodyclose]
 
+      # gosec models production code handling untrusted input, which is the
+      # opposite of a test. These write world-readable fixtures into
+      # t.TempDir, read the package's own source off disk, attach bare
+      # cookies to requests they serve to themselves, and in one case
+      # (recovery_test.go) hardcode a "secret" precisely to assert it never
+      # reaches the response. Sixteen findings, every one the test working
+      # as designed. gosec stays on for the code under test.
+      - path: _test\.go
+        linters: [gosec]
+
       # `recover()` yields an `any`, not an `error`, so errors.Is does not even
       # typecheck against it without an intervening assertion. Identity
       # comparison is also precisely what net/http itself does with this
@@ -110,6 +129,94 @@ linters:
       - path: internal/middleware/recovery(_test)?\.go
         linters: [errorlint]
         source: "ErrAbortHandler"
+
+      # A repo-local generator, run by hand or by CI on the repo itself: it
+      # rebuilds the committed API artifacts from constants in this file and
+      # reads back only the two paths it writes. The 0o755/0o644 modes gosec
+      # wants tightened are the point — the output is committed and
+      # world-readable by definition — and there is no untrusted input for
+      # G304's taint to arrive from.
+      - path: cmd/apidocs/main\.go
+        linters: [gosec]
+
+      # The SPA fallback stats every candidate path against an os.DirFS
+      # before serving it — io/fs rejects any path containing a ".." element
+      # outright — and http.ServeFile independently refuses URL paths
+      # containing "..". The taint analysis sees r.URL.Path flow into
+      # ServeFile and neither of the two guards standing in front of it.
+      - path: cmd/server/main\.go
+        linters: [gosec]
+        text: "G703"
+
+      # dbtest exists to shell out: it starts the throwaway postgres
+      # container the DB-backed tests run against, and every argv it builds
+      # is assembled from constants in the same file. Only TestMain
+      # functions import it, so none of this is compiled into the server.
+      - path: internal/dbtest/
+        linters: [gosec]
+        text: "G204"
+
+      # The one variable in the outbound URL is the barcode, matched against
+      # ^\d{8,13}$ (and then check-digit-verified) before the request is
+      # built; the scheme and host are literals in the format string. A run
+      # of digits cannot steer a request to another origin — the taint
+      # analysis just sees a URL built from a path parameter.
+      - path: internal/handler/barcode\.go
+        linters: [gosec]
+        text: "G704"
+
+      # robots.txt. The "tainted" values are the request's own Host and
+      # X-Forwarded-Proto echoed into a text/plain body: there is no HTML
+      # context for XSS to exist in, and the only party who can vary the
+      # input is the requester, reading their own robots.txt back.
+      - path: internal/handler/legal\.go
+        linters: [gosec]
+        text: "G705"
+
+      # Both goroutines are detached from the request on purpose: the
+      # bcrypt→argon2id rehash after a successful login and the API token
+      # last-used UPDATE must survive the response being written, which is
+      # the moment r.Context() would cancel them. The token path bounds
+      # itself with its own five-second timeout; the rehash does one hash
+      # and one UPDATE. Tying either to the request would break them,
+      # quietly, on every fast response.
+      - path: internal/(handler/auth|middleware/apiauth)\.go
+        linters: [gosec]
+        text: "G118"
+
+      # Every flagged conversion narrows a value back into the type it was
+      # born as: user IDs come from SERIAL (int4) primary keys, so int →
+      # int32/uint64 cannot overflow unless the database already has, and a
+      # passkey's SignCount arrived from the authenticator as a uint32
+      # before it was stored. A bounds check here would guard a state the
+      # schema cannot represent.
+      - path: internal/handler/(passkeys|settings)\.go
+        linters: [gosec]
+        text: "G115"
+
+      # Both Set-Cookie sites set HttpOnly and SameSite, and compute Secure
+      # from the request (TLS here or terminated at the proxy) because a
+      # hardcoded `true` would break plain-HTTP local dev. A Secure flag
+      # that is a variable is exactly what this check cannot prove.
+      - path: internal/session/store\.go
+        linters: [gosec]
+        text: "G124"
+
+      # The timezone cookie stores a validated IANA zone name — a display
+      # preference, not a credential. HttpOnly and SameSite are set; Secure
+      # deliberately is not, for the same plain-HTTP-dev reason as the
+      # session cookie, and there is nothing in it worth stealing.
+      - path: internal/middleware/timezone\.go
+        linters: [gosec]
+        text: "G124"
+
+      # Two hits from the credential-name heuristic, neither a credential:
+      # an OpenAPI securityScheme whose job is to document what a bearer
+      # token looks like, and a SQL const that counts rows in api_tokens
+      # and mentions "token" for that reason alone.
+      - path: internal/(openapi/spec|service/apitoken)\.go
+        linters: [gosec]
+        text: "G101"
 
 issues:
   # golangci-lint defaults to reporting at most 50 issues per linter and 3
