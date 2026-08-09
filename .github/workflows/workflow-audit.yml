@@ -1,0 +1,100 @@
+name: Workflow Audit
+
+# Static analysis for the CI itself. Two independent tools, two independent
+# failure modes:
+#   * zizmor audits the workflows for the security classes that actually bite
+#     Actions users — expressions spliced into `run:` scripts (template
+#     injection), checkouts that leave the workflow token in .git/config,
+#     over-broad GITHUB_TOKEN grants, poisonable caches in release workflows;
+#   * actionlint checks that the YAML, the `${{ }}` expressions and the shell
+#     inside every `run:` block are valid at all — the class of typo that
+#     otherwise only surfaces when the release chain reaches the broken job.
+#
+# Deliberately NOT in build.yml's `needs` chain, for the same reason its
+# `vuln` job is not: a new zizmor or actionlint release grows checks on its
+# own schedule, not this repo's, and a finding in CI plumbing must not block
+# an unrelated hotfix from shipping. As a standalone check it still shows a
+# red X on the PR (and can be made required in branch protection) without
+# holding deploys hostage.
+#
+# Suppressions live inline in the workflows as `# zizmor: ignore[rule]`
+# comments, each with a justification next to it — a finding is either fixed
+# or argued with, never silently dropped.
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yaml'
+  pull_request:
+    branches:
+      - main
+      - staging
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yaml'
+
+# Both jobs only read the tree; the zizmor job's SARIF upload needs more and
+# says so itself.
+permissions: {}
+
+jobs:
+  zizmor:
+    # ubuntu-latest rather than the arc-runner expression build.yml uses:
+    # zizmor-action runs zizmor as a Docker container, and the ARC runner pods
+    # have no Docker daemon to offer it.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The action uploads its SARIF results to code scanning, so findings
+      # land in the Security tab (and on the PR) with full context.
+      security-events: write
+      # codeql-action/upload-sarif reads the workflow run to attach results.
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          # Pinned rather than `latest` for the same reason golangci-lint is
+          # pinned in build.yml: an analyzer that silently gains audits on its
+          # own release schedule turns an unrelated PR red for reasons its
+          # author did not introduce. Bump deliberately, re-triaging new
+          # findings when you do.
+          version: "1.29.0"
+
+  actionlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A release binary rather than one of the wrapper actions: the wrappers
+      # add a third-party maintainer to the trust surface of a security check,
+      # while a version-pinned download verified against the checksum from the
+      # same release is tamper-evident with no one new to trust.
+      - name: Run actionlint
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+        env:
+          # Version and checksum move together: the sha256 is the
+          # actionlint_<version>_linux_amd64.tar.gz line from the release's
+          # checksums file. Bump both or the checksum verification fails —
+          # which is the point.
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"

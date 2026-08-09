@@ -1,0 +1,8 @@
+# actionlint only knows GitHub's hosted runner labels out of the box; without
+# this list it fails every `runs-on: arc-runner` with "label ... is unknown".
+# `arc-runner` is the self-hosted ARC runner scale set that serves this repo
+# (ephemeral pods, minRunners=0) — see the runner notes on build.yml's e2e job
+# for what it can and cannot host.
+self-hosted-runner:
+  labels:
+    - arc-runner
