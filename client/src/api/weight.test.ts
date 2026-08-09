@@ -7,12 +7,13 @@ import { upsertWeight } from './weight';
  * so a key that should not be there is a silent overwrite rather than an error.
  */
 
-type Sent = { url: string; body: Record<string, unknown> };
+interface Sent { url: string; body: Record<string, unknown> }
 
 function stubFetch(): Sent[] {
   const sent: Sent[] = [];
   vi.stubGlobal(
     'fetch',
+    // eslint-disable-next-line @typescript-eslint/require-await -- async without await is the plainest way for this mock to satisfy fetch's Promise<Response> contract
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url === '/api/csrf') {
         return new Response(JSON.stringify({ token: 'test-csrf' }), {
@@ -20,7 +21,7 @@ function stubFetch(): Sent[] {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      sent.push({ url, body: JSON.parse(String(init?.body ?? '{}')) });
+      sent.push({ url, body: JSON.parse((init?.body ?? '{}') as string) as Record<string, unknown> });
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

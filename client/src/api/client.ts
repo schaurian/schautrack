@@ -10,9 +10,9 @@ export function setOn401(callback: () => void) {
 async function fetchCsrfToken(): Promise<string> {
   const res = await fetch('/api/csrf');
   if (!res.ok) throw new Error('Failed to fetch CSRF token');
-  const data = await res.json();
+  const data = await res.json() as { token: string };
   csrfToken = data.token;
-  return csrfToken!;
+  return data.token;
 }
 
 export async function getCsrfToken(): Promise<string> {
@@ -58,6 +58,7 @@ export async function api<T = unknown>(
             try {
               resolve(await api<T>(url, options));
             } catch (err) {
+              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- propagates the retried api() call's own rejection, which is always an ApiError/Error already
               reject(err);
             }
           },
@@ -70,7 +71,7 @@ export async function api<T = unknown>(
     // stale-token 403. A 403 on GET/HEAD is a real authorization failure.
     const method = (options.method || 'GET').toUpperCase();
     if (method === 'GET' || method === 'HEAD') {
-      throw new ApiError(403, body?.error || 'Forbidden', (body ?? {}) as Record<string, unknown>);
+      throw new ApiError(403, body?.error || 'Forbidden', (body ?? {}));
     }
 
     // CSRF failure — refresh token and retry once.
@@ -79,7 +80,7 @@ export async function api<T = unknown>(
     headers.set('X-CSRF-Token', freshToken);
     const retry = await fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
     if (!retry.ok) {
-      const err = await retry.json().catch(() => ({ error: 'Request failed' }));
+      const err = await retry.json().catch(() => ({ error: 'Request failed' })) as { error?: string };
       throw new ApiError(retry.status, err.error || 'Request failed', err);
     }
     return parseBody<T>(retry);
@@ -103,7 +104,7 @@ export async function api<T = unknown>(
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Request failed' }));
+    const err = await res.json().catch(() => ({ error: 'Request failed' })) as { error?: string };
     throw new ApiError(res.status, err.error || 'Request failed', err);
   }
 
@@ -114,7 +115,7 @@ export async function api<T = unknown>(
 // of throwing a SyntaxError from res.json().
 function parseBody<T>(res: Response): Promise<T> {
   const contentType = res.headers.get('content-type');
-  if (!contentType || !contentType.includes('application/json')) {
+  if (!contentType?.includes('application/json')) {
     return Promise.resolve({} as T);
   }
   return res.json();

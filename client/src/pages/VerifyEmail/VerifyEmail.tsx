@@ -19,7 +19,7 @@ export default function VerifyEmail() {
   const navigate = useNavigate();
   const { fetchUser } = useAuthStore();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);

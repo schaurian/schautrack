@@ -21,7 +21,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
 
-  const handleRequest = async (e: React.FormEvent) => {
+  const handleRequest = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setLoading(true);
     try {

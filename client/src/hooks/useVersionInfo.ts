@@ -39,15 +39,15 @@ export function useVersionInfo(): VersionInfo {
     (async () => {
       let current: string | null = null;
       try {
-        const health = await fetch('/api/health').then((r) => r.json());
-        current = health?.version ?? null;
+        const health = await fetch('/api/health').then((r) => r.json() as Promise<{ version?: string }>);
+        current = health.version ?? null;
       } catch {
         // Health unreachable — leave current null; the card/footer just hide the version.
       }
 
       let rel: Partial<LatestVersionInfo> = {};
       try {
-        rel = await fetch('/api/latest-version').then((r) => r.json());
+        rel = await fetch('/api/latest-version').then((r) => r.json() as Promise<Partial<LatestVersionInfo>>);
       } catch {
         // Release source unreachable — URLs fall back to null, outdated stays false.
       }

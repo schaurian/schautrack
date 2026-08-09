@@ -126,7 +126,9 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
   const [addOnOpen, setAddOnOpen] = useState(false);
   const [tick, setTick] = useState(0);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `tick` is deliberately extra: it forces the per-minute recompute driven by the interval below
   const todayStr = useMemo(() => getTodayStr(timezone), [timezone, tick]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- same: `tick` drives the per-minute recompute
   const currentTime = useMemo(() => getCurrentTime(timezone), [timezone, tick]);
   const isToday = date === todayStr;
 
@@ -293,7 +295,7 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
     queryClient.invalidateQueries({ queryKey: ['todos-day'] });
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
     setCreating(true);

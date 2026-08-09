@@ -15,7 +15,7 @@ import { parseAmount } from './mathParser';
 
 describe('parseAmount', () => {
   it('parses simple numbers', () => {
-    const cases: Array<[string, boolean, number]> = [
+    const cases: [string, boolean, number][] = [
       ['123', true, 123],
       ['0', true, 0],
       ['999', true, 999],
@@ -26,7 +26,7 @@ describe('parseAmount', () => {
   });
 
   it('rounds decimals to the nearest integer', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['123.7', 124],
       ['123.2', 123],
       ['123.5', 124],
@@ -37,7 +37,7 @@ describe('parseAmount', () => {
   });
 
   it('evaluates arithmetic', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['100 + 50', 150],
       ['200 - 30', 170],
       ['10 * 5', 50],
@@ -49,7 +49,7 @@ describe('parseAmount', () => {
   });
 
   it('respects parentheses', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['(10 + 20) * 3', 90],
       ['10 + (20 * 3)', 70],
       ['((10 + 5) * 2) - 5', 25],
@@ -60,7 +60,7 @@ describe('parseAmount', () => {
   });
 
   it('normalizes alternative operator symbols', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['10 × 5', 50],
       ['10 x 5', 50],
       ['10 X 5', 50],
@@ -75,7 +75,7 @@ describe('parseAmount', () => {
   });
 
   it('strips thousands-separator commas', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['1,000', 1000],
       ['1,234 + 500', 1734],
     ];
@@ -120,7 +120,7 @@ describe('parseAmount', () => {
   });
 
   it('handles negatives and unary operators', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['-10', -10],
       ['10 + (-5)', 5],
       ['-(10 + 5)', -15],
@@ -131,7 +131,7 @@ describe('parseAmount', () => {
   });
 
   it('respects operator precedence in complex expressions', () => {
-    const cases: Array<[string, number]> = [
+    const cases: [string, number][] = [
       ['100 + 50 * 2 - 10', 190],
       ['(100 + 50) * 2 - 10', 290],
       ['100 / (2 + 3) * 4', 80],
@@ -142,7 +142,7 @@ describe('parseAmount', () => {
   });
 
   it('enforces the maxAbs bound', () => {
-    const cases: Array<[string, number, boolean, number]> = [
+    const cases: [string, number, boolean, number][] = [
       ['9999', 9999, true, 9999],
       ['-9999', 9999, true, -9999],
       ['10000', 9999, false, 0],
@@ -159,7 +159,7 @@ describe('parseAmount', () => {
   // *number*, so for the SPA this parser is the one that decides what gets
   // stored. Keep the two tables in sync.
   it('pins the consequences of the normalization pass', () => {
-    const cases: Array<[string, boolean, number, string]> = [
+    const cases: [string, boolean, number, string][] = [
       // Hex-looking input. "x" -> "*" would make "0x10" read as 0*10 and be
       // silently accepted as 0 — which EntryForm sends as `amount: 0`, an
       // empty entry reported as a success. Rejected instead.

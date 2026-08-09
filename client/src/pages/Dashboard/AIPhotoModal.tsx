@@ -167,7 +167,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
       if (res.ok && res.calories != null) {
         // Auto-fill the entry form and close
         onResult({
-          calories: res.calories!,
+          calories: res.calories,
           name: res.food || '',
           macros: res.macros,
         });

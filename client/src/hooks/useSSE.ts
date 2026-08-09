@@ -73,7 +73,7 @@ export function useSSE() {
         revalidate(['dashboard'], ['settings']);
         fetchUser();
         try {
-          const data = JSON.parse((e as MessageEvent).data);
+          const data = JSON.parse(e.data as string) as { type?: string; email?: string };
           if (data.type === 'request' && data.email) {
             addToast('info', i18n.t('notifications.linkRequestWantsToLink', { ns: 'common', email: data.email }));
           }
@@ -124,5 +124,5 @@ export function useSSE() {
       sourceRef.current?.close();
       sourceRef.current = null;
     };
-  }, [revalidate, fetchUser]);
+  }, [revalidate, fetchUser, addToast]);
 }

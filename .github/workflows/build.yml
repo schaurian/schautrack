@@ -241,6 +241,14 @@ jobs:
         run: npm run typecheck
         working-directory: client
 
+      # tsc accepts plenty that is still wrong — an `any` crossing a boundary,
+      # a hook called conditionally — so type-aware ESLint gates here right
+      # behind it. Every rule that is tuned or off is justified in
+      # client/eslint.config.js, the same contract .golangci.yml makes for Go.
+      - name: Lint client
+        run: npm run lint
+        working-directory: client
+
       - name: Run client tests
         run: npm test
         working-directory: client

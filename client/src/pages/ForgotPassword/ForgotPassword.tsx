@@ -20,9 +20,10 @@ export default function ForgotPassword() {
 
   useEffect(() => {
     getCaptcha().then((data) => { setCaptchaSvg(data.svg); setCaptchaQuestion(data.question || ''); }).catch(() => setError(t('forgotPassword.failedToLoadCaptcha')));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only captcha fetch; re-running on language change (t) would swap the captcha under the user
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);

@@ -17,7 +17,7 @@ export default function PasswordSettings() {
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');

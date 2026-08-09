@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 
 export type MacroPillKey = 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar';
 
+// eslint-disable-next-line react-refresh/only-export-components -- the style map is colocated with the pill by design; a full reload on HMR here is acceptable
 export const MACRO_PILL_STYLES: Record<MacroPillKey, { bg: string; border: string; label: string }> = {
   kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20',    label: 'text-macro-kcal/70' },
   protein: { bg: 'bg-macro-protein/10', border: 'border-macro-protein/20', label: 'text-macro-protein/70' },

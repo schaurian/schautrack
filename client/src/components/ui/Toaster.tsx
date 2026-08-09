@@ -44,7 +44,7 @@ export default function Toaster() {
               className="bg-transparent border border-current/50 rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-current/10 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
-                toast.action!.onClick();
+                toast.action?.onClick();
                 removeToast(toast.id);
               }}
             >
