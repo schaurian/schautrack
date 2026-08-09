@@ -1,0 +1,219 @@
+name: Security Scans
+
+# Issue #464. Three standalone security checks that complement the `vuln` job
+# in build.yml — and share its most important property: NOTHING in this file is
+# in the `needs:` chain of the release path, and nothing in build.yml may ever
+# grow a `needs:` on a job here. Every scanner below goes red on advisories
+# published upstream, on someone else's schedule; wiring one into the release
+# chain would mean a CVE announced at 03:00 blocks an unrelated hotfix from
+# shipping. A red X on the PR — and a failed scheduled run — is the whole
+# intervention (see the `vuln` job's comment for the long form).
+#
+# Everything here runs on GitHub-hosted runners, with none of build.yml's
+# arc-runner expressions: the image build below cannot fit the memory-limited
+# single-slot arc-runner (see the `e2e` job's note), and the other two jobs
+# finish in seconds — this repo is public, so GitHub-hosted minutes are free.
+#
+# The `schedule` trigger only fires from the DEFAULT branch, so the weekly
+# runs start once this file has been promoted staging -> main; until then only
+# the pull_request/push/dispatch triggers are live.
+
+on:
+  # GitHub has no per-job `paths` filter, so this list is the UNION of what
+  # the jobs care about: the two npm lockfiles for osv-scan, the image inputs
+  # for image-scan, and the manifests dependency-review diffs. The imprecision
+  # is accepted deliberately — a PR touching only the root lockfile builds and
+  # scans the image once needlessly (~4 min of free public-repo minutes) —
+  # because the alternative is a change-detection job or a paths-filter
+  # action, i.e. more moving parts to buy back seconds.
+  pull_request:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'client/package.json'
+      - 'client/package-lock.json'
+      - '.github/workflows/scans.yml'
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'client/package.json'
+      - 'client/package-lock.json'
+      - '.github/workflows/scans.yml'
+  schedule:
+    # Weekly, not on every change: the point of the scheduled runs is to catch
+    # advisories published against dependencies that have NOT changed — a scan
+    # wired only to file paths goes quiet exactly when the tree is stable.
+    # 04:30 UTC Mondays, offset from the 04:00 nightly fuzz for tidy ordering
+    # in the Actions list rather than for any resource reason.
+    - cron: '30 4 * * 1'
+  # Manual runs take the scheduled path (image-scan targets the published
+  # image), which is also how the weekly mode was verified before merge.
+  workflow_dispatch:
+
+# Same shape as build.yml's group, same reasoning (see the long comment
+# there): pushes key on the COMMIT so a merge burst can never evict a pending
+# scan, pull requests keep one group per PR and cancel superseded runs.
+concurrency:
+  group: scans-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # OSV over the two npm lockfiles — and DELIBERATELY NOT go.mod/go.sum. The
+  # `vuln` job in build.yml runs govulncheck, which is call-graph aware: it
+  # reports only vulnerabilities actually reachable from this code. Pointing a
+  # lockfile-matching scanner at go.sum on top of that would re-report every
+  # unreachable transitive vuln govulncheck deliberately filtered out — noise
+  # that trains people to ignore the check that is signal. The npm side has no
+  # reachability-aware equivalent, and nothing else in CI scans these files:
+  # Renovate's osvVulnerabilityAlerts only fire when an UPDATE carrying a fix
+  # exists, so a vulnerability with no fixed release yet is invisible to it.
+  # This job is that gap: the root lockfile (the Playwright harness) and
+  # client/package-lock.json (everything vite bundles into the shipped app).
+  osv-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The raw release binary, verified against a hardcoded sha256, rather
+      # than the alternatives:
+      #   * google/osv-scanner-action would be a digest-pinned wrapper around
+      #     this same binary — one more third-party layer with its own release
+      #     cadence, buying nothing over the direct download;
+      #   * `go install ...@v2.5.0` recompiles the scanner from source on
+      #     every run (minutes, not seconds) and re-imports the GOTOOLCHAIN
+      #     trap documented on the `vuln` job.
+      # The checksum comes from the release's osv-scanner_SHA256SUMS and pins
+      # the exact artifact, which is a stronger statement than any tag.
+      # Renovate has no manager for this URL, so bumps are manual: version and
+      # checksum travel together in one edit, and a mismatched pair fails
+      # loudly here rather than running an unexpected binary.
+      - name: Install osv-scanner
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/osv-scanner" \
+            https://github.com/google/osv-scanner/releases/download/v2.5.0/osv-scanner_linux_amd64
+          echo "edcfc41d257db36148f065055655fe3fcfc434b0b423ea67468a84c207524e0c  $RUNNER_TEMP/osv-scanner" | sha256sum -c
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+
+      # Explicit --lockfile flags, not a directory walk: a walk would pick up
+      # go.mod and re-create exactly the go.sum noise problem above.
+      - name: Scan npm lockfiles
+        run: |
+          "$RUNNER_TEMP/osv-scanner" scan source \
+            --lockfile package-lock.json \
+            --lockfile client/package-lock.json
+
+  # Trivy over the container image, in two modes:
+  #   * pull_request — build the image from the PR's tree and scan THAT, so a
+  #     vulnerable base image or npm package is flagged before it merges;
+  #   * schedule / dispatch — scan the already-published :latest (the newest
+  #     main release, i.e. what prod runs), catching CVEs published AFTER the
+  #     image was built. This is the scan a build-time-only check structurally
+  #     cannot do — and the mode that, run locally before this file was even
+  #     merged, found :latest carrying a stale alpine 3.21 base with fixable
+  #     CRITICALs (#464).
+  # Skipped on push: the PR already scanned this tree, and the push's own
+  # image is scanned by every scheduled run thereafter.
+  image-scan:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A plain `docker build`, unlike build-and-push's buildx-by-digest: this
+      # image is scanned and thrown away, never pushed, and gha cache plumbing
+      # would be complexity in service of a job that is not in anyone's
+      # critical path.
+      - name: Build image from this tree
+        if: github.event_name == 'pull_request'
+        run: docker build -t schautrack:scan .
+
+      - name: Determine scan target
+        id: target
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "ref=schautrack:scan" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=ghcr.io/${{ github.repository }}:latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --ignore-unfixed because the runtime base is alpine: for a CVE Alpine
+      # has not yet packaged a fix for, there is nothing here to bump and no
+      # action to take — and a gate that is red with no available action is a
+      # gate somebody deletes. Every finding this configuration reports has a
+      # released fix: bump the base image, a Go dep, or cut a fresh release.
+      # exit-code 1 makes those findings a red X rather than a report.
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ${{ steps.target.outputs.ref }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          # Without this the SARIF ignores `severity:` and carries every level,
+          # re-importing into the Security tab the noise filtered out above.
+          limit-severities-for-sarif: true
+          ignore-unfixed: true
+          exit-code: '1'
+
+      # always(): the step above exits 1 exactly when there IS something worth
+      # uploading. The fork guard exists because `security-events: write` is
+      # never granted to a fork's token — the upload would fail with a
+      # permissions error unrelated to the scan result; same-repo PRs and the
+      # scheduled runs (which file results against the default branch) upload
+      # normally.
+      - name: Upload SARIF to code scanning
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+  # The third angle: osv-scan and `vuln` scan what is already IN the tree;
+  # this diffs base -> head via GitHub's dependency graph (enabled by default
+  # on public repos) and flags what a PR is about to ADD — a newly-introduced
+  # vulnerable version, or a package on the OpenSSF malicious-packages list —
+  # at the one moment saying no is still cheap. pull_request only, necessarily:
+  # there is no base to diff against on push or schedule. fail-on-severity is
+  # left at its default (low) on purpose: it applies only to dependencies this
+  # PR itself introduces, where "pick a different version" is always on the
+  # table in a way it is not for a dep that is already entrenched.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
