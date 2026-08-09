@@ -1,10 +1,16 @@
 import { api } from './client';
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/browser';
 
 // Server uses go-webauthn, which wraps options as {"publicKey": {...}}.
 // SimpleWebAuthn's startRegistration/startAuthentication expects the inner object,
 // so we unwrap here.
 function unwrapPublicKey<T>(res: { publicKey?: T } & T): T {
-  return (res.publicKey ?? res) as T;
+  return (res.publicKey ?? res);
 }
 
 export async function passkeyLoginBegin() {
@@ -12,7 +18,7 @@ export async function passkeyLoginBegin() {
   return unwrapPublicKey(res);
 }
 
-export function passkeyLoginFinish(credential: AuthenticatorAssertionResponseJSON) {
+export function passkeyLoginFinish(credential: AuthenticationResponseJSON) {
   return api<{ ok: boolean }>('/passkeys/login/finish', {
     method: 'POST',
     body: JSON.stringify(credential),
@@ -24,7 +30,7 @@ export async function passkeyRegisterBegin() {
   return unwrapPublicKey(res);
 }
 
-export function passkeyRegisterFinish(credential: AuthenticatorAttestationResponseJSON, name: string) {
+export function passkeyRegisterFinish(credential: RegistrationResponseJSON, name: string) {
   return api<{ ok: boolean }>(`/passkeys/register/finish?name=${encodeURIComponent(name)}`, {
     method: 'POST',
     body: JSON.stringify(credential),
@@ -70,9 +76,3 @@ export interface AuthInfo {
   passkeysEnabled: boolean;
   oidc: OIDCInfo | null;
 }
-
-// WebAuthn type helpers (simplified for browser API)
-type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>;
-type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>;
-type AuthenticatorAttestationResponseJSON = Record<string, unknown>;
-type AuthenticatorAssertionResponseJSON = Record<string, unknown>;

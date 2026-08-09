@@ -13,7 +13,7 @@ export async function stepUpPasskeyBegin() {
     '/api/auth/step-up/passkey/begin',
     { method: 'POST' },
   );
-  return (res.publicKey ?? res) as Record<string, unknown>;
+  return (res.publicKey ?? res);
 }
 
 export function stepUpPasskeyFinish(credential: Record<string, unknown>) {

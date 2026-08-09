@@ -37,7 +37,7 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
     setLoading(false);
   };
 
-  const handleEnable = async (e: React.FormEvent) => {
+  const handleEnable = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);

@@ -52,7 +52,7 @@ export default function StepUpModal() {
     clear();
   };
 
-  const submitPassword = async (e: React.FormEvent) => {
+  const submitPassword = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!pending) return;
     setError('');
@@ -143,7 +143,7 @@ export default function StepUpModal() {
             >
               {authInfo.oidc.logo && (
                 <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                  onError={(e) => { (e.currentTarget).style.display = 'none'; }} />
               )}
               {t('stepUp.continueWith', { provider: authInfo.oidc.label })}
             </Button>

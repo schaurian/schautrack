@@ -50,7 +50,7 @@ function safeMathEval(expr: string): number {
   function parseNumber(): number {
     let num = '';
     while (pos < expr.length && /[0-9.]/.test(expr[pos])) {
-      num += consume();
+      num += consume() ?? '';
     }
     if (num === '') throw new Error('Invalid number');
     if (!NUMBER_RE.test(num)) throw new Error('Malformed number: ' + num);
@@ -67,8 +67,8 @@ function safeMathEval(expr: string): number {
     // A leading "." starts a number too — see the matching comment in
     // parseFactor in internal/service/mathparser.go. parseNumber rejects the
     // runs that are not real numbers (".", "..5").
-    if (/[0-9.]/.test(ch!)) return parseNumber();
-    throw new Error('Unexpected: ' + ch);
+    if (ch !== null && /[0-9.]/.test(ch)) return parseNumber();
+    throw new Error('Unexpected: ' + String(ch));
   }
 
   function parseTerm(): number {
@@ -94,7 +94,7 @@ function safeMathEval(expr: string): number {
   }
 
   const result = parseExpression();
-  if (pos < expr.length) throw new Error('Unexpected at ' + pos);
+  if (pos < expr.length) throw new Error(`Unexpected at ${pos}`);
   return result;
 }
 

@@ -22,7 +22,7 @@ const RELOAD_COOLDOWN_MS = 30_000;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function lazyRoute<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
   return lazy(() =>
-    factory().catch((err) => {
+    factory().catch((err: unknown) => {
       const last = Number(sessionStorage.getItem(RELOAD_FLAG) ?? 0);
       if (Date.now() - last > RELOAD_COOLDOWN_MS) {
         sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));

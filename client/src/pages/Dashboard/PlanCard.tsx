@@ -31,7 +31,7 @@ export default function PlanCard({ weightUnit: contextUnit }: Props) {
     insufficient_data: { label: t('plan.card.trend.insufficientData'), classes: 'bg-surface border-white/6 text-muted-foreground' },
   };
 
-  if (!data?.goal || data.goal.status !== 'active') return null;
+  if (data?.goal?.status !== 'active') return null;
 
   const { goal } = data;
 

@@ -48,15 +48,15 @@ export default function Login() {
     const next = new URLSearchParams(searchParams);
     next.delete('error');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, t]);
 
   const handlePasskeyLogin = async () => {
     setPasskeyLoading(true);
     setError('');
     try {
       const options = await passkeyLoginBegin();
-      const credential = await startAuthentication({ optionsJSON: options as any });
-      await passkeyLoginFinish(credential as any);
+      const credential = await startAuthentication({ optionsJSON: options });
+      await passkeyLoginFinish(credential);
       await fetchUser();
       navigate('/dashboard');
     } catch (err) {
@@ -65,7 +65,7 @@ export default function Login() {
     setPasskeyLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -95,7 +95,7 @@ export default function Login() {
     }
   };
 
-  const handleResetRequest = async (e: React.FormEvent) => {
+  const handleResetRequest = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -110,7 +110,7 @@ export default function Login() {
     setLoading(false);
   };
 
-  const handleResetVerify = async (e: React.FormEvent) => {
+  const handleResetVerify = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -187,7 +187,7 @@ export default function Login() {
                 onClick={() => { window.location.href = '/auth/oidc/login'; }}>
                 {authInfo.oidc.logo && (
                   <img src={authInfo.oidc.logo} alt="" className="inline-block w-5 h-5 mr-2 align-middle"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                    onError={(e) => { (e.currentTarget).style.display = 'none'; }} />
                 )}
                 {t('login.signInWithProvider', { provider: authInfo.oidc.label })}
               </Button>

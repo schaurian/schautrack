@@ -26,10 +26,10 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
 
   const entry = weightEntry || lastWeightEntry;
   const isToday = !!weightEntry;
-  const displayValue = entry ? String(Number(entry.weight)) : '';
+  const displayValue = entry ? String(entry.weight) : '';
   // Only the selected date's own reading, never the last one: a stale body fat
   // is not a useful pre-fill, and showing one would invite saving it to today.
-  const bodyFatValue = weightEntry?.body_fat != null ? String(Number(weightEntry.body_fat)) : '';
+  const bodyFatValue = weightEntry?.body_fat != null ? String(weightEntry.body_fat) : '';
 
   const handleSave = async () => {
     const raw = inputRef.current?.value.trim() || '';
@@ -155,7 +155,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
           </span>
         ) : (
           <span className={`text-lg font-semibold tabular-nums ${colorClass}`}>
-            {entry ? Number(entry.weight).toFixed(1) : '—'}
+            {entry ? entry.weight.toFixed(1) : '—'}
             <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
           </span>
         )}

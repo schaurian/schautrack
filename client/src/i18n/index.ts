@@ -20,16 +20,13 @@ export function isSupportedLanguage(code: string): boolean {
 }
 
 // Eagerly load every locale/namespace JSON so adding a file needs no wiring here.
-const modules = import.meta.glob('./locales/*/*.json', { eager: true }) as Record<
-  string,
-  { default: Record<string, unknown> }
->;
+const modules = import.meta.glob('./locales/*/*.json', { eager: true });
 const resources: Record<string, Record<string, Record<string, unknown>>> = {};
 for (const path in modules) {
-  const match = path.match(/\.\/locales\/([^/]+)\/([^/]+)\.json$/);
+  const match = /\.\/locales\/([^/]+)\/([^/]+)\.json$/.exec(path);
   if (!match) continue;
   const [, lng, ns] = match;
-  (resources[lng] ??= {})[ns] = modules[path].default;
+  (resources[lng] ??= {})[ns] = (modules[path] as { default: Record<string, unknown> }).default;
 }
 
 i18n

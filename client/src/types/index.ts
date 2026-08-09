@@ -188,12 +188,12 @@ export interface SettingsData {
 }
 
 export interface AdminData {
-  users: Array<{
+  users: {
     id: number;
     email: string;
     email_verified: boolean;
     created_at: string;
-  }>;
+  }[];
   settings: Record<string, { value: string; source: string }>;
 }
 

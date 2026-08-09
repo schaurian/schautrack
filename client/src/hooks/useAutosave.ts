@@ -51,6 +51,7 @@ export function useAutosave<T>(
   }, [saveFn, addToast]);
 
   const saveRef = useRef(save);
+  // eslint-disable-next-line react-hooks/immutability -- latest-ref pattern: the armed timer must call the newest save without re-arming on every render
   saveRef.current = save;
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export function useAutosave<T>(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [data, delay, enabled]);
 
   // Save immediately (for blur events etc)

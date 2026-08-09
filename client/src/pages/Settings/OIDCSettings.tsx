@@ -20,7 +20,7 @@ export default function OIDCSettings({ linked, onUpdate }: Props) {
     getAuthInfo().then(setAuthInfo).catch(() => {});
   }, []);
 
-  if (!authInfo || !authInfo.oidc) return null;
+  if (!authInfo?.oidc) return null;
   const oidc = authInfo.oidc;
 
   const handleLink = () => {
@@ -62,7 +62,7 @@ export default function OIDCSettings({ linked, onUpdate }: Props) {
           <span className="flex items-center gap-2 text-sm text-foreground">
             {oidc.logo && (
               <img src={oidc.logo} alt="" className="w-5 h-5"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                onError={(e) => { (e.currentTarget).style.display = 'none'; }} />
             )}
             {oidc.label}
           </span>
