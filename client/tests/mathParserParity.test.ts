@@ -35,7 +35,7 @@ import { parseAmount } from '../src/lib/mathParser';
  * `node:fs`, and `tsc -b` covers only `src` and has no `@types/node`.
  */
 
-type SharedCase = { input: string; ok: boolean; value: number; why: string };
+interface SharedCase { input: string; ok: boolean; value: number; why: string }
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturePath = resolve(here, '../../testdata/parse_amount_cases.json');

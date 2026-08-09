@@ -26,6 +26,7 @@ export const queryClient = new QueryClient({
   },
 });
 
+// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- index.html always ships #root; if it is missing, crashing at boot is the honest failure
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

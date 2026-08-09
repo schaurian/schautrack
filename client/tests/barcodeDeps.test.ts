@@ -55,7 +55,7 @@ describe('barcode dependency isolation', () => {
     const version = resolvedVersion('sharp');
     expect(version, 'sharp missing from lockfile').toBeDefined();
     expect(
-      compareVersions(version!, '0.35.0'),
+      compareVersions(version, '0.35.0'),
       `sharp resolved to ${version}, which is inside the vulnerable <0.35.0 range`
     ).toBeGreaterThanOrEqual(0);
   });
@@ -64,7 +64,7 @@ describe('barcode dependency isolation', () => {
     const version = resolvedVersion('ndarray-pixels');
     expect(version, 'ndarray-pixels missing from lockfile').toBeDefined();
     expect(
-      compareVersions(version!, '5.0.1'),
+      compareVersions(version, '5.0.1'),
       `ndarray-pixels resolved to ${version}, which is inside the vulnerable range`
     ).toBeGreaterThan(0);
   });

@@ -109,7 +109,7 @@ export default function Plan() {
     }
   }
 
-  let budgetHelpText = '';
+  let budgetHelpText: string;
   if (!data.goal && !data.metrics.complete) budgetHelpText = t('plan.budgetHelp.needGoalAndMetrics');
   else if (!data.goal) budgetHelpText = t('plan.budgetHelp.needGoal');
   else if (!data.metrics.complete) budgetHelpText = t('plan.budgetHelp.needMetrics');

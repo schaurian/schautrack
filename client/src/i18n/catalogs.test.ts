@@ -12,17 +12,14 @@ import { createInstance, type i18n } from 'i18next';
 
 type Catalog = Record<string, unknown>;
 
-const modules = import.meta.glob('./locales/*/*.json', { eager: true }) as Record<
-  string,
-  { default: Catalog }
->;
+const modules = import.meta.glob('./locales/*/*.json', { eager: true });
 
 const catalogs: Record<string, Record<string, Catalog>> = {};
 for (const path in modules) {
-  const match = path.match(/\.\/locales\/([^/]+)\/([^/]+)\.json$/);
+  const match = /\.\/locales\/([^/]+)\/([^/]+)\.json$/.exec(path);
   if (!match) continue;
   const [, lng, ns] = match;
-  (catalogs[lng] ??= {})[ns] = modules[path].default;
+  (catalogs[lng] ??= {})[ns] = (modules[path] as { default: Catalog }).default;
 }
 
 const LOCALES = Object.keys(catalogs).sort();

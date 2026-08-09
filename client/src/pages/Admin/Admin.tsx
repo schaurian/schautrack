@@ -52,7 +52,7 @@ export default function Admin() {
 const INITIAL_USERS = 25;
 const LOAD_MORE_BATCH = 25;
 
-function UserList({ users, onDelete }: { users: Array<{ id: number; email: string; email_verified: boolean; created_at: string }>; onDelete: (id: number) => void }) {
+function UserList({ users, onDelete }: { users: { id: number; email: string; email_verified: boolean; created_at: string }[]; onDelete: (id: number) => void }) {
   const { t } = useTranslation('settings');
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(INITIAL_USERS);
@@ -177,9 +177,11 @@ function AdminSettingsForm({
         t('admin.dangerousPrompt', { envVar: meta.envVar, help: meta.help, phrase }),
       );
       if (typed !== phrase) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- removing a declined key from a fresh local copy; keys come from our own settings map, not user input
         delete editable[k];
         setValues((prev) => {
           const next = { ...prev };
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- same: copy-minus-key state update on our own keys
           delete next[k];
           return next;
         });
@@ -191,6 +193,7 @@ function AdminSettingsForm({
     await saveAdminSettings(editable);
     setValues((prev) => {
       const next = { ...prev };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing saved drafts out of a fresh copy; keys are our own setting names
       for (const k of Object.keys(editable)) delete next[k];
       return next;
     });
@@ -278,7 +281,9 @@ function SettingField({
   const isEnv = meta.source === 'env';
   const isBool = ['enable_legal', 'enable_barcode', 'oidc_require_invite', 'smtp_secure', 'trust_proxy', 'robots_index'].includes(settingKey);
   const isRegistrationMode = settingKey === 'enable_registration';
-  const value = isDirty ? draft! : meta.value;
+  // isDirty === `key in values`, so a dirty row always has a draft string;
+  // `??` encodes that invariant without a non-null assertion.
+  const value = draft ?? meta.value;
 
   // Secrets: don't pre-populate the input. Show a "set" indicator + Replace
   // button. Once revealing, show an empty input the user types into.
@@ -365,7 +370,7 @@ function InviteManager() {
   const [creating, setCreating] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setCreating(true);
     try {

@@ -90,7 +90,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     setMacros((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setLoading(true);
 

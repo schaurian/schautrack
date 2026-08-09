@@ -170,7 +170,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     }
   }, [isOpen, stopScanner]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setErrorMsg('');
@@ -201,7 +201,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleManualSubmit = (e: React.SubmitEvent) => {
     e.preventDefault();
     const code = manualCode.trim();
     if (/^\d{8,13}$/.test(code)) {
@@ -395,7 +395,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                       <button
                         type="button"
                         className={`rounded-md px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer border ${parseFloat(grams) === product.servingQuantity ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-primary/50'}`}
-                        onClick={() => handleServingPreset(product.servingQuantity!)}
+                        onClick={() => handleServingPreset(product.servingQuantity ?? 0)}
                       >
                         {product.servingSize || `${product.servingQuantity}g`}
                       </button>

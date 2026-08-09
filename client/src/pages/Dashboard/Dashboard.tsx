@@ -47,7 +47,7 @@ export default function Dashboard() {
       selectUser(dashboard.user.id, t('store.you'), true);
       selectDay(dashboard.selectedDate);
     }
-  }, [dashboard, currentUserId, selectUser, selectDay]);
+  }, [dashboard, currentUserId, selectUser, selectDay, t]);
 
   const effectiveUserId = currentUserId || dashboard?.user.id;
   const activeView = dashboard?.sharedViews.find((v) => v.userId === effectiveUserId);
@@ -58,6 +58,7 @@ export default function Dashboard() {
   // Fetch entries for selected day
   const { data: dayData } = useQuery({
     queryKey: ['day-entries', effectiveUserId, selectedDate],
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- `enabled` below gates this queryFn on effectiveUserId being set
     queryFn: () => getDayEntries(effectiveUserId!, selectedDate),
     enabled: !!effectiveUserId && !!selectedDate,
     placeholderData: keepPreviousData,
@@ -72,11 +73,13 @@ export default function Dashboard() {
   });
 
   // Compute selected day's totals from entries
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps are optional-chained subpaths, finer-grained than the compiler can verify
   const selectedTotal = useMemo(() => {
     if (!dayData?.entries) return dashboard?.todayTotal ?? 0;
     return dayData.entries.reduce((sum, e) => sum + (e.amount || 0), 0);
   }, [dayData?.entries, dashboard?.todayTotal]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- same: optional-chained deps
   const selectedMacroTotals = useMemo(() => {
     if (!dayData?.entries) return dashboard?.todayMacroTotals ?? {};
     const totals: Record<string, number> = {};

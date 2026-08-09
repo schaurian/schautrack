@@ -125,7 +125,7 @@ export function importData(file: File, dryRun = false): Promise<ImportResult> {
 // download via a Blob URL; routing through api() is what lets the step-up
 // modal intercept the 403 and retry on success.
 export async function exportData(): Promise<void> {
-  const data = await api<unknown>('/settings/export', { method: 'POST' });
+  const data = await api('/settings/export', { method: 'POST' });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

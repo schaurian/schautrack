@@ -215,10 +215,11 @@ export default function PlanChart({
       const fPad = (fMax - fMin) * 0.08;
       const fMinPadded = fMin - fPad;
       const fMaxPadded = fMax + fPad;
-      fatScale = (pct: number) => margin.top + (1 - (pct - fMinPadded) / (fMaxPadded - fMinPadded)) * plotH;
+      const scale = (pct: number) => margin.top + (1 - (pct - fMinPadded) / (fMaxPadded - fMinPadded)) * plotH;
+      fatScale = scale;
       // Same round-step snapping as the weight axis, so the right-hand labels
       // read 24 / 26 / 28 rather than 23.7 / 26.2 / 28.7.
-      fatTicks = niceTicks(fMinPadded, fMaxPadded, FAT_TICK_TARGET).map((v) => ({ v, y: fatScale!(v) }));
+      fatTicks = niceTicks(fMinPadded, fMaxPadded, FAT_TICK_TARGET).map((v) => ({ v, y: scale(v) }));
     }
 
     const candidateTs = [tMin, (tMin + tMax) / 2, tMax];
@@ -232,7 +233,7 @@ export default function PlanChart({
       plotH,
       actualPts: actual.map((p) => ({ x: x(p.t), y: y(p.w) })),
       planPts: plan.map((p) => ({ x: x(p.t), y: y(p.w) })),
-      fatPtsXY: fatScale ? fatPts.map((p) => ({ x: x(p.t), y: fatScale!(p.bf) })) : [],
+      fatPtsXY: fatScale ? fatPts.map((p) => ({ x: x(p.t), y: fatScale(p.bf) })) : [],
       fatTicks,
       targetY: targetWeight != null ? y(targetWeight) : null,
       bandY:

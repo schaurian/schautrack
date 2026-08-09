@@ -85,6 +85,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No job in this workflow pushes; drop the checkout token from disk
+          # (build.yml documents the policy at its first checkout).
+          persist-credentials: false
 
       # The Go autobuild compiles the module, so give it the toolchain go.mod
       # asks for instead of gambling on whatever the runner image ships plus a

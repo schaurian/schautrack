@@ -44,8 +44,8 @@ export default function PasskeySettings({ onUpdate }: Props) {
     setRegistering(true);
     try {
       const options = await passkeyRegisterBegin();
-      const credential = await startRegistration({ optionsJSON: options as any });
-      await passkeyRegisterFinish(credential as any, name);
+      const credential = await startRegistration({ optionsJSON: options });
+      await passkeyRegisterFinish(credential, name);
       addToast('success', t('passkey.registered'));
       setNewName('');
       refresh();
