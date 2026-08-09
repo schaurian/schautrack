@@ -191,6 +191,7 @@
           "type": "boolean"
         },
         "sessionSecret": {
+          "description": "REMOVED — accepted and ignored. The app never read SESSION_SECRET: sessions are server-side, keyed by a 32-byte crypto/rand session ID looked up in Postgres, so there is nothing to sign or encrypt. This key is retained ONLY so that existing values files keep validating: `config` sets additionalProperties=false, so deleting it here would fail `helm upgrade` for everyone who set it. Safe to drop from your values. Remove this entry in a future major.",
           "type": [
             "string",
             "integer",

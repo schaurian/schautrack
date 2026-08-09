@@ -9,11 +9,10 @@ import (
 )
 
 type Config struct {
-	DatabaseURL   string
-	SessionSecret string
-	Port          string
-	AdminEmail    string
-	BuildVersion  string
+	DatabaseURL  string
+	Port         string
+	AdminEmail   string
+	BuildVersion string
 
 	// SEO
 	RobotsIndex bool
@@ -89,11 +88,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("FATAL: DATABASE_URL environment variable is required")
 	}
 
-	sessionSecret := os.Getenv("SESSION_SECRET")
-	if sessionSecret == "" {
-		return nil, fmt.Errorf("FATAL: SESSION_SECRET environment variable is required")
-	}
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
@@ -143,11 +137,10 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		DatabaseURL:   dbURL,
-		SessionSecret: sessionSecret,
-		Port:          port,
-		AdminEmail:    os.Getenv("ADMIN_EMAIL"),
-		BuildVersion:  envOr("BUILD_VERSION", "dev"),
+		DatabaseURL:  dbURL,
+		Port:         port,
+		AdminEmail:   os.Getenv("ADMIN_EMAIL"),
+		BuildVersion: envOr("BUILD_VERSION", "dev"),
 
 		RobotsIndex: os.Getenv("ROBOTS_INDEX") == "true",
 		BaseURL:     os.Getenv("BASE_URL"),

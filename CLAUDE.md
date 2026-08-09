@@ -275,7 +275,6 @@ nothing for a KDF to slow down, and argon2 would add ~50 ms of CPU to every requ
 
 Required:
 - `DATABASE_URL`: PostgreSQL connection string
-- `SESSION_SECRET`: Session encryption key
 
 Server / general:
 - `PORT`: Port to listen on (default: `3000`)
