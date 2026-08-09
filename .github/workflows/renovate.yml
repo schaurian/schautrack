@@ -9,6 +9,10 @@ concurrency:
   group: renovate
   cancel-in-progress: true
 
+# Renovate authenticates with its own PAT (RENOVATE_TOKEN below); the
+# workflow's GITHUB_TOKEN is never used, so it gets no scopes at all.
+permissions: {}
+
 jobs:
   renovate:
     runs-on: arc-runner
