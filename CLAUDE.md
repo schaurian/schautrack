@@ -135,7 +135,7 @@ schautrack/
 ### GitHub Actions
 - **Workflow:** `.github/workflows/build.yml`
 - **Registry:** GitHub Container Registry (ghcr.io)
-- **Architectures:** linux/amd64, linux/arm64
+- **Architectures:** linux/amd64 everywhere; linux/arm64 **only on `main`**. arm64 runs under QEMU and is the slowest job in the workflow (~5m40s vs ~1m20s for amd64), so PRs, `staging` and feature branches build amd64 only. Released images are still multi-arch.
 
 ### Automatic Versioning (Conventional Commits)
 The CI automatically computes semantic versions based on commit message prefixes:

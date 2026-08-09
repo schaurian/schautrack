@@ -535,10 +535,32 @@ jobs:
       - name: Determine build platforms
         id: platforms
         run: |
-          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
-            echo 'platforms=["linux/amd64"]' >> "$GITHUB_OUTPUT"
-          else
+          # arm64 is built only for the images anyone actually pulls, i.e. the
+          # releases published from main. It runs under QEMU emulation and costs
+          # ~6.4 min of runner time per pull request (vs ~1.4 min for amd64) to
+          # produce an image that is discarded when the branch merges. It was
+          # already skipped on staging; the condition is inverted here so
+          # multi-arch is opt-in for releases rather than opt-out for one branch,
+          # which is what left pull requests building it by default.
+          #
+          # This saves compute, NOT wall-clock. Measured on runs 31300399561 and
+          # 31300998836: total 8.03 min with both arches, 8.12 min with amd64
+          # alone. The arm64 leg is not on the critical path — it runs alongside
+          # e2e (~6.5 min), which is the longest job and sets the floor. Do not
+          # justify further matrix trimming as a latency win without measuring;
+          # if PR latency is the goal, e2e is the job to attack.
+          #
+          # The exposure this accepts: an arm64-only build failure now surfaces
+          # on main instead of on the PR that caused it. That is a narrow window
+          # for this image — the Go binary is CGO_ENABLED=0 static and the client
+          # build is arch-agnostic — but it is not empty. A native npm addon, or
+          # a base image without an arm64 tag, would be caught one merge later
+          # than before. If that ever bites, build both on staging too rather
+          # than reverting to both on every PR.
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo 'platforms=["linux/amd64","linux/arm64"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'platforms=["linux/amd64"]' >> "$GITHUB_OUTPUT"
           fi
 
   create-tag:
