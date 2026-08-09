@@ -197,10 +197,14 @@ jobs:
           category: trivy-image
 
   # The third angle: osv-scan and `vuln` scan what is already IN the tree;
-  # this diffs base -> head via GitHub's dependency graph (enabled by default
-  # on public repos) and flags what a PR is about to ADD — a newly-introduced
-  # vulnerable version, or a package on the OpenSSF malicious-packages list —
-  # at the one moment saying no is still cheap. pull_request only, necessarily:
+  # this diffs base -> head via GitHub's dependency graph and flags what a PR
+  # is about to ADD — a newly-introduced vulnerable version, or a package on
+  # the OpenSSF malicious-packages list — at the one moment saying no is still
+  # cheap. The dependency graph is supposedly default-on for public repos, but
+  # was OFF here and had to be enabled (2026-08-09, via
+  # `PUT /repos/schaurian/schautrack/vulnerability-alerts`) — if this job ever
+  # fails with "Dependency review is not supported on this repository", that
+  # setting has been switched off again, not this job broken. pull_request only, necessarily:
   # there is no base to diff against on push or schedule. fail-on-severity is
   # left at its default (low) on purpose: it applies only to dependencies this
   # PR itself introduces, where "pick a different version" is always on the
