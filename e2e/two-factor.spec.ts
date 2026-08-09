@@ -15,10 +15,27 @@ let capturedBackupCodes: string[] = [];
 /**
  * Both steps of the login — credentials and 2FA code — POST to this one
  * endpoint, so both are awaited the same way.
+ *
+ * The 403 is skipped because it is never an answer: api/client.ts treats a 403
+ * on a mutating request as a stale CSRF token, refetches /api/csrf and re-POSTs
+ * once, so the 403 is the first half of a request that has not finished yet.
+ * Resolving on it would hand the caller a reply the app has already discarded —
+ * submit2faCode would assert `expect(403).toBe(200)` and fail a login that in
+ * fact succeeded, and loginAs2faUser would return before the real round-trip,
+ * making the next assertion pay for an argon2id verification out of its own
+ * budget. Only 403 is filtered, and only because handler.Login cannot produce
+ * one: its own rejections are 400, 401 and 429, and those must still resolve
+ * here so a genuine failure surfaces as a status assertion instead of a wait.
+ *
+ * Hardening, not a fix for anything observed — no run has been traced to this
+ * path.
  */
 function loginPosted(page: import('@playwright/test').Page) {
   return page.waitForResponse(
-    (res) => res.url().includes('/api/auth/login') && res.request().method() === 'POST',
+    (res) =>
+      res.url().includes('/api/auth/login') &&
+      res.request().method() === 'POST' &&
+      res.status() !== 403,
     { timeout: 30000 },
   );
 }
