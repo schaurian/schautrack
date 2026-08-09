@@ -47,8 +47,6 @@ func SitemapXml(cfg *config.Config) http.HandlerFunc {
 	}
 	pages := []page{
 		{"/", "1.0", "weekly"},
-		{"/login", "0.8", "monthly"},
-		{"/register", "0.8", "monthly"},
 		{"/privacy", "0.5", "yearly"},
 		{"/terms", "0.5", "yearly"},
 		{"/imprint", "0.3", "yearly"},
