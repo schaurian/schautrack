@@ -35,11 +35,18 @@ func RememberClientTimezone(next http.Handler) http.Handler {
 				Path:     "/",
 				MaxAge:   365 * 24 * 60 * 60,
 				HttpOnly: true,
+				Secure:   requestSecure(r),
 				SameSite: http.SameSiteLaxMode,
 			})
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// requestSecure reports whether the request arrived over TLS, either directly
+// or through a reverse proxy that terminated TLS.
+func requestSecure(r *http.Request) bool {
+	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 // GetClientTimezone returns the timezone from the X-Timezone header or cookie.
