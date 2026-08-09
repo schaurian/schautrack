@@ -69,7 +69,7 @@ func SitemapXml(cfg *config.Config) http.HandlerFunc {
 		sb.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + "\n")
 		for _, p := range pages {
 			fmt.Fprintf(&sb, "  <url>\n    <loc>%s%s</loc>\n    <changefreq>%s</changefreq>\n    <priority>%s</priority>\n  </url>\n",
-				baseURL, p.Loc, p.Changefreq, p.Priority)
+				escapeXml(baseURL), escapeXml(p.Loc), escapeXml(p.Changefreq), escapeXml(p.Priority))
 		}
 		sb.WriteString("</urlset>")
 
@@ -183,6 +183,8 @@ func textToSvg(text string) string {
 }
 
 func escapeXml(s string) string {
-	r := strings.NewReplacer("<", "&lt;", ">", "&gt;", "&", "&amp;", "'", "&apos;", `"`, "&quot;")
+	// Escape ampersands first so the entities added for the other characters
+	// are not escaped a second time.
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "'", "&apos;", `"`, "&quot;")
 	return r.Replace(s)
 }

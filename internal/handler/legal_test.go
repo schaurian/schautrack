@@ -2,12 +2,46 @@ package handler
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"schautrack/internal/config"
 )
+
+func TestSitemapXmlEscapesRequestDerivedBaseURL(t *testing.T) {
+	h := SitemapXml(&config.Config{})
+	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
+	req.Host = "example.test<injected>&more"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	rec := httptest.NewRecorder()
+
+	h(rec, req)
+
+	if got := rec.Header().Get("Content-Type"); got != "application/xml" {
+		t.Errorf("Content-Type = %q, want application/xml", got)
+	}
+	if body := rec.Body.String(); strings.Contains(body, "<injected>") || !strings.Contains(body, "example.test&lt;injected&gt;&amp;more") {
+		t.Errorf("request-derived URL was not XML-escaped:\n%s", body)
+	}
+
+	var sitemap struct {
+		URLs []struct {
+			Loc string `xml:"loc"`
+		} `xml:"url"`
+	}
+	if err := xml.Unmarshal(rec.Body.Bytes(), &sitemap); err != nil {
+		t.Fatalf("sitemap is not well-formed XML: %v\n%s", err, rec.Body.String())
+	}
+	if len(sitemap.URLs) != 6 {
+		t.Fatalf("URL count = %d, want 6", len(sitemap.URLs))
+	}
+	if got, want := sitemap.URLs[0].Loc, "https://example.test<injected>&more/"; got != want {
+		t.Errorf("first loc = %q, want %q", got, want)
+	}
+}
 
 func TestAssetLinks_UnconfiguredReturns404(t *testing.T) {
 	// No fingerprint configured -> endpoint is disabled and must 404 rather

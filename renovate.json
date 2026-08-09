@@ -15,12 +15,6 @@
       "matchPackageNames": ["postgres"],
       "matchUpdateTypes": ["major"],
       "enabled": false
-    },
-    {
-      "description": "Cap TypeScript at typescript-eslint's supported range: the native TS 7 npm package ships no programmatic compiler API (its main export is a version stub), so typescript-eslint's type-aware linting cannot load it and `npm ci` fails on the peer range. Lift the cap when typescript-eslint declares support for TS 7 (expected once the 7.1 API stabilizes).",
-      "matchDatasources": ["npm"],
-      "matchPackageNames": ["typescript"],
-      "allowedVersions": "<6.1.0"
     }
   ]
 }
