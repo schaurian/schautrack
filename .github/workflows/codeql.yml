@@ -70,21 +70,31 @@ jobs:
       # One language's failure says nothing about the other's findings.
       fail-fast: false
       matrix:
-        language:
-          - go
-          - javascript-typescript
+        # Build modes differ per language and neither is a free choice.
+        # javascript-typescript is always analyzed straight from source
+        # (`none` is its only mode). Go does NOT support `none` — the CodeQL
+        # CLI (2.26.2) rejects it outright with "Go does not support the none
+        # build mode", learned from this workflow's own first run — so the go
+        # leg uses `autobuild`, which the analyze step runs implicitly; no
+        # explicit build step is needed below.
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # build-mode: none for BOTH languages, which is why there is no
-      # setup-go/setup-node and no autobuild step here. javascript-typescript
-      # is always analyzed straight from source. Go normally wants a build,
-      # but `none` works in this repo because the binary is a static pure-Go
-      # build — no cgo, no code generated at compile time — so the extractor
-      # sees everything the compiler would. If cgo or build-time codegen ever
-      # enters the tree, switch the go leg to build-mode: autobuild.
-      #
+      # The Go autobuild compiles the module, so give it the toolchain go.mod
+      # asks for instead of gambling on whatever the runner image ships plus a
+      # GOTOOLCHAIN auto-download. Same pin and go-version-file as build.yml.
+      - name: Setup Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
       # The default `code-scanning` query suite on purpose, not
       # security-extended: the extended suite trades precision for recall, and
       # low-precision findings are alerts nobody triages. A check only stays
@@ -93,7 +103,7 @@ jobs:
         uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3.37.6
