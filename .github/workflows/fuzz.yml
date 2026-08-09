@@ -63,6 +63,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes (crashers are uploaded as artifacts, see the
+          # header comment), so the checkout does not leave the workflow token
+          # in .git/config (zizmor: artipacked).
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -89,7 +94,13 @@ jobs:
           go test ${{ matrix.package }} \
             -run '^$' \
             -fuzz '^${{ matrix.target }}$' \
-            -fuzztime='${{ inputs.fuzztime || '5m' }}'
+            -fuzztime="$FUZZTIME"
+        env:
+          # Hoisted out of the run block so the workflow_dispatch input is
+          # passed as data rather than spliced into the script text (zizmor:
+          # template-injection). matrix.package / matrix.target stay inline:
+          # they can only ever be the literal values in the include list above.
+          FUZZTIME: ${{ inputs.fuzztime || '5m' }}
 
       # A failing target writes its reproducer to
       # internal/<pkg>/testdata/fuzz/<Target>/<hash>.

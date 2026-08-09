@@ -81,6 +81,15 @@ concurrency:
   group: build-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Read-only GITHUB_TOKEN by default. Without this block every job inherits the
+# repository default grant, which is far more than a test job needs. The jobs
+# that actually write — create-tag / create-release / publish-helm /
+# notify-argocd push to the repo, build-and-push / create-manifest push
+# packages — each carry their own explicit `permissions:` block, which
+# overrides this one; everything else only checks out code.
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -117,9 +126,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Non-pushing jobs drop the workflow token from .git/config once the
+          # checkout ends (zizmor: artipacked) — a compromised later step
+          # should not find credentials lying on disk. The checkouts that DO
+          # push (the release tag in create-tag, gh-pages in publish-helm, the
+          # tag fetch in create-release) keep the default and say so inline.
+          persist-credentials: false
 
       - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        # zizmor flags every cache-enabled setup step in this workflow as a
+        # cache-poisoning risk, because the `v*` tag trigger makes the whole
+        # workflow count as a release publisher. These caches feed test gates
+        # only: the published image is built by build-and-push from its own
+        # fresh checkout and restores nothing cached here, so the ignore trades
+        # a theoretical poisoned-test-cache for not rebuilding the Go and npm
+        # worlds on every run.
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0  # zizmor: ignore[cache-poisoning]
         with:
           go-version-file: go.mod
 
@@ -203,7 +226,8 @@ jobs:
       # explicit client typecheck here in the test job, which every downstream
       # job (compute-version -> create-tag / build-and-push) already depends on.
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        # Test-gate cache only — see the cache-poisoning note on Setup Go above.
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7  # zizmor: ignore[cache-poisoning]
         with:
           node-version: 24
           cache: npm
@@ -247,6 +271,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -279,9 +305,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        # Test-gate cache only — see the cache-poisoning note in `test`.
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0  # zizmor: ignore[cache-poisoning]
         with:
           go-version-file: go.mod
 
@@ -315,9 +344,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        # Test-gate cache only — see the cache-poisoning note in `test`.
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0  # zizmor: ignore[cache-poisoning]
 
       # No Go or Node step: the script talks to the stack over HTTP and seeds
       # its token with psql inside the db container. Everything it needs is
@@ -365,9 +397,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        # Test-gate cache only — see the cache-poisoning note in `test`.
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7  # zizmor: ignore[cache-poisoning]
         with:
           node-version: 24
           cache: npm
@@ -460,43 +495,50 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
+      # `$GITHUB_REF` (the default environment variable) rather than
+      # `${{ github.ref }}` here and in every other run block: the values are
+      # identical, but the expression form is spliced into the script text
+      # before bash ever runs, which is zizmor's template-injection class.
+      # Branch names cannot hurt this repo today, but the env form is the same
+      # length and closes the class for good.
       - name: Compute version
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             VERSION="${VERSION##v}"  # Strip all leading v's
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "should_tag=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
             # Shared with create-tag, which re-runs it under the tag lock to
             # verify nothing moved in between (#402).
             NEW_VERSION=$(sh scripts/next-version.sh)
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "should_tag=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
 
-          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          elif [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
             VERSION="staging-${{ github.run_number }}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "should_tag=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
 
           else
             VERSION="${GITHUB_SHA::8}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "should_tag=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Determine build platforms
         id: platforms
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            echo 'platforms=["linux/amd64"]' >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
+            echo 'platforms=["linux/amd64"]' >> "$GITHUB_OUTPUT"
           else
-            echo 'platforms=["linux/amd64","linux/arm64"]' >> $GITHUB_OUTPUT
+            echo 'platforms=["linux/amd64","linux/arm64"]' >> "$GITHUB_OUTPUT"
           fi
 
   create-tag:
@@ -521,7 +563,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Keeps the default persist-credentials: the whole point of this job is
+        # the `git push origin v<version>` two steps down, which authenticates
+        # through the token this checkout writes into .git/config.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1  # zizmor: ignore[artipacked]
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -543,20 +588,23 @@ jobs:
         # on this commit derives the now-correct version and republishes
         # cleanly.
         run: |
-          EXPECTED="${{ needs.compute-version.outputs.version }}"
           ACTUAL=$(sh scripts/next-version.sh)
           if [ "$EXPECTED" != "$ACTUAL" ]; then
             echo "::error::Version raced: this run built and published images as v$EXPECTED, but the next version is now v$ACTUAL — another main run tagged while this one was building. Re-run this workflow on this commit to republish under v$ACTUAL."
             exit 1
           fi
           echo "v$EXPECTED is still the next version"
+        env:
+          EXPECTED: ${{ needs.compute-version.outputs.version }}
 
       - name: Create and push tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ needs.compute-version.outputs.version }}" -m "Release v${{ needs.compute-version.outputs.version }}"
-          git push origin "v${{ needs.compute-version.outputs.version }}"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
 
   build-and-push:
     runs-on: ubuntu-latest
@@ -579,6 +627,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up QEMU
         if: matrix.platform != 'linux/amd64'
@@ -625,8 +675,9 @@ jobs:
         if: github.event_name == 'push'
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
+          touch "/tmp/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
 
       - name: Upload digest
         if: github.event_name == 'push'
@@ -667,37 +718,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # `${REGISTRY}` / `${IMAGE_NAME}` are the workflow-level `env:` values,
+      # which the runner exports as real environment variables — no need to
+      # splice them in as `${{ env.* }}` expressions (zizmor:
+      # template-injection, same class as the `$GITHUB_REF` note in
+      # compute-version).
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          VERSION="${{ needs.compute-version.outputs.version }}"
-
           # Build docker buildx imagetools create command with all digests
           TAGS=()
-          TAGS+=("${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}")
+          TAGS+=("${REGISTRY}/${IMAGE_NAME}:${VERSION}")
 
           # Add 'latest' tag only for main branch non-staging releases
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]] && [[ ! "$VERSION" =~ ^staging- ]]; then
-            TAGS+=("${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest")
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]] && [[ ! "$VERSION" =~ ^staging- ]]; then
+            TAGS+=("${REGISTRY}/${IMAGE_NAME}:latest")
           fi
 
           # Build list of image references from digests
           IMAGES=()
           for digest in *; do
-            IMAGES+=("${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:${digest}")
+            IMAGES+=("${REGISTRY}/${IMAGE_NAME}@sha256:${digest}")
           done
 
           # Create manifest with all tags
           for tag in "${TAGS[@]}"; do
+            # The unquoted $(printf ...) is deliberate: it must word-split
+            # into `--tag <ref>`, and image refs never contain whitespace.
+            # shellcheck disable=SC2046
             docker buildx imagetools create \
               $(printf -- '--tag %s ' "$tag") \
               "${IMAGES[@]}"
           done
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
 
       - name: Inspect image
         run: |
           docker buildx imagetools inspect \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.compute-version.outputs.version }}
+            "${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
 
   create-release:
     runs-on: ubuntu-latest
@@ -714,7 +775,11 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Keeps the default persist-credentials: `git fetch --tags --force`
+        # below talks to origin through the credentials this checkout persists.
+        # An anonymous fetch would probably work on a public repo, but the
+        # release chain is not the place to find out when it does not.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1  # zizmor: ignore[artipacked]
         with:
           fetch-depth: 0
 
@@ -729,7 +794,7 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          VERSION="v${{ needs.compute-version.outputs.version }}"
+          VERSION="v${APP_VERSION}"
 
           # Find the previous tag (the one before our new tag)
           PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
@@ -754,7 +819,7 @@ jobs:
           ## Docker Images
 
           \`\`\`bash
-          docker pull ghcr.io/${{ github.repository }}:${{ needs.compute-version.outputs.version }}
+          docker pull ghcr.io/${{ github.repository }}:${APP_VERSION}
           # or
           docker pull ghcr.io/${{ github.repository }}:latest
           \`\`\`
@@ -767,9 +832,14 @@ jobs:
 
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${VERSION}
           EOF
+        env:
+          APP_VERSION: ${{ needs.compute-version.outputs.version }}
 
       - name: Create Release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        # zizmor suggests replacing this with a `gh release create` script step
+        # (superfluous-actions). Swapping a proven step in the release chain
+        # for zero security gain is exactly the trade this repo does not make.
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2  # zizmor: ignore[superfluous-actions]
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: Release v${{ needs.compute-version.outputs.version }}
@@ -805,10 +875,13 @@ jobs:
     permissions:
       contents: write
     steps:
+      # This checkout only feeds `helm package`; the push happens from the
+      # separate gh-pages checkout below, which keeps its own credentials.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Configure Git
         run: |
@@ -821,23 +894,21 @@ jobs:
       - name: Determine channel
         id: channel
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "channel=stable" >> $GITHUB_OUTPUT
-            echo "path=." >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+            echo "path=." >> "$GITHUB_OUTPUT"
           else
-            echo "channel=staging" >> $GITHUB_OUTPUT
-            echo "path=staging" >> $GITHUB_OUTPUT
+            echo "channel=staging" >> "$GITHUB_OUTPUT"
+            echo "path=staging" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update chart versions
         run: |
-          APP_VERSION="${{ needs.compute-version.outputs.version }}"
-
           # Update appVersion to match container version
           sed -i "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" helm/schautrack/Chart.yaml
 
           # Calculate chart version
-          if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
             # For staging: use 0.0.N format (e.g., 0.0.84)
             # This avoids prerelease format which helm search hides by default
             CHART_VERSION="0.0.${{ github.run_number }}"
@@ -848,6 +919,8 @@ jobs:
 
           echo "Updated Chart.yaml:"
           cat helm/schautrack/Chart.yaml
+        env:
+          APP_VERSION: ${{ needs.compute-version.outputs.version }}
 
       - name: Package Helm chart
         run: |
@@ -855,14 +928,16 @@ jobs:
           helm package helm/schautrack -d .helm-packages
 
       - name: Checkout gh-pages
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Keeps the default persist-credentials: the `Push to gh-pages` step
+        # pushes (and rebase-retries) through this checkout's token.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1  # zizmor: ignore[artipacked]
         with:
           ref: gh-pages
           path: gh-pages
 
       - name: Update Helm repo
         run: |
-          CHANNEL_PATH="gh-pages/${{ steps.channel.outputs.path }}"
+          CHANNEL_PATH="gh-pages/${CHANNEL_DIR}"
           mkdir -p "$CHANNEL_PATH"
 
           # Ensure .nojekyll exists to prevent Jekyll processing
@@ -877,16 +952,18 @@ jobs:
 
           # Update or create index (--merge preserves previous valid entries)
           if [ -f "$CHANNEL_PATH/index.yaml" ]; then
-            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
+            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${CHANNEL_DIR}" --merge "$CHANNEL_PATH/index.yaml"
           else
-            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}"
+            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${CHANNEL_DIR}"
           fi
+        env:
+          CHANNEL_DIR: ${{ steps.channel.outputs.path }}
 
       - name: Push to gh-pages
         run: |
           cd gh-pages
           git add .
-          git commit -m "Update Helm chart (${{ steps.channel.outputs.channel }}) - appVersion ${{ needs.compute-version.outputs.version }}" || exit 0
+          git commit -m "Update Helm chart (${CHANNEL}) - appVersion ${APP_VERSION}" || exit 0
 
           # Rebase and retry (#405). gh-pages is ONE branch shared by both
           # channels: main writes / and staging writes /staging/. Two
@@ -917,6 +994,9 @@ jobs:
           done
           echo "::error::could not push the Helm chart after 5 attempts"
           exit 1
+        env:
+          CHANNEL: ${{ steps.channel.outputs.channel }}
+          APP_VERSION: ${{ needs.compute-version.outputs.version }}
 
   notify-argocd:
     runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
@@ -937,19 +1017,19 @@ jobs:
       - name: Determine ArgoCD application
         id: app
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "name=schautrack-prod" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "name=schautrack-prod" >> "$GITHUB_OUTPUT"
           else
-            echo "name=schautrack-staging" >> $GITHUB_OUTPUT
+            echo "name=schautrack-staging" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Wait for Helm chart on GitHub Pages
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
             VERSION="0.0.${{ github.run_number }}"
             URL="https://helm.schautrack.com/staging/index.yaml"
           else
-            VERSION="${{ needs.compute-version.outputs.version }}"
+            VERSION="$RELEASE_VERSION"
             URL="https://helm.schautrack.com/index.yaml"
           fi
           # GitHub Pages rebuilds the custom-domain CDN asynchronously after the
@@ -992,6 +1072,7 @@ jobs:
           exit 0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.compute-version.outputs.version }}
 
       # Best-effort: nudge ArgoCD to sync immediately instead of waiting for its
       # poll. A transient ArgoCD hiccup must not red an already-published release.
@@ -999,7 +1080,11 @@ jobs:
         continue-on-error: true
         run: |
           curl -sSf -X GET \
-            "${{ secrets.ARGOCD_SERVER }}/api/v1/applications/${{ steps.app.outputs.name }}?refresh=normal" \
-            -H "Authorization: Bearer ${{ secrets.ARGOCD_AUTH_TOKEN }}" \
+            "${ARGOCD_SERVER}/api/v1/applications/${APP_NAME}?refresh=normal" \
+            -H "Authorization: Bearer ${ARGOCD_AUTH_TOKEN}" \
             -H "Content-Type: application/json" \
             -o /dev/null -w "ArgoCD refresh: HTTP %{http_code}\n"
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          APP_NAME: ${{ steps.app.outputs.name }}
