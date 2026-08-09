@@ -1,0 +1,116 @@
+name: Chart and Dockerfile Lint
+
+# Standalone guard, deliberately OUTSIDE build.yml's release chain (part of
+# issue #464). Until this workflow existed, nothing in CI ever rendered the
+# chart or linted the Dockerfile: a values.schema.json that rejects the
+# committed defaults, or a typo'd field in a template, first surfaced when
+# ArgoCD's repo-server failed to generate target state — an outage-shaped
+# discovery, not a PR-shaped one. As a standalone check it reds the PR that
+# introduces the problem without being able to hold an unrelated release
+# hostage (the same reasoning build.yml's `vuln` job spells out).
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'helm/**'
+      - 'Dockerfile'
+      # The workflow file itself, for the reason build.yml lists its own: an
+      # edit here that breaks one of these jobs would otherwise trigger no run
+      # at all, and a check that silently stops running is precisely how the
+      # E2E suite rotted unnoticed.
+      - '.github/workflows/chart-lint.yml'
+  pull_request:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'helm/**'
+      - 'Dockerfile'
+      - '.github/workflows/chart-lint.yml'
+
+# Same shape as build.yml's group, which explains at length why a per-ref
+# group silently threw CI away for merge bursts (#377): one group per pushed
+# commit (never evicted, never cancelled), one group per PR with
+# cancel-in-progress (a superseded PR run's result is about to be replaced
+# anyway). Neither job here mutates shared state, so nothing needs the
+# job-level serialisation build.yml's tag/gh-pages writers carry.
+concurrency:
+  group: chart-lint-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      # Checksum-pinned release binary rather than a marketplace action: the
+      # available wrappers just download this same static binary, so using one
+      # would add a third party to the supply chain without adding capability.
+      # Renovate does not track these env pins — bump VERSION and SHA256
+      # together, deliberately.
+      - name: Install kubeconform
+        env:
+          KUBECONFORM_VERSION: v0.7.0
+          KUBECONFORM_SHA256: c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/kubeconform.tar.gz" \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  $RUNNER_TEMP/kubeconform.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/kubeconform.tar.gz" -C "$RUNNER_TEMP/bin" kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # Besides template syntax, this validates values.yaml against
+      # values.schema.json — the check whose absence let a chart schema
+      # tightening strand already-committed values, wedging ArgoCD's
+      # repo-server (the k8s repo grew a render guard for the consumer side;
+      # this is the producer side of the same lesson).
+      - name: Lint chart
+        run: helm lint helm/schautrack
+
+      # The chart's defaults render standalone — no --set required — so this
+      # validates exactly what a bare `helm install` would produce. -strict
+      # rejects fields the schema does not know, i.e. the typo'd or misplaced
+      # key that helm itself happily templates into a manifest the API server
+      # would reject.
+      #
+      # No -schema-location beyond kubeconform's default: the chart templates
+      # only core kinds (Deployment, Service, Ingress, PVC, ConfigMap, Secret,
+      # ServiceAccount), all covered by the stock schemas. Add a CRD schema
+      # location only when a CRD template actually lands.
+      - name: Validate rendered manifests
+        run: helm template helm/schautrack | kubeconform -strict -summary
+
+  dockerfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Same choice as kubeconform above: hadolint/hadolint-action is a
+      # wrapper that fetches this identical static binary, so the
+      # checksum-pinned download is the same tool with one fewer link in the
+      # supply chain. Bump VERSION and SHA256 together.
+      - name: Run hadolint
+        env:
+          HADOLINT_VERSION: v2.14.0
+          HADOLINT_SHA256: 6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/hadolint" \
+            "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+          echo "${HADOLINT_SHA256}  $RUNNER_TEMP/hadolint" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/hadolint"
+          "$RUNNER_TEMP/hadolint" Dockerfile
