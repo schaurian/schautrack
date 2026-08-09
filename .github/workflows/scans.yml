@@ -93,6 +93,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No job in this workflow pushes; drop the checkout token from disk
+          # (build.yml documents the policy at its first checkout).
+          persist-credentials: false
 
       # The raw release binary, verified against a hardcoded sha256, rather
       # than the alternatives:
@@ -143,6 +147,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # A plain `docker build`, unlike build-and-push's buildx-by-digest: this
       # image is scanned and thrown away, never pushed, and gha cache plumbing
@@ -168,7 +174,7 @@ jobs:
       # released fix: bump the base image, a Go dep, or cut a fresh release.
       # exit-code 1 makes those findings a red X rather than a report.
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.target.outputs.ref }}
           format: sarif
@@ -191,7 +197,7 @@ jobs:
           always() &&
           (github.event_name != 'pull_request' ||
            github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image
@@ -218,6 +224,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Dependency review
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
