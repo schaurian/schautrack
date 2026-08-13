@@ -4,8 +4,8 @@
  *   npm run screenshots          # stack + seed + capture (see package.json)
  *   npx tsx scripts/screenshots.ts   # capture only, against a running stack
  *
- * Writes docs/screenshots/*.png. dashboard.png is the README hero and is just
- * the desktop dashboard under its historical name, so the README keeps working.
+ * Writes docs/screenshots/*.png. hero.png is composed from the full desktop
+ * dashboard capture and two mobile viewport captures.
  */
 import { chromium, type Page, type Browser } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'fs';
@@ -100,7 +100,7 @@ async function composeHero(browser: Browser) {
     .phone-front { left: 310px; top: 285px; }
   </style></head><body>
     <div class="stage">
-      <div class="desktop"><img src="${inline('dashboard.png')}"></div>
+      <div class="desktop"><img src="${inline('dashboard-desktop.png')}"></div>
       <div class="phone phone-back"><img src="${inline('dashboard-mobile.png')}"></div>
       <div class="phone phone-front"><img src="${inline('add-sheet-mobile.png')}"></div>
     </div>
@@ -125,8 +125,7 @@ async function composeHero(browser: Browser) {
 
   await login(desktop);
   await shot(desktop, 'dashboard-desktop', true);
-  // The README hero has always been docs/screenshots/dashboard.png. End it at
-  // the timeline so the frame closes on a whole card.
+  // Keep the historical standalone dashboard.png ending on a whole card.
   await shotThrough(desktop, 'dashboard', 'section:has-text("Timeline")');
 
   await desktop.goto(`${BASE}/plan`);
