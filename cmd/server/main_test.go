@@ -90,6 +90,66 @@ func TestSPACompression(t *testing.T) {
 	})
 }
 
+func TestViteAssetsCacheForOneYear(t *testing.T) {
+	clientDir := t.TempDir()
+	for path, body := range map[string][]byte{
+		"assets/index-abc12345.js":   []byte("export {}"),
+		"assets/index-def67890.css":  []byte("body {}"),
+		"assets/noto-ghi01234.woff2": []byte("font"),
+	} {
+		filePath := filepath.Join(clientDir, path)
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filePath, body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	handler := spaFallback(clientDir, filepath.Join(clientDir, "no-such-public"))
+	for _, path := range []string{
+		"/assets/index-abc12345.js",
+		"/assets/index-def67890.css",
+		"/assets/noto-ghi01234.woff2",
+	} {
+		t.Run(path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200", rec.Code)
+			}
+			if got, want := rec.Header().Get("Cache-Control"), "public, max-age=31536000, immutable"; got != want {
+				t.Errorf("Cache-Control = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// TestLLMSTxtServedFromPublicStaticPath exercises the same SPA fallback that
+// production uses for files in public/. Keeping llms.txt there makes it
+// available without a separate handler or deployment-specific route.
+func TestLLMSTxtServedFromPublicStaticPath(t *testing.T) {
+	clientDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(clientDir, "index.html"), []byte("<!doctype html><title>app</title>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := spaFallback(clientDir, filepath.Join("..", "..", "public"))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/llms.txt", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body: %s)", rec.Code, rec.Body.String())
+	}
+	if contentType := rec.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/plain") {
+		t.Errorf("Content-Type = %q, want text/plain", contentType)
+	}
+	if !strings.HasPrefix(rec.Body.String(), "# Schautrack\n") {
+		t.Errorf("llms.txt did not serve its expected document (body: %.80s)", rec.Body.String())
+	}
+}
+
 // A hashed asset that no longer exists must 404 rather than fall back to
 // index.html. Serving HTML with a 200 for a missing chunk is what turns a
 // routine deploy — a tab still referencing the previous build's filenames —
