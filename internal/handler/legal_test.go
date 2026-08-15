@@ -35,8 +35,8 @@ func TestSitemapXmlEscapesRequestDerivedBaseURL(t *testing.T) {
 	if err := xml.Unmarshal(rec.Body.Bytes(), &sitemap); err != nil {
 		t.Fatalf("sitemap is not well-formed XML: %v\n%s", err, rec.Body.String())
 	}
-	if len(sitemap.URLs) != 6 {
-		t.Fatalf("URL count = %d, want 6", len(sitemap.URLs))
+	if len(sitemap.URLs) != 4 {
+		t.Fatalf("URL count = %d, want 4", len(sitemap.URLs))
 	}
 	if got, want := sitemap.URLs[0].Loc, "https://example.test<injected>&more/"; got != want {
 		t.Errorf("first loc = %q, want %q", got, want)

@@ -26,7 +26,7 @@ in `internal/handler/`.
   `3000`, override with `PORT`). Behind the reverse proxy the app is reached over
   HTTPS at your `BASE_URL`.
 - **Content type:** requests and responses are `application/json` (exceptions:
-  `/imprint/*.svg` return SVG, `/robots.txt` and `/sitemap.xml` return text/XML,
+  `/imprint/*.svg` return SVG, `/robots.txt`, `/sitemap.xml`, and `/llms.txt` return text/XML,
   `/events/entries` is a `text/event-stream`).
 - **Request body limit:** 15 MB globally (`MaxBodySize` middleware); JSON bodies are
   additionally capped at 10 MB by `ReadJSON`.
@@ -197,6 +197,7 @@ Legend for the **Auth** column:
 | GET | `/api/auth/captcha` | Public | Returns a fresh captcha challenge for the current session. |
 | GET | `/robots.txt` | Public | SEO robots file (indexing gated by `ROBOTS_INDEX`). |
 | GET | `/sitemap.xml` | Public | SEO sitemap. |
+| GET | `/llms.txt` | Public | Machine-readable guide to Schautrack and its canonical documentation links. |
 | GET | `/imprint/address.svg` | Public | Imprint address rendered as SVG. |
 | GET | `/imprint/email.svg` | Public | Imprint email rendered as SVG. |
 

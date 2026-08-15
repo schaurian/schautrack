@@ -1,0 +1,26 @@
+# Schautrack
+
+> Schautrack is a self-hostable, open-source nutrition tracker for logging calories, macros, and weight; setting goals; and sharing progress.
+
+## Product and API
+
+- [Schautrack](https://schautrack.com/): hosted application and product overview.
+- [Public API reference](https://schautrack.com/api/v1/docs): interactive documentation for the versioned REST API.
+- [OpenAPI specification](https://schautrack.com/api/v1/openapi.json): machine-readable OpenAPI 3.1 description of the public API.
+
+## Documentation
+
+- [Self-hosting guide](https://github.com/schaurian/schautrack#readme): Docker, Kubernetes, and configuration instructions.
+- [API guide](https://github.com/schaurian/schautrack/blob/main/docs/api-v1.md): usage, authentication, scopes, and endpoint reference.
+
+## Source and support
+
+- [Source repository](https://github.com/schaurian/schautrack): source code, issue tracker, and contribution information.
+- [Releases](https://github.com/schaurian/schautrack/releases): release notes and published versions.
+- [Android app source](https://github.com/schaurian/schautrack-android): Android companion application source code.
+
+## Legal
+
+- [Privacy policy](https://schautrack.com/privacy)
+- [Terms of service](https://schautrack.com/terms)
+- [Imprint](https://schautrack.com/imprint)
