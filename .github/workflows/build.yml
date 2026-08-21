@@ -296,7 +296,7 @@ jobs:
           # Pinned rather than floating: a linter that silently gains checks on
           # its own release schedule turns an unrelated PR red for reasons its
           # author did not introduce. Renovate bumps this deliberately.
-          version: v2.12.2
+          version: v2.13.1
 
   # Deliberately NOT in the `needs` chain of compute-version / build-and-push.
   # govulncheck fails on vulnerabilities published upstream, which happens on
