@@ -81,7 +81,7 @@
       "heading": "Health Data"
     },
     "internationalTransfers": {
-      "body": "If the configured AI provider is OpenAI or Anthropic Claude, submitting a photo for estimation transfers that image to a recipient in the United States. Such transfers rely on the provider's Standard Contractual Clauses. You can avoid these transfers by not using the AI estimation feature, or by configuring a self-hosted Ollama endpoint in Settings.",
+      "body": "If the configured AI provider is OpenAI, Anthropic Claude, or Google Gemini, submitting a photo for estimation transfers that image to a recipient in the United States. Such transfers rely on the provider's Standard Contractual Clauses. You can avoid these transfers by not using the AI estimation feature, or by configuring a self-hosted Ollama endpoint in Settings.",
       "heading": "International Transfers"
     },
     "intro": "Schautrack collects only the data necessary to provide the calorie, nutrition, and weight tracking service.",
@@ -117,7 +117,7 @@
       "heading": "Sub-processors",
       "intro": "We use a small number of external services to operate Schautrack:",
       "items": {
-        "aiEstimation": "<strong>AI nutrition estimation:</strong> When you submit a food photo for estimation, the photo is sent to the AI provider configured by the operator of this Schautrack instance — currently either OpenAI or Anthropic Claude (both based in the United States), or a self-hosted Ollama instance. You can also configure your own API key for any of these providers in Settings. If you do not use this feature, no photo data is shared with any AI provider. Your body metrics, weight entries, and weight goals are never sent to AI providers.",
+        "aiEstimation": "<strong>AI nutrition estimation:</strong> When you submit a food photo for estimation, the photo is sent to the AI provider configured by the operator of this Schautrack instance — currently OpenAI, Anthropic Claude, or Google Gemini (all based in the United States), or a self-hosted Ollama instance. You can also configure your own API key for any of these providers in Settings. If you do not use this feature, no photo data is shared with any AI provider. Your body metrics, weight entries, and weight goals are never sent to AI providers.",
         "backups": "<strong>Backups:</strong> encrypted offsite backups stored in the EU.",
         "barcodeLookups": "<strong>Barcode lookups:</strong> Scanned barcode numbers are sent to <linkOff>Open Food Facts</linkOff> to retrieve product nutrition data, under the <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "emailDelivery": "<strong>Email delivery:</strong> a transactional email provider for verification, password reset, and account-change notifications.",

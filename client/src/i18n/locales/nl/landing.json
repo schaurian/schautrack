@@ -92,7 +92,7 @@
       "heading": "Subverwerkers",
       "intro": "We gebruiken een klein aantal externe diensten om Schautrack te laten draaien:",
       "items": {
-        "aiEstimation": "<strong>AI-voedingsschatting:</strong> Wanneer je een foto van eten indient voor een schatting, wordt de foto verstuurd naar de AI-provider die is geconfigureerd door de beheerder van deze Schautrack-instantie — momenteel OpenAI of Anthropic Claude (beide gevestigd in de Verenigde Staten), of een zelf gehoste Ollama-instantie. Je kunt in Instellingen ook je eigen API-sleutel voor elk van deze providers configureren. Als je deze functie niet gebruikt, wordt er geen fotodata gedeeld met een AI-provider. Je lichaamsmaten, gewichtsitems en gewichtsdoelen worden nooit naar AI-providers gestuurd.",
+        "aiEstimation": "<strong>AI-voedingsschatting:</strong> Wanneer je een foto van eten indient voor een schatting, wordt de foto verstuurd naar de AI-provider die is geconfigureerd door de beheerder van deze Schautrack-instantie — momenteel OpenAI, Anthropic Claude of Google Gemini (alle gevestigd in de Verenigde Staten), of een zelf gehoste Ollama-instantie. Je kunt in Instellingen ook je eigen API-sleutel voor elk van deze providers configureren. Als je deze functie niet gebruikt, wordt er geen fotodata gedeeld met een AI-provider. Je lichaamsmaten, gewichtsitems en gewichtsdoelen worden nooit naar AI-providers gestuurd.",
         "barcodeLookups": "<strong>Barcode-opzoekingen:</strong> Gescande barcodenummers worden verstuurd naar <linkOff>Open Food Facts</linkOff> om productvoedingsgegevens op te halen, onder de <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> een in de EU gevestigde hostingprovider in Duitsland.",
         "emailDelivery": "<strong>E-mailbezorging:</strong> een transactionele e-mailprovider voor verificatie, wachtwoordreset en meldingen over accountwijzigingen.",
@@ -101,7 +101,7 @@
     },
     "internationalTransfers": {
       "heading": "Internationale overdrachten",
-      "body": "Als de geconfigureerde AI-provider OpenAI of Anthropic Claude is, wordt de foto bij het indienen voor een schatting overgedragen aan een ontvanger in de Verenigde Staten. Dergelijke overdrachten zijn gebaseerd op de Standard Contractual Clauses van de provider. Je kunt deze overdrachten vermijden door de AI-schattingsfunctie niet te gebruiken, of door in Instellingen een zelf gehost Ollama-endpoint te configureren."
+      "body": "Als de geconfigureerde AI-provider OpenAI, Anthropic Claude of Google Gemini is, wordt de foto bij het indienen voor een schatting overgedragen aan een ontvanger in de Verenigde Staten. Dergelijke overdrachten zijn gebaseerd op de Standard Contractual Clauses van de provider. Je kunt deze overdrachten vermijden door de AI-schattingsfunctie niet te gebruiken, of door in Instellingen een zelf gehost Ollama-endpoint te configureren."
     },
     "retention": {
       "heading": "Bewaartermijn",

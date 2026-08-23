@@ -42,7 +42,7 @@ func (h *EntriesHandler) getAIProviderName(r *http.Request, user *model.User) *s
 	if provider == "" {
 		return nil
 	}
-	names := map[string]string{"openai": "OpenAI", "claude": "Anthropic", "ollama": "Ollama"}
+	names := map[string]string{"openai": "OpenAI", "claude": "Anthropic", "gemini": "Google Gemini", "ollama": "Ollama"}
 	name := names[provider]
 	if name == "" {
 		name = provider

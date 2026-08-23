@@ -92,7 +92,7 @@
       "heading": "Subencargados del tratamiento",
       "intro": "Utilizamos un pequeño número de servicios externos para operar Schautrack:",
       "items": {
-        "aiEstimation": "<strong>Estimación nutricional con IA:</strong> Cuando envías una foto de comida para su estimación, la foto se envía al proveedor de IA configurado por el operador de esta instancia de Schautrack — actualmente OpenAI o Anthropic Claude (ambos con sede en Estados Unidos), o una instancia autoalojada de Ollama. También puedes configurar tu propia clave de API para cualquiera de estos proveedores en Ajustes. Si no utilizas esta función, no se comparten datos de fotos con ningún proveedor de IA. Tus medidas corporales, entradas de peso y objetivos de peso nunca se envían a los proveedores de IA.",
+        "aiEstimation": "<strong>Estimación nutricional con IA:</strong> Cuando envías una foto de comida para su estimación, la foto se envía al proveedor de IA configurado por el operador de esta instancia de Schautrack — actualmente OpenAI, Anthropic Claude o Google Gemini (todos con sede en Estados Unidos), o una instancia autoalojada de Ollama. También puedes configurar tu propia clave de API para cualquiera de estos proveedores en Ajustes. Si no utilizas esta función, no se comparten datos de fotos con ningún proveedor de IA. Tus medidas corporales, entradas de peso y objetivos de peso nunca se envían a los proveedores de IA.",
         "barcodeLookups": "<strong>Búsquedas de códigos de barras:</strong> Los números de código de barras escaneados se envían a <linkOff>Open Food Facts</linkOff> para obtener los datos nutricionales del producto, bajo la <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Alojamiento:</strong> un proveedor de alojamiento con sede en la UE, en Alemania.",
         "emailDelivery": "<strong>Envío de correo electrónico:</strong> un proveedor de correo transaccional para las notificaciones de verificación, restablecimiento de contraseña y cambios en la cuenta.",
@@ -101,7 +101,7 @@
     },
     "internationalTransfers": {
       "heading": "Transferencias internacionales",
-      "body": "Si el proveedor de IA configurado es OpenAI o Anthropic Claude, al enviar una foto para su estimación esa imagen se transfiere a un destinatario en Estados Unidos. Estas transferencias se basan en las Cláusulas Contractuales Tipo del proveedor. Puedes evitar estas transferencias no utilizando la función de estimación con IA, o configurando un endpoint autoalojado de Ollama en Ajustes."
+      "body": "Si el proveedor de IA configurado es OpenAI, Anthropic Claude o Google Gemini, al enviar una foto para su estimación esa imagen se transfiere a un destinatario en Estados Unidos. Estas transferencias se basan en las Cláusulas Contractuales Tipo del proveedor. Puedes evitar estas transferencias no utilizando la función de estimación con IA, o configurando un endpoint autoalojado de Ollama en Ajustes."
     },
     "retention": {
       "heading": "Conservación de datos",

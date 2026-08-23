@@ -49,15 +49,15 @@ var adminSettings = []AdminSetting{
 	// AI Features
 	// =========================================================================
 	{Key: "ai_provider", Env: "AI_PROVIDER", Section: "ai", Tier: "hot",
-		Help:     `One of: openai, claude, ollama.`,
-		Validate: oneOf("openai", "claude", "ollama", "")},
+		Help:     `One of: openai, claude, gemini, ollama.`,
+		Validate: oneOf("openai", "claude", "gemini", "ollama", "")},
 	{Key: "ai_key", Env: "AI_KEY", Section: "ai", Tier: "hot", Secret: true,
 		Help: "Global API key (fallback when users don't have their own)."},
 	{Key: "ai_endpoint", Env: "AI_ENDPOINT", Section: "ai", Tier: "hot",
 		Help:     "Custom endpoint override. Leave empty for provider defaults.",
 		Validate: validURL},
 	{Key: "ai_model", Env: "AI_MODEL", Section: "ai", Tier: "hot",
-		Help: `Model name (e.g. gpt-4o, claude-sonnet-4-5-20250929, gemma3:12b).`},
+		Help: `Model name (e.g. gpt-4o, claude-sonnet-4-5-20250929, gemini-3.6-flash, gemma3:12b).`},
 	{Key: "ai_daily_limit", Env: "AI_DAILY_LIMIT", Section: "ai", Tier: "hot",
 		Help:     "Daily AI request limit per user when using the global key. 0 = unlimited.",
 		Validate: validNonNegInt},

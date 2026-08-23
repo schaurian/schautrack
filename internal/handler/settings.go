@@ -228,7 +228,7 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 	idx := 1
 
 	// Provider
-	validProviders := map[string]bool{"openai": true, "claude": true, "ollama": true}
+	validProviders := map[string]bool{"openai": true, "claude": true, "gemini": true, "ollama": true}
 	var newProvider *string
 	if validProviders[body.AIProvider] {
 		newProvider = &body.AIProvider

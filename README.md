@@ -22,7 +22,7 @@ Schautrack is built to stay out of your way. Log calories and macros, set goals,
 - Log calories and macros (protein, carbs, fat, fiber, sugar)
 - Saved foods for one-tap quick-add of frequent meals
 - Daily goals with color-coded progress tracking
-- AI-powered nutrition estimation from food photos (OpenAI, Claude, or Ollama)
+- AI-powered nutrition estimation from food photos (OpenAI, Claude, Gemini, or Ollama)
 - Barcode scanning via OpenFoodFacts
 - Weight tracking with unit preference (kg/lbs)
 - Optional body-fat percentage per weigh-in — lean/fat mass, category bands, and a Katch-McArdle calorie budget that beats the height/age estimate
@@ -131,17 +131,17 @@ Settings follow a strict priority hierarchy: **environment variables** > **admin
 
 ### AI Features
 
-Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
+Photo-based nutrition estimation with support for OpenAI, Claude, Gemini, and Ollama.
 
 > **Configuration priority:** Environment variables > admin panel settings > user settings. When any global AI config is set (provider or key), user personal AI settings are ignored. Users can only bring their own API key when no global config exists.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, or `ollama`. Required to enable AI features. |
+| `AI_PROVIDER` | *(empty)* | AI provider to use: `openai`, `claude`, `gemini`, or `ollama`. Required to enable AI features. |
 | `AI_KEY` | *(empty)* | Global API key (used by all users; overrides personal keys) |
 | `AI_KEY_ENCRYPTION_SECRET` | *(empty)* | Random 32-byte hex string for encrypting user API keys |
 | `AI_ENDPOINT` | *(empty)* | Custom endpoint override (e.g., `http://your-ollama-host:11434/v1`). Leave blank to use provider defaults. |
-| `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`). Required for OpenAI and Claude. |
+| `AI_MODEL` | *(empty)* | Specify AI model to use (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemini-3.6-flash`, `gemma3:12b`). Required for OpenAI, Claude, and Gemini. |
 | `AI_DAILY_LIMIT` | *(unset → unlimited)* | Daily limit for AI requests per user when using global key (`0` or unset = unlimited). The app applies **no** limit unless this is set via env or the admin panel. Note: the Helm chart sets this to `10` by default. |
 
 **Note:** Ollama models must be downloaded before use. The docker-compose setup automatically pulls the model specified in `AI_MODEL`. Models specified only in API requests will fail if not pre-downloaded.

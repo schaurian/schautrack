@@ -84,6 +84,7 @@ func intP(n int) *int { return &n }
 func TestShouldClearStoredAIKey(t *testing.T) {
 	openai := "openai"
 	claude := "claude"
+	gemini := "gemini"
 	tests := []struct {
 		name    string
 		next    *string
@@ -93,6 +94,7 @@ func TestShouldClearStoredAIKey(t *testing.T) {
 		{"no provider in payload — never clear", nil, &openai, false},
 		{"same provider, current set — autosave must not wipe", &openai, &openai, false},
 		{"different provider — clear (key is provider-specific)", &claude, &openai, true},
+		{"switching to gemini clears provider-specific key", &gemini, &openai, true},
 		{"current nil, new provider — clear (no-op in DB but consistent)", &openai, nil, true},
 		{"both nil", nil, nil, false},
 	}

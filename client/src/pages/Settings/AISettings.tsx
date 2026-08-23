@@ -81,6 +81,7 @@ export default function AISettings({ user, onSave }: Props) {
               <SelectItem value={NONE}>{t('ai.providerDefault')}</SelectItem>
               <SelectItem value="openai">OpenAI</SelectItem>
               <SelectItem value="claude">Claude</SelectItem>
+              <SelectItem value="gemini">Google Gemini</SelectItem>
               <SelectItem value="ollama">Ollama</SelectItem>
             </SelectContent>
           </Select>

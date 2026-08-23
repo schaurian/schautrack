@@ -134,7 +134,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Cancel pending email change
 - [x] [A] Change password
 - [x] [A] Set/clear personal AI key and endpoint
-- [ ] Change AI provider (OpenAI / Claude / Ollama), verify AI still works (requires real keys)
+- [ ] Change AI provider (OpenAI / Claude / Gemini / Ollama), verify AI still works (requires real keys)
 - [ ] Custom AI model override
 - [x] [A] Export data (JSON) — includes entries, weights (with body fat), settings
 - [x] [A] Import data (JSON) — verify entries and weights (with body fat) restored

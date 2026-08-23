@@ -74,7 +74,7 @@
       "heading": "Unterauftragsverarbeiter",
       "intro": "Wir nutzen einige wenige externe Dienste zum Betrieb von Schautrack:",
       "items": {
-        "aiEstimation": "<strong>KI-Nährwertschätzung:</strong> Wenn du ein Foto deines Essens zur Schätzung einreichst, wird das Foto an den vom Betreiber dieser Schautrack-Instanz konfigurierten KI-Anbieter gesendet — derzeit entweder OpenAI oder Anthropic Claude (beide mit Sitz in den USA) oder eine selbst gehostete Ollama-Instanz. Du kannst in den Einstellungen auch einen eigenen API-Schlüssel für jeden dieser Anbieter konfigurieren. Wenn du diese Funktion nicht nutzt, werden keine Fotodaten mit einem KI-Anbieter geteilt. Deine Körpermaße, Gewichtseinträge und Gewichtsziele werden niemals an KI-Anbieter gesendet.",
+        "aiEstimation": "<strong>KI-Nährwertschätzung:</strong> Wenn du ein Foto deines Essens zur Schätzung einreichst, wird das Foto an den vom Betreiber dieser Schautrack-Instanz konfigurierten KI-Anbieter gesendet — derzeit OpenAI, Anthropic Claude oder Google Gemini (alle mit Sitz in den USA) oder eine selbst gehostete Ollama-Instanz. Du kannst in den Einstellungen auch einen eigenen API-Schlüssel für jeden dieser Anbieter konfigurieren. Wenn du diese Funktion nicht nutzt, werden keine Fotodaten mit einem KI-Anbieter geteilt. Deine Körpermaße, Gewichtseinträge und Gewichtsziele werden niemals an KI-Anbieter gesendet.",
         "barcodeLookups": "<strong>Barcode-Abfragen:</strong> Gescannte Barcode-Nummern werden an <linkOff>Open Food Facts</linkOff> gesendet, um Nährwertdaten zum Produkt abzurufen, gemäß der <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> ein EU-Hosting-Anbieter mit Sitz in Deutschland.",
         "emailDelivery": "<strong>E-Mail-Versand:</strong> ein Anbieter für transaktionale E-Mails für Bestätigungen, Passwort-Resets und Benachrichtigungen bei Kontoänderungen.",
@@ -83,7 +83,7 @@
     },
     "internationalTransfers": {
       "heading": "Internationale Datenübermittlungen",
-      "body": "Wenn als KI-Anbieter OpenAI oder Anthropic Claude konfiguriert ist, wird das eingereichte Foto zur Schätzung an einen Empfänger in den USA übermittelt. Solche Übermittlungen stützen sich auf die Standardvertragsklauseln des jeweiligen Anbieters. Du kannst diese Übermittlungen vermeiden, indem du die KI-Schätzung nicht nutzt oder in den Einstellungen einen selbst gehosteten Ollama-Endpunkt konfigurierst."
+      "body": "Wenn als KI-Anbieter OpenAI, Anthropic Claude oder Google Gemini konfiguriert ist, wird das eingereichte Foto zur Schätzung an einen Empfänger in den USA übermittelt. Solche Übermittlungen stützen sich auf die Standardvertragsklauseln des jeweiligen Anbieters. Du kannst diese Übermittlungen vermeiden, indem du die KI-Schätzung nicht nutzt oder in den Einstellungen einen selbst gehosteten Ollama-Endpunkt konfigurierst."
     },
     "retention": {
       "heading": "Aufbewahrung",

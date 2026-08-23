@@ -165,6 +165,27 @@ func CallAIProvider(ctx context.Context, provider, apiKey, endpoint, base64Data,
 		}
 		reqBody, _ = json.Marshal(body)
 
+	case "gemini":
+		if endpoint == "" {
+			endpoint = "https://generativelanguage.googleapis.com/v1beta"
+		}
+		url = strings.TrimRight(endpoint, "/") + "/models/" + model + ":generateContent"
+		headers = map[string]string{"x-goog-api-key": apiKey}
+		body := map[string]any{
+			"contents": []map[string]any{{
+				"role": "user",
+				"parts": []map[string]any{
+					{"inlineData": map[string]any{"mimeType": mediaType, "data": base64Data}},
+					{"text": prompt},
+				},
+			}},
+			"generationConfig": map[string]any{
+				"maxOutputTokens":  1000,
+				"responseMimeType": "application/json",
+			},
+		}
+		reqBody, _ = json.Marshal(body)
+
 	case "ollama":
 		url = strings.TrimRight(endpoint, "/") + "/chat/completions"
 		headers = map[string]string{}
@@ -228,6 +249,28 @@ func parseAIResponse(provider string, body []byte) (*AIResult, error) {
 		}
 		if len(resp.Content) > 0 {
 			content = resp.Content[0].Text
+		}
+	} else if provider == "gemini" {
+		var resp struct {
+			Candidates []struct {
+				Content struct {
+					Parts []struct {
+						Text string `json:"text"`
+					} `json:"parts"`
+				} `json:"content"`
+			} `json:"candidates"`
+		}
+		if err := json.Unmarshal(body, &resp); err != nil {
+			return nil, fmt.Errorf("failed to parse Gemini response")
+		}
+		if len(resp.Candidates) > 0 {
+			var parts []string
+			for _, part := range resp.Candidates[0].Content.Parts {
+				if part.Text != "" {
+					parts = append(parts, part.Text)
+				}
+			}
+			content = strings.Join(parts, "")
 		}
 	} else {
 		var resp struct {
