@@ -9,6 +9,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fxamacker/cbor/v2 v2.9.2 h1:X4Ksno9+x3cz0TZv69ec1hxP/+tymuR8PXQJyDwfh78=
 github.com/fxamacker/cbor/v2 v2.9.2/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
+github.com/fxamacker/cbor/v2 v2.9.3 h1:oQBnFATpNdY8gJHTndDDv5Xl4QqNaz51G5LLEPhng3Q=
+github.com/fxamacker/cbor/v2 v2.9.3/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/go-chi/chi/v5 v5.3.1 h1:3j4HZLGZQ3JpMCrPJF/Jl3mYJfWLKBfNJ6quurUGCf8=
 github.com/go-chi/chi/v5 v5.3.1/go.mod h1:R+tYY2hNuVUUjxoPtqUdgBqevM9s9njzkTLutVsOCto=
 github.com/go-jose/go-jose/v4 v4.1.4 h1:moDMcTHmvE6Groj34emNPLs/qtYXRVcd6S7NHbHz3kA=
@@ -17,8 +19,12 @@ github.com/go-viper/mapstructure/v2 v2.5.0 h1:vM5IJoUAy3d7zRSVtIwQgBj7BiWtMPfmPE
 github.com/go-viper/mapstructure/v2 v2.5.0/go.mod h1:oJDH3BJKyqBA2TXFhDsKDGDTlndYOZ6rGS0BRZIxGhM=
 github.com/go-webauthn/webauthn v0.17.4 h1:KFTSz3R2RYDiUn/0cDi3XTJgFenSG74eKTTHlqWhlxk=
 github.com/go-webauthn/webauthn v0.17.4/go.mod h1:pZk63EE/BdztlmyS4Yc+9H5g4a8blNlbtGmdHQHbZX8=
+github.com/go-webauthn/webauthn v0.18.0 h1:PC8R3PNLEmjZf++WwcQlo1Z39S9rf8ma69rlwkypZhA=
+github.com/go-webauthn/webauthn v0.18.0/go.mod h1:ymzZQhx3D/PrDjznemBdQJ23gHTaSDxUchM7sH1lUCg=
 github.com/go-webauthn/x v0.2.6 h1:TEyDuQAIiEgYpx60nKiBJIX/5nSUC8LxNbH+uf5U9uk=
 github.com/go-webauthn/x v0.2.6/go.mod h1:45bA7YEqyQhRcQJ/TiBb46Ww8yqHBGvgEhQ3WWF0aDo=
+github.com/go-webauthn/x v0.3.0 h1:Q2X9vbrlP0Ed+QGEzixh1hthGZlDnzVT0XH/9IIQ0kE=
+github.com/go-webauthn/x v0.3.0/go.mod h1:5OkdSQdOy7taRXWqvNHggtaPffmW94ybu3rZEER4I+I=
 github.com/golang-jwt/jwt/v5 v5.3.1 h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=
 github.com/golang-jwt/jwt/v5 v5.3.1/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=
 github.com/google/go-tpm v0.9.8 h1:slArAR9Ft+1ybZu0lBwpSmpwhRXaa85hWtMinMyRAWo=
