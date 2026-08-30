@@ -27,15 +27,47 @@ export function isSupportedLanguage(code: string): boolean {
 type Catalog = Record<string, unknown>;
 type CatalogModule = { default: Catalog };
 
-// English remains in the startup bundle as the fallback. Every other catalog
-// is a Vite-managed dynamic import, so it is requested only for the detected
-// language or after the user changes their language preference.
-const catalogLoaders = import.meta.glob<CatalogModule>('./locales/*/*.json');
+/** The namespaces every locale ships. Exported so tests assert against one list. */
+export const NAMESPACES = ['common', 'auth', 'dashboard', 'settings', 'landing'] as const;
+
+/**
+ * English stays in the startup bundle, statically imported, and is never fetched.
+ * It is the fallback language: any key a deferred catalog is missing resolves
+ * against it, so a lazily-loaded English would render raw key paths on a miss.
+ */
+const ENGLISH_CATALOGS: Record<string, Catalog> = {
+  auth: enAuth,
+  common: enCommon,
+  dashboard: enDashboard,
+  landing: enLanding,
+  settings: enSettings,
+};
+
+/**
+ * Every other catalog is a Vite-managed dynamic import, so it is requested only
+ * for the detected language or after the user changes their language preference.
+ *
+ * English is excluded from the glob deliberately. Globbing it too made Rollup
+ * see the same module both statically (the imports above) and dynamically, which
+ * it reports as INEFFECTIVE_DYNAMIC_IMPORT and resolves by keeping the module in
+ * the entry chunk — the dynamic half was dead weight. `read()` serves English
+ * from the bundled map instead, so the backend still answers for every language.
+ */
+const catalogLoaders = import.meta.glob<CatalogModule>([
+  './locales/*/*.json',
+  '!./locales/en/*.json',
+]);
 
 const catalogBackend: BackendModule = {
   type: 'backend',
   init() {},
   read(language: string, namespace: string, callback: ReadCallback) {
+    const bundled = language === 'en' ? ENGLISH_CATALOGS[namespace] : undefined;
+    if (bundled) {
+      callback(null, bundled);
+      return;
+    }
+
     const loader = catalogLoaders[`./locales/${language}/${namespace}.json`];
     if (!loader) {
       callback(new Error(`No translation catalog for ${language}/${namespace}`), false);
@@ -57,20 +89,12 @@ export const i18nReady = i18n
     // Tell i18next that English is only the bundled subset; without this it
     // assumes every language is already present and never calls the backend.
     partialBundledLanguages: true,
-    resources: {
-      en: {
-        auth: enAuth,
-        common: enCommon,
-        dashboard: enDashboard,
-        landing: enLanding,
-        settings: enSettings,
-      },
-    },
+    resources: { en: ENGLISH_CATALOGS },
     fallbackLng: 'en',
     supportedLngs: SUPPORTED_CODES,
     nonExplicitSupportedLngs: true, // 'de-DE' -> 'de'
     load: 'languageOnly',
-    ns: ['common', 'auth', 'dashboard', 'settings', 'landing'],
+    ns: [...NAMESPACES],
     defaultNS: 'common',
     interpolation: { escapeValue: false }, // React already escapes
     detection: {
