@@ -61,7 +61,7 @@ schautrack/
 ├── e2e/                   # Playwright end-to-end specs (run via root package.json)
 ├── helm/schautrack/       # Helm chart (Kubernetes deployment)
 ├── docs/                  # Manual test checklist + screenshots
-├── scripts/               # Build helpers (bump-version.sh, generate-changelog.sh)
+├── scripts/               # Build helpers (next-version.sh, generate-changelog.sh)
 ├── public/                # Static assets (logo, favicons)
 ├── db/
 │   └── init.sql           # Intentionally empty — schema comes from Go migrations

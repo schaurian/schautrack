@@ -23,14 +23,25 @@ PATCH=$(echo "$VERSION" | cut -d. -f3)
 # Commit subjects since the last tag decide the bump.
 COMMITS=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
 
-if echo "$COMMITS" | grep -qiE "^(breaking|major):"; then
+# Each alternative carries an optional "(scope)" group so a scoped subject
+# (`feat(ai): ...`, `fix(deps): ...`) matches the same branch its unscoped form
+# does. Without it, `grep` never matched the scoped form at all, fell through
+# to the "no prefix" patch default, and shipped two releases under the wrong
+# bump (v2.5.5 should have been v2.6.0; the welcome tour's v2.4.2 should have
+# been v2.5.0).
+#
+# The major check also accepts the Conventional Commits breaking-change marker
+# `!` right before the colon (`feat!:`, `feat(api)!:`) on ANY type, per spec —
+# that is the standard spelling for "breaking" and previously fell through to
+# patch just like the missing scope group did.
+if echo "$COMMITS" | grep -qiE "^(breaking|major)(\([^)]*\))?:|^[a-z]+(\([^)]*\))?!:"; then
   MAJOR=$((MAJOR + 1))
   MINOR=0
   PATCH=0
-elif echo "$COMMITS" | grep -qiE "^(feat|feature|minor):"; then
+elif echo "$COMMITS" | grep -qiE "^(feat|feature|minor)(\([^)]*\))?:"; then
   MINOR=$((MINOR + 1))
   PATCH=0
-elif echo "$COMMITS" | grep -qiE "^(fix|patch|chore|docs|refactor):"; then
+elif echo "$COMMITS" | grep -qiE "^(fix|patch|chore|docs|refactor)(\([^)]*\))?:"; then
   PATCH=$((PATCH + 1))
 else
   # No conventional prefix: a patch bump is the safe default.
