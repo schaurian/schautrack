@@ -265,7 +265,8 @@ jobs:
         run: npm run i18n:check
         working-directory: client
 
-  # A real gate from the first commit, not `continue-on-error` like `e2e`: the
+  # A real gate from the first commit, not `continue-on-error` the way `e2e`
+  # started out (#457 promoted it only after a week of green staging runs): the
   # tree is lint-clean as of this change, so there is no red-by-default period
   # to wait out. It is in `compute-version`'s `needs:` for the same reason
   # gofmt and go vet already are — those hard-gate the release chain today from
@@ -391,17 +392,19 @@ jobs:
     needs: test
     # A hung browser must not sit on a runner for the default 6 hours.
     timeout-minutes: 45
-    # REPORT-ONLY FOR NOW. This suite has never executed in CI, so its first
-    # runs are expected to surface environment differences rather than real
-    # regressions, and a gate that is red by default is a gate somebody deletes.
+    # A REAL GATE (#457), not report-only. Promoted after the suite ran
+    # 266/266 green with zero flaky and zero retries used on every `staging`
+    # run of this workflow from 2026-08-09 through 2026-08-30, and on the
+    # `main` release run on 2026-08-30. The four root causes behind the
+    # chronic flakes it used to have — worker-shared accounts, a strict-mode
+    # violation, the SSE subscription race, and a `waitForURL(/\/login|\//)`
+    # that matched any URL with a slash — are fixed rather than retried away
+    # (#453, #455).
     #
-    # TO TURN IT INTO A REAL GATE (target: once it has been green on `staging`
-    # for a week — tracked in #312) TWO changes are needed, not one:
-    #   1. delete the `continue-on-error` line below, and
-    #   2. add `e2e` to `compute-version`'s `needs:` — otherwise the release
-    #      chain still runs in parallel with this job and a red suite publishes
-    #      an image anyway.
-    continue-on-error: true
+    # Promotion needed both changes together, not just dropping
+    # `continue-on-error` here: `compute-version` now also `needs:` this job
+    # (see below), otherwise the release chain ran in parallel with e2e and a
+    # red suite could still publish an image.
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -488,7 +491,11 @@ jobs:
 
   compute-version:
     runs-on: ubuntu-latest
-    needs: [test, lint]
+    # `e2e` is in this list (#457) so the release chain waits on it rather than
+    # running alongside it — without that, a red E2E suite would still let
+    # compute-version -> build-and-push -> create-manifest publish an image
+    # before the failure was even reported.
+    needs: [test, lint, e2e]
     # Deliberately not serialised: this job only *reads* git state. A group here
     # would be theatre — it is released the moment the job ends, several jobs
     # before create-tag writes anything. Job-level concurrency cannot span a
