@@ -249,6 +249,7 @@
     "deleteSavedFoodAriaLabel": "Delete saved food",
     "draftNamePlaceholder": "Name (e.g. Porridge)",
     "emptyState": "No saved foods yet. Use the \"Save\" button on the entry form, or hit \"+ New\".",
+    "lessButton": "− less",
     "logQuantityButton": "Log {{count}}×",
     "logQuantityButton_one": "Log {{count}}×",
     "logQuantityButton_other": "Log {{count}}×",

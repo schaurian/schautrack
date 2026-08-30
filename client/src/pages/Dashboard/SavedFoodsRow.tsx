@@ -31,6 +31,11 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [tracking, setTracking] = useState<number | null>(null);
   const [quantityPickerId, setQuantityPickerId] = useState<number | null>(null);
+  // "+ more" unfolds the rest of the chips in place. It used to open the Manage
+  // dialog, which stopped being able to track anything once the per-row Track
+  // button was dropped — so every food past the cut became unloggable (#489).
+  // Manage is still one tap away in the header; it is for editing the list.
+  const [expanded, setExpanded] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['savedFoods'],
@@ -70,6 +75,18 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
     setTracking(null);
   };
 
+  const renderChip = (food: SavedFood) => (
+    <Chip
+      key={food.id}
+      food={food}
+      loading={tracking === food.id}
+      quantityPickerOpen={quantityPickerId === food.id}
+      onTrack={(qty) => handleTrack(food, qty)}
+      onOpenQuantity={() => setQuantityPickerId(food.id)}
+      onCloseQuantity={() => setQuantityPickerId(null)}
+    />
+  );
+
   return (
     <>
       <div data-testid="saved-foods-row" className="rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
@@ -80,39 +97,34 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
           </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 p-3">
-          <div className="contents max-sm:hidden">
-            {all.slice(0, DESKTOP_CHIPS).map((food) => (
-              <Chip
-                key={food.id}
-                food={food}
-                loading={tracking === food.id}
-                quantityPickerOpen={quantityPickerId === food.id}
-                onTrack={(qty) => handleTrack(food, qty)}
-                onOpenQuantity={() => setQuantityPickerId(food.id)}
-                onCloseQuantity={() => setQuantityPickerId(null)}
-              />
-            ))}
-          </div>
-          <div className="contents sm:hidden">
-            {all.slice(0, MOBILE_CHIPS).map((food) => (
-              <Chip
-                key={food.id}
-                food={food}
-                loading={tracking === food.id}
-                quantityPickerOpen={quantityPickerId === food.id}
-                onTrack={(qty) => handleTrack(food, qty)}
-                onOpenQuantity={() => setQuantityPickerId(food.id)}
-                onCloseQuantity={() => setQuantityPickerId(null)}
-              />
-            ))}
-          </div>
-          {(all.length > DESKTOP_CHIPS || (all.length > MOBILE_CHIPS)) && (
+          {expanded ? (
+            // One list once everything is shown: the two breakpoint lists below
+            // only exist to cut at a different count per width, and rendering
+            // both here would duplicate every chip in the DOM.
+            all.map(renderChip)
+          ) : (
+            <>
+              <div className="contents max-sm:hidden">
+                {all.slice(0, DESKTOP_CHIPS).map(renderChip)}
+              </div>
+              <div className="contents sm:hidden">
+                {all.slice(0, MOBILE_CHIPS).map(renderChip)}
+              </div>
+            </>
+          )}
+          {all.length > MOBILE_CHIPS && (
             <button
               type="button"
-              className="rounded-full border border-dashed border-border bg-transparent text-muted-foreground px-3 py-1 text-sm hover:text-foreground hover:border-ring cursor-pointer transition-colors"
-              onClick={() => setModalOpen(true)}
+              className={cn(
+                'rounded-full border border-dashed border-border bg-transparent text-muted-foreground px-3 py-1 text-sm hover:text-foreground hover:border-ring cursor-pointer transition-colors',
+                // Nothing is folded away on desktop until the desktop cut is
+                // passed, so don't offer to unfold there.
+                !expanded && all.length <= DESKTOP_CHIPS && 'sm:hidden',
+              )}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
             >
-              {t('savedFoods.moreButton')}
+              {expanded ? t('savedFoods.lessButton') : t('savedFoods.moreButton')}
             </button>
           )}
         </div>
