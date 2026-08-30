@@ -12,6 +12,7 @@
 
 - [Self-hosting guide](https://github.com/schaurian/schautrack#readme): Docker, Kubernetes, and configuration instructions.
 - [API guide](https://github.com/schaurian/schautrack/blob/main/docs/api-v1.md): usage, authentication, scopes, and endpoint reference.
+- [Architecture guide](https://github.com/schaurian/schautrack/blob/main/docs/architecture.md): system design, request pipeline, and the real-time (SSE) update flow.
 
 ## Source and support
 
