@@ -430,6 +430,71 @@ func TestDecodeV1OptionalTypeErrorNamesTheField(t *testing.T) {
 	}
 }
 
+// TestDecodeV1OptionalTypeErrorReportsTheFirstBadField pins WHICH field is named
+// when more than one is wrong. encoding/json stops at the first fault it meets,
+// so the answer has to follow body order rather than struct order or map
+// iteration order — `carbs_g` here, even though `protein_g` is declared first in
+// v1EntryPatch and a map would order the two arbitrarily.
+func TestDecodeV1OptionalTypeErrorReportsTheFirstBadField(t *testing.T) {
+	var dst v1EntryPatch
+	got := decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPatch, "/",
+			strings.NewReader(`{"carbs_g":"lots","protein_g":"more"}`)), &dst)
+	if got == nil {
+		t.Fatal("decodeV1 accepted strings for two int macros")
+	}
+	want := apierr.InvalidParam{Name: "carbs_g", Reason: "expected int"}
+	if len(got.InvalidParams) != 1 || got.InvalidParams[0] != want {
+		t.Errorf("invalid_params = %+v, want [%+v]", got.InvalidParams, want)
+	}
+}
+
+// TestDecodeV1OptionalTypeErrorInNestedValue covers an Optional whose value is
+// the right JSON kind at the top level but wrong inside — the recovered name
+// must still be the top-level key, since that is the granularity invalid_params
+// speaks in.
+func TestDecodeV1OptionalTypeErrorInNestedValue(t *testing.T) {
+	var dst v1EntryPatch
+	got := decodeV1(httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodPatch, "/",
+			strings.NewReader(`{"name":["not","a","string"]}`)), &dst)
+	if got == nil {
+		t.Fatal("decodeV1 accepted an array for name")
+	}
+	if got.Status != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422", got.Status)
+	}
+	want := apierr.InvalidParam{Name: "name", Reason: "expected string"}
+	if len(got.InvalidParams) != 1 || got.InvalidParams[0] != want {
+		t.Errorf("invalid_params = %+v, want [%+v]", got.InvalidParams, want)
+	}
+}
+
+// TestDecodeV1NonObjectBodyStillReportsTheShape guards the branch the field
+// recovery sits next to. An empty UnmarshalTypeError.Field used to mean "the
+// body itself was the wrong shape"; now that a bad Optional produces the same
+// empty Field, that reading is gone and the shape answer has to keep coming
+// from decodeV1's own check on the raw bytes.
+func TestDecodeV1NonObjectBodyStillReportsTheShape(t *testing.T) {
+	for _, body := range []string{`[1,2,3]`, `"a string"`, `42`, `true`} {
+		var dst v1EntryPatch
+		got := decodeV1(httptest.NewRecorder(),
+			httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(body)), &dst)
+		if got == nil {
+			t.Fatalf("decodeV1(%q) accepted a non-object body", body)
+		}
+		if got.Status != http.StatusBadRequest {
+			t.Errorf("decodeV1(%q) status = %d, want 400", body, got.Status)
+		}
+		if got.Detail != "The request body must be a JSON object." {
+			t.Errorf("decodeV1(%q) detail = %q, want the must-be-an-object detail", body, got.Detail)
+		}
+		if len(got.InvalidParams) != 0 {
+			t.Errorf("decodeV1(%q) invalid_params = %+v, want none", body, got.InvalidParams)
+		}
+	}
+}
+
 func TestPathID(t *testing.T) {
 	tests := []struct {
 		name    string

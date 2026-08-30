@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -169,7 +170,7 @@ func decodeV1(w http.ResponseWriter, r *http.Request, dst any) *apierr.Problem {
 	obj := json.NewDecoder(bytes.NewReader(raw))
 	obj.DisallowUnknownFields()
 	if err := obj.Decode(dst); err != nil {
-		return decodeV1Problem(err)
+		return decodeV1Problem(nameTypeErrorField(err, raw, dst))
 	}
 
 	// A second Decode on the *body* must hit io.EOF; anything else means the
@@ -205,6 +206,78 @@ func decodeV1(w http.ResponseWriter, r *http.Request, dst any) *apierr.Problem {
 		// syntax error in bytes the server was never going to use.
 		return apierr.BadRequest("The request body must contain exactly one JSON object.")
 	}
+}
+
+// nameTypeErrorField puts the JSON field name back onto an UnmarshalTypeError
+// that lost it, and returns every other error untouched.
+//
+// Go 1.27 stopped applying encoding/json's addErrorContext to errors coming out
+// of a custom json.Unmarshaler. A plain struct field still arrives here as
+// `Field: "protein_g"`; the identical mistake in an Optional[T] field arrives as
+// `Field: ""`, because Optional.UnmarshalJSON delegates to a fresh
+// json.Unmarshal that has no idea which key it is decoding. Under Go 1.26 both
+// spellings were named, and the difference is invisible to the compiler and to
+// any test that does not assert on the field name — which is what makes it worth
+// a helper rather than a note. Left alone, every wrong-typed field on a PATCH
+// body degrades from `422` plus `invalid_params: [{protein_g, expected int}]` to
+// a bare `400 The request body must be a JSON object.` — the wrong status, and a
+// message that describes a fault the caller did not make.
+//
+// Recovery is by replay: walk the object in body order and re-decode each
+// `{key: value}` on its own against a fresh dst, and the first key that
+// reproduces a type error is the one encoding/json stopped at. Body order is the
+// load-bearing part — a map[string]json.RawMessage would name an arbitrary one
+// of several bad fields — so the keys come off a token stream rather than a map.
+//
+// This runs only on the error path, after a request has already failed, so the
+// second parse costs nothing a caller will notice. Probing decodes deliberately
+// do NOT set DisallowUnknownFields: an unknown key is reported by the real
+// decode above with its own message, and rejecting one here would misattribute
+// the type error to whichever unknown key happened to come first.
+func nameTypeErrorField(err error, raw json.RawMessage, dst any) error {
+	var typeErr *json.UnmarshalTypeError
+	if !errors.As(err, &typeErr) || typeErr.Field != "" {
+		return err
+	}
+	// dst is always a non-nil pointer to a struct in decodeV1's callers; a
+	// probe target cannot be built from anything else, so leave err as-is.
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() || rv.Elem().Kind() != reflect.Struct {
+		return err
+	}
+
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if tok, tokErr := dec.Token(); tokErr != nil || tok != json.Delim('{') {
+		return err
+	}
+	for dec.More() {
+		keyTok, keyErr := dec.Token()
+		if keyErr != nil {
+			return err
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return err
+		}
+		var value json.RawMessage
+		if valErr := dec.Decode(&value); valErr != nil {
+			return err
+		}
+		one, mErr := json.Marshal(map[string]json.RawMessage{key: value})
+		if mErr != nil {
+			return err
+		}
+		probe := reflect.New(rv.Elem().Type()).Interface()
+		var probeErr *json.UnmarshalTypeError
+		if errors.As(json.Unmarshal(one, probe), &probeErr) {
+			// Copy rather than mutate: the caller's error is not ours to edit,
+			// and only the name was ever missing.
+			named := *typeErr
+			named.Field = key
+			return &named
+		}
+	}
+	return err
 }
 
 // isMaxBytes reports whether err is the size-limit failure raised by
