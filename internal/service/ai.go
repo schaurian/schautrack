@@ -238,7 +238,8 @@ func CallAIProvider(ctx context.Context, provider, apiKey, endpoint, base64Data,
 func parseAIResponse(provider string, body []byte) (*AIResult, error) {
 	var content string
 
-	if provider == "claude" {
+	switch provider {
+	case "claude":
 		var resp struct {
 			Content []struct {
 				Text string `json:"text"`
@@ -250,7 +251,7 @@ func parseAIResponse(provider string, body []byte) (*AIResult, error) {
 		if len(resp.Content) > 0 {
 			content = resp.Content[0].Text
 		}
-	} else if provider == "gemini" {
+	case "gemini":
 		var resp struct {
 			Candidates []struct {
 				Content struct {
@@ -272,7 +273,7 @@ func parseAIResponse(provider string, body []byte) (*AIResult, error) {
 			}
 			content = strings.Join(parts, "")
 		}
-	} else {
+	default:
 		var resp struct {
 			Choices []struct {
 				Message struct {
