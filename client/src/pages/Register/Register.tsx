@@ -175,7 +175,7 @@ export default function Register() {
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
-                <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt={t('register.captchaAltText')} />
+                <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt={t('register.captchaAltText')} width={150} height={50} />
               </div>
               {captchaQuestion && (
                 <p className="text-sm text-muted-foreground">
