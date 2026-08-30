@@ -133,6 +133,56 @@ func TestCallAIProvider_TokenLimitParam(t *testing.T) {
 	}
 }
 
+func TestCallAIProvider_GeminiRequest(t *testing.T) {
+	var captured map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/models/gemini-test:generateContent" {
+			t.Errorf("path = %q, want %q", r.URL.Path, "/models/gemini-test:generateContent")
+		}
+		if got := r.Header.Get("x-goog-api-key"); got != "gemini-key" {
+			t.Errorf("x-goog-api-key = %q, want %q", got, "gemini-key")
+		}
+		raw, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(raw, &captured); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"candidates":[{"content":{"parts":[{"text":"{\"calories\":100,\"food\":\"apple\",\"macros\":{}}"}]}}]}`))
+	}))
+	defer srv.Close()
+
+	_, err := CallAIProvider(context.Background(), "gemini", "gemini-key", srv.URL, "Zg==", "image/jpeg", "describe", "gemini-test")
+	if err != nil {
+		t.Fatalf("CallAIProvider: %v", err)
+	}
+
+	contents, ok := captured["contents"].([]any)
+	if !ok || len(contents) != 1 {
+		t.Fatalf("contents = %#v, want one content item", captured["contents"])
+	}
+	content, _ := contents[0].(map[string]any)
+	if content["role"] != "user" {
+		t.Errorf("role = %#v, want user", content["role"])
+	}
+	parts, ok := content["parts"].([]any)
+	if !ok || len(parts) != 2 {
+		t.Fatalf("parts = %#v, want image and text", content["parts"])
+	}
+	imagePart, _ := parts[0].(map[string]any)
+	inlineData, _ := imagePart["inlineData"].(map[string]any)
+	if inlineData["mimeType"] != "image/jpeg" || inlineData["data"] != "Zg==" {
+		t.Errorf("inlineData = %#v, want JPEG test image", inlineData)
+	}
+	textPart, _ := parts[1].(map[string]any)
+	if textPart["text"] != "describe" {
+		t.Errorf("text part = %#v, want describe", textPart["text"])
+	}
+	config, _ := captured["generationConfig"].(map[string]any)
+	if config["responseMimeType"] != "application/json" || config["maxOutputTokens"] != float64(1000) {
+		t.Errorf("generationConfig = %#v, want JSON and 1000 tokens", config)
+	}
+}
+
 // TestCallAIProvider_ContextCancellation guards the fix for the request
 // context being ignored: when the caller cancels (e.g. the user aborts the
 // HTTP request), the upstream AI call must return promptly instead of
@@ -244,6 +294,19 @@ func claudeEnvelope(text string) string {
 	return string(b)
 }
 
+func geminiEnvelope(parts ...string) string {
+	geminiParts := make([]map[string]any, 0, len(parts))
+	for _, text := range parts {
+		geminiParts = append(geminiParts, map[string]any{"text": text})
+	}
+	b, _ := json.Marshal(map[string]any{
+		"candidates": []map[string]any{{
+			"content": map[string]any{"parts": geminiParts},
+		}},
+	})
+	return string(b)
+}
+
 // TestParseAIResponse exercises parseAIResponse directly across the edge cases
 // that were previously only reached indirectly through CallAIProvider: markdown-
 // fenced and prose-wrapped JSON, the NO_FOOD_DETECTED sentinel, empty/absent
@@ -279,10 +342,16 @@ func TestParseAIResponse(t *testing.T) {
 			want:     &AIResult{Calories: 90, Food: "celery"},
 		},
 		{
-			name:     "unknown provider falls back to the choices envelope",
+			name:     "gemini joins text parts from the candidates envelope",
 			provider: "gemini",
-			body:     openaiEnvelope(`{"calories":42,"food":"olive"}`),
+			body:     geminiEnvelope(`{"calories":42,`, `"food":"olive"}`),
 			want:     &AIResult{Calories: 42, Food: "olive"},
+		},
+		{
+			name:     "unknown provider falls back to the choices envelope",
+			provider: "other",
+			body:     openaiEnvelope(`{"calories":43,"food":"pear"}`),
+			want:     &AIResult{Calories: 43, Food: "pear"},
 		},
 		{
 			name:     "markdown-fenced json is unwrapped by brace slicing",
@@ -361,6 +430,12 @@ func TestParseAIResponse(t *testing.T) {
 			wantErr:  "empty AI response",
 		},
 		{
+			name:     "empty gemini candidates array",
+			provider: "gemini",
+			body:     `{"candidates":[]}`,
+			wantErr:  "empty AI response",
+		},
+		{
 			name:     "whitespace-only content is not valid JSON",
 			provider: "openai",
 			body:     openaiEnvelope("   \n\t "),
@@ -379,6 +454,12 @@ func TestParseAIResponse(t *testing.T) {
 			provider: "claude",
 			body:     `<html>gateway error</html>`,
 			wantErr:  "failed to parse Claude response",
+		},
+		{
+			name:     "malformed gemini envelope",
+			provider: "gemini",
+			body:     `<html>gateway error</html>`,
+			wantErr:  "failed to parse Gemini response",
 		},
 
 		// --- malformed inner JSON ---

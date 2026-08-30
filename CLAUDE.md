@@ -12,7 +12,7 @@ This document contains important context and decisions for Claude Code when work
 - Email verification and transactional email — registration verification, email-change verification, password reset, and 2FA-reset emails (`handler/auth_email.go`, `service/email.go`; requires SMTP)
 - Captcha — SVG challenge on login / registration / verification-resend for brute-force protection (`service/captcha.go`, `GET /auth/captcha`)
 - Calorie entry tracking with daily goals
-- AI-powered calorie estimation from food photos (OpenAI, Claude, or Ollama)
+- AI-powered calorie estimation from food photos (OpenAI, Claude, Gemini, or Ollama)
 - Macro (macronutrient) tracking — protein, carbs, fat, fiber, sugar (`service/macros.go`, `POST /settings/macros`)
 - Saved foods — reusable quick-add favorites that can be tracked into entries (`handler/saved_foods.go`, `/api/saved-foods`)
 - Recurring per-day todos (`handler/todos.go`, `service/todos.go`, `/api/todos`)
@@ -329,7 +329,7 @@ Passkeys / WebAuthn (enabled when `PASSKEYS_RP_ID` is set):
 - `PASSKEYS_RP_ORIGINS`: Comma-separated allowed origins for multi-domain setups
 
 AI Configuration (Global Fallbacks):
-- `AI_PROVIDER`: Default AI provider (`openai`, `claude`, or `ollama`)
+- `AI_PROVIDER`: Default AI provider (`openai`, `claude`, `gemini`, or `ollama`)
 - `AI_KEY`: Global API key (fallback when users don't have their own)
 - `AI_KEY_ENCRYPTION_SECRET`: Random 32-byte hex string used to encrypt user API keys in the database
 - `AI_ENDPOINT`: Optional custom endpoint override (leave blank to use provider defaults)

@@ -161,7 +161,7 @@ Schautrack supports AI-powered nutrition estimation from food photos:
 
 ```yaml
 ai:
-  provider: openai  # or: claude, ollama
+  provider: openai  # or: claude, gemini, ollama
   key: "sk-..."
   model: "gpt-4o"
   keyEncryptionSecret: ""  # Generate with: openssl rand -hex 32
@@ -334,11 +334,11 @@ application's default in force. See
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `ai.provider` | AI provider: `openai`, `claude`, or `ollama` | `""` |
+| `ai.provider` | AI provider: `openai`, `claude`, `gemini`, or `ollama` | `""` |
 | `ai.key` | API key for AI provider | `""` |
 | `ai.keyEncryptionSecret` | Secret for encrypting user API keys | `""` |
 | `ai.endpoint` | Custom API endpoint | `""` |
-| `ai.model` | Model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemma3:12b`) | `""` |
+| `ai.model` | Model override (e.g., `gpt-4o`, `claude-sonnet-4-5-20250929`, `gemini-3.6-flash`, `gemma3:12b`) | `""` |
 | `ai.dailyLimit` | Daily requests per user (0 = unlimited). The app defaults to unlimited; this chart sets `10`. | `10` |
 
 ### SMTP

@@ -240,7 +240,7 @@ smtp:
 # ⚠️  SECURITY WARNING: AI keys are sensitive and can incur costs!
 # Use existingSecret in production - never commit API keys to Git
 ai:
-  # AI provider: openai, claude, or ollama
+  # AI provider: openai, claude, gemini, or ollama
   provider: ""
   # API key for AI provider - DO NOT commit real keys to Git
   key: ""
@@ -249,7 +249,7 @@ ai:
   keyEncryptionSecret: ""
   # Custom API endpoint (leave empty for defaults)
   endpoint: ""
-  # Model override (e.g., gpt-4o, claude-sonnet-4-5-20250929, gemma3:12b)
+  # Model override (e.g., gpt-4o, claude-sonnet-4-5-20250929, gemini-3.6-flash, gemma3:12b)
   model: ""
   # Daily request limit per user when using global key (0 = unlimited)
   dailyLimit: 10

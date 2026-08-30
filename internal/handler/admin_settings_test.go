@@ -227,27 +227,28 @@ func TestValidRPID(t *testing.T) {
 
 func TestOneOf(t *testing.T) {
 	// ai_provider's allow-list, used as the representative instance.
-	fn := oneOf("openai", "claude", "ollama", "")
+	fn := oneOf("openai", "claude", "gemini", "ollama", "")
 	runValidatorCases(t, "oneOf", fn, []validatorCase{
 		{in: "", ok: true, note: "empty is in the allow-list explicitly"},
 		{in: "openai", ok: true},
 		{in: "claude", ok: true},
+		{in: "gemini", ok: true},
 		{in: "ollama", ok: true},
 
 		{in: "OpenAI", ok: false, note: "exact comparison, no case folding"},
 		{in: "OPENAI", ok: false, note: "exact comparison, no case folding"},
 		{in: " openai", ok: false, note: "exact comparison, no trimming"},
 		{in: "openai ", ok: false, note: "exact comparison, no trimming"},
-		{in: "gemini", ok: false},
+		{in: "Gemini", ok: false},
 	})
 
 	// The error message must list the allowed values — it is surfaced verbatim
 	// to the admin as the 400 body (see AdminHandler.UpdateSettings).
-	err := fn("gemini")
+	err := fn("unsupported")
 	if err == nil {
-		t.Fatal("oneOf(...)(\"gemini\") = nil, want error")
+		t.Fatal("oneOf(...)(\"unsupported\") = nil, want error")
 	}
-	for _, want := range []string{"openai", "claude", "ollama"} {
+	for _, want := range []string{"openai", "claude", "gemini", "ollama"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("oneOf error %q does not mention allowed value %q", err.Error(), want)
 		}

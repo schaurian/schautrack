@@ -92,7 +92,7 @@
       "heading": "Sub-responsabili del trattamento",
       "intro": "Utilizziamo un piccolo numero di servizi esterni per gestire Schautrack:",
       "items": {
-        "aiEstimation": "<strong>Stima nutrizionale con AI:</strong> Quando invii una foto di un cibo per la stima, la foto viene inviata al provider AI configurato dal gestore di questa istanza di Schautrack — attualmente OpenAI o Anthropic Claude (entrambi con sede negli Stati Uniti), oppure un'istanza Ollama self-hosted. Puoi anche configurare una tua chiave API per uno di questi provider nelle Impostazioni. Se non utilizzi questa funzione, nessun dato fotografico viene condiviso con alcun provider AI. I tuoi dati corporei, le voci di peso e gli obiettivi di peso non vengono mai inviati ai provider AI.",
+        "aiEstimation": "<strong>Stima nutrizionale con AI:</strong> Quando invii una foto di un cibo per la stima, la foto viene inviata al provider AI configurato dal gestore di questa istanza di Schautrack — attualmente OpenAI, Anthropic Claude o Google Gemini (tutti con sede negli Stati Uniti), oppure un'istanza Ollama self-hosted. Puoi anche configurare una tua chiave API per uno di questi provider nelle Impostazioni. Se non utilizzi questa funzione, nessun dato fotografico viene condiviso con alcun provider AI. I tuoi dati corporei, le voci di peso e gli obiettivi di peso non vengono mai inviati ai provider AI.",
         "barcodeLookups": "<strong>Ricerche codice a barre:</strong> I numeri dei codici a barre scansionati vengono inviati a <linkOff>Open Food Facts</linkOff> per recuperare i dati nutrizionali del prodotto, secondo la <linkOdbl>Open Database License (ODbL)</linkOdbl>.",
         "hosting": "<strong>Hosting:</strong> un provider di hosting con sede nell'UE, in Germania.",
         "emailDelivery": "<strong>Invio email:</strong> un provider di email transazionali per verifica, reset password e notifiche di modifica account.",
@@ -101,7 +101,7 @@
     },
     "internationalTransfers": {
       "heading": "Trasferimenti internazionali",
-      "body": "Se il provider AI configurato è OpenAI o Anthropic Claude, l'invio di una foto per la stima trasferisce l'immagine a un destinatario negli Stati Uniti. Tali trasferimenti si basano sulle Clausole Contrattuali Standard del provider. Puoi evitare questi trasferimenti non utilizzando la funzione di stima AI, oppure configurando un endpoint Ollama self-hosted nelle Impostazioni."
+      "body": "Se il provider AI configurato è OpenAI, Anthropic Claude o Google Gemini, l'invio di una foto per la stima trasferisce l'immagine a un destinatario negli Stati Uniti. Tali trasferimenti si basano sulle Clausole Contrattuali Standard del provider. Puoi evitare questi trasferimenti non utilizzando la funzione di stima AI, oppure configurando un endpoint Ollama self-hosted nelle Impostazioni."
     },
     "retention": {
       "heading": "Conservazione",

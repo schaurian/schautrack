@@ -39,13 +39,13 @@ test.describe.serial('Settings Extra', () => {
     await expect(aiHeading).toBeVisible({ timeout: 10000 });
     await aiHeading.scrollIntoViewIfNeeded();
 
-    // Find Provider select and change it to 'claude'
+    // Find Provider select and change it to Gemini.
     const aiCard = page.getByTestId('ai-settings-card');
     const providerSelect = aiCard.getByTestId('ai-provider');
     const providerSelectVisible = await providerSelect.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (providerSelectVisible) {
-      await chooseOption(page, providerSelect, 'claude');
+      await chooseOption(page, providerSelect, 'gemini');
     }
 
     // Fill Model input

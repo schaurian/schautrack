@@ -149,7 +149,7 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusBadRequest, "No AI provider configured.")
 		return
 	}
-	if provider != "openai" && provider != "claude" && provider != "ollama" {
+	if provider != "openai" && provider != "claude" && provider != "gemini" && provider != "ollama" {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid provider")
 		return
 	}
@@ -170,7 +170,7 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	})
 	apiKey, endpoint, customModel, usingGlobalKey := cfg.APIKey, cfg.Endpoint, cfg.Model, cfg.UsingGlobalKey
 
-	if (provider == "openai" || provider == "claude") && apiKey == "" {
+	if (provider == "openai" || provider == "claude" || provider == "gemini") && apiKey == "" {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("%s requires an API key.", provider))
 		return
 	}
@@ -184,7 +184,7 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 			usingGlobalKey = true
 		}
 	}
-	if (provider == "openai" || provider == "claude") && customModel == "" {
+	if (provider == "openai" || provider == "claude" || provider == "gemini") && customModel == "" {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("%s requires AI_MODEL to be configured.", provider))
 		return
 	}
