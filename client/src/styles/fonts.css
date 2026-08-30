@@ -1,0 +1,170 @@
+/*
+ * Self-hosted web fonts — Latin and Latin Extended only (issue #484).
+ *
+ * Why these rules are hand-written instead of importing @fontsource's own
+ * stylesheets:
+ *
+ * @fontsource ships two shapes of stylesheet. `<weight>.css` declares every
+ * subset the family has (Cyrillic, Greek, Devanagari, Vietnamese, …) and each
+ * @font-face carries a `unicode-range`, so the browser downloads only the
+ * subsets a page actually renders. `<subset>-<weight>.css` declares a single
+ * subset and deliberately omits `unicode-range` — it is meant to be used
+ * *alone*, as "this family is only ever this subset".
+ *
+ * Composing two of the latter (`latin-400.css` + `latin-ext-400.css`) does not
+ * produce a two-subset family. Both rules then describe the same
+ * family/style/weight with the same (absent) unicode-range, so the later rule
+ * simply replaces the earlier one: the browser resolves 'Noto Sans' 400 to the
+ * latin-ext file only. That file holds no ASCII glyphs — 1138 codepoints, none
+ * of A-Z, a-z or 0-9 — so the entire UI silently falls back to system-ui while
+ * still paying to download a 55 KB font nobody can see a glyph from.
+ *
+ * So: the subset files' woff2 assets, with the `unicode-range` descriptors from
+ * the composed stylesheets put back. Latin is fetched for every locale;
+ * latin-ext is fetched only when a page renders one of ąćęłńśźż (Polish is the
+ * one supported locale that needs it — ó lives in the latin range).
+ *
+ * Unsupported scripts (Cyrillic, Greek, Devanagari, Vietnamese) are omitted on
+ * purpose: their assets are then never emitted into the bundle at all. Text a
+ * user types in those scripts falls back to a system font, which is the
+ * trade the issue asks for.
+ *
+ * woff2 only, no woff fallback. Every browser that can run this app (ES2020,
+ * React 19) has supported woff2 since 2016; shipping the woff twins doubled the
+ * emitted font assets for bytes no client ever requested.
+ *
+ * The ranges below are copied verbatim from
+ * node_modules/@fontsource/<family>/<weight>.css. If @fontsource updates them,
+ * `fonts.test.ts` fails — it diffs these rules against the package.
+ */
+
+/* U+0100-02BA … — Latin Extended */
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* U+0000-00FF … — Latin */
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-ext-500-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Display face for titles, section labels and the ring numerals. */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('@fontsource/space-grotesk/files/space-grotesk-latin-ext-500-normal.woff2')
+    format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/space-grotesk/files/space-grotesk-latin-ext-700-normal.woff2')
+    format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
