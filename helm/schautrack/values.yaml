@@ -254,10 +254,138 @@ ai:
   # Daily request limit per user when using global key (0 = unlimited)
   dailyLimit: 10
 
-# PostgreSQL configuration
+# In-chart PostgreSQL. Two engines, both supported; `mode` picks one.
+#
+#   bundled  - a single PostgreSQL Pod with a PVC. Simple, no operator to
+#              install, nothing else to run. Fine for a single-node homelab or
+#              anywhere the database is backed up by other means. No failover,
+#              no point-in-time recovery.
+#   cnpg     - a CloudNativePG Cluster. Continuous backup to object storage,
+#              PITR, replicas with automatic failover, managed minor-version
+#              upgrades. Requires the CloudNativePG operator in the cluster.
+#
+# Pick `bundled` if you want the fewest moving parts, `cnpg` if you want the
+# database to look after itself. Neither is going away.
+#
+# The default is `bundled` because Helm cannot tell a fresh install from an
+# upgrade: defaulting to cnpg would move every existing release onto an empty
+# Cluster while its data sat in a PVC nothing mounts.
+#
+# Switching an existing install is a data migration, not a values change —
+# see docs/cloudnativepg.md.
 postgresql:
-  # Enable bundled PostgreSQL (set to false to use external database)
+  # Provision an in-chart database at all. false = use externalDatabase.url.
   enabled: true
+
+  # "bundled" or "cnpg".
+  mode: bundled
+
+  # --- mode: cnpg ---------------------------------------------------------
+
+  # 1 is a single instance with no standby: still a real upgrade on the old
+  # Deployment (managed backups, PITR, supervised restarts), but a node loss is
+  # downtime until the volume reattaches. Use 3 for actual high availability;
+  # 2 gives you a standby but no quorum, so prefer 3 if you can afford it.
+  instances: 1
+
+  # Leave empty to take the operator's default PostgreSQL image, which is what
+  # keeps minor-version upgrades on CNPG's tested path.
+  imageName: ""
+
+  auth:
+    database: schautrack
+    username: schautrack
+    # CNPG generates and owns the password; there is no auth.password key.
+    # To bring your own, create a kubernetes.io/basic-auth Secret with
+    # `username` and `password` keys and name it here. The chart then reads
+    # DATABASE_URL from `<name>`; that Secret must also carry a `uri` key.
+    existingSecret: ""
+
+  storage:
+    size: 10Gi
+    # Empty means the cluster default StorageClass.
+    storageClass: ""
+
+  # A separate volume for the write-ahead log. Off by default; worth enabling
+  # when the data volume is on slow or heavily shared storage, because WAL
+  # fsyncs then stop competing with table I/O.
+  walStorage:
+    enabled: false
+    size: 2Gi
+    storageClass: ""
+
+  # Ceiling on server connections.
+  #
+  # The floor is set by the app, not by taste: internal/database pins pgxpool
+  # MaxConns=20 per replica, and sse.Listen holds one MORE connection outside
+  # the pool for the process lifetime, because a LISTEN occupies its connection
+  # permanently. So a 2-replica deployment needs 2*(20+1)=42 before CNPG's own
+  # superuser and streaming-replication slots. 100 leaves headroom to scale the
+  # Deployment to 4 replicas without touching this.
+  maxConnections: 100
+
+  # Extra postgresql.conf parameters, merged after max_connections.
+  parameters: {}
+    # shared_buffers: 256MB
+    # work_mem: 8MB
+
+  resources: {}
+    # limits:
+    #   cpu: 1000m
+    #   memory: 1Gi
+    # requests:
+    #   cpu: 100m
+    #   memory: 256Mi
+
+  affinity: {}
+
+  # Continuous backup to S3-compatible object storage, plus PITR.
+  #
+  # Off by default because it cannot work without credentials, and a backup
+  # that silently is not running is worse than one you know you have not set
+  # up. Turning this on is the main reason to be on CNPG at all.
+  backup:
+    enabled: false
+    # e.g. s3://my-bucket/schautrack
+    destinationPath: ""
+    # Set for non-AWS S3 (MinIO, Garage, R2): e.g. https://minio.example.com
+    endpointURL: ""
+    s3Credentials:
+      secretName: ""
+      accessKeyIdKey: ACCESS_KEY_ID
+      secretAccessKeyKey: ACCESS_SECRET_KEY
+    retentionPolicy: "30d"
+    walCompression: gzip
+    # SIX fields, seconds first — CNPG's cron dialect is not Kubernetes'.
+    # This default is 03:00 daily. Empty disables the ScheduledBackup.
+    schedule: "0 0 3 * * *"
+
+  # One-shot import from a bundled-mode PostgreSQL.
+  #
+  # When enabled, CNPG runs pg_dump | pg_restore against the old server as it
+  # bootstraps, then never looks at it again. It is read ONLY at bootstrap: on
+  # an already-initialised Cluster it does nothing, so leaving it true will not
+  # re-import and will not overwrite live data. Set it back to false once the
+  # migration is done, so a future Cluster rebuild does not point at a server
+  # that no longer exists. See docs/cloudnativepg.md.
+  bootstrap:
+    importFrom:
+      enabled: false
+      # Service name of the old postgres, e.g. schautrack-prod-postgresql
+      host: ""
+      port: 5432
+      # Default to auth.username / auth.database when empty.
+      username: ""
+      database: ""
+      sslmode: prefer
+      # Secret holding the OLD database password.
+      passwordSecret:
+        name: ""
+        key: POSTGRES_PASSWORD
+
+  # --- mode: bundled -----------------------------------------------------
+  # Read only when mode is "bundled". Left at their historical defaults so an
+  # existing release renders exactly as it did before CloudNativePG existed.
   image:
     repository: postgres
     tag: "18-alpine"

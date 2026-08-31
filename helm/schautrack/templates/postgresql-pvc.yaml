@@ -1,4 +1,4 @@
-{{- if and .Values.postgresql.enabled .Values.postgresql.persistence.enabled (not .Values.postgresql.persistence.existingClaim) }}
+{{- if and (include "schautrack.postgresql.isBundled" .) .Values.postgresql.persistence.enabled (not .Values.postgresql.persistence.existingClaim) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

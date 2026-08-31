@@ -90,12 +90,35 @@ jobs:
       # key that helm itself happily templates into a manifest the API server
       # would reject.
       #
-      # No -schema-location beyond kubeconform's default: the chart templates
-      # only core kinds (Deployment, Service, Ingress, PVC, ConfigMap, Secret,
-      # ServiceAccount), all covered by the stock schemas. Add a CRD schema
-      # location only when a CRD template actually lands.
-      - name: Validate rendered manifests
-        run: helm template helm/schautrack | kubeconform -strict -summary
+      # A CRD template has now landed, so the second -schema-location is here:
+      # the chart renders a CloudNativePG Cluster (and ScheduledBackup), whose
+      # schemas are not in kubeconform's stock set. `default` must be listed
+      # explicitly — naming any location replaces the built-in list rather than
+      # adding to it, so omitting it would stop validating every core kind.
+      #
+      # NOT -ignore-missing-schemas, which is the tempting one-word fix: it
+      # would silence this by skipping validation of the only resource the
+      # chart newly introduces, i.e. exactly the manifest most likely to be
+      # wrong, while still reporting "Valid" for everything else.
+      #
+      # Both engines are rendered, because they are mutually exclusive and the
+      # default (bundled) would otherwise be the only one CI ever checks.
+      - name: Validate rendered manifests (bundled engine)
+        run: |
+          helm template helm/schautrack --set postgresql.auth.password=ci \
+            | kubeconform -strict -summary \
+                -schema-location default \
+                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+
+      - name: Validate rendered manifests (CloudNativePG engine)
+        run: |
+          helm template helm/schautrack --set postgresql.mode=cnpg \
+              --set postgresql.backup.enabled=true \
+              --set postgresql.backup.destinationPath=s3://ci/schautrack \
+              --set postgresql.backup.s3Credentials.secretName=ci-s3 \
+            | kubeconform -strict -summary \
+                -schema-location default \
+                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 
   dockerfile:
     runs-on: ubuntu-latest

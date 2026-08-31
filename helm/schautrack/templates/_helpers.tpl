@@ -77,13 +77,110 @@ app.kubernetes.io/component: database
 {{- end }}
 
 {{/*
-Database URL
+The CNPG read-write Service — the cluster's current primary.
+
+Everything this chart points at the database uses this and only this. CNPG also
+publishes -ro (hot standbys) and -r (any instance), and both are wrong here:
+NOTIFY does not replicate, so a LISTEN on a standby never fires and the SSE
+broker sits on a silent channel forever.
+*/}}
+{{- define "schautrack.postgresql.rwService" -}}
+{{- printf "%s-rw" (include "schautrack.postgresql.fullname" .) }}
+{{- end }}
+
+{{/*
+Name of the Secret CNPG generates for the application user, and the key in it
+holding a ready-made connection URI.
+
+CNPG owns this credential: it is generated at bootstrap and can be rotated by
+the operator, so the chart never templates the password and never stores it in
+values.yaml. Deployments read DATABASE_URL straight out of this Secret.
+*/}}
+{{- define "schautrack.postgresql.appSecretName" -}}
+{{- if .Values.postgresql.auth.existingSecret }}
+{{- .Values.postgresql.auth.existingSecret }}
+{{- else }}
+{{- printf "%s-app" (include "schautrack.postgresql.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Database URL for everything except CNPG mode.
+
+In CNPG mode there is deliberately no value to render: the URI lives in the
+operator-managed Secret and is injected by secretKeyRef, so a password rotation
+takes effect without a chart upgrade. The bundled path keeps templating its own
+URL exactly as it always has, because changing that would change the Secret
+under a running release for no benefit.
 */}}
 {{- define "schautrack.databaseUrl" -}}
-{{- if .Values.postgresql.enabled }}
+{{- if include "schautrack.postgresql.isBundled" . }}
 {{- printf "postgres://%s:%s@%s:5432/%s" (.Values.postgresql.auth.username | urlquery) (.Values.postgresql.auth.password | urlquery) (include "schautrack.postgresql.fullname" .) .Values.postgresql.auth.database }}
 {{- else }}
 {{- .Values.externalDatabase.url }}
+{{- end }}
+{{- end }}
+
+{{/*
+The Service the app connects to, whichever engine is running.
+
+CNPG publishes no Service at the Cluster's own name, so the two differ and the
+difference is easy to miss — the bundled Service *is* the plain fullname.
+*/}}
+{{- define "schautrack.postgresql.serviceName" -}}
+{{- if include "schautrack.postgresql.isCNPG" . }}
+{{- include "schautrack.postgresql.rwService" . }}
+{{- else }}
+{{- include "schautrack.postgresql.fullname" . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Which in-chart database engine this release runs: "cnpg" or "bundled".
+
+Helm cannot tell a fresh install from an upgrade. A default that resolved to
+`cnpg` would therefore move every existing release off the Deployment it has
+been running, leaving its data in a PVC nothing mounts any more — the database
+would look erased, on an upgrade nobody was warned about.
+
+An earlier draft of this tried to infer the answer from the values file, on the
+theory that legacy-only keys prove a pre-3.x release. That was too clever: a
+release using a top-level `existingSecret` sets no `postgresql.auth.password`
+and none of the Deployment-only keys, so it would have been read as new and
+silently migrated. One missed case is one destroyed database, so inference is
+the wrong tool.
+
+The default is therefore `bundled` — the boring answer that changes nothing for
+anyone — and CloudNativePG is opted into explicitly. Every example in the docs
+sets it, so new installs following the documentation get CNPG; a bare
+`helm install` with no values keeps the deprecated engine and says so in NOTES.
+The default flips in a future major, once CNPG is the well-trodden path.
+*/}}
+{{- define "schautrack.postgresql.mode" -}}
+{{- $mode := .Values.postgresql.mode | default "bundled" }}
+{{- if not (has $mode (list "cnpg" "bundled")) }}
+{{- fail (printf "postgresql.mode must be \"cnpg\" or \"bundled\", got %q" $mode) }}
+{{- end }}
+{{- $mode }}
+{{- end }}
+
+{{/*
+True when this release runs the CloudNativePG Cluster.
+*/}}
+{{- define "schautrack.postgresql.isCNPG" -}}
+{{- and .Values.postgresql.enabled (eq (include "schautrack.postgresql.mode" .) "cnpg") | ternary "true" "" }}
+{{- end }}
+
+{{/*
+True when this release runs the deprecated bundled Deployment.
+*/}}
+{{- define "schautrack.postgresql.isBundled" -}}
+{{- and .Values.postgresql.enabled (eq (include "schautrack.postgresql.mode" .) "bundled") | ternary "true" "" }}
+{{- end }}
+
+{{- define "schautrack.postgresql.validate" -}}
+{{- if lt (int (.Values.postgresql.instances | default 1)) 1 }}
+{{- fail "postgresql.instances must be at least 1" }}
 {{- end }}
 {{- end }}
 
