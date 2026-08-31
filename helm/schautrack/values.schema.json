@@ -191,7 +191,7 @@
           "type": "boolean"
         },
         "sessionSecret": {
-          "description": "REMOVED — accepted and ignored. The app never read SESSION_SECRET: sessions are server-side, keyed by a 32-byte crypto/rand session ID looked up in Postgres, so there is nothing to sign or encrypt. This key is retained ONLY so that existing values files keep validating: `config` sets additionalProperties=false, so deleting it here would fail `helm upgrade` for everyone who set it. Safe to drop from your values. Remove this entry in a future major.",
+          "description": "REMOVED \u2014 accepted and ignored. The app never read SESSION_SECRET: sessions are server-side, keyed by a 32-byte crypto/rand session ID looked up in Postgres, so there is nothing to sign or encrypt. This key is retained ONLY so that existing values files keep validating: `config` sets additionalProperties=false, so deleting it here would fail `helm upgrade` for everyone who set it. Safe to drop from your values. Remove this entry in a future major.",
           "type": [
             "string",
             "integer",
@@ -469,70 +469,58 @@
       "type": "object"
     },
     "postgresql": {
+      "type": "object",
+      "description": "PostgreSQL, provisioned as a CloudNativePG Cluster. Requires the CNPG operator (>= 1.24) in the cluster. Removed pre-3.0 keys are caught by templates/_helpers.tpl with migration guidance, which is why additionalProperties is not set here.",
       "properties": {
-        "auth": {
-          "properties": {
-            "database": {
-              "type": "string"
-            },
-            "password": {
-              "type": [
-                "string",
-                "integer",
-                "boolean",
-                "null"
-              ]
-            },
-            "username": {
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
         "enabled": {
           "type": "boolean"
         },
-        "image": {
+        "instances": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1 = single instance, no standby. Use 3 for real HA."
+        },
+        "imageName": {
+          "type": "string",
+          "description": "Empty takes the operator's default PostgreSQL image."
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "pullPolicy": {
-              "type": "string"
+            "database": {
+              "type": "string",
+              "minLength": 1
             },
-            "repository": {
-              "type": "string"
+            "username": {
+              "type": "string",
+              "minLength": 1
             },
-            "tag": {
+            "existingSecret": {
+              "type": "string",
+              "description": "kubernetes.io/basic-auth Secret to use instead of the operator-generated one. Must also carry a uri key."
+            }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": {
+              "type": "string",
+              "minLength": 1
+            },
+            "storageClass": {
               "type": "string"
             }
-          },
-          "type": "object"
+          }
         },
-        "livenessProbe": {
-          "properties": {},
-          "type": "object"
-        },
-        "persistence": {
+        "walStorage": {
+          "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "accessMode": {
-              "type": "string"
-            },
-            "annotations": {
-              "properties": {},
-              "type": "object"
-            },
             "enabled": {
               "type": "boolean"
-            },
-            "existingClaim": {
-              "type": [
-                "string",
-                "integer",
-                "boolean",
-                "null"
-              ]
-            },
-            "labels": {
-              "properties": {},
-              "type": "object"
             },
             "size": {
               "type": "string"
@@ -540,66 +528,118 @@
             "storageClass": {
               "type": "string"
             }
-          },
-          "type": "object"
+          }
         },
-        "podSecurityContext": {
-          "properties": {
-            "fsGroup": {
-              "type": "integer"
-            },
-            "runAsGroup": {
-              "type": "integer"
-            },
-            "runAsNonRoot": {
-              "type": "boolean"
-            },
-            "runAsUser": {
-              "type": "integer"
-            },
-            "seccompProfile": {
-              "properties": {
-                "type": {
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            }
-          },
-          "type": "object"
+        "maxConnections": {
+          "type": "integer",
+          "minimum": 25,
+          "description": "Floor is replicas*(pgxpool MaxConns 20 + 1 permanent SSE LISTEN) plus CNPG's own slots."
         },
-        "readinessProbe": {
-          "properties": {},
+        "parameters": {
           "type": "object"
         },
         "resources": {
-          "properties": {},
           "type": "object"
         },
-        "securityContext": {
-          "properties": {
-            "allowPrivilegeEscalation": {
-              "type": "boolean"
-            },
-            "capabilities": {
-              "properties": {
-                "drop": {
-                  "type": "array"
-                }
-              },
-              "type": "object"
-            },
-            "runAsNonRoot": {
-              "type": "boolean"
-            },
-            "runAsUser": {
-              "type": "integer"
-            }
-          },
+        "affinity": {
           "type": "object"
+        },
+        "backup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "destinationPath": {
+              "type": "string"
+            },
+            "endpointURL": {
+              "type": "string"
+            },
+            "s3Credentials": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secretName": {
+                  "type": "string"
+                },
+                "accessKeyIdKey": {
+                  "type": "string"
+                },
+                "secretAccessKeyKey": {
+                  "type": "string"
+                }
+              }
+            },
+            "retentionPolicy": {
+              "type": "string"
+            },
+            "walCompression": {
+              "type": "string",
+              "enum": [
+                "gzip",
+                "bzip2",
+                "snappy"
+              ]
+            },
+            "schedule": {
+              "type": "string",
+              "description": "CNPG cron: SIX fields, seconds first. Empty disables the ScheduledBackup."
+            }
+          }
+        },
+        "bootstrap": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "importFrom": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "host": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "database": {
+                  "type": "string"
+                },
+                "sslmode": {
+                  "type": "string",
+                  "enum": [
+                    "disable",
+                    "allow",
+                    "prefer",
+                    "require",
+                    "verify-ca",
+                    "verify-full"
+                  ]
+                },
+                "passwordSecret": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-      },
-      "type": "object"
+      }
     },
     "readinessProbe": {
       "properties": {},

@@ -77,13 +77,73 @@ app.kubernetes.io/component: database
 {{- end }}
 
 {{/*
-Database URL
+The CNPG read-write Service — the cluster's current primary.
+
+Everything this chart points at the database uses this and only this. CNPG also
+publishes -ro (hot standbys) and -r (any instance), and both are wrong here:
+NOTIFY does not replicate, so a LISTEN on a standby never fires and the SSE
+broker sits on a silent channel forever.
+*/}}
+{{- define "schautrack.postgresql.rwService" -}}
+{{- printf "%s-rw" (include "schautrack.postgresql.fullname" .) }}
+{{- end }}
+
+{{/*
+Name of the Secret CNPG generates for the application user, and the key in it
+holding a ready-made connection URI.
+
+CNPG owns this credential: it is generated at bootstrap and can be rotated by
+the operator, so the chart never templates the password and never stores it in
+values.yaml. Deployments read DATABASE_URL straight out of this Secret.
+*/}}
+{{- define "schautrack.postgresql.appSecretName" -}}
+{{- if .Values.postgresql.auth.existingSecret }}
+{{- .Values.postgresql.auth.existingSecret }}
+{{- else }}
+{{- printf "%s-app" (include "schautrack.postgresql.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Database URL, for the external-database case only.
+
+In CNPG mode there is deliberately no value to render here: the URI lives in
+the operator-managed Secret above and is injected by secretKeyRef, so that a
+password rotation does not require a chart upgrade to take effect.
 */}}
 {{- define "schautrack.databaseUrl" -}}
-{{- if .Values.postgresql.enabled }}
-{{- printf "postgres://%s:%s@%s:5432/%s" (.Values.postgresql.auth.username | urlquery) (.Values.postgresql.auth.password | urlquery) (include "schautrack.postgresql.fullname" .) .Values.postgresql.auth.database }}
-{{- else }}
 {{- .Values.externalDatabase.url }}
+{{- end }}
+
+{{/*
+Reject values that were removed in chart 3.0.0.
+
+These keys configured the single-Pod postgres Deployment the chart used to
+ship. Silently ignoring them is the dangerous failure: `persistence.existingClaim`
+in particular reads as "keep my data", and a chart that accepted it while
+provisioning an empty CNPG volume would look like it had eaten the database.
+Failing the render is the only honest answer.
+*/}}
+{{- define "schautrack.postgresql.validate" -}}
+{{- $removed := dict
+  "image" "postgresql.image"
+  "persistence" "postgresql.persistence"
+  "podSecurityContext" "postgresql.podSecurityContext"
+  "securityContext" "postgresql.securityContext"
+  "livenessProbe" "postgresql.livenessProbe"
+  "readinessProbe" "postgresql.readinessProbe"
+  "podAnnotations" "postgresql.podAnnotations"
+-}}
+{{- range $key, $path := $removed }}
+{{- if hasKey $.Values.postgresql $key }}
+{{- fail (printf "\n\nschautrack chart 3.0.0 replaced the bundled PostgreSQL Deployment with a CloudNativePG Cluster.\n\n  %s is no longer supported and was ignored by this render.\n\nRemove it from your values. The CNPG equivalents are postgresql.instances,\npostgresql.storage, postgresql.resources and postgresql.parameters.\n\nIf you are upgrading an existing install, DO NOT upgrade in place: your data\nlives in a PVC this chart no longer manages. Follow docs/cloudnativepg.md,\nwhich migrates the data first and verifies the row counts before cutover.\n" $path) }}
+{{- end }}
+{{- end }}
+{{- if hasKey .Values.postgresql.auth "password" }}
+{{- fail "\n\nschautrack chart 3.0.0: postgresql.auth.password is no longer used.\n\nCloudNativePG generates and owns the application credential. Remove the key.\nTo supply your own, set postgresql.auth.existingSecret to a Secret of type\nkubernetes.io/basic-auth with username and password keys.\n" }}
+{{- end }}
+{{- if lt (int .Values.postgresql.instances) 1 }}
+{{- fail "postgresql.instances must be at least 1" }}
 {{- end }}
 {{- end }}
 

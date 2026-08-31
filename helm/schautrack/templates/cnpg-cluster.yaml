@@ -1,0 +1,137 @@
+{{- if .Values.postgresql.enabled }}
+{{- include "schautrack.postgresql.validate" . }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "schautrack.postgresql.fullname" . }}
+  labels:
+    {{- include "schautrack.postgresql.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.postgresql.instances }}
+  {{- with .Values.postgresql.imageName }}
+  imageName: {{ . | quote }}
+  {{- end }}
+
+  # The app is the only writer, and it reconnects on its own (the pgx pool
+  # retries, and sse.Listen re-LISTENs with backoff), so an unclean promotion
+  # costs a reconnect rather than data. `unsupervised` lets the operator
+  # complete a switchover without a human in the loop.
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: switchover
+
+  bootstrap:
+    {{- if .Values.postgresql.bootstrap.importFrom.enabled }}
+    # Migration path off the pre-3.0 bundled Deployment: CNPG runs pg_dump |
+    # pg_restore against the old server once, at bootstrap, and never again.
+    # See docs/cloudnativepg.md — this is a one-shot flag, not a steady state.
+    initdb:
+      database: {{ .Values.postgresql.auth.database | quote }}
+      owner: {{ .Values.postgresql.auth.username | quote }}
+      {{- with .Values.postgresql.auth.existingSecret }}
+      secret:
+        name: {{ . | quote }}
+      {{- end }}
+      import:
+        type: microservice
+        databases:
+          - {{ .Values.postgresql.bootstrap.importFrom.database | default .Values.postgresql.auth.database | quote }}
+        source:
+          externalCluster: schautrack-legacy
+    {{- else }}
+    initdb:
+      database: {{ .Values.postgresql.auth.database | quote }}
+      owner: {{ .Values.postgresql.auth.username | quote }}
+      {{- with .Values.postgresql.auth.existingSecret }}
+      secret:
+        name: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+
+  {{- if .Values.postgresql.bootstrap.importFrom.enabled }}
+  externalClusters:
+    - name: schautrack-legacy
+      connectionParameters:
+        host: {{ required "postgresql.bootstrap.importFrom.host is required when importFrom.enabled" .Values.postgresql.bootstrap.importFrom.host | quote }}
+        port: {{ .Values.postgresql.bootstrap.importFrom.port | quote }}
+        user: {{ .Values.postgresql.bootstrap.importFrom.username | default .Values.postgresql.auth.username | quote }}
+        dbname: {{ .Values.postgresql.bootstrap.importFrom.database | default .Values.postgresql.auth.database | quote }}
+        sslmode: {{ .Values.postgresql.bootstrap.importFrom.sslmode | quote }}
+      password:
+        name: {{ required "postgresql.bootstrap.importFrom.passwordSecret.name is required when importFrom.enabled" .Values.postgresql.bootstrap.importFrom.passwordSecret.name | quote }}
+        key: {{ .Values.postgresql.bootstrap.importFrom.passwordSecret.key | quote }}
+  {{- end }}
+
+  storage:
+    size: {{ .Values.postgresql.storage.size | quote }}
+    {{- with .Values.postgresql.storage.storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+
+  {{- with .Values.postgresql.walStorage }}
+  {{- if .enabled }}
+  walStorage:
+    size: {{ .size | quote }}
+    {{- with .storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- with .Values.postgresql.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  postgresql:
+    parameters:
+      {{- /*
+        max_connections has to clear the app's own ceiling: internal/database
+        pins pgxpool MaxConns=20 per replica, and sse.Listen holds ONE more
+        connection outside the pool for the whole process lifetime (a LISTEN
+        occupies its connection permanently). So the floor is
+        replicas * 21 + CNPG's own superuser/streaming slots.
+      */}}
+      max_connections: {{ .Values.postgresql.maxConnections | quote }}
+      {{- with .Values.postgresql.parameters }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+
+  {{- with .Values.postgresql.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.postgresql.backup.enabled }}
+  backup:
+    retentionPolicy: {{ .Values.postgresql.backup.retentionPolicy | quote }}
+    barmanObjectStore:
+      destinationPath: {{ required "postgresql.backup.destinationPath is required when backup.enabled" .Values.postgresql.backup.destinationPath | quote }}
+      {{- with .Values.postgresql.backup.endpointURL }}
+      endpointURL: {{ . | quote }}
+      {{- end }}
+      s3Credentials:
+        accessKeyId:
+          name: {{ required "postgresql.backup.s3Credentials.secretName is required when backup.enabled" .Values.postgresql.backup.s3Credentials.secretName | quote }}
+          key: {{ .Values.postgresql.backup.s3Credentials.accessKeyIdKey | quote }}
+        secretAccessKey:
+          name: {{ .Values.postgresql.backup.s3Credentials.secretName | quote }}
+          key: {{ .Values.postgresql.backup.s3Credentials.secretAccessKeyKey | quote }}
+      wal:
+        compression: {{ .Values.postgresql.backup.walCompression | quote }}
+  {{- end }}
+{{- if and .Values.postgresql.backup.enabled .Values.postgresql.backup.schedule }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "schautrack.postgresql.fullname" . }}
+  labels:
+    {{- include "schautrack.postgresql.labels" . | nindent 4 }}
+spec:
+  # CNPG cron is a 6-field spec (seconds first), not the 5-field Kubernetes one.
+  schedule: {{ .Values.postgresql.backup.schedule | quote }}
+  backupOwnerReference: self
+  cluster:
+    name: {{ include "schautrack.postgresql.fullname" . }}
+{{- end }}
+{{- end }}
