@@ -254,88 +254,123 @@ ai:
   # Daily request limit per user when using global key (0 = unlimited)
   dailyLimit: 10
 
-# PostgreSQL configuration
+# PostgreSQL, provisioned as a CloudNativePG Cluster.
+#
+# REQUIRES the CloudNativePG operator (>= 1.24) already installed in the
+# cluster. The chart deliberately does not install it: the operator is
+# cluster-scoped and shared, so owning it from an application chart would mean
+# two releases fighting over one CRD set. Install it once, cluster-wide:
+#   kubectl apply --server-side -f \
+#     https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.28/releases/cnpg-1.28.0.yaml
+#
+# UPGRADING FROM CHART < 3.0.0: do not flip this on and apply. Chart 3.0.0
+# replaced the single-Pod postgres Deployment with a Cluster, and your data is
+# in a PVC this chart no longer manages. docs/cloudnativepg.md has the
+# migration, which moves the data and verifies row counts before cutover.
 postgresql:
-  # Enable bundled PostgreSQL (set to false to use external database)
+  # Provision a CNPG Cluster. Set false to use externalDatabase.url instead.
   enabled: true
-  image:
-    repository: postgres
-    tag: "18-alpine"
-    pullPolicy: IfNotPresent
-  # Pod-level security context for the postgres pod.
-  # The postgres alpine image uses UID/GID 70; fsGroup makes the mounted PVC
-  # group-writable so postgres can create/own its PGDATA subdirectory.
-  podSecurityContext:
-    runAsNonRoot: true
-    runAsUser: 70
-    runAsGroup: 70
-    fsGroup: 70
-    seccompProfile:
-      type: RuntimeDefault
-  # Container-level security context for the postgres container.
-  securityContext:
-    allowPrivilegeEscalation: false
-    runAsNonRoot: true
-    runAsUser: 70
-    capabilities:
-      drop:
-        - ALL
-  # Database credentials
-  # ⚠️  SECURITY WARNING: Database passwords are critical secrets!
-  # Use existingSecret in production - never commit passwords to Git
+
+  # 1 is a single instance with no standby: still a real upgrade on the old
+  # Deployment (managed backups, PITR, supervised restarts), but a node loss is
+  # downtime until the volume reattaches. Use 3 for actual high availability;
+  # 2 gives you a standby but no quorum, so prefer 3 if you can afford it.
+  instances: 1
+
+  # Leave empty to take the operator's default PostgreSQL image, which is what
+  # keeps minor-version upgrades on CNPG's tested path.
+  imageName: ""
+
   auth:
     database: schautrack
     username: schautrack
-    # Password (required) - generate with: openssl rand -hex 16
-    # DO NOT use default passwords in production
-    password: ""
-  # Liveness probe for the postgres container. The default command is a
-  # literal string baked in at chart-author time — it embeds the *default*
-  # auth.database/auth.username above (schautrack/schautrack), not whatever
-  # you set them to. If you override auth.database or auth.username, override
-  # this probe's command too so pg_isready checks the right database/user.
-  # Rendered as-is via toYaml, so any valid Pod probe form works here.
-  livenessProbe:
-    exec:
-      command:
-        - sh
-        - -c
-        - pg_isready -U schautrack -d schautrack
-    initialDelaySeconds: 30
-    periodSeconds: 10
-  # Readiness probe for the postgres container. Same caveat as livenessProbe
-  # above: the default command does not track auth.database/auth.username.
-  readinessProbe:
-    exec:
-      command:
-        - sh
-        - -c
-        - pg_isready -U schautrack -d schautrack
-    initialDelaySeconds: 5
-    periodSeconds: 5
-  # Persistence configuration
-  persistence:
-    enabled: true
-    # Use an existing PVC instead of creating one
-    # If set, all other persistence options are ignored
-    existingClaim: ""
-    size: 5Gi
-    # Storage class for dynamic provisioning
-    # - "-" (default): disable dynamic provisioning (use pre-bound PV)
-    # - "my-storage-class": use specific storage class
-    storageClass: "-"
-    accessMode: ReadWriteOnce
-    # Annotations for the PVC (e.g., for backup tools like Velero)
-    annotations: {}
-    # Labels for the PVC
-    labels: {}
+    # CNPG generates and owns the password; there is no auth.password key.
+    # To bring your own, create a kubernetes.io/basic-auth Secret with
+    # `username` and `password` keys and name it here. The chart then reads
+    # DATABASE_URL from `<name>`; that Secret must also carry a `uri` key.
+    existingSecret: ""
+
+  storage:
+    size: 10Gi
+    # Empty means the cluster default StorageClass.
+    storageClass: ""
+
+  # A separate volume for the write-ahead log. Off by default; worth enabling
+  # when the data volume is on slow or heavily shared storage, because WAL
+  # fsyncs then stop competing with table I/O.
+  walStorage:
+    enabled: false
+    size: 2Gi
+    storageClass: ""
+
+  # Ceiling on server connections.
+  #
+  # The floor is set by the app, not by taste: internal/database pins pgxpool
+  # MaxConns=20 per replica, and sse.Listen holds one MORE connection outside
+  # the pool for the process lifetime, because a LISTEN occupies its connection
+  # permanently. So a 2-replica deployment needs 2*(20+1)=42 before CNPG's own
+  # superuser and streaming-replication slots. 100 leaves headroom to scale the
+  # Deployment to 4 replicas without touching this.
+  maxConnections: 100
+
+  # Extra postgresql.conf parameters, merged after max_connections.
+  parameters: {}
+    # shared_buffers: 256MB
+    # work_mem: 8MB
+
   resources: {}
     # limits:
-    #   cpu: 500m
-    #   memory: 512Mi
+    #   cpu: 1000m
+    #   memory: 1Gi
     # requests:
     #   cpu: 100m
     #   memory: 256Mi
+
+  affinity: {}
+
+  # Continuous backup to S3-compatible object storage, plus PITR.
+  #
+  # Off by default because it cannot work without credentials, and a backup
+  # that silently is not running is worse than one you know you have not set
+  # up. Turning this on is the main reason to be on CNPG at all.
+  backup:
+    enabled: false
+    # e.g. s3://my-bucket/schautrack
+    destinationPath: ""
+    # Set for non-AWS S3 (MinIO, Garage, R2): e.g. https://minio.example.com
+    endpointURL: ""
+    s3Credentials:
+      secretName: ""
+      accessKeyIdKey: ACCESS_KEY_ID
+      secretAccessKeyKey: ACCESS_SECRET_KEY
+    retentionPolicy: "30d"
+    walCompression: gzip
+    # SIX fields, seconds first — CNPG's cron dialect is not Kubernetes'.
+    # This default is 03:00 daily. Empty disables the ScheduledBackup.
+    schedule: "0 0 3 * * *"
+
+  # One-shot import from the pre-3.0 bundled PostgreSQL.
+  #
+  # When enabled, CNPG runs pg_dump | pg_restore against the old server as it
+  # bootstraps, then never looks at it again. It is read ONLY at bootstrap: on
+  # an already-initialised Cluster it does nothing, so leaving it true will not
+  # re-import and will not overwrite live data. Set it back to false once the
+  # migration is done, so a future Cluster rebuild does not point at a server
+  # that no longer exists. See docs/cloudnativepg.md.
+  bootstrap:
+    importFrom:
+      enabled: false
+      # Service name of the old postgres, e.g. schautrack-prod-postgresql
+      host: ""
+      port: 5432
+      # Default to auth.username / auth.database when empty.
+      username: ""
+      database: ""
+      sslmode: prefer
+      # Secret holding the OLD database password.
+      passwordSecret:
+        name: ""
+        key: POSTGRES_PASSWORD
 
 # External database (used when postgresql.enabled is false)
 externalDatabase:

@@ -10,7 +10,7 @@ This chart deploys [Schautrack](https://github.com/schaurian/schautrack) on a Ku
 
 - Kubernetes 1.22+
 - Helm 3.x
-- PV provisioner support (if using bundled PostgreSQL)
+- The CloudNativePG operator (>= 1.24), if using the in-chart database
 
 ## Installing
 
@@ -21,7 +21,7 @@ helm repo add schautrack https://helm.schautrack.com
 helm repo update
 
 helm install schautrack schautrack/schautrack \
-  --set postgresql.auth.password="$(openssl rand -base64 16)"
+  --set postgresql.storage.size=10Gi
 ```
 
 ### From source
@@ -31,7 +31,7 @@ git clone https://github.com/schaurian/schautrack.git
 cd schautrack
 
 helm install schautrack ./helm/schautrack \
-  --set postgresql.auth.password="$(openssl rand -base64 16)"
+  --set postgresql.storage.size=10Gi
 ```
 
 ### Using a values file (recommended for GitOps)
@@ -43,8 +43,9 @@ config:
   adminEmail: "admin@example.com"
 
 postgresql:
-  auth:
-    password: ""  # Use sealed-secrets or external-secrets
+  instances: 3        # HA; CloudNativePG owns the credential
+  storage:
+    size: 10Gi
 
 ingress:
   enabled: true
@@ -88,7 +89,7 @@ existingSecret: "my-schautrack-secrets"
 
 # These values are ignored when existingSecret is set:
 # smtp.user, smtp.pass, ai.key, ai.keyEncryptionSecret,
-# oidc.clientSecret, postgresql.auth.password, externalDatabase.url
+# oidc.clientSecret, externalDatabase.url
 ```
 
 The referenced Secret must contain these keys:
@@ -96,7 +97,7 @@ The referenced Secret must contain these keys:
 | Key | Required | Description |
 |-----|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `POSTGRES_PASSWORD` | If postgresql.enabled | Password for bundled PostgreSQL |
+| `POSTGRES_PASSWORD` | No longer used | CloudNativePG owns the credential; see the PostgreSQL section |
 | `SMTP_USER` | No | SMTP username |
 | `SMTP_PASS` | No | SMTP password |
 | `AI_KEY` | No | API key for AI provider |
@@ -126,7 +127,7 @@ spec:
 
 ### Using an external database
 
-Disable the bundled PostgreSQL and provide a connection string:
+Disable the in-chart CloudNativePG cluster and provide a connection string:
 
 ```yaml
 postgresql:
@@ -373,46 +374,58 @@ application's default in force. See
 | `passkeys.rpName` | Display name shown in browser/OS passkey prompts | `""` (`Schautrack`) |
 | `passkeys.rpOrigins` | Allowed origins, comma-separated full URLs with scheme | `""` (`https://<rpId>`) |
 
-### PostgreSQL (bundled)
+### PostgreSQL (CloudNativePG)
+
+Requires the [CloudNativePG operator](https://cloudnative-pg.io/) (>= 1.24)
+already installed in the cluster. The chart does not install it: the operator is
+cluster-scoped and shared, so owning it from an application chart would mean two
+releases fighting over one set of CRDs.
+
+**Upgrading from a chart older than 3.0.0 is a breaking change.** The bundled
+single-Pod PostgreSQL `Deployment` is gone and your data is in a PVC this chart
+no longer manages. Read [docs/cloudnativepg.md](../../docs/cloudnativepg.md)
+before upgrading — it migrates the data and verifies it before cutover. The
+render fails with a pointer to that page if you still set a removed key.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `postgresql.enabled` | Deploy bundled PostgreSQL | `true` |
-| `postgresql.image.repository` | PostgreSQL image | `postgres` |
-| `postgresql.image.tag` | PostgreSQL version | `18-alpine` |
+| `postgresql.enabled` | Provision a CloudNativePG `Cluster` | `true` |
+| `postgresql.instances` | Instances. 1 = no standby; use 3 for real HA | `1` |
+| `postgresql.imageName` | Override the operator's default PostgreSQL image | `""` |
 | `postgresql.auth.database` | Database name | `schautrack` |
-| `postgresql.auth.username` | Database user | `schautrack` |
-| `postgresql.auth.password` | Database password (**required**) | `""` |
-| `postgresql.livenessProbe` | Liveness probe for the postgres container. See note below. | `exec: pg_isready -U schautrack -d schautrack`, `initialDelaySeconds: 30`, `periodSeconds: 10` |
-| `postgresql.readinessProbe` | Readiness probe for the postgres container. See note below. | `exec: pg_isready -U schautrack -d schautrack`, `initialDelaySeconds: 5`, `periodSeconds: 5` |
-| `postgresql.persistence.enabled` | Enable persistence | `true` |
-| `postgresql.persistence.existingClaim` | Use existing PVC (ignores other persistence options if set) | `""` |
-| `postgresql.persistence.size` | PVC size | `5Gi` |
-| `postgresql.persistence.storageClass` | Storage class | `""` |
-| `postgresql.persistence.accessMode` | PVC access mode | `ReadWriteOnce` |
-| `postgresql.persistence.annotations` | PVC annotations (e.g., for Velero backups) | `{}` |
-| `postgresql.persistence.labels` | PVC labels | `{}` |
+| `postgresql.auth.username` | Database user (owner) | `schautrack` |
+| `postgresql.auth.existingSecret` | `kubernetes.io/basic-auth` Secret to use instead of the operator-generated one. Must also carry a `uri` key | `""` |
+| `postgresql.storage.size` | Data volume size | `10Gi` |
+| `postgresql.storage.storageClass` | Storage class (empty = cluster default) | `""` |
+| `postgresql.walStorage.enabled` | Put the WAL on its own volume | `false` |
+| `postgresql.walStorage.size` | WAL volume size | `2Gi` |
+| `postgresql.maxConnections` | `max_connections`. See note below | `100` |
+| `postgresql.parameters` | Extra `postgresql.conf` parameters | `{}` |
 | `postgresql.resources` | Resource requests/limits | `{}` |
+| `postgresql.affinity` | Pod affinity rules | `{}` |
+| `postgresql.backup.enabled` | Continuous backup + PITR to S3 | `false` |
+| `postgresql.backup.destinationPath` | e.g. `s3://bucket/schautrack` | `""` |
+| `postgresql.backup.endpointURL` | Set for non-AWS S3 (MinIO, R2) | `""` |
+| `postgresql.backup.s3Credentials.secretName` | Secret with the S3 keys | `""` |
+| `postgresql.backup.retentionPolicy` | Retention window | `30d` |
+| `postgresql.backup.schedule` | **Six**-field cron, seconds first. Empty disables it | `0 0 3 * * *` |
+| `postgresql.bootstrap.importFrom.enabled` | One-shot `pg_dump`/`pg_restore` import at bootstrap from a PostgreSQL you keep running. Not the path off the old bundled DB | `false` |
 
-> **Note:** the default probe commands above are literal strings baked in at
-> chart-author time — they check the *default* `schautrack`/`schautrack`
-> database/user, not whatever you set `postgresql.auth.database` /
-> `postgresql.auth.username` to. If you change either of those, override
-> `postgresql.livenessProbe`/`postgresql.readinessProbe` to match, the same
-> way you would set `httpGet`/`tcpSocket`/`exec` on the app probes above.
->
-> The default handler here is `exec`, not `httpGet` — so switching this
-> probe follows the same [null-out rule](#probes) but with a different key.
-> For example, to use a TCP check instead:
-> ```yaml
-> postgresql:
->   livenessProbe:
->     exec: null   # required — clears the default handler
->     tcpSocket:
->       port: postgresql
->     initialDelaySeconds: 30
->     periodSeconds: 10
-> ```
+There is no `postgresql.auth.password`: CloudNativePG generates and owns the
+credential, and the app reads `DATABASE_URL` straight from the Secret the
+operator manages. That is also why a password rotation no longer needs a chart
+upgrade to take effect.
+
+> **Note on `maxConnections`:** the default is derived, not chosen. The app pins
+> its pgxpool to `MaxConns = 20` per replica and holds one *more* connection
+> outside the pool for the SSE `LISTEN`, which occupies its connection for the
+> lifetime of the process. The floor is therefore `replicas × 21` plus
+> CloudNativePG's own superuser and replication slots.
+
+> **Note on Services:** CloudNativePG publishes `-rw`, `-ro` and `-r`. Everything
+> here uses `-rw`. `NOTIFY` does not replicate, so a DSN on a read Service leaves
+> the SSE broker listening to a channel that never fires — reads work, health
+> checks pass, and cross-instance updates die silently.
 
 ### External Database
 

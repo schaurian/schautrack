@@ -39,7 +39,9 @@ spec:
           image: busybox:1.36
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          command: ['sh', '-c', 'until nc -z {{ include "schautrack.postgresql.fullname" . }} 5432; do echo waiting for postgres; sleep 2; done']
+          # -rw, not the bare Cluster name: CNPG publishes no Service at the
+          # Cluster's own name, so waiting on that would block forever.
+          command: ['sh', '-c', 'until nc -z {{ include "schautrack.postgresql.rwService" . }} 5432; do echo waiting for postgres; sleep 2; done']
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
@@ -56,6 +58,27 @@ spec:
                 name: {{ .Values.existingSecret | default (include "schautrack.fullname" .) }}
             - configMapRef:
                 name: {{ include "schautrack.fullname" . }}
+          {{- if .Values.postgresql.enabled }}
+          env:
+            # Straight from the Secret CloudNativePG generates for the app user.
+            #
+            # `env` wins over `envFrom` on a name collision, which is what lets
+            # this override the DATABASE_URL the chart Secret carries in
+            # external-database mode without the two having to know about
+            # each other.
+            #
+            # The `uri` key resolves to the cluster's -rw Service, and that is
+            # load-bearing rather than incidental: NOTIFY does not replicate, so
+            # a DSN pointing at -ro or -r would leave sse.Listen waiting on a
+            # channel that never fires. Cross-instance SSE would go quiet with
+            # no error anywhere — linked-user views would simply stop updating.
+            # Never substitute a read Service here.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "schautrack.postgresql.appSecretName" . }}
+                  key: uri
+          {{- end }}
           livenessProbe:
             {{- include "schautrack.renderProbe" (dict "block" .Values.livenessProbe "indent" 12 "name" "livenessProbe") }}
           readinessProbe:
