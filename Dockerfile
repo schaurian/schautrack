@@ -14,7 +14,7 @@ RUN npm run build
 # Pinned to the exact patch `go.mod` requires. With a floating `1.26-alpine`
 # tag, an image lagging that patch makes `go build` download a second toolchain
 # mid-build; a pinned tag keeps the builder hermetic. Renovate bumps this.
-FROM golang:1.27.0-alpine AS server
+FROM golang:1.27.1-alpine AS server
 
 WORKDIR /app
 
