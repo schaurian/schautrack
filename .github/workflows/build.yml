@@ -876,7 +876,7 @@ jobs:
         # zizmor suggests replacing this with a `gh release create` script step
         # (superfluous-actions). Swapping a proven step in the release chain
         # for zero security gain is exactly the trade this repo does not make.
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2  # zizmor: ignore[superfluous-actions]
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3  # zizmor: ignore[superfluous-actions]
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: Release v${{ needs.compute-version.outputs.version }}
