@@ -29,6 +29,24 @@ export default defineConfig({
   locales: ['en'],
   extract: {
     input: ['src/**/*.{ts,tsx}'],
+    // Test files talk *about* the catalogs; they are not translation sites.
+    // `i18n/runtime.test.tsx` holds a probe map and calls t(`${ns}:${KEY[ns]}`),
+    // and `i18n/catalogs.test.ts` iterates a `{ ns, key }` case table through
+    // `getFixedT(null, ns)`. Up to i18next-cli 1.71 those dynamic forms were
+    // simply invisible to the extractor. 1.73 statically evaluates the consts
+    // behind them, but cannot pair a key with the namespace it is tested under:
+    // the template literal comes out as the cross product of both const lists
+    // (every probe key written into all five namespaces), and the `{ count }`
+    // cases materialise `_one`/`_other` under the default namespace instead of
+    // the one `getFixedT` fixes. Both write keys the app never asks for, so the
+    // committed catalogs can never match a fresh extract and `i18n:drift` fails
+    // no matter what is committed.
+    //
+    // Excluding tests is the fix rather than a workaround: extraction should
+    // describe what the application asks the runtime for, and every key these
+    // files name is either already reached from a real call site or kept by
+    // `removeUnusedKeys: false` below.
+    ignore: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
     output: 'src/i18n/locales/{{language}}/{{namespace}}.json',
     defaultNS: 'common',
     keySeparator: '.',
