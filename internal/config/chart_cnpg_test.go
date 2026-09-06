@@ -23,7 +23,7 @@ func readChartTemplates(t *testing.T) map[string]string {
 		// .yaml, so _helpers.tpl — the one file that actually spells the Service
 		// suffix — was never scanned, and a rwService helper returning "-ro"
 		// passed every test below.
-		if e.IsDir() || !(strings.HasSuffix(e.Name(), ".yaml") || strings.HasSuffix(e.Name(), ".tpl")) {
+		if e.IsDir() || (!strings.HasSuffix(e.Name(), ".yaml") && !strings.HasSuffix(e.Name(), ".tpl")) {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(chartTemplates, e.Name()))
