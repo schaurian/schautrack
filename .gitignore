@@ -12,6 +12,12 @@ e2e/.auth/
 test-results/
 playwright-report/
 blob-report/
+# Vitest 5 consolidated its scratch output (attachments, blob/json/junit/html
+# reporter files) under one `.vitest/` dir; v4 spread it over `html/`,
+# `.vitest-reports/` and `.vitest-attachements/`. `npm test` writes none of it
+# with the default reporter, but a local `--reporter=junit` run otherwise
+# leaves an untracked directory behind.
+.vitest/
 
 # Go binary
 /server
