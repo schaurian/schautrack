@@ -172,7 +172,7 @@ The CI automatically computes semantic versions based on commit message prefixes
 - `"session"`: PostgreSQL-backed session store. Table name is singular and quoted (reserved word)
 
 ### Account Linking
-- Maximum 3 linked accounts per user (`MAX_LINKS = 3`)
+- Maximum 10 linked accounts per user (`handler.MaxLinks`, `internal/handler/settings.go`)
 - Bidirectional: if A links to B, B links to A
 - Links can have custom labels
 - Shared data is read-only (no editing other users' entries)
