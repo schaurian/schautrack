@@ -68,7 +68,7 @@ jobs:
           # own release schedule turns an unrelated PR red for reasons its
           # author did not introduce. Bump deliberately, re-triaging new
           # findings when you do.
-          version: "1.29.0"
+          version: "1.30.0"
 
   actionlint:
     runs-on: ubuntu-latest
