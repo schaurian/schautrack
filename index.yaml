@@ -2,6 +2,30 @@ apiVersion: v1
 entries:
   schautrack:
   - apiVersion: v2
+    appVersion: 2.7.0
+    created: "2026-09-06T14:50:56.295495536Z"
+    description: A simple nutrition tracking web application, with PostgreSQL provisioned
+      by CloudNativePG
+    digest: 77fd11e1d4ed299133ce1f220923634ce1066d3a2a2d0057fb24bcb1fb18b6d1
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - nutrition
+    - calorie
+    - macro
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/schautrack-2.7.0.tgz
+    version: 2.7.0
+  - apiVersion: v2
     appVersion: 2.6.1
     created: "2026-09-06T12:34:37.088138525Z"
     description: A simple nutrition tracking web application
@@ -1049,6 +1073,30 @@ entries:
     - https://helm.schautrack.com/schautrack-0.1.0.tgz
     version: 0.1.0
   - apiVersion: v2
+    appVersion: staging-1016
+    created: "2026-09-06T14:50:56.296596671Z"
+    description: A simple nutrition tracking web application, with PostgreSQL provisioned
+      by CloudNativePG
+    digest: 522c5b346012c70586ec44e285254be795d3506c273936a63077d2ec66b09f93
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - nutrition
+    - calorie
+    - macro
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/staging/schautrack-0.0.1016.tgz
+    version: 0.0.1016
+  - apiVersion: v2
     appVersion: staging-1010
     created: "2026-09-06T12:34:37.090468446Z"
     description: A simple nutrition tracking web application
@@ -1753,4 +1801,4 @@ entries:
     urls:
     - https://helm.schautrack.com/staging/schautrack-0.0.128.tgz
     version: 0.0.128
-generated: "2026-09-06T12:34:37.086794204Z"
+generated: "2026-09-06T14:50:56.294201196Z"
