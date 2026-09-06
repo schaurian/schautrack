@@ -1,0 +1,70 @@
+{{- if .Values.backup.k8up.enabled }}
+{{- if not .Values.postgresql.enabled }}
+{{- fail "backup.k8up.enabled requires postgresql.enabled: the PreBackupPod dumps the in-chart database. For an external database, back it up wherever it lives." }}
+{{- end }}
+apiVersion: k8up.io/v1
+kind: PreBackupPod
+metadata:
+  name: {{ include "schautrack.fullname" . }}-db-dump
+  labels:
+    {{- include "schautrack.labels" . | nindent 4 }}
+spec:
+  # k8up execs this in the pod below and streams stdout straight into restic.
+  # Nothing is written to a volume, so the dump needs no scratch space and
+  # cannot half-land on disk.
+  #
+  # A LOGICAL dump, deliberately, and not a backup of the PostgreSQL PVC.
+  # Copying a live PostgreSQL data directory with a file-level tool yields a
+  # torn snapshot that may not restore at all — which is exactly why that PVC
+  # carries k8up.io/backup: "false". Excluding it was correct; the mistake was
+  # never adding this alongside, leaving a schedule that reported success while
+  # storing nothing.
+  #
+  # --clean --if-exists so the dump restores over an existing schema (the app
+  # creates its own on first boot), and a plain SQL stream rather than -Fc
+  # because restic stores one object and a plain dump can be restored by psql
+  # anywhere, without matching pg_restore versions.
+  backupCommand: /bin/sh -c 'pg_dump --clean --if-exists --no-owner --no-acl -d "$DATABASE_URL"'
+  fileExtension: .sql
+  pod:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pg-dump
+          # Client-only use, but the image must be at least the server's major
+          # or pg_dump refuses ("server version mismatch"). Track the server.
+          image: {{ .Values.backup.k8up.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 70
+            capabilities:
+              drop:
+                - ALL
+          env:
+            # The same DSN the app uses, from the same source, so the two cannot
+            # drift: under CloudNativePG that is the operator-managed Secret
+            # (whose `uri` targets the -rw Service and follows a failover), and
+            # under the bundled engine it is the chart's own Secret.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  {{- if include "schautrack.postgresql.isCNPG" . }}
+                  name: {{ include "schautrack.postgresql.appSecretName" . }}
+                  key: uri
+                  {{- else }}
+                  name: {{ .Values.existingSecret | default (include "schautrack.fullname" .) }}
+                  key: DATABASE_URL
+                  {{- end }}
+          # k8up starts this pod before the backup and stops it after; it only
+          # has to stay alive long enough to be exec'd into.
+          command: ["sleep"]
+          args: ["infinity"]
+          resources:
+            {{- toYaml .Values.backup.k8up.resources | nindent 12 }}
+{{- end }}

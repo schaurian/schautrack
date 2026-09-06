@@ -501,8 +501,13 @@
               "description": "kubernetes.io/basic-auth Secret to use instead of the operator-generated one. Must also carry a uri key."
             },
             "password": {
-              "type": "string",
-              "description": "mode: bundled only. Ignored under CloudNativePG, which generates and owns the credential."
+              "type": [
+                "string",
+                "integer",
+                "boolean",
+                "null"
+              ],
+              "description": "mode: bundled only. Ignored under CloudNativePG, which owns the credential."
             }
           }
         },
@@ -714,6 +719,10 @@
         "podAnnotations": {
           "type": "object",
           "description": "mode: bundled only."
+        },
+        "acknowledgeDataMigration": {
+          "type": "boolean",
+          "description": "Confirms that switching to cnpg does not move data. The chart refuses to render mode: cnpg while the bundled PVC exists unless this is set."
         }
       }
     },
@@ -832,6 +841,29 @@
     },
     "tolerations": {
       "type": "array"
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Backup integration. The in-chart database is dumped logically via a k8up PreBackupPod; it must never be backed up at the volume level.",
+      "properties": {
+        "k8up": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "image": {
+              "type": "string",
+              "description": "Must be >= the server's major version or pg_dump refuses."
+            },
+            "resources": {
+              "type": "object"
+            }
+          }
+        }
+      }
     }
   },
   "title": "schautrack Helm values",

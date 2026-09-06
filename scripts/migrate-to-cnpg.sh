@@ -59,12 +59,27 @@ FINGERPRINT_SQL="$SCRIPT_DIR/db-fingerprint.sql"
 # is much worse than one that refused to start.
 say "Preflight"
 
-k get deploy "$RELEASE-schautrack" >/dev/null 2>&1 \
-  || die "no Deployment $RELEASE-schautrack in namespace $NS"
+# Discover the object names; do NOT reconstruct them.
+#
+# `schautrack.fullname` collapses to the release name alone when the release
+# already contains the chart name (_helpers.tpl: `if contains $name
+# .Release.Name`). So release `schautrack-staging` produces Deployments named
+# `schautrack-staging` and `schautrack-staging-postgresql`, not
+# `schautrack-staging-schautrack…`. An earlier version of this script pasted
+# "$RELEASE-schautrack" together and could not find a single one of this
+# project's own releases — and `nameOverride`/`fullnameOverride` break the
+# guess in other ways. The labels are the contract; use them.
+APP_DEPLOY="$(k get deploy -l "app.kubernetes.io/instance=$RELEASE,app.kubernetes.io/name=schautrack" \
+  -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)"
+[[ "$(wc -w <<<"$APP_DEPLOY")" == "1" ]] \
+  || die "expected exactly one app Deployment for release '$RELEASE' in $NS, found: ${APP_DEPLOY:-none}"
 
-PG_DEPLOY="$RELEASE-schautrack-postgresql"
-k get deploy "$PG_DEPLOY" >/dev/null 2>&1 \
-  || die "no bundled PostgreSQL Deployment $PG_DEPLOY. Already migrated, or this release is not in bundled mode."
+PG_DEPLOY="$(k get deploy -l "app.kubernetes.io/instance=$RELEASE,app.kubernetes.io/component=database" \
+  -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)"
+[[ "$(wc -w <<<"$PG_DEPLOY")" == "1" ]] \
+  || die "expected exactly one bundled PostgreSQL Deployment for release '$RELEASE' in $NS, found: ${PG_DEPLOY:-none}.
+  Already migrated, or this release is not in bundled mode."
+say "App Deployment: $APP_DEPLOY   PostgreSQL Deployment: $PG_DEPLOY"
 
 kubectl "${KCTX[@]}" get crd clusters.postgresql.cnpg.io >/dev/null 2>&1 \
   || die "the CloudNativePG operator is not installed in this cluster.
@@ -75,7 +90,7 @@ DB_USER="$(h get values "$RELEASE" -n "$NS" -o json 2>/dev/null | python3 -c 'im
 DB_NAME="$(h get values "$RELEASE" -n "$NS" -o json 2>/dev/null | python3 -c 'import json,sys;v=json.load(sys.stdin) or {};print((v.get("postgresql") or {}).get("auth",{}).get("database","schautrack"))' 2>/dev/null || echo schautrack)"
 say "Source database: $DB_NAME (owner $DB_USER)"
 
-REPLICAS="$(k get deploy "$RELEASE-schautrack" -o jsonpath='{.spec.replicas}')"
+REPLICAS="$(k get deploy "$APP_DEPLOY" -o jsonpath='{.spec.replicas}')"
 say "App replicas to restore afterwards: $REPLICAS"
 
 # The chart still ships the bundled engine and still defaults to it, so an
@@ -109,13 +124,13 @@ restore_replicas_on_failure() {
   local code=$?
   [[ $code -eq 0 ]] && return 0
   printf '\n\033[33mNothing has been changed yet — scaling the app back to %s.\033[0m\n' "$REPLICAS" >&2
-  k scale deploy "$RELEASE-schautrack" --replicas="$REPLICAS" >/dev/null 2>&1 || true
+  k scale deploy "$APP_DEPLOY" --replicas="$REPLICAS" >/dev/null 2>&1 || true
 }
-trap restore_replicas_on_failure EXIT
+trap restore_replicas_on_failure EXIT INT TERM
 
 say "Scaling app to 0 (downtime begins)"
-k scale deploy "$RELEASE-schautrack" --replicas=0
-k rollout status deploy "$RELEASE-schautrack" --timeout=120s >/dev/null 2>&1 || true
+k scale deploy "$APP_DEPLOY" --replicas=0
+k rollout status deploy "$APP_DEPLOY" --timeout=120s >/dev/null 2>&1 || true
 for _ in $(seq 1 60); do
   [[ "$(k get pods -l app.kubernetes.io/name=schautrack --no-headers 2>/dev/null | grep -c .)" == "0" ]] && break
   sleep 2
@@ -153,7 +168,13 @@ say "Dump verified: $(du -h "$DUMP" | cut -f1), $(grep -c 'TABLE DATA' "$WORKDIR
 # Do this BEFORE the upgrade. Once Helm has deleted the PVC there is nothing
 # left to annotate, and the only copy of the data is the dump in /tmp.
 say "Annotating the old PVC to survive the upgrade"
-OLD_PVC="$(k get pvc -l app.kubernetes.io/component=database -o name 2>/dev/null | head -1)"
+OLD_PVC="$(k get pvc -l "app.kubernetes.io/instance=$RELEASE,app.kubernetes.io/component=database" -o name 2>/dev/null)"
+# Scoped to the release, and no `head -1`: two matches means the wrong volume
+# gets the keep-annotation while the real one is deleted by the upgrade
+# seconds later, leaving the dump in /tmp as the only copy.
+if [[ "$(wc -w <<<"$OLD_PVC")" -gt 1 ]]; then
+  die "more than one database PVC matches release '$RELEASE': $OLD_PVC"
+fi
 if [[ -n "$OLD_PVC" ]]; then
   k annotate "$OLD_PVC" helm.sh/resource-policy=keep --overwrite >/dev/null
   say "Kept: $OLD_PVC (delete it yourself once you are satisfied)"
@@ -167,11 +188,17 @@ fi
 trap - EXIT
 
 say "Upgrading release to the CloudNativePG chart (app stays at 0 replicas)"
-HELM_ARGS=(upgrade "$RELEASE" "$CHART" -n "$NS" --set replicaCount=0 --wait --timeout 10m)
+# --reuse-values, because -f is optional and nothing requires the supplied file
+# to be the release's COMPLETE values. Without it, a three-line file containing
+# only `postgresql: {mode: cnpg}` passes preflight and then resets baseUrl,
+# ingress, existingSecret, image.tag, SMTP and OIDC to chart defaults — at the
+# exact moment the old Deployment has just been deleted.
+HELM_ARGS=(upgrade "$RELEASE" "$CHART" -n "$NS" --reuse-values --set replicaCount=0
+  --set postgresql.acknowledgeDataMigration=true --wait --timeout 10m)
 [[ -n "$VALUES" ]] && HELM_ARGS+=(-f "$VALUES")
 h "${HELM_ARGS[@]}" || die "helm upgrade failed; the old PVC is still present for rollback"
 
-CLUSTER="$RELEASE-schautrack-postgresql"
+CLUSTER="$PG_DEPLOY"   # the Cluster takes the same fullname the Deployment had
 say "Waiting for the CNPG cluster to be ready"
 for _ in $(seq 1 120); do
   READY="$(k get cluster "$CLUSTER" -o jsonpath='{.status.readyInstances}' 2>/dev/null || echo 0)"
@@ -268,9 +295,16 @@ grep -q 'migration-probe' <<<"$NOTIFY_OUT" \
 say "LISTEN/NOTIFY delivers on the app DSN"
 
 # --- Let traffic back in ---------------------------------------------------
-say "Scaling app back to $REPLICAS (downtime ends)"
-k scale deploy "$RELEASE-schautrack" --replicas="$REPLICAS"
-k rollout status deploy "$RELEASE-schautrack" --timeout=300s || die "app did not become ready"
+# Through Helm, not `kubectl scale`. The upgrade above recorded
+# replicaCount=0 in the release, so scaling with kubectl would leave live state
+# at N and desired state at 0 — and the next upgrade, `--reuse-values`, or an
+# ArgoCD sync would quietly take the app back to zero.
+say "Scaling app back to $REPLICAS through Helm (downtime ends)"
+RESTORE_ARGS=(upgrade "$RELEASE" "$CHART" -n "$NS" --reuse-values --set "replicaCount=$REPLICAS"
+  --set postgresql.acknowledgeDataMigration=true --wait --timeout 10m)
+[[ -n "$VALUES" ]] && RESTORE_ARGS+=(-f "$VALUES")
+h "${RESTORE_ARGS[@]}" || die "could not restore replicaCount through Helm; the data is migrated and intact, but the release still records replicaCount=0"
+k rollout status deploy "$APP_DEPLOY" --timeout=300s || die "app did not become ready"
 
 say "Done."
 cat <<EOF

@@ -182,6 +182,29 @@ True when this release runs the deprecated bundled Deployment.
 {{- if lt (int (.Values.postgresql.instances | default 1)) 1 }}
 {{- fail "postgresql.instances must be at least 1" }}
 {{- end }}
+{{- /*
+  Refuse to switch to cnpg while the bundled PVC still exists.
+
+  Flipping postgresql.mode is a one-word values edit and every example shows it,
+  but on its own it is destructive: the PVC leaves the manifest set and Helm
+  deletes it in the same pass that creates an empty Cluster. The database is
+  gone before anything could have copied it out. Documenting that in
+  docs/cloudnativepg.md is not a guard — it only reaches people who read it
+  first, and the person most likely to skip it is the one uncommenting
+  `mode: cnpg` from the README.
+
+  `lookup` returns empty during `helm template`, `--dry-run` and any
+  disconnected render, so this fires only on a real upgrade against a live
+  cluster and does not disturb CI or the byte-identical bundled render.
+
+  scripts/migrate-to-cnpg.sh sets the acknowledgement after it has dumped,
+  verified the dump is restorable, and annotated the PVC to survive.
+*/}}
+{{- if and (include "schautrack.postgresql.isCNPG" .)
+           (not .Values.postgresql.acknowledgeDataMigration)
+           (lookup "v1" "PersistentVolumeClaim" .Release.Namespace (include "schautrack.postgresql.fullname" .)) }}
+{{- fail (printf "\n\npostgresql.mode is \"cnpg\", but the bundled PostgreSQL PVC %q still exists in namespace %q.\n\nThis upgrade would DELETE it, along with your database, and start an empty\nCloudNativePG cluster in its place.\n\nMigrate the data first:\n  scripts/migrate-to-cnpg.sh -n %s -r %s\n\nOr, if the data is already elsewhere and the PVC is genuinely disposable, set\npostgresql.acknowledgeDataMigration=true to proceed.\n\nSee docs/cloudnativepg.md.\n" (include "schautrack.postgresql.fullname" .) .Release.Namespace .Release.Namespace .Release.Name) }}
+{{- end }}
 {{- end }}
 
 {{/*

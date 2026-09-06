@@ -19,7 +19,11 @@ func readChartTemplates(t *testing.T) map[string]string {
 	}
 	out := map[string]string{}
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
+		// .tpl too, not just .yaml. The first version of this helper read only
+		// .yaml, so _helpers.tpl — the one file that actually spells the Service
+		// suffix — was never scanned, and a rwService helper returning "-ro"
+		// passed every test below.
+		if e.IsDir() || !(strings.HasSuffix(e.Name(), ".yaml") || strings.HasSuffix(e.Name(), ".tpl")) {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(chartTemplates, e.Name()))
@@ -51,13 +55,20 @@ func readChartTemplates(t *testing.T) map[string]string {
 // spelling anyone would actually write. So the suffix is matched wherever it
 // lands — after a template action, after a printf verb, or in a literal name —
 // and `-rw` is the sole accepted form.
+// templateComment strips {{/* ... */}} blocks. Prose about -ro is how this
+// invariant gets explained, so the explanation must not trip the check.
+var templateComment = regexp.MustCompile(`(?s)\{\{-?\s*/\*.*?\*/\s*-?\}\}`)
+
 func TestChartNeverPointsAtAReadOnlyService(t *testing.T) {
-	// A service-suffix `-ro`/`-r` not followed by the `w` that would make it -rw.
-	readService := regexp.MustCompile(`-r(o\b|\b)`)
+	// A service-suffix `-ro`/`-r`, not the `-r` of a command-line flag: the
+	// suffix is always welded to a name, so require a preceding word character,
+	// `}` (end of a template action) or `%s` (a printf verb). Without that,
+	// prose like "migrate.sh -n %s -r %s" reads as a read Service.
+	readService := regexp.MustCompile(`[\w}]-r(o\b|\b)`)
 	for name, body := range readChartTemplates(t) {
-		for i, line := range strings.Split(body, "\n") {
+		for i, line := range strings.Split(templateComment.ReplaceAllString(body, ""), "\n") {
 			if strings.HasPrefix(strings.TrimSpace(line), "#") {
-				continue // prose about -ro is how the invariant gets explained
+				continue // YAML comments explain it too
 			}
 			if m := readService.FindString(line); m != "" {
 				t.Errorf("%s:%d references a CloudNativePG read Service (%q):\n  %s\n"+
@@ -82,11 +93,21 @@ func TestChartUsesTheReadWriteServiceHelper(t *testing.T) {
 			"reference must resolve through it so they cannot drift apart")
 	}
 
+	// A positive assertion, not just "the define exists": the helper has to
+	// actually emit -rw. Asserting its presence is what let a "-ro" body slip
+	// through unnoticed.
+	if !regexp.MustCompile(`define "schautrack\.postgresql\.rwService"[\s\S]{0,200}?printf "%s-rw"`).MatchString(string(helpers)) {
+		t.Error("schautrack.postgresql.rwService must render a -rw suffix; " +
+			"NOTIFY does not replicate, so any other Service silently kills cross-instance SSE")
+	}
+
 	for name, body := range readChartTemplates(t) {
-		if name == "cnpg-cluster.yaml" {
-			continue // declares the Cluster; the Services are derived from it
+		// _helpers.tpl is where rwService is legitimately defined, and
+		// cnpg-cluster.yaml declares the Cluster the Services derive from.
+		if name == "cnpg-cluster.yaml" || name == "_helpers.tpl" {
+			continue
 		}
-		for _, line := range strings.Split(body, "\n") {
+		for _, line := range strings.Split(templateComment.ReplaceAllString(body, ""), "\n") {
 			if !strings.Contains(line, "-rw") {
 				continue
 			}

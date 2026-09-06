@@ -1,68 +1,60 @@
 -- A content fingerprint of a schautrack database, for proving a migration was
 -- lossless.
 --
--- Row counts alone are not proof: they survive a restore that silently dropped
--- a column's contents, coerced NULL to '', or truncated numeric precision. So
--- each table is reduced to an md5 over its ordered, fully-rendered rows, and the
--- sequence positions are reported alongside — a restore that forgets to advance
--- sequences looks perfect until the next INSERT collides on a primary key.
+-- Row counts alone are not proof: they survive a restore that coerced NULL to
+-- '', truncated numeric precision, or dropped a column's contents. So every
+-- table is reduced to an md5 over its fully-rendered rows.
 --
--- Output is stable across dump/restore: ordered by primary key, and no
--- clock- or OID-dependent values.
+-- THE TABLE LIST COMES FROM THE CATALOG, NOT FROM THIS FILE. An earlier version
+-- hand-listed seven tables and the surrounding script then claimed "every table
+-- digest is identical". The schema has twenty-four: a restore that lost every
+-- passkey, API token, TOTP backup code, invite code, weight goal and admin
+-- setting would have produced a clean diff and a congratulatory message. A
+-- curated list also ages out silently — each new migration adds a table nobody
+-- remembers to add here.
+--
+-- Rows are ordered by their own text representation rather than by a primary
+-- key, so no table needs special knowledge and a table with a non-integer or
+-- composite key is covered like any other.
+--
+-- Output is stable across dump/restore: no clock- or OID-dependent values, and
+-- the timezone is pinned because a timestamptz renders per-session.
+
 \pset footer off
 \pset format unaligned
 \pset fieldsep '|'
+SET TIME ZONE 'UTC';
 
-SELECT 'rowcount' AS kind, relname AS name, n_live_tup::text AS value
-FROM pg_stat_user_tables
-ORDER BY relname;
+-- One digest per user table, generated and then executed by \gexec.
+SELECT format(
+  'SELECT ''digest'' AS kind, %L AS name, '
+  || 'coalesce(md5(string_agg(t::text, ''|'' ORDER BY t::text)), ''<empty>'') AS value '
+  || 'FROM public.%I t',
+  tablename, tablename)
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename
+\gexec
 
-SELECT 'digest' AS kind, 'users' AS name,
-       md5(string_agg(t::text, '|' ORDER BY id))::text AS value
-FROM (SELECT id, email, password_hash, daily_goal, timezone, weight_unit,
-             macros_enabled, macro_goals, totp_enabled, email_verified
-      FROM users) t;
+-- Row counts, exact (not the pg_stat_user_tables estimate, which is only
+-- populated by ANALYZE and would differ on a freshly restored cluster).
+SELECT format(
+  'SELECT ''rowcount'' AS kind, %L AS name, count(*)::text AS value FROM public.%I',
+  tablename, tablename)
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename
+\gexec
 
-SELECT 'digest', 'calorie_entries',
-       md5(string_agg(t::text, '|' ORDER BY id))
-FROM (SELECT id, user_id, entry_date, amount, entry_name,
-             protein_g, carbs_g, fat_g, fiber_g, sugar_g
-      FROM calorie_entries) t;
+-- Sequence positions. A restore that forgot to advance these looks perfect
+-- until the next INSERT collides on a primary key.
+SELECT 'sequence' AS kind, sequencename AS name, coalesce(last_value::text, '<unread>') AS value
+FROM pg_sequences
+WHERE schemaname = 'public'
+ORDER BY sequencename;
 
-SELECT 'digest', 'weight_entries',
-       md5(string_agg(t::text, '|' ORDER BY id))
-FROM (SELECT id, user_id, entry_date, weight, body_fat FROM weight_entries) t;
-
-SELECT 'digest', 'saved_foods',
-       md5(string_agg(t::text, '|' ORDER BY id))
-FROM (SELECT id, user_id, name, emoji, amount, protein_g, use_count FROM saved_foods) t;
-
-SELECT 'digest', 'daily_notes',
-       md5(string_agg(t::text, '|' ORDER BY id))
-FROM (SELECT id, user_id, note_date, content FROM daily_notes) t;
-
-SELECT 'digest', 'account_links',
-       md5(string_agg(t::text, '|' ORDER BY id))
-FROM (SELECT id, requester_id, target_id, status, requester_label, target_label
-      FROM account_links) t;
-
-SELECT 'digest', 'todos',
-       md5(string_agg(t::text, '|' ORDER BY id))
-FROM (SELECT id, user_id, name, schedule, time_of_day, sort_order, archived FROM todos) t;
-
--- NULL and '' must stay distinguishable.
-SELECT 'nullcheck', 'daily_notes_null_vs_empty',
-       count(*) FILTER (WHERE content IS NULL)::text || '/' ||
-       count(*) FILTER (WHERE content = '')::text
-FROM daily_notes;
-
--- Sequence positions. last_value must be >= max(id), or the next insert fails.
-SELECT 'sequence', s.relname,
-       (SELECT last_value FROM pg_sequences q
-        WHERE q.schemaname = 'public' AND q.sequencename = s.relname)::text
-FROM pg_class s
-WHERE s.relkind = 'S' AND s.relnamespace = 'public'::regnamespace
-ORDER BY s.relname;
-
--- Applied data migrations: the app must not try to re-run them post-cutover.
-SELECT 'datamigration', name, 'applied' FROM schema_data_migrations ORDER BY name;
+-- The set of tables itself, so a table that vanished entirely is a diff line
+-- rather than a silently absent digest.
+SELECT 'tablelist' AS kind, 'public' AS name, string_agg(tablename, ',' ORDER BY tablename) AS value
+FROM pg_tables
+WHERE schemaname = 'public';

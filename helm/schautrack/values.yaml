@@ -280,6 +280,15 @@ postgresql:
   # "bundled" or "cnpg".
   mode: bundled
 
+  # Confirms you understand that switching to cnpg does not move your data.
+  #
+  # With mode: cnpg, the chart refuses to render while the bundled PVC still
+  # exists, because that upgrade would delete it and start an empty cluster.
+  # scripts/migrate-to-cnpg.sh sets this itself once the data is safely dumped
+  # and the PVC preserved. Set it by hand only if the PVC is genuinely
+  # disposable.
+  acknowledgeDataMigration: false
+
   # --- mode: cnpg ---------------------------------------------------------
 
   # 1 is a single instance with no standby: still a real upgrade on the old
@@ -464,6 +473,30 @@ postgresql:
     # requests:
     #   cpu: 100m
     #   memory: 256Mi
+
+# Backups.
+#
+# The in-chart database is NOT covered by a volume-level backup, and must not
+# be: copying a live PostgreSQL data directory with a file-level tool produces a
+# torn snapshot that may not restore. If you back this namespace up with k8up,
+# annotate the PostgreSQL PVC k8up.io/backup: "false" and enable the
+# PreBackupPod below instead — it dumps logically and streams straight to
+# restic, so the schedule you already run starts holding something restorable.
+#
+# A schedule that reports success while storing nothing is the failure mode this
+# exists to prevent, and it is silent for as long as nobody tries a restore.
+backup:
+  k8up:
+    # Renders a k8up PreBackupPod. Requires the k8up operator (CRDs) in the
+    # cluster, and a k8up Schedule for this namespace — the Schedule is usually
+    # owned by whatever manages your cluster-wide backups, not by this chart.
+    enabled: false
+    # Must be >= the server's major version or pg_dump refuses.
+    image: postgres:18-alpine
+    resources: {}
+      # limits:
+      #   cpu: 500m
+      #   memory: 256Mi
 
 # External database (used when postgresql.enabled is false)
 externalDatabase:
