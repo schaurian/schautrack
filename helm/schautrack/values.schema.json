@@ -718,11 +718,15 @@
         },
         "podAnnotations": {
           "type": "object",
-          "description": "mode: bundled only."
+          "description": "Pod annotations. Both modes: on the Deployment pod template under bundled, propagated via CNPG inheritedMetadata under cnpg. A k8up backupcommand here must use -U postgres under cnpg (peer auth)."
         },
         "acknowledgeDataMigration": {
           "type": "boolean",
           "description": "Confirms that switching to cnpg does not move data. The chart refuses to render mode: cnpg while the bundled PVC exists unless this is set."
+        },
+        "podLabels": {
+          "type": "object",
+          "description": "Pod labels. cnpg mode only, via inheritedMetadata."
         }
       }
     },

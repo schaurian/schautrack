@@ -61,6 +61,31 @@ spec:
         key: {{ .Values.postgresql.bootstrap.importFrom.passwordSecret.key | quote }}
   {{- end }}
 
+  {{- if or .Values.postgresql.podAnnotations .Values.postgresql.podLabels }}
+  # Propagated onto the Cluster's Pods, which the operator owns and recreates —
+  # annotating them directly would not survive a failover or a minor-version
+  # upgrade.
+  #
+  # postgresql.podAnnotations is deliberately the same key the bundled engine
+  # uses, so a values file carrying k8up's backupcommand keeps working across
+  # the engine switch instead of silently losing its backup.
+  #
+  # BUT THE COMMAND ITSELF USUALLY HAS TO CHANGE. In a CNPG pod the OS user is
+  # `postgres`, so a backupcommand of `pg_dump -U <app user>` fails peer
+  # authentication over the local socket — the dump errors, and depending on the
+  # backup tool that can still look like a successful run. Use
+  # `pg_dump -U postgres -d <database>`.
+  inheritedMetadata:
+    {{- with .Values.postgresql.podAnnotations }}
+    annotations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.postgresql.podLabels }}
+    labels:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+
   storage:
     size: {{ .Values.postgresql.storage.size | quote }}
     {{- with .Values.postgresql.storage.storageClass }}
