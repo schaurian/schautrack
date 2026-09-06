@@ -38,6 +38,11 @@ type savedFoodView struct {
 	Macros     map[string]*int `json:"macros"`
 	UseCount   int             `json:"use_count"`
 	LastUsedAt *time.Time      `json:"last_used_at"`
+	// Owner is nil for the caller's own foods and the friend's link label for
+	// a borrowed one. omitempty is deliberately absent: the client
+	// distinguishes "mine" from "theirs" on this field, and a missing key and
+	// an explicit null must not mean different things to it.
+	Owner *string `json:"owner"`
 }
 
 func toSavedFoodView(id int, name string, emoji *string, amount, protein, carbs, fat, fiber, sugar *int,
@@ -51,19 +56,61 @@ func toSavedFoodView(id int, name string, emoji *string, amount, protein, carbs,
 	}
 }
 
-// List handles GET /api/saved-foods. Returns the caller's own foods only,
-// ranked by use_count then last_used_at. The ordering is savedFoodRank,
-// shared with ListSavedFoodsV1 so the app and the API cannot disagree.
+// maxBorrowedPerLink caps how many of one friend's quick-adds reach the
+// caller's chip row.
+//
+// The unpaginated list is justified by a hard ceiling: every insert path
+// refuses past MaxSavedFoods (200), so the whole set always fits one response.
+// Sharing multiplies that by the link cap (MaxLinks, 10), which would put the
+// worst case at 2200 rows in a payload whose schema deliberately carries no
+// has_more and no next_cursor. Borrowed foods are a convenience, not an
+// archive, so each friend contributes their top few by the usual ranking.
+const maxBorrowedPerLink = 20
+
+// List handles GET /api/saved-foods.
+//
+// scope=mine (the default) returns the caller's own foods only. scope=all adds
+// those shared toward the caller by linked friends, each tagged with `owner`.
+//
+// The default matters: one endpoint and one React Query key feed the quick-add
+// chip row, the Manage dialog and the "you have N saved foods" counter. Only
+// the chip row wants borrowed items — Manage would offer them for editing (and
+// 404 on save) and the counter would bill a friend's foods against the caller's
+// own 200-item cap. So opting in is the caller's job, and every existing client
+// keeps the behaviour it has.
+//
+// Ordering is savedFoodRank, shared with ListSavedFoodsV1 so the app and the
+// API cannot disagree; own foods sort ahead of borrowed ones so a friend adding
+// a food never reshuffles chips the caller has muscle memory for.
 func (h *SavedFoodsHandler) List(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
+	includeShared := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("scope")), "all")
 
-	rows, err := h.Pool.Query(r.Context(), `
+	query := `
 		SELECT id, name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g,
-		       use_count, last_used_at
+		       use_count, last_used_at, NULL::text AS owner
 		FROM saved_foods
 		WHERE user_id = $1
-		ORDER BY `+savedFoodRank,
-		user.ID)
+		ORDER BY ` + savedFoodRank
+	if includeShared {
+		query = `
+		SELECT id, name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g,
+		       use_count, last_used_at, owner
+		FROM (
+			SELECT saved_foods.*, ` + savedFoodOwnerLabel + ` AS owner,
+			       CASE WHEN saved_foods.user_id = $1 THEN 0 ELSE 1 END AS own_rank,
+			       CASE WHEN saved_foods.user_id = $1 THEN 0
+			            ELSE row_number() OVER (
+			                PARTITION BY saved_foods.user_id
+			                ORDER BY ` + savedFoodRank + `) END AS per_owner
+			FROM saved_foods
+			WHERE ` + savedFoodVisibleTo + `
+		) ranked
+		WHERE per_owner <= ` + strconv.Itoa(maxBorrowedPerLink) + `
+		ORDER BY own_rank, ` + savedFoodRank
+	}
+
+	rows, err := h.Pool.Query(r.Context(), query, user.ID)
 	if err != nil {
 		slog.Error("saved_foods list", "error", err)
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to load saved foods")
@@ -78,12 +125,15 @@ func (h *SavedFoodsHandler) List(w http.ResponseWriter, r *http.Request) {
 		var emoji *string
 		var amount, protein, carbs, fat, fiber, sugar *int
 		var lastUsedAt *time.Time
+		var owner *string
 		if err := rows.Scan(&id, &name, &emoji, &amount, &protein, &carbs, &fat, &fiber, &sugar,
-			&useCount, &lastUsedAt); err != nil {
+			&useCount, &lastUsedAt, &owner); err != nil {
 			continue
 		}
-		out = append(out, toSavedFoodView(id, name, emoji, amount, protein, carbs, fat, fiber, sugar,
-			useCount, lastUsedAt))
+		v := toSavedFoodView(id, name, emoji, amount, protein, carbs, fat, fiber, sugar,
+			useCount, lastUsedAt)
+		v.Owner = owner
+		out = append(out, v)
 	}
 
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "savedFoods": out})
@@ -394,11 +444,19 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 	var name string
 	var emoji *string
 	var amount, protein, carbs, fat, fiber, sugar *int
+	// Reads through the shared predicate so a food a friend shares can be
+	// tracked; the entry below is still written to the CALLER.
+	//
+	// 404, never 403, for anything unreachable. saved_foods.id is a global
+	// SERIAL, so distinguishing "exists but not shared" from "does not exist"
+	// would turn this endpoint into an enumeration oracle over every user's
+	// food ids. (resolveTarget on the v1 surface takes the opposite line for
+	// the opposite reason: there the id IS a user id the caller already knows.)
 	err = tx.QueryRow(r.Context(), `
 		SELECT name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g
 		FROM saved_foods
-		WHERE id = $1 AND user_id = $2`,
-		id, user.ID).Scan(&name, &emoji, &amount, &protein, &carbs, &fat, &fiber, &sugar)
+		WHERE id = $2 AND `+savedFoodVisibleTo,
+		user.ID, id).Scan(&name, &emoji, &amount, &protein, &carbs, &fat, &fiber, &sugar)
 	if err != nil {
 		ErrorJSON(w, http.StatusNotFound, "Saved food not found")
 		return
@@ -425,6 +483,14 @@ func (h *SavedFoodsHandler) Track(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Still `AND user_id = $2`, deliberately, and NOT the shared predicate.
+	//
+	// use_count and last_used_at drive savedFoodRank, so counting a friend's
+	// usage would silently reorder the OWNER's chips to reflect someone else's
+	// habits. Widening the SELECT above without widening this is the whole
+	// trick: a borrowed track simply matches no row here and the counters stay
+	// the owner's. The consequence, accepted: borrowed chips carry no
+	// per-recipient ranking signal, so their order is the owner's ranking.
 	if _, err := tx.Exec(r.Context(),
 		"UPDATE saved_foods SET use_count = use_count + $3, last_used_at = NOW() WHERE id = $1 AND user_id = $2",
 		id, user.ID, qty); err != nil {

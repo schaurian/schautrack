@@ -171,7 +171,8 @@
       "weight": "Peso",
       "todos": "Tareas",
       "notes": "Notas",
-      "updateFailed": "No se pudo actualizar el uso compartido"
+      "updateFailed": "No se pudo actualizar el uso compartido",
+      "savedfoods": "Elementos de acceso rápido"
     }
   },
   "data": {

@@ -13,6 +13,7 @@ import SavedFoodsRow from './SavedFoodsRow';
 
 vi.mock('@/api/savedFoods', () => ({
   listSavedFoods: vi.fn(),
+  listSavedFoodsWithShared: vi.fn(),
   trackSavedFood: vi.fn(),
   createSavedFood: vi.fn(),
   updateSavedFood: vi.fn(),
@@ -23,9 +24,9 @@ vi.mock('@/api/entries', () => ({
   deleteEntry: vi.fn(),
 }));
 
-import { listSavedFoods, trackSavedFood } from '@/api/savedFoods';
+import { listSavedFoodsWithShared, trackSavedFood } from '@/api/savedFoods';
 
-const food = (id: number): SavedFood => ({
+const food = (id: number, owner: string | null = null): SavedFood => ({
   id,
   name: `Food ${id}`,
   emoji: null,
@@ -33,6 +34,7 @@ const food = (id: number): SavedFood => ({
   macros: { protein: null, carbs: null, fat: null, fiber: null, sugar: null },
   use_count: 0,
   last_used_at: null,
+  owner,
 });
 
 /** More than DESKTOP_CHIPS (8), so 9 and 10 sit in the overflow at every width. */
@@ -51,7 +53,7 @@ const chip = (name: string) => screen.getByRole('button', { name });
 
 describe('SavedFoodsRow overflow', () => {
   beforeEach(() => {
-    vi.mocked(listSavedFoods).mockResolvedValue({ ok: true, savedFoods: TEN_FOODS });
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({ ok: true, savedFoods: TEN_FOODS });
     vi.mocked(trackSavedFood).mockResolvedValue({
       ok: true,
       entry: { id: 4242 } as never,
@@ -92,7 +94,64 @@ describe('SavedFoodsRow overflow', () => {
   });
 
   it('offers no overflow control when every food already fits', async () => {
-    vi.mocked(listSavedFoods).mockResolvedValue({ ok: true, savedFoods: [food(1), food(2)] });
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({ ok: true, savedFoods: [food(1), food(2)] });
+    renderRow();
+
+    await screen.findAllByRole('button', { name: 'Food 1' });
+    expect(screen.queryByRole('button', { name: '+ more' })).toBeNull();
+  });
+
+  // --- Shared quick-adds (#537) -------------------------------------------
+
+  it('shows a food a friend shares in its own group, not behind "+ more"', async () => {
+    // Eight of the caller's own foods is already past the mobile cut, so a
+    // borrowed food ranked into the same list would be invisible until the
+    // overflow is opened — the whole feature hidden behind a tap.
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({
+      ok: true,
+      savedFoods: [...Array.from({ length: 8 }, (_, i) => food(i + 1)), food(99, 'Alex')],
+    });
+    renderRow();
+
+    expect(await screen.findByRole('button', { name: /Food 99/ })).toBeInTheDocument();
+    expect(screen.getByTestId('saved-foods-shared')).toBeInTheDocument();
+  });
+
+  it('says whose food a borrowed chip is', async () => {
+    // Nothing is copied, so tapping this logs whatever the owner currently has
+    // it set to. The attribution is what makes that honest rather than a
+    // surprise, so it is asserted on the accessible name, not just a tooltip.
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({
+      ok: true,
+      savedFoods: [food(1), food(2, 'Alex')],
+    });
+    renderRow();
+
+    expect(await screen.findByRole('button', { name: 'Food 2, shared by Alex' })).toBeInTheDocument();
+  });
+
+  it('logs a borrowed food to the caller', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({
+      ok: true,
+      savedFoods: [food(1), food(42, 'Alex')],
+    });
+    renderRow();
+
+    await user.click(await screen.findByRole('button', { name: /Food 42/ }));
+    await waitFor(() => {
+      expect(trackSavedFood).toHaveBeenCalledWith(42, '2026-08-30', 1);
+    });
+  });
+
+  it('does not count borrowed foods toward the overflow control', async () => {
+    // "+ more" folds the caller's OWN list. Borrowed foods live in their own
+    // group, so two own foods plus a pile of borrowed ones must not sprout an
+    // overflow control that would fold nothing.
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({
+      ok: true,
+      savedFoods: [food(1), food(2), ...Array.from({ length: 8 }, (_, i) => food(i + 20, 'Alex'))],
+    });
     renderRow();
 
     await screen.findAllByRole('button', { name: 'Food 1' });

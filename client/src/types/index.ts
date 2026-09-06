@@ -61,6 +61,8 @@ export interface LinkShares {
   weight: boolean;
   todos: boolean;
   notes: boolean;
+  /** Quick-add items. The friend can log them, never edit or delete them. */
+  savedfoods: boolean;
 }
 
 export interface SharedView {
@@ -119,6 +121,12 @@ export interface SavedFood {
   };
   use_count: number;
   last_used_at: string | null;
+  /**
+   * null for your own foods; the link label of the friend who shared it
+   * otherwise. Borrowed foods are read-only: tracking one logs an entry to
+   * YOUR account, but editing or deleting it is refused by the server.
+   */
+  owner: string | null;
 }
 
 export interface DashboardData {

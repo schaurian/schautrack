@@ -200,11 +200,37 @@ func (b *Broker) BroadcastTodoChange(sourceUserID int) {
 	}
 }
 
+// BroadcastSavedFoodChange notifies the owner and only those linked friends the
+// owner actually shares quick-adds with.
+//
+// Category-filtered, unlike the other broadcasts, because this one carries a
+// signal even when its payload is empty: a friend who is NOT shared savedfoods
+// has nothing to refetch, so an event to them is both wasted work and a
+// low-grade activity oracle — they would learn, up to ten links wide, every
+// time the owner edits their quick-add list.
+//
+// Uncached on purpose. getTargets memoises the link set as bare IDs, which
+// cannot answer "does this link carry savedfoods", and editing a quick-add is
+// rare enough that one query costs nothing. On failure it falls back to the
+// owner alone: a missed refetch on someone else's screen is recoverable, an
+// event sent to someone who should not have it is not.
 func (b *Broker) BroadcastSavedFoodChange(sourceUserID int) {
-	targets := b.getTargets(sourceUserID)
 	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
-	for _, id := range targets {
-		b.SendEvent(id, "saved-food-change", payload)
+	b.SendEvent(sourceUserID, "saved-food-change", payload)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
+	if err != nil {
+		slog.Error("failed to load links for saved-food broadcast", "error", err)
+		return
+	}
+	for _, link := range links {
+		// SharesWithThem is what the SOURCE exposes toward this friend, which
+		// is the direction that decides whether they can see the food at all.
+		if link.SharesWithThem[service.ShareSavedFoods] {
+			b.SendEvent(link.UserID, "saved-food-change", payload)
+		}
 	}
 }
 

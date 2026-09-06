@@ -271,7 +271,10 @@
     "logQuantityButton_one": "Enregistrer {{count}}×",
     "logQuantityButton_other": "Enregistrer {{count}}×",
     "addButton": "Ajouter",
-    "toastInvalidValue": "Saisissez un nombre pour chaque valeur renseignée."
+    "toastInvalidValue": "Saisissez un nombre pour chaque valeur renseignée.",
+    "sharedHeading": "Partagé avec vous",
+    "chipTooltipOwner": " · partagé par {{owner}}",
+    "chipSharedAriaLabel": "{{name}}, partagé par {{owner}}"
   },
   "store": {
     "you": "Vous"

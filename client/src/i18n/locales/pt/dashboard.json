@@ -271,7 +271,10 @@
     "logQuantityButton_one": "Registar {{count}}×",
     "logQuantityButton_other": "Registar {{count}}×",
     "addButton": "Adicionar",
-    "toastInvalidValue": "Introduz um número em cada valor que preencheres."
+    "toastInvalidValue": "Introduz um número em cada valor que preencheres.",
+    "sharedHeading": "Partilhado consigo",
+    "chipTooltipOwner": " · partilhado por {{owner}}",
+    "chipSharedAriaLabel": "{{name}}, partilhado por {{owner}}"
   },
   "store": {
     "you": "Você"

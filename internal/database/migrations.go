@@ -627,7 +627,6 @@ func ensureSavedFoodsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 				sugar_g INTEGER,
 				use_count INTEGER NOT NULL DEFAULT 0,
 				last_used_at TIMESTAMPTZ,
-				shared BOOLEAN NOT NULL DEFAULT FALSE,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)`); err != nil {
@@ -656,9 +655,24 @@ func ensureSavedFoodsSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			CREATE UNIQUE INDEX IF NOT EXISTS saved_foods_user_name_idx
 				ON saved_foods (user_id, lower(name));
 			CREATE INDEX IF NOT EXISTS saved_foods_rank_idx
-				ON saved_foods (user_id, use_count DESC, last_used_at DESC NULLS LAST);
-			CREATE INDEX IF NOT EXISTS saved_foods_shared_idx
-				ON saved_foods (user_id) WHERE shared = TRUE`); err != nil {
+				ON saved_foods (user_id, use_count DESC, last_used_at DESC NULLS LAST)`); err != nil {
+			return err
+		}
+
+		// saved_foods.shared and its partial index were created by an earlier
+		// version of this block and read by no code, ever — a feature someone
+		// started and stopped. Sharing quick-adds is now a per-link category on
+		// account_links, so a boolean of that name sitting beside it is a trap
+		// for the next reader rather than a spare part.
+		//
+		// Ordered AFTER the create and the indexes, not folded into them: on an
+		// existing database the column is already there, so removing it from
+		// the CREATE above achieves nothing on its own, and dropping it before
+		// the index statements would let a re-run recreate the index against a
+		// column that no longer exists. The index goes with the column
+		// automatically.
+		if _, err := tx.Exec(ctx, `
+			ALTER TABLE saved_foods DROP COLUMN IF EXISTS shared`); err != nil {
 			return err
 		}
 		return nil

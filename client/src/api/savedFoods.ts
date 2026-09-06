@@ -12,8 +12,23 @@ export interface SavedFoodPayload {
   sugar_g?: number | null;
 }
 
+/**
+ * Your own quick-add items.
+ *
+ * Used by the Manage dialog and the Settings counter, which must NOT see
+ * borrowed foods: Manage would offer them for editing (and 404 on save) and the
+ * counter would bill a friend's foods against your own 200-item cap.
+ */
 export function listSavedFoods() {
   return api<{ ok: boolean; savedFoods: SavedFood[] }>('/api/saved-foods');
+}
+
+/**
+ * Your own quick-add items plus those linked friends share with you, each
+ * carrying `owner`. Only the dashboard chip row wants this.
+ */
+export function listSavedFoodsWithShared() {
+  return api<{ ok: boolean; savedFoods: SavedFood[] }>('/api/saved-foods?scope=all');
 }
 
 export function createSavedFood(data: SavedFoodPayload) {

@@ -283,7 +283,10 @@
     "logQuantityButton_few": "Zapisz {{count}}×",
     "logQuantityButton_many": "Zapisz {{count}}×",
     "addButton": "Dodaj",
-    "toastInvalidValue": "Wpisz liczbę w każdym wypełnianym polu."
+    "toastInvalidValue": "Wpisz liczbę w każdym wypełnianym polu.",
+    "sharedHeading": "Udostępnione tobie",
+    "chipTooltipOwner": " · udostępnione przez {{owner}}",
+    "chipSharedAriaLabel": "{{name}}, udostępnione przez {{owner}}"
   },
   "store": {
     "you": "Ty"

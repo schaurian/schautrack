@@ -171,7 +171,8 @@
       "weight": "Gewicht",
       "todos": "Todos",
       "notes": "Notizen",
-      "updateFailed": "Freigabe konnte nicht aktualisiert werden"
+      "updateFailed": "Freigabe konnte nicht aktualisiert werden",
+      "savedfoods": "Schnellauswahl"
     }
   },
   "data": {

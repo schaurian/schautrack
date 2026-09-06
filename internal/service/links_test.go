@@ -103,7 +103,15 @@ func TestSanitizeShareMap(t *testing.T) {
 		"bogus":     true, // unknown key must be dropped
 		// weight, notes omitted -> must default false
 	})
-	want := map[string]bool{"nutrition": true, "weight": false, "todos": true, "notes": false}
+	// Built from ShareCategories rather than written out, so adding a category
+	// does not silently make this assert the wrong arity — the previous
+	// hardcoded four-key map had to be edited by hand every time.
+	want := map[string]bool{}
+	for _, c := range ShareCategories {
+		want[c] = false
+	}
+	want["nutrition"] = true
+	want["todos"] = true
 	if len(got) != len(want) {
 		t.Fatalf("len = %d, want %d (map=%v)", len(got), len(want), got)
 	}

@@ -138,6 +138,7 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
     { key: 'weight', label: t('link.share.weight') },
     { key: 'todos', label: t('link.share.todos') },
     { key: 'notes', label: t('link.share.notes') },
+    { key: 'savedfoods', label: t('link.share.savedfoods') },
   ];
 
   return (

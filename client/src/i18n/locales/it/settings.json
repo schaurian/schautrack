@@ -171,7 +171,8 @@
       "weight": "Peso",
       "todos": "Cose da fare",
       "notes": "Note",
-      "updateFailed": "Impossibile aggiornare la condivisione"
+      "updateFailed": "Impossibile aggiornare la condivisione",
+      "savedfoods": "Elementi ad aggiunta rapida"
     }
   },
   "data": {

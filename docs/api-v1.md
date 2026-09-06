@@ -659,7 +659,13 @@ GET /api/v1/saved-foods
 
 Most-used first, then most-recently-used, then newest first. Not paginated: an account holds at most 200 saved foods, so this always returns the complete set.
 
-**Your own foods only, deliberately.** This endpoint does not accept `user`: account linking shares nutrition, weight, todos, and notes, and saved foods are none of those, so there is no share category that could authorize reading another account's. Passing `user` is ignored.
+**Your own foods by default.** Pass `user` to read a linked account's instead, which requires `links:read` and that they share the `savedfoods` category with you. Without `user` the response is unchanged: your own foods, all of them, never mixed with anyone else's.
+
+Reading someone's saved food does not let you log it through this API: `POST /saved-foods/{id}/track` accepts your own ids only. Create a normal entry from the values instead.
+
+| Parameter | In | Required | Description |
+| --- | --- | --- | --- |
+| `user` | query |  | Read a linked account's data instead of your own. Pass the `user_id` from `GET /links`. Requires the `links:read` scope AND that the account shares this category with you; otherwise 403. Shared data is read-only — no write endpoint accepts this. |
 
 | Status | Response |
 | --- | --- |
@@ -1088,6 +1094,7 @@ What you share back with them.
 | --- | --- | --- | --- |
 | `notes` | `boolean` | yes | Daily notes. |
 | `nutrition` | `boolean` | yes | Calorie entries and macros. |
+| `savedfoods` | `boolean` | yes | Quick-add items, readable via `GET /saved-foods?user=`. |
 | `todos` | `boolean` | yes | Todos and completions. |
 | `weight` | `boolean` | yes | Weight readings. |
 
@@ -1099,6 +1106,7 @@ What this account shares WITH you — the only categories `?user=` will serve.
 | --- | --- | --- | --- |
 | `notes` | `boolean` | yes | Daily notes. |
 | `nutrition` | `boolean` | yes | Calorie entries and macros. |
+| `savedfoods` | `boolean` | yes | Quick-add items, readable via `GET /saved-foods?user=`. |
 | `todos` | `boolean` | yes | Todos and completions. |
 | `weight` | `boolean` | yes | Weight readings. |
 

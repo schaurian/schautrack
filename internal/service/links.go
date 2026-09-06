@@ -13,12 +13,16 @@ const (
 	ShareWeight    = "weight"
 	ShareTodos     = "todos"
 	ShareNotes     = "notes"
+	// ShareSavedFoods exposes the sharer's quick-add items so a linked friend
+	// can track them into their OWN entries. Read-only like every other
+	// category: the recipient can use a borrowed food, never edit or delete it.
+	ShareSavedFoods = "savedfoods"
 )
 
 // ShareCategories is the canonical, ordered set of shareable categories.
-var ShareCategories = []string{ShareNutrition, ShareWeight, ShareTodos, ShareNotes}
+var ShareCategories = []string{ShareNutrition, ShareWeight, ShareTodos, ShareNotes, ShareSavedFoods}
 
-// SanitizeShareMap returns a map with exactly the four known keys (unknown keys
+// SanitizeShareMap returns a map with exactly the known keys (unknown keys
 // dropped, missing keys defaulted to false). Storing explicit falses keeps the
 // map self-describing for the settings UI; absent-key-means-off still holds.
 func SanitizeShareMap(raw map[string]bool) map[string]bool {

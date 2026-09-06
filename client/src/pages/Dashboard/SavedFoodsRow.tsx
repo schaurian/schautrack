@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { listSavedFoods, trackSavedFood } from '@/api/savedFoods';
+import { listSavedFoodsWithShared, trackSavedFood } from '@/api/savedFoods';
 import { deleteEntry } from '@/api/entries';
 import { useToastStore } from '@/stores/toastStore';
 import { Button } from '@/components/ui/Button';
@@ -37,12 +37,23 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
   // Manage is still one tap away in the header; it is for editing the list.
   const [expanded, setExpanded] = useState(false);
 
+  // scope=all, under a key nested beneath ['savedFoods'] so the existing
+  // invalidateQueries({ queryKey: ['savedFoods'] }) calls still reach it by
+  // prefix — and so the Manage dialog and the Settings counter, which share the
+  // bare key, keep receiving own-foods-only.
   const { data } = useQuery({
-    queryKey: ['savedFoods'],
-    queryFn: listSavedFoods,
+    queryKey: ['savedFoods', 'all'],
+    queryFn: listSavedFoodsWithShared,
   });
 
   const all = data?.savedFoods ?? [];
+  // Split rather than interleave. Borrowed chips sort after the caller's own so
+  // a friend adding a food never reshuffles positions the caller has muscle
+  // memory for, and they get their own group so they stay reachable: ranked
+  // into one list they would fall past the 6/8-chip cut for anyone with a
+  // handful of foods, which hides the whole feature behind "+ more".
+  const mine = all.filter((f) => !f.owner);
+  const borrowed = all.filter((f) => f.owner);
   if (all.length === 0) return null;
 
   const handleTrack = async (food: SavedFood, quantity: number) => {
@@ -101,25 +112,25 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
             // One list once everything is shown: the two breakpoint lists below
             // only exist to cut at a different count per width, and rendering
             // both here would duplicate every chip in the DOM.
-            all.map(renderChip)
+            mine.map(renderChip)
           ) : (
             <>
               <div className="contents max-sm:hidden">
-                {all.slice(0, DESKTOP_CHIPS).map(renderChip)}
+                {mine.slice(0, DESKTOP_CHIPS).map(renderChip)}
               </div>
               <div className="contents sm:hidden">
-                {all.slice(0, MOBILE_CHIPS).map(renderChip)}
+                {mine.slice(0, MOBILE_CHIPS).map(renderChip)}
               </div>
             </>
           )}
-          {all.length > MOBILE_CHIPS && (
+          {mine.length > MOBILE_CHIPS && (
             <button
               type="button"
               className={cn(
                 'rounded-full border border-dashed border-border bg-transparent text-muted-foreground px-3 py-1 text-sm hover:text-foreground hover:border-ring cursor-pointer transition-colors',
                 // Nothing is folded away on desktop until the desktop cut is
                 // passed, so don't offer to unfold there.
-                !expanded && all.length <= DESKTOP_CHIPS && 'sm:hidden',
+                !expanded && mine.length <= DESKTOP_CHIPS && 'sm:hidden',
               )}
               aria-expanded={expanded}
               onClick={() => setExpanded((v) => !v)}
@@ -128,6 +139,15 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
             </button>
           )}
         </div>
+
+        {borrowed.length > 0 && (
+          <div className="border-t border-white/[0.06] px-3 pb-3 pt-2" data-testid="saved-foods-shared">
+            <p className="mb-1.5 text-xs text-muted-foreground">{t('savedFoods.sharedHeading')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(expanded ? borrowed : borrowed.slice(0, MOBILE_CHIPS)).map(renderChip)}
+            </div>
+          </div>
+        )}
       </div>
 
       <SavedFoodsModal
@@ -160,7 +180,13 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
   for (const [key, val] of Object.entries(food.macros)) {
     if (val != null) parts.push(`${val}g ${key}`);
   }
-  const tooltip = `${t('savedFoods.chipTooltipBase', { name: food.name })}${parts.length > 0 ? t('savedFoods.chipTooltipDetails', { details: parts.join(' · ') }) : ''}${t('savedFoods.chipTooltipHint')}`;
+  // Whose food this is goes in the tooltip AND the accessible name, not just a
+  // visual marker. A borrowed chip logs whatever its owner currently has it
+  // set to — nothing is copied — so if they change "Coffee" from 5 to 500 kcal
+  // the next tap logs 500. Being able to see whose item it is before tapping is
+  // what makes that acceptable.
+  const ownerSuffix = food.owner ? t('savedFoods.chipTooltipOwner', { owner: food.owner }) : '';
+  const tooltip = `${t('savedFoods.chipTooltipBase', { name: food.name })}${parts.length > 0 ? t('savedFoods.chipTooltipDetails', { details: parts.join(' · ') }) : ''}${ownerSuffix}${t('savedFoods.chipTooltipHint')}`;
 
   // Reset the picker quantity each time it opens so consecutive uses
   // don't carry over the previous selection.
@@ -264,9 +290,13 @@ function Chip({ food, loading, quantityPickerOpen, onTrack, onOpenQuantity, onCl
           'touch-none', // prevent iOS text-selection callout on long-press
         )}
         title={tooltip}
+        aria-label={food.owner ? t('savedFoods.chipSharedAriaLabel', { name: food.name, owner: food.owner }) : undefined}
       >
         {food.emoji && <span className="text-base leading-none">{food.emoji}</span>}
         <span className="font-medium">{food.name}</span>
+        {food.owner && (
+          <span className="text-xs text-muted-foreground/80">{food.owner}</span>
+        )}
       </button>
 
       {quantityPickerOpen && (

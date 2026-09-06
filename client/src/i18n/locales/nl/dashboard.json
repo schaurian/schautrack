@@ -271,7 +271,10 @@
     "logQuantityButton_one": "{{count}}× bijhouden",
     "logQuantityButton_other": "{{count}}× bijhouden",
     "addButton": "Toevoegen",
-    "toastInvalidValue": "Vul een getal in bij elke waarde die je invult."
+    "toastInvalidValue": "Vul een getal in bij elke waarde die je invult.",
+    "sharedHeading": "Met jou gedeeld",
+    "chipTooltipOwner": " · gedeeld door {{owner}}",
+    "chipSharedAriaLabel": "{{name}}, gedeeld door {{owner}}"
   },
   "store": {
     "you": "Jij"

@@ -171,7 +171,8 @@
       "weight": "Poids",
       "todos": "Tâches",
       "notes": "Notes",
-      "updateFailed": "Échec de la mise à jour du partage"
+      "updateFailed": "Échec de la mise à jour du partage",
+      "savedfoods": "Éléments d’ajout rapide"
     }
   },
   "data": {

@@ -70,6 +70,8 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   // Shaped like a saved food so the row renders it with no special cases.
   const draftFood: SavedFood = {
     id: 0,
+    // A draft is always the caller's own, never borrowed.
+    owner: null,
     name: draftName,
     emoji: draftValues.emoji || null,
     amount: numOrNull(draftValues.amount),

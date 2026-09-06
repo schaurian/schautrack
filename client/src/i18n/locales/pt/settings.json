@@ -171,7 +171,8 @@
       "weight": "Peso",
       "todos": "Tarefas",
       "notes": "Notas",
-      "updateFailed": "Falha ao atualizar a partilha"
+      "updateFailed": "Falha ao atualizar a partilha",
+      "savedfoods": "Itens de adição rápida"
     }
   },
   "data": {

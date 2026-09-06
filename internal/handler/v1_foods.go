@@ -73,11 +73,27 @@ func scanSavedFood(row pgx.Row) (*v1SavedFood, error) {
 // `limit` is consequently no longer read. Ignoring it can only ever return
 // more than a caller asked for, never fewer rows than exist — the safe
 // direction. It is dropped from this operation in the OpenAPI document.
+// `user` resolves through resolveTarget like every other linked read: it needs
+// the links:read scope AND the owner sharing the savedfoods category, and any
+// failure is 403.
+//
+// Deliberately a parameter rather than a widened default. This endpoint's
+// contract has always been "your own foods only", and silently mixing in
+// another account's rows would break every syncing client — they would receive
+// foods they cannot PATCH or DELETE, and two entries could now share a name
+// despite `name` documenting itself as unique per account. Opting in keeps the
+// no-parameter response meaning exactly what it always meant.
 func (h *V1Handler) ListSavedFoodsV1(w http.ResponseWriter, r *http.Request) {
+	tgt, prob := h.resolveTarget(r, service.ShareSavedFoods)
+	if prob != nil {
+		apierr.Write(w, r, prob)
+		return
+	}
+
 	rows, err := h.Pool.Query(r.Context(),
 		"SELECT "+savedFoodSelect+` FROM saved_foods WHERE user_id = $1
 		 ORDER BY `+savedFoodRank,
-		v1User(r).ID)
+		tgt.User.ID)
 	if err != nil {
 		apierr.Write(w, r, dbFail("list saved foods", err))
 		return

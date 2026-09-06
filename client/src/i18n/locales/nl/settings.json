@@ -171,7 +171,8 @@
       "weight": "Gewicht",
       "todos": "Taken",
       "notes": "Notities",
-      "updateFailed": "Bijwerken van delen mislukt"
+      "updateFailed": "Bijwerken van delen mislukt",
+      "savedfoods": "Snelkeuze-items"
     }
   },
   "data": {

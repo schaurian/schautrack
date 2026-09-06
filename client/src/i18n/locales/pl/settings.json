@@ -175,7 +175,8 @@
       "weight": "Waga",
       "todos": "Zadania",
       "notes": "Notatki",
-      "updateFailed": "Nie udało się zaktualizować udostępniania"
+      "updateFailed": "Nie udało się zaktualizować udostępniania",
+      "savedfoods": "Elementy szybkiego dodawania"
     }
   },
   "data": {

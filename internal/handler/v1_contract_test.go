@@ -611,8 +611,17 @@ func TestValidatorAcceptsFreeForm(t *testing.T) {
 }
 
 func TestLinkMatchesSchema(t *testing.T) {
-	all := map[string]bool{"nutrition": true, "weight": true, "todos": true, "notes": true}
-	none := map[string]bool{"nutrition": false, "weight": false, "todos": false, "notes": false}
+	// Derived from ShareCategories so a new category appears in the fixture
+	// automatically. The schema lists the categories by hand (see the note in
+	// openapi/spec.go), so the fixture being generated is what turns a
+	// forgotten schema entry into this test failing rather than both drifting
+	// together.
+	all := map[string]bool{}
+	none := map[string]bool{}
+	for _, c := range service.ShareCategories {
+		all[c] = true
+		none[c] = false
+	}
 	checkSchema(t, "Link", v1Link{
 		UserID: 7, Email: "friend@example.com", Label: ptr("Alex"),
 		SharesWithMe: all, SharesToThem: none, Timezone: "Europe/Berlin",
@@ -626,14 +635,17 @@ func TestLinkMatchesSchema(t *testing.T) {
 }
 
 func TestLinkListMatchesSchema(t *testing.T) {
-	all := map[string]bool{"nutrition": true, "weight": true, "todos": true, "notes": true}
+	all := map[string]bool{}
+	for _, c := range service.ShareCategories {
+		all[c] = true
+	}
 	checkSchema(t, "LinkList", v1List[v1Link]{Data: []v1Link{{
 		UserID: 7, Email: "friend@example.com", Label: ptr("Alex"),
 		SharesWithMe: all, SharesToThem: all, Timezone: "Europe/Berlin",
 	}}})
 }
 
-// decodeShareFlags must always emit exactly the four known categories: a
+// decodeShareFlags must always emit exactly the known categories: a
 // response that omitted one would read as "not shared" to a client that
 // checks for the key, and one that invented a category would be undocumented
 // surface.
@@ -648,10 +660,14 @@ func TestDecodeShareFlagsIsTotal(t *testing.T) {
 	for name, raw := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := decodeShareFlags([]byte(raw))
-			if len(got) != 4 {
-				t.Errorf("got %d categories, want exactly 4: %v", len(got), got)
+			// Arity comes from ShareCategories, not a literal: the point of
+			// this test is that the map is TOTAL over the known categories,
+			// and hardcoding the count made adding one a build failure in the
+			// test rather than a fact the test checks.
+			if len(got) != len(service.ShareCategories) {
+				t.Errorf("got %d categories, want exactly %d: %v", len(got), len(service.ShareCategories), got)
 			}
-			for _, c := range []string{"nutrition", "weight", "todos", "notes"} {
+			for _, c := range service.ShareCategories {
 				if _, ok := got[c]; !ok {
 					t.Errorf("category %q missing", c)
 				}

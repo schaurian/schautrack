@@ -271,7 +271,10 @@
     "logQuantityButton_one": "{{count}}× tracken",
     "logQuantityButton_other": "{{count}}× tracken",
     "addButton": "Hinzufügen",
-    "toastInvalidValue": "Gib für jeden ausgefüllten Wert eine Zahl ein."
+    "toastInvalidValue": "Gib für jeden ausgefüllten Wert eine Zahl ein.",
+    "sharedHeading": "Mit dir geteilt",
+    "chipTooltipOwner": " · geteilt von {{owner}}",
+    "chipSharedAriaLabel": "{{name}}, geteilt von {{owner}}"
   },
   "store": {
     "you": "Du"

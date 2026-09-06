@@ -59,6 +59,8 @@ var linkedReadHandlers = []linkedReadEndpoint{
 		func(h *V1Handler, w http.ResponseWriter, r *http.Request) { h.TodosForDayV1(w, r) }},
 	{"GET /notes/{date}", map[string]string{"date": "2026-08-05"},
 		func(h *V1Handler, w http.ResponseWriter, r *http.Request) { h.GetNoteV1(w, r) }},
+	{"GET /saved-foods", nil,
+		func(h *V1Handler, w http.ResponseWriter, r *http.Request) { h.ListSavedFoodsV1(w, r) }},
 }
 
 // v1ReadRequest builds a request as the router would have left it: chi path
@@ -238,13 +240,18 @@ func TestV1SpecDocumentsUserParamExactlyWhereItWorks(t *testing.T) {
 	}
 }
 
-// TestV1SelfOnlyReadsSayWhyTheyAreSelfOnly covers the other half of #293: two
-// read endpoints deliberately have no ?user= because no share category covers
-// their data. An absent parameter is indistinguishable from an oversight, so
-// the reason has to be written down where a reader of the spec will find it.
+// TestV1SelfOnlyReadsSayWhyTheyAreSelfOnly covers the other half of #293: a
+// read endpoint deliberately has no ?user= because no share category covers its
+// data. An absent parameter is indistinguishable from an oversight, so the
+// reason has to be written down where a reader of the spec will find it.
+//
+// /saved-foods used to be on this list. It moved to linkedReadHandlers when the
+// savedfoods share category was added — which is the point of keeping both
+// halves asserted: gaining a category has to move an endpoint from one list to
+// the other, and forgetting either direction fails the build.
 func TestV1SelfOnlyReadsSayWhyTheyAreSelfOnly(t *testing.T) {
 	doc := openapi.Build("test", "")
-	for _, path := range []string{"/saved-foods", "/plan"} {
+	for _, path := range []string{"/plan"} {
 		item, ok := doc.Paths[path]
 		if !ok || item.Get == nil {
 			t.Fatalf("GET %s is missing from the document", path)

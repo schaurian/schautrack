@@ -596,18 +596,24 @@ func schemas() map[string]*Schema {
 			"user_id": integer("Pass this as the `user` query parameter on a read endpoint."),
 			"email":   str("The linked account's email."),
 			"label":   nullStr("The name you gave this link, if any."),
+			// Both maps are written out by hand rather than generated from
+			// service.ShareCategories, so a new category has to be added in
+			// BOTH places here as well as in the Go constant.
+			// TestDecodeShareFlagsIsTotal fails if these drift apart.
 			"shares_with_me": object("What this account shares WITH you — the only categories `?user=` will serve.", map[string]*Schema{
-				"nutrition": boolean("Calorie entries and macros."),
-				"weight":    boolean("Weight readings."),
-				"todos":     boolean("Todos and completions."),
-				"notes":     boolean("Daily notes."),
-			}, "nutrition", "weight", "todos", "notes"),
+				"nutrition":  boolean("Calorie entries and macros."),
+				"weight":     boolean("Weight readings."),
+				"todos":      boolean("Todos and completions."),
+				"notes":      boolean("Daily notes."),
+				"savedfoods": boolean("Quick-add items, readable via `GET /saved-foods?user=`."),
+			}, "nutrition", "weight", "todos", "notes", "savedfoods"),
 			"shares_to_them": object("What you share back with them.", map[string]*Schema{
-				"nutrition": boolean("Calorie entries and macros."),
-				"weight":    boolean("Weight readings."),
-				"todos":     boolean("Todos and completions."),
-				"notes":     boolean("Daily notes."),
-			}, "nutrition", "weight", "todos", "notes"),
+				"nutrition":  boolean("Calorie entries and macros."),
+				"weight":     boolean("Weight readings."),
+				"todos":      boolean("Todos and completions."),
+				"notes":      boolean("Daily notes."),
+				"savedfoods": boolean("Quick-add items, readable via `GET /saved-foods?user=`."),
+			}, "nutrition", "weight", "todos", "notes", "savedfoods"),
 			"timezone": str("Their IANA time zone. Their timestamps are rendered in it, not yours."),
 		}, "user_id", "email", "label", "shares_with_me", "shares_to_them", "timezone"),
 		"LinkList": object("Accounts linked to yours.", map[string]*Schema{
@@ -1147,14 +1153,16 @@ func paths() map[string]*PathItem {
 				Description: "Most-used first, then most-recently-used, then newest first. " +
 					"Not paginated: an account holds at most 200 saved foods, so this always " +
 					"returns the complete set.\n\n" +
-					"**Your own foods only, deliberately.** This endpoint does not accept `user`: " +
-					"account linking shares nutrition, weight, todos, and notes, and saved foods are " +
-					"none of those, so there is no share category that could authorize reading " +
-					"another account's. Passing `user` is ignored.",
+					"**Your own foods by default.** Pass `user` to read a linked account's " +
+					"instead, which requires `links:read` and that they share the `savedfoods` " +
+					"category with you. Without `user` the response is unchanged: your own foods, " +
+					"all of them, never mixed with anyone else's.\n\n" +
+					"Reading someone's saved food does not let you log it through this API: " +
+					"`POST /saved-foods/{id}/track` accepts your own ids only. Create a normal " +
+					"entry from the values instead.",
 				Tags: []string{"Saved foods"}, Scope: service.ScopeFoodsRead,
-				Security: []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
-				// No 400: the operation takes no input to reject, matching the
-				// other parameterless collections (listTodos, listLinks).
+				Security:   []SecurityRequirement{{"bearerAuth": {service.ScopeFoodsRead}}},
+				Parameters: []Parameter{linkedUserParam},
 
 				Responses: merge(map[string]*Response{
 					"200": ok200("The saved foods.", ref("SavedFoodList")),
