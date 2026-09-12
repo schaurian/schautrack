@@ -29,13 +29,20 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=${BUILD_VERSION}" -o 
 
 FROM alpine:3.24
 
+# `apk upgrade` runs first because the alpine:3.24 tag is rebuilt on Alpine's
+# schedule, not on the security advisories' — it lagged the openssl 3.5.8-r0
+# patch for CVE-2026-14456 by days, which failed the Trivy image scan on every
+# open PR at once. Upgrading against the live branch repo picks up such patches
+# the day they land instead of waiting for a base-image respin.
+#
 # DL3018 (pin apk package versions) is ignored deliberately: Alpine keeps only
 # the newest version of each package per branch, so `ca-certificates=X.Y-r0`
 # breaks the build the moment Alpine ships a patch — a pin that makes builds
 # fail unpredictably rather than reproducibly. The base image tag above is
 # pinned and Renovate-bumped, which is where reproducibility actually lives.
 # hadolint ignore=DL3018
-RUN apk add --no-cache ca-certificates tzdata && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates tzdata && \
     adduser -D -u 1000 appuser
 
 WORKDIR /app
