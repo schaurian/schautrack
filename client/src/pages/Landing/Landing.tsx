@@ -78,7 +78,7 @@ export default function Landing() {
 
       <section className="text-center">
         <a href="https://play.google.com/store/apps/details?id=to.schauer.schautrack" target="_blank" rel="noopener">
-          <img src="/google-play-badge.png" alt={t('googlePlay.alt')} width={646} height={250} className="h-14 mx-auto" />
+          <img src="/google-play-badge.png" alt={t('googlePlay.alt')} width={646} height={250} className="h-14 w-auto mx-auto" />
         </a>
       </section>
     </div>
