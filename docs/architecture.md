@@ -423,7 +423,7 @@ toolchain never reaches it, and neither does the Go one.
 flowchart LR
     subgraph build [docker build]
         n["node:24-alpine<br/>npm ci · vite build"] --> dist[/"client/dist"/]
-        g["golang:1.26-alpine<br/>CGO_ENABLED=0"] --> bin[/"static binary"/]
+        g["golang:&lt;go.mod patch&gt;-alpine<br/>CGO_ENABLED=0"] --> bin[/"static binary"/]
     end
 
     dist --> final
