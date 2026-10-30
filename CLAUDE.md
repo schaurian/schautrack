@@ -85,7 +85,7 @@ schautrack/
 - **Styling:** CSS Modules with CSS custom properties
 
 ### Backend
-- **Language:** Go 1.26
+- **Language:** Go 1.27
 - **Router:** go-chi/chi v5 (stdlib-compatible)
 - **Database:** PostgreSQL 18 via jackc/pgx v5
 - **Session Store:** Custom PostgreSQL store (internal/session)
