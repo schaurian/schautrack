@@ -44,8 +44,9 @@ permissions: {}
 jobs:
   zizmor:
     # ubuntu-latest rather than the arc-runner expression build.yml uses:
-    # zizmor-action runs zizmor as a Docker container, and the ARC runner pods
-    # have no Docker daemon to offer it.
+    # zizmor-action installs zizmor from a hash-verified wheel, which needs
+    # python3 with pip on the runner. ubuntu-latest provides both; the ARC
+    # runner image is not known to.
     runs-on: ubuntu-latest
     permissions:
       contents: read
