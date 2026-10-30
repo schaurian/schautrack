@@ -10,6 +10,18 @@
   "osvVulnerabilityAlerts": true,
   "packageRules": [
     {
+      "description": "Go toolchain, part 1: the gomod manager leaves the `go` directive alone by default, so Renovate bumped only the Dockerfile's golang image (#643) and TestDockerfileGoMatchesGoMod rightly failed that PR. That is how the stdlib fix for GO-2026-6809 (Go 1.27.3) sat unmerged while `vuln` was red on every branch. `bump` makes Renovate move the go directive as well.",
+      "matchDatasources": ["golang-version"],
+      "matchDepTypes": ["golang"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Go toolchain, part 2: ship the go.mod `go` directive and the Dockerfile `golang:<patch>-alpine` stage in ONE PR. TestDockerfileGoMatchesGoMod requires them equal, and CI resolves every Go job from go.mod, so either half alone is red by construction.",
+      "matchDatasources": ["golang-version", "docker"],
+      "matchPackageNames": ["go", "golang"],
+      "groupName": "go toolchain"
+    },
+    {
       "description": "Block PostgreSQL major upgrades: a new major (e.g. 18 -> 19) makes the existing /var/lib/postgresql data directory incompatible with no pg_upgrade path in these compose/helm deployments, so the db container crashloops. Majors require a deliberate manual migration plan.",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["postgres"],
