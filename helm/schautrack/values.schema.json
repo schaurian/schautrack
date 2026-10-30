@@ -482,7 +482,7 @@
         },
         "imageName": {
           "type": "string",
-          "description": "Empty takes the operator's default PostgreSQL image."
+          "description": "CNPG instance image, pinned as tag@sha256 by default. Empty takes the operator's default PostgreSQL image."
         },
         "auth": {
           "type": "object",
