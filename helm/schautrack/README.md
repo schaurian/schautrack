@@ -422,7 +422,7 @@ install is a data migration, not a values change: see
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `postgresql.instances` | Instances. 1 = no standby; use 3 for real HA | `1` |
-| `postgresql.imageName` | Override the operator's default PostgreSQL image | `""` |
+| `postgresql.imageName` | PostgreSQL instance image, pinned by tag and digest (kept current by Renovate). `""` takes the operator's floating default | a dated `18.x-system-trixie` rebuild, `tag@sha256` (see `values.yaml`) |
 | `postgresql.auth.database` | Database name (both modes) | `schautrack` |
 | `postgresql.auth.username` | Database user / owner (both modes) | `schautrack` |
 | `postgresql.auth.existingSecret` | `kubernetes.io/basic-auth` Secret to use instead of the operator-generated one. Must also carry a `uri` key | `""` |

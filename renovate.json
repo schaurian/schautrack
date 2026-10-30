@@ -15,6 +15,29 @@
       "matchPackageNames": ["postgres"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "CloudNativePG instance image: follow the dated rebuilds (`18.6-202610260820-system-trixie`) and 18.x minors. Instances roll by switchover; 7-day release age.",
+      "matchPackageNames": ["ghcr.io/cloudnative-pg/postgresql"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:-(?<patch>\\d{12}))?-(?<compatibility>[a-z]+-[a-z]+)$",
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Block PostgreSQL majors for the CNPG instance image too: 18 -> 19 needs a dump/restore or pg_upgrade, not an image bump.",
+      "matchPackageNames": ["ghcr.io/cloudnative-pg/postgresql"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "CloudNativePG instance image in the Helm chart: postgresql.imageName is not an image:/repository+tag pair, so the helm-values manager cannot see it. Captures the @sha256 digest so tag and digest move together.",
+      "managerFilePatterns": ["/(^|/)helm/schautrack/values\\.yaml$/"],
+      "matchStrings": [
+        "imageName:\\s*['\"]?(?<depName>[^\\s:@'\"]+):(?<currentValue>[^\\s@'\"]+)(@(?<currentDigest>sha256:[a-f0-9]+))?"
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }

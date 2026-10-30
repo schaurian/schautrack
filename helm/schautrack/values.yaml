@@ -297,9 +297,14 @@ postgresql:
   # 2 gives you a standby but no quorum, so prefer 3 if you can afford it.
   instances: 1
 
-  # Leave empty to take the operator's default PostgreSQL image, which is what
-  # keeps minor-version upgrades on CNPG's tested path.
-  imageName: ""
+  # Pinned to a dated rebuild by tag AND digest. The operator's default is the
+  # floating `18.x-system-trixie` tag, which CNPG rebuilds weekly: every pod
+  # restart pulls whatever build is current, so instances of one cluster drift
+  # onto different builds (prod once ran three digests at once). Renovate moves
+  # tag and digest together (dated rebuilds and 18.x minors, never a major —
+  # see renovate.json); instances then roll by switchover.
+  # Set "" to take the operator's default image instead.
+  imageName: "ghcr.io/cloudnative-pg/postgresql:18.6-202610260820-system-trixie@sha256:348997438269fddc0e2825e00594367ad61751adb08a7698a0a14f793b0dc2ce"
 
   auth:
     database: schautrack
