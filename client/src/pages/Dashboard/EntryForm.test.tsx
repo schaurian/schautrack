@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '@/i18n';
@@ -207,5 +207,46 @@ describe('EntryForm validation', () => {
     await user.click(track());
     await vi.waitFor(() => expect(useToastStore.getState().toasts.map((t) => t.message)).toContain('Macro values must be between 0 and 999'));
     expect(field('entry-macro-protein')).not.toHaveAttribute('aria-invalid');
+  });
+});
+
+// The dashboard's selected day can change while the add-food sheet is open —
+// the midnight rollover moves "today" on. The form follows that day only until
+// the user picks a date in the form; a picked date must survive the rollover.
+describe('EntryForm date', () => {
+  function renderWithDate(selectedDate: string) {
+    const client = new QueryClient();
+    const ui = (date: string) => (
+      <QueryClientProvider client={client}>
+        <EntryForm
+          selectedDate={date}
+          caloriesEnabled
+          autoCalcCalories={false}
+          enabledMacros={[]}
+          hasAiEnabled={false}
+          aiUsage={null}
+          aiProviderName={null}
+          barcodeEnabled={false}
+          onSubmit={() => {}}
+        />
+      </QueryClientProvider>
+    );
+    const view = render(ui(selectedDate));
+    return { rerender: (date: string) => view.rerender(ui(date)) };
+  }
+  const dateInput = () => screen.getByLabelText('Entry date') as HTMLInputElement;
+
+  it('follows the dashboard day while the user has not touched it', () => {
+    const { rerender } = renderWithDate('2026-11-03');
+    expect(dateInput().value).toBe('2026-11-03');
+    rerender('2026-11-04');
+    expect(dateInput().value).toBe('2026-11-04');
+  });
+
+  it('keeps a date the user picked when the dashboard day rolls over', () => {
+    const { rerender } = renderWithDate('2026-11-03');
+    fireEvent.change(dateInput(), { target: { value: '2026-11-01' } });
+    rerender('2026-11-04');
+    expect(dateInput().value).toBe('2026-11-01');
   });
 });

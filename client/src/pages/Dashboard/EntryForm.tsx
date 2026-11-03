@@ -87,8 +87,12 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   }, [aiUsage]);
   const addToast = useToastStore((s) => s.addToast);
 
+  // Follow the dashboard's day (a dot click, the midnight rollover) until the
+  // user picks a date in this form themselves — after that their choice wins,
+  // so a rollover while the sheet is open cannot silently re-date the entry.
+  const dateTouched = useRef(false);
   useEffect(() => {
-    setDate(selectedDate);
+    if (!dateTouched.current) setDate(selectedDate);
   }, [selectedDate]);
 
   const lang = i18n.resolvedLanguage || i18n.language || 'en';
@@ -435,7 +439,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             aria-label={t('entries.entryDateAriaLabel')}
             className="rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => {
+              dateTouched.current = true;
+              setDate(e.target.value);
+            }}
           />
 
           <div className="flex items-center gap-2 sm:ml-auto">

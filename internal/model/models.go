@@ -5,12 +5,19 @@ import (
 	"time"
 )
 
-// GetTimezone returns the user's timezone or empty string.
+// GetTimezone returns the user's stored timezone, or "" when none is stored or
+// the stored name is not a zone the server can load. Callers then fall back
+// (client zone, then UTC) exactly as for a user without one, instead of
+// handing an unloadable name to the client — where Intl throws on it — and to
+// FormatDateInTz, which quietly counts days in UTC.
 func (u *User) GetTimezone() string {
-	if u.Timezone != nil {
-		return *u.Timezone
+	if u.Timezone == nil || *u.Timezone == "" || *u.Timezone == "Local" {
+		return ""
 	}
-	return ""
+	if _, err := time.LoadLocation(*u.Timezone); err != nil {
+		return ""
+	}
+	return *u.Timezone
 }
 
 type User struct {

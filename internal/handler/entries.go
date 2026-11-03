@@ -149,7 +149,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	})
 	if hasAiEnabled {
 		g.Go(func() error {
-			aiUsedToday, _ = service.GetAIUsageToday(gctx, h.Pool, user.ID)
+			aiUsedToday, _ = service.GetAIUsageToday(gctx, h.Pool, user.ID, aiUsageDay(r, user))
 			return nil
 		})
 	}
@@ -339,9 +339,11 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tz := "UTC"
-	if user.Timezone != nil {
-		tz = *user.Timezone
+	// GetTimezone drops a stored name the server cannot load, so a bad
+	// value reads as the UTC actually in force (and a Settings save fixes it).
+	tz := user.GetTimezone()
+	if tz == "" {
+		tz = "UTC"
 	}
 
 	var macrosEnabledAny, macroGoalsAny any

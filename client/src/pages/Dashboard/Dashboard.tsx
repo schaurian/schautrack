@@ -8,6 +8,7 @@ import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
 import { formatDate } from '@/lib/format';
 import { followToday } from '@/lib/date';
+import { useDayRollover } from '@/hooks/useDayRollover';
 import { QueryError } from '@/components/ui/QueryError';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
@@ -61,6 +62,12 @@ export default function Dashboard() {
   // day only when the user was on today. lastSeenToday is module-level so it
   // also covers leaving the dashboard open in the store and coming back to it.
   const todayStr = dashboard?.todayStr;
+  // And don't wait for a refetch to notice: re-check just after the user's
+  // own midnight (stored zone, as the server counts days), so a tab left
+  // visible across 00:00 moves on by itself.
+  useDayRollover(dashboard?.timeZone, () => {
+    void refetch();
+  });
   useEffect(() => {
     if (!todayStr) return;
     const next = followToday(selectedDate, lastSeenToday, todayStr);

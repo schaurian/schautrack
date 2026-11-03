@@ -337,12 +337,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if timezone == "" {
-		timezone = middleware.GetClientTimezone(r)
-	}
-	if timezone == "" {
-		timezone = "UTC"
-	}
+	timezone = registrationTimezone(timezone, middleware.GetClientTimezone(r))
 
 	hash, err := hashPassword(password)
 	if err != nil {
@@ -535,4 +530,24 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	OkJSON(w)
+}
+
+// registrationTimezone picks the zone a new account starts with: the one the
+// registration form sent if the server can load it, else the client's
+// remembered zone (already validated by middleware), else UTC. A zone the
+// server cannot load used to be stored verbatim and then silently count every
+// day in UTC; now it is logged and replaced instead of failing the signup —
+// the user can still pick a zone in Settings.
+func registrationTimezone(requested, clientTz string) string {
+	requested = strings.TrimSpace(requested)
+	if service.ValidTimezone(requested) {
+		return requested
+	}
+	if requested != "" {
+		slog.Warn("registration sent an unknown timezone; falling back", "timezone", requested, "fallback_client", clientTz)
+	}
+	if clientTz != "" {
+		return clientTz
+	}
+	return "UTC"
 }

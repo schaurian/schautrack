@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { followToday, isDateOnly, localDateStr, parseLocalDate } from './date';
+import { followToday, isDateOnly, localDateStr, nextMidnightInTz, parseLocalDate, todayInTz } from './date';
 import { formatDate } from './format';
 
 // Node re-reads env.TZ on assignment, so each case runs in a real
@@ -63,5 +63,28 @@ describe('followToday', () => {
     ['2026-11-03', undefined, '2026-11-04', '2026-11-03'], // first load: the server's selectedDate decides
   ])('selected=%s prev=%s next=%s → %s', (selected, prev, next, expected) => {
     expect(followToday(selected as string, prev as string | undefined, next as string)).toBe(expected);
+  });
+});
+
+describe('todayInTz / nextMidnightInTz', () => {
+  it('uses the given zone, not the browser zone', () => {
+    env.TZ = 'America/Los_Angeles';
+    const now = new Date('2026-11-03T19:00:00Z'); // Nov 3 11:00 in LA, Nov 4 08:00 in Auckland
+    expect(todayInTz('Pacific/Auckland', now)).toBe('2026-11-04');
+    expect(todayInTz(undefined, now)).toBe('2026-11-03');
+    expect(todayInTz('Not/AZone', now)).toBe('2026-11-03');
+  });
+
+  it.each([
+    // [zone, now (UTC), next local midnight (UTC)]
+    ['Pacific/Auckland', '2026-11-03T19:00:00Z', '2026-11-04T11:00:00Z'],
+    ['America/Los_Angeles', '2026-11-04T05:00:00Z', '2026-11-04T08:00:00Z'],
+    ['Europe/Berlin', '2026-10-24T22:30:00Z', '2026-10-25T23:00:00Z'], // 25-hour day
+    ['Europe/Berlin', '2026-03-28T23:30:00Z', '2026-03-29T22:00:00Z'], // 23-hour day
+    ['Pacific/Auckland', '2026-12-31T10:00:00Z', '2026-12-31T11:00:00Z'], // into 2027
+    // Santiago springs forward AT midnight (00:00 -> 01:00): the new day starts at the jump.
+    ['America/Santiago', '2026-09-06T03:30:00Z', '2026-09-06T04:00:00Z'],
+  ])('%s at %s -> %s', (zone, now, expected) => {
+    expect(new Date(nextMidnightInTz(zone, Date.parse(now))).toISOString()).toBe(new Date(expected).toISOString());
   });
 });

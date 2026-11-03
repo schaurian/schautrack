@@ -32,6 +32,13 @@ func TestPlanDatesUseUsersCalendarDay(t *testing.T) {
 		{"berlin just after spring-forward midnight", "Europe/Berlin", "2026-03-28T23:30:00Z", "2026-03-29", "2026-04-12"},
 		{"berlin on the 25-hour fall-back day", "Europe/Berlin", "2026-10-25T23:30:00Z", "2026-10-26", "2026-11-09"},
 		{"year boundary in auckland", "Pacific/Auckland", "2026-12-31T12:00:00Z", "2027-01-01", "2027-01-15"},
+		// The 14-day window below crosses a DST transition, and the start's wall
+		// clock sits within an hour of midnight, so "14 days" and "336 hours"
+		// land on different calendar days. These catch an ETA computed with
+		// Add(n*24h) instead of calendar AddDate.
+		{"berlin 23:30 the evening before spring-forward", "Europe/Berlin", "2026-03-28T22:30:00Z", "2026-03-28", "2026-04-11"},
+		{"berlin 00:30 two weeks before fall-back", "Europe/Berlin", "2026-10-23T22:30:00Z", "2026-10-24", "2026-11-07"},
+		{"los angeles 23:30 a week before spring-forward", "America/Los_Angeles", "2026-03-02T07:30:00Z", "2026-03-01", "2026-03-15"},
 	}
 
 	for _, tc := range cases {
@@ -45,8 +52,16 @@ func TestPlanDatesUseUsersCalendarDay(t *testing.T) {
 			if got := service.FormatDateInTz(clock, tc.tz); got != tc.localDate {
 				t.Fatalf("case is mis-specified: %s in %s is %s, not %s", tc.clock, tc.tz, got, tc.localDate)
 			}
-			if got := clock.UTC().Format("2006-01-02"); got == tc.localDate {
-				t.Fatalf("case is not a boundary case: UTC date equals local date %s", got)
+			// Every case must sit on a boundary: either UTC and the user disagree
+			// on the date, or the ETA window spans a DST change.
+			loc, err := time.LoadLocation(tc.tz)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, offStart := clock.In(loc).Zone()
+			_, offEnd := clock.In(loc).AddDate(0, 0, 14).Zone()
+			if clock.UTC().Format("2006-01-02") == tc.localDate && offStart == offEnd {
+				t.Fatalf("case is not a boundary case: UTC date equals local date %s and no DST change in the window", tc.localDate)
 			}
 			prev := planClock
 			planClock = func() time.Time { return clock }
