@@ -110,6 +110,10 @@ func currentCalorieGoal(user *model.User) *int {
 	return user.DailyGoal
 }
 
+// planClock is the plan's wall clock, a variable so tests can pin "now" to a
+// moment that falls on different calendar days in UTC and in the user's zone.
+var planClock = time.Now
+
 // buildPlanInputs pulls everything AssemblePlan needs straight from the DB
 // for the current user, normalizing weight-valued fields to kg. weight_entries
 // and weight_goals are stored in the user's display unit (kg or lb), but
@@ -155,8 +159,15 @@ func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (servic
 		}
 	}
 
+	// One clock read, expressed in the user's zone: the series window, the
+	// trend cutoff, the ETA/projected dates and the body-fat reading's age are
+	// all calendar arithmetic on *the user's* today. Passing the server's
+	// time.Now() (UTC in the container) made every one of those a day early
+	// for a user east of UTC in their morning, and a day late west of UTC in
+	// their evening.
 	tz := getUserTimezone(r, user)
-	since := service.SubtractDaysUTC(service.FormatDateInTz(time.Now(), tz), 179)
+	now := service.NowInTz(planClock(), tz)
+	since := service.SubtractDaysUTC(now.Format("2006-01-02"), 179)
 	series, err := service.GetWeightSeries(ctx, h.Pool, user.ID, since)
 	if err != nil {
 		return service.PlanInputs{}, nil, unit, err
@@ -193,7 +204,7 @@ func (h *PlanHandler) buildPlanInputs(r *http.Request, user *model.User) (servic
 		Goal:           goalKg,
 		Series:         series,
 		CurrentCalGoal: currentCalorieGoal(user),
-		Now:            time.Now(),
+		Now:            now,
 	}
 	return inputs, goal, unit, nil
 }

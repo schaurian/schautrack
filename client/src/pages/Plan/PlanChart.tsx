@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { SeriesPoint, CurvePoint, HealthyRange } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
+import { parseLocalDate } from '@/lib/date';
 import { niceTicks, clampBand } from '@/lib/chartScale';
 
 export interface PlanChartProps {
@@ -140,7 +141,10 @@ export default function PlanChart({
 
   const layout = useMemo(() => {
     const actual = series
-      .map((p) => ({ t: new Date(p.date).getTime(), w: p.weight, bf: p.bodyFat }))
+      // Local midnight, like startOfToday() and the tick labels: new Date(ymd)
+      // is UTC midnight, which put every point (and the first tick's label) on
+      // the previous day west of UTC.
+      .map((p) => ({ t: parseLocalDate(p.date).getTime(), w: p.weight, bf: p.bodyFat }))
       .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.w))
       .sort((a, b) => a.t - b.t);
 

@@ -7,6 +7,7 @@ import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
 import { formatDate } from '@/lib/format';
+import { followToday } from '@/lib/date';
 import { QueryError } from '@/components/ui/QueryError';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
@@ -20,6 +21,9 @@ import WeightRow from './WeightRow';
 import PlanCard from './PlanCard';
 import TodoList from './TodoList';
 import NoteEditor from './NoteEditor';
+
+// The server's todayStr as of the last dashboard render; see followToday below.
+let lastSeenToday: string | undefined;
 
 export default function Dashboard() {
   const { t } = useTranslation('dashboard');
@@ -48,6 +52,19 @@ export default function Dashboard() {
       selectDay(dashboard.selectedDate);
     }
   }, [dashboard, currentUserId, selectUser, selectDay, t]);
+
+  // A tab left open across midnight refetches (on focus, SSE) and the server's
+  // todayStr moves on — but selectedDate would stay on yesterday, dropping the
+  // "Today" label and filing new entries under the previous day. Follow the
+  // day only when the user was on today. lastSeenToday is module-level so it
+  // also covers leaving the dashboard open in the store and coming back to it.
+  const todayStr = dashboard?.todayStr;
+  useEffect(() => {
+    if (!todayStr) return;
+    const next = followToday(selectedDate, lastSeenToday, todayStr);
+    lastSeenToday = todayStr;
+    if (next !== selectedDate) selectDay(next);
+  }, [todayStr, selectedDate, selectDay]);
 
   const effectiveUserId = currentUserId || dashboard?.user.id;
   const activeView = dashboard?.sharedViews.find((v) => v.userId === effectiveUserId);
