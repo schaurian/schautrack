@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Entry } from '@/types';
 import { updateEntry, deleteEntry, createEntry } from '@/api/entries';
 import { saveEntryAsFood } from '@/api/savedFoods';
+import { ApiError } from '@/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
 import { cn } from '@/lib/utils';
@@ -22,20 +23,30 @@ export const DELETE_REPEAT_GUARD_MS = 400;
 
 interface Props {
   entries: Entry[];
+  /** The day the list shows. A change means a different list, not a reflow. */
+  date?: string;
   canEdit: boolean;
   enabledMacros: string[];
   caloriesEnabled: boolean;
   autoCalcCalories: boolean;
 }
 
-export default function EntryList({ entries, canEdit, enabledMacros, caloriesEnabled, autoCalcCalories }: Props) {
+export default function EntryList({ entries, date, canEdit, enabledMacros, caloriesEnabled, autoCalcCalories }: Props) {
   const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   const lastDeleteAt = useRef(Number.NEGATIVE_INFINITY);
   const lastReflowAt = useRef(Number.NEGATIVE_INFINITY);
   // Ids this list's own delete buttons removed and that are still rendered.
   const pendingDeletes = useRef<Set<number>>(new Set());
+  const shownDate = useRef(date);
   useLayoutEffect(() => {
+    // Switching day swaps the whole list: a pending id vanishing then is not
+    // the deleted row reflowing out from under the pointer.
+    if (date !== shownDate.current) {
+      shownDate.current = date;
+      pendingDeletes.current.clear();
+      return;
+    }
     if (pendingDeletes.current.size === 0) return;
     const ids = new Set(entries.map((e) => e.id));
     for (const id of pendingDeletes.current) {
@@ -44,9 +55,11 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
         lastReflowAt.current = Date.now();
       }
     }
-  }, [entries]);
+  }, [entries, date]);
   const claimDelete = (id: number) => {
     const now = Date.now();
+    // Already being deleted: a second DELETE could only 404.
+    if (pendingDeletes.current.has(id)) return false;
     if (now - lastDeleteAt.current < DELETE_REPEAT_GUARD_MS) return false;
     if (now - lastReflowAt.current < DELETE_REPEAT_GUARD_MS) return false;
     lastDeleteAt.current = now;
@@ -104,6 +117,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingFood, setSavingFood] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
 
   const handleSaveAsFood = async () => {
@@ -147,8 +161,8 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   };
 
   const handleDelete = async () => {
-    // Guard first: a dropped delete must never take a toast seq.
-    if (!claimDelete(entry.id)) return;
+    if (deleting || !claimDelete(entry.id)) return;
+    setDeleting(true);
     // Taken at click time: the toast follows the delete clicked last, not the
     // one whose response happened to arrive last.
     const seq = nextToastSeq();
@@ -182,8 +196,17 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
         },
       }, { replaceKey: 'entry-delete', seq });
     } catch (err) {
-      forgetDelete(entry.id);
-      addToast('error', err instanceof Error ? err.message : t('entries.toastDeleteFailed'));
+      if (err instanceof ApiError && err.status === 404) {
+        // Already gone (deleted from another device, or an earlier request of
+        // ours got there first): the outcome the user asked for, so refresh
+        // instead of reporting a failure. No Undo — this tap deleted nothing.
+        onUpdate();
+      } else {
+        forgetDelete(entry.id);
+        addToast('error', err instanceof Error ? err.message : t('entries.toastDeleteFailed'));
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -241,7 +264,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
           </button>
         )}
         {canEdit && (
-          <button type="button" className="group/delete -my-2 -mr-2 ml-2 flex size-11 shrink-0 cursor-pointer items-center justify-center" onClick={handleDelete} aria-label={t('entries.deleteEntryAriaLabel')} title={t('entries.deleteTitle')}>
+          <button type="button" className="group/delete -my-2 -mr-2 ml-2 flex size-11 shrink-0 cursor-pointer items-center justify-center aria-disabled:cursor-default aria-disabled:opacity-40" onClick={handleDelete} aria-disabled={deleting || undefined} aria-label={t('entries.deleteEntryAriaLabel')} title={t('entries.deleteTitle')}>
             <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive transition-colors group-hover/delete:bg-destructive/20">
               <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18" /><path d="M6 6l12 12" />

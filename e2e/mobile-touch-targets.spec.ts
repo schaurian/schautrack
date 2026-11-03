@@ -64,6 +64,22 @@ test.describe('Mobile touch targets and FAB clearance', () => {
       const dots = page.getByTestId('share-card').first().locator('button[title]');
       expect(intersects(await box(dots.nth(0)), await box(dots.nth(1))), 'day-dot hit areas overlap').toBe(false);
 
+      // The day number belongs visibly to its own square: at most 4px under it,
+      // and the next row's square is clearly further away than that.
+      const geo = await page.getByTestId('share-card').first().locator('button[title]').evaluateAll((els) => {
+        const parts = (el: Element) => {
+          const [square, num] = el.querySelectorAll(':scope > span');
+          return { square: square.getBoundingClientRect(), num: num.getBoundingClientRect(), top: el.getBoundingClientRect().top };
+        };
+        const first = parts(els[0]);
+        const below = els.map(parts).find((p) => p.top > first.top + 1);
+        return { numGap: first.num.top - first.square.bottom, rowGap: below ? below.square.top - first.num.bottom : null };
+      });
+      expect(geo.numGap, 'day number gap under its square').toBeGreaterThanOrEqual(0);
+      expect(geo.numGap, 'day number gap under its square').toBeLessThanOrEqual(4);
+      expect(geo.rowGap, 'number to next row square').not.toBeNull();
+      expect(geo.rowGap as number, 'number to next row square').toBeGreaterThanOrEqual(geo.numGap + 6);
+
       // Delete is separated from save-as-quick-add by a dead zone, not flush.
       const save = await box(page.getByRole('button', { name: 'Save as quick-add' }).first());
       const del = await box(page.getByRole('button', { name: 'Delete entry' }).first());

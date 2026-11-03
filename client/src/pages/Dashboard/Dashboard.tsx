@@ -267,6 +267,7 @@ export default function Dashboard() {
           </SectionLabel>
           <EntryList
             entries={dayData?.entries || []}
+            date={selectedDate}
             canEdit={canEdit}
             enabledMacros={dashboard.enabledMacros}
             caloriesEnabled={dashboard.caloriesEnabled}

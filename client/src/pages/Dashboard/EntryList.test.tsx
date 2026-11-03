@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@/types';
 import Toaster from '@/components/ui/Toaster';
 import { useToastStore } from '@/stores/toastStore';
+import { ApiError } from '@/api/client';
 import EntryList, { DELETE_REPEAT_GUARD_MS } from './EntryList';
 
 // Deleting entries in a row must leave one "Entry deleted" toast on screen —
@@ -166,16 +167,19 @@ const plainEntry = (id: number): Entry => ({
   macros: null,
 });
 
-function renderGuardList(entries: Entry[] = [plainEntry(1), plainEntry(2)]) {
+function renderGuardList(entries: Entry[] = [plainEntry(1), plainEntry(2)], date = '2026-11-03') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const ui = (list: Entry[]) => (
+  const ui = (list: Entry[], day: string) => (
     <QueryClientProvider client={client}>
-      <EntryList entries={list} canEdit enabledMacros={[]} caloriesEnabled autoCalcCalories={false} />
+      <EntryList entries={list} date={day} canEdit enabledMacros={[]} caloriesEnabled autoCalcCalories={false} />
     </QueryClientProvider>
   );
-  const view = render(ui(entries));
-  return { ...view, setEntries: (list: Entry[]) => view.rerender(ui(list)) };
+  const view = render(ui(entries, date));
+  return { ...view, setEntries: (list: Entry[], day = date) => view.rerender(ui(list, day)) };
 }
+
+const toastTexts = () => useToastStore.getState().toasts.map((t) => t.message);
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 // Deleting an entry reflows the list and the next row's delete button slides
 // up under the pointer, so the second tap of a double-tap used to delete a
@@ -185,6 +189,7 @@ describe('EntryList delete repeat guard', () => {
   beforeEach(() => {
     vi.mocked(deleteEntry).mockReset().mockResolvedValue({ ok: true } as never);
     vi.spyOn(Date, 'now').mockImplementation(() => now);
+    for (const t of useToastStore.getState().toasts) useToastStore.getState().removeToast(t.id);
   });
 
   afterEach(() => {
@@ -260,5 +265,77 @@ describe('EntryList delete repeat guard', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete entry' })[1]);
     await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(2));
     expect(deleteEntry).toHaveBeenNthCalledWith(2, 2);
+  });
+
+  // Slow network: the first DELETE is still in flight when the window has
+  // passed. A second tap on the same row must not send a second DELETE (which
+  // could only 404 and surface a false error), and the button says it is busy.
+  it('sends one DELETE for repeated taps on a row whose delete is still in flight', async () => {
+    let finish: (v: unknown) => void = () => {};
+    vi.mocked(deleteEntry).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }) as never);
+    renderGuardList();
+    const first = screen.getAllByRole('button', { name: 'Delete entry' })[0];
+
+    fireEvent.click(first);
+    await waitFor(() => expect(first).toHaveAttribute('aria-disabled', 'true'));
+    now += 1000;
+    fireEvent.click(first);
+    now += 1000;
+    fireEvent.click(first);
+    await flush();
+    expect(deleteEntry).toHaveBeenCalledTimes(1);
+
+    finish({ ok: true });
+    await waitFor(() => expect(toastTexts()).toEqual(['Entry deleted']));
+    // Deleted, but the refetch that removes the row has not landed yet.
+    now += 1000;
+    fireEvent.click(first);
+    await flush();
+    expect(deleteEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a 404 from the delete as already deleted, not as an error', async () => {
+    vi.mocked(deleteEntry).mockRejectedValueOnce(new ApiError(404, 'Entry not found'));
+    renderGuardList();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete entry' })[0]);
+    await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(1));
+    await flush();
+    expect(toastTexts()).toEqual([]);
+  });
+
+  // A real failure leaves the row in place: it must not stay "pending", or the
+  // row vanishing later for another reason (an SSE refetch) would arm the
+  // guard and swallow the next real tap — and the row could not be retried.
+  it('does not arm the guard for a delete that failed', async () => {
+    vi.mocked(deleteEntry).mockRejectedValueOnce(new ApiError(500, 'Server error'));
+    const { setEntries } = renderGuardList([plainEntry(1), plainEntry(2), plainEntry(3)]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete entry' })[0]);
+    await waitFor(() => expect(toastTexts()).toEqual(['Server error']));
+
+    now += 1000;
+    setEntries([plainEntry(2), plainEntry(3)]); // entry 1 removed elsewhere after all
+    now += 10;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete entry' })[0]);
+    await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(2));
+    expect(deleteEntry).toHaveBeenNthCalledWith(2, 2);
+  });
+
+  // EntryList is not remounted per day, so the list becoming another day's
+  // entries must not read as the pending row leaving.
+  it('does not arm the guard when the day changes while a delete is in flight', async () => {
+    let finish: (v: unknown) => void = () => {};
+    vi.mocked(deleteEntry).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }) as never);
+    const { setEntries } = renderGuardList([plainEntry(1), plainEntry(2)], '2026-11-03');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete entry' })[0]);
+    await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(1));
+
+    now += 1000;
+    setEntries([], '2026-11-04'); // day switch: loading state
+    setEntries([plainEntry(5), plainEntry(6)], '2026-11-04');
+    now += 10;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete entry' })[0]);
+    await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(2));
+    expect(deleteEntry).toHaveBeenNthCalledWith(2, 5);
+    finish({ ok: true });
   });
 });
