@@ -67,10 +67,13 @@ export function MacroPillEditing({ macroKey, label, unit, editValue, onChange, o
   const style = MACRO_PILL_STYLES[macroKey as MacroPillKey] ?? { bg: 'bg-white/[0.06]', border: 'border-white/[0.08]', label: 'text-muted-foreground' };
 
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums', invalid ? 'border-destructive' : 'border-ring', style.bg)}>
+    // Same box as MacroPill (radius, padding, min-height, 1px border) so entering
+    // edit mode only lights up the border instead of growing a bigger pill that
+    // pushes the neighbouring pills sideways and the row down.
+    <span className={cn('inline-flex min-h-6 items-center gap-1 rounded-md border px-1.5 py-0.5 text-sm tabular-nums', invalid ? 'border-destructive' : 'border-ring', style.bg)}>
       <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', style.label)}>{label}</span>
       <input
-        className="bg-transparent border-0 outline-none text-sm font-bold text-foreground tabular-nums p-0"
+        className="bg-transparent border-0 outline-none p-0 font-bold text-foreground"
         style={{ width: `${Math.max(0.5, editValue.length)}ch` }}
         value={editValue}
         onChange={(e) => onChange(e.target.value)}

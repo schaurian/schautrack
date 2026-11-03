@@ -8,6 +8,7 @@ import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
+import { InlineEditInput } from '@/components/ui/InlineEditInput';
 import { MACRO_LABELS, getEnabledMacros } from '@/lib/macros';
 import { entryFieldErrorText, parseInlineEdit, type FieldError } from '@/lib/entryValidation';
 
@@ -390,10 +391,10 @@ function SavedFoodRow({
         ) : null}
 
         {/* Name */}
-        <span className="flex-1 min-w-0 truncate">
+        <span className="flex-1 min-w-0 truncate text-[15px] font-semibold">
           {editing === 'name' ? (
-            <input
-              className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full"
+            <InlineEditInput
+              className="px-2 py-0.5 w-full"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={handleSave}
@@ -405,7 +406,7 @@ function SavedFoodRow({
             <button
               type="button"
               className={cn(
-                'bg-transparent border border-transparent px-2 py-0.5 text-[15px] font-semibold text-left truncate w-full rounded-md transition-colors cursor-pointer hover:text-[#0ea5e9]',
+                'bg-transparent border border-transparent px-2 py-0.5 text-left truncate w-full rounded-md transition-colors cursor-pointer hover:text-[#0ea5e9]',
                 food.name ? 'text-foreground' : 'text-muted-foreground/60 italic',
               )}
               onClick={() => beginEdit('name', food.name)}

@@ -4,6 +4,7 @@ import type { LinkRequest, AcceptedLink, LinkShares } from '@/types';
 import { requestLink, respondToLink, removeLink, updateLinkLabel, setLinkShares } from '@/api/links';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { InlineEditInput } from '@/components/ui/InlineEditInput';
 import { Card } from '@/components/ui/Card';
 import { useToastStore } from '@/stores/toastStore';
 
@@ -145,16 +146,16 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
     <div className="mb-3 border-b border-border pb-3 last:border-0">
       <div className="flex items-center gap-2 mb-2 text-sm">
         {editing ? (
-          <input
+          <InlineEditInput
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onBlur={saveLabel}
             onKeyDown={(e) => e.key === 'Enter' && saveLabel()}
             autoFocus
-            className="flex-1 rounded border border-ring bg-muted/50 px-2 py-0.5 text-sm text-foreground outline-none"
+            className="flex-1 -ml-2 -my-0.5 rounded px-2 py-0.5"
           />
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="flex-1 bg-transparent border-none text-foreground cursor-pointer text-left text-sm">
+          <button type="button" onClick={() => setEditing(true)} className="flex-1 -ml-2 -my-0.5 rounded border border-transparent bg-transparent px-2 py-0.5 text-foreground cursor-pointer text-left">
             {link.label || link.email}
           </button>
         )}
