@@ -77,7 +77,9 @@
   "entries": {
     "logSectionTitle": "Eintragen",
     "addFood": "Essen hinzufügen",
+    "fieldAmbiguous": "Schreib {{whole}} oder {{decimal}} für eine Dezimalzahl",
     "fieldComputedRange": "Die Kalorien aus diesen Makros übersteigen {{max}}",
+    "fieldComputedRangeQty": "Mal {{qty}} übersteigen die Kalorien aus diesen Makros {{max}}",
     "fieldInvalid": "Gib eine Zahl oder eine Rechnung wie 2*150 ein",
     "fieldRange": "Gib einen Wert von {{min}} bis {{max}} ein",
     "fieldRangeQty": "Mal {{qty}} muss der Wert zwischen {{min}} und {{max}} liegen",

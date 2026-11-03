@@ -77,7 +77,9 @@
   "entries": {
     "logSectionTitle": "Journal",
     "addFood": "Ajouter un aliment",
+    "fieldAmbiguous": "Écrivez {{whole}}, ou {{decimal}} pour un nombre décimal",
     "fieldComputedRange": "Les calories de ces macros dépassent {{max}}",
+    "fieldComputedRangeQty": "Multipliées par {{qty}}, les calories de ces macros dépassent {{max}}",
     "fieldInvalid": "Saisissez un nombre ou un calcul comme 2*150",
     "fieldRange": "Saisissez une valeur entre {{min}} et {{max}}",
     "fieldRangeQty": "Multiplié par {{qty}}, cela doit rester entre {{min}} et {{max}}",

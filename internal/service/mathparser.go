@@ -16,6 +16,38 @@ type ParseAmountResult struct {
 
 var validExprRe = regexp.MustCompile(`^[0-9+\-*/().]+$`)
 
+// numberRunRe finds each run of digits, dots and commas — the characters a
+// number literal (with thousands separators) is made of.
+var numberRunRe = regexp.MustCompile(`[0-9.,]+`)
+
+// groupedNumberRe is the only shape a run containing a comma may have: one to
+// three leading digits, then comma-separated groups of exactly three, then an
+// optional decimal part — "1,000", "12,345.5". Anything else with a comma in
+// it is rejected rather than having the comma deleted.
+//
+// Deleting every comma turned a European decimal into a number ten or a
+// hundred times too large: "12,5" was stored as 125 kcal and "0,4" as 4, with
+// a success response. A comma that is not a thousands separator is now an
+// error, so a raw API caller gets a 400 instead of silent 10x data. The SPA
+// never sends such a string: it reads the comma as the decimal point in
+// decimal-comma languages and sends the evaluated number
+// (client/src/lib/entryValidation.ts).
+//
+// Keep in sync with GROUPED_NUMBER_RE in client/src/lib/mathParser.ts; the
+// shared cases live in testdata/parse_amount_cases.json.
+var groupedNumberRe = regexp.MustCompile(`^[0-9]{1,3}(,[0-9]{3})+(\.[0-9]*)?$`)
+
+// hasMalformedComma reports whether any number in s uses a comma other than
+// as a well-formed thousands separator. s must already be whitespace-free.
+func hasMalformedComma(s string) bool {
+	for _, run := range numberRunRe.FindAllString(s, -1) {
+		if strings.Contains(run, ",") && !groupedNumberRe.MatchString(run) {
+			return true
+		}
+	}
+	return false
+}
+
 // hexLiteralRe matches a C-style hex literal ("0x10", "0XfF") anywhere in the
 // input. The `(^|[^0-9.])` prefix keeps genuine multiplications whose left
 // operand merely ends in a zero — "10x16", "100x2", "1.0x2" — out of the match:
@@ -64,6 +96,10 @@ func stripWhitespace(s string) string {
 func ParseAmount(input string, maxAbs int) ParseAmountResult {
 	input = strings.TrimSpace(input)
 	if input == "" {
+		return ParseAmountResult{Ok: false, Value: 0}
+	}
+
+	if hasMalformedComma(stripWhitespace(input)) {
 		return ParseAmountResult{Ok: false, Value: 0}
 	}
 

@@ -30,6 +30,9 @@ interface EditingProps {
   onSave: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   inputMode?: 'tel' | 'numeric';
+  /** Marks the value invalid; `describedBy` is the id of the message saying why. */
+  invalid?: boolean;
+  describedBy?: string;
 }
 
 // MacroPill renders a single labeled macro chip in display mode.
@@ -58,11 +61,13 @@ export function MacroPill({ macroKey, label, value, unit, onClick, canEdit }: Di
 
 // MacroPillEditing renders the inline-edit input version of the pill.
 // Used by anything that wants click-to-edit on a value.
-export function MacroPillEditing({ macroKey, label, unit, editValue, onChange, onSave, onKeyDown, inputMode = 'numeric' }: EditingProps) {
+// inputMode defaults to "tel": the "numeric" keypad has no comma, dot or
+// operators, so neither a decimal ("12,5") nor an expression could be typed.
+export function MacroPillEditing({ macroKey, label, unit, editValue, onChange, onSave, onKeyDown, inputMode = 'tel', invalid = false, describedBy }: EditingProps) {
   const style = MACRO_PILL_STYLES[macroKey as MacroPillKey] ?? { bg: 'bg-white/[0.06]', border: 'border-white/[0.08]', label: 'text-muted-foreground' };
 
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums', 'border-ring', style.bg)}>
+    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums', invalid ? 'border-destructive' : 'border-ring', style.bg)}>
       <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', style.label)}>{label}</span>
       <input
         className="bg-transparent border-0 outline-none text-sm font-bold text-foreground tabular-nums p-0"
@@ -73,6 +78,8 @@ export function MacroPillEditing({ macroKey, label, unit, editValue, onChange, o
         onKeyDown={onKeyDown}
         autoFocus
         inputMode={inputMode}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedBy : undefined}
       />
       <span className="text-[0.8em] font-normal text-muted-foreground/55">{unit}</span>
     </span>

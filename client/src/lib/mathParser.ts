@@ -110,6 +110,10 @@ const HEX_LITERAL_RE = /(^|[^0-9.])0[xX][0-9a-fA-F]/;
 // site in parseAmount and stripWhitespace in internal/service/mathparser.go.
 const WHITESPACE_RE = /[\s\u0085]/g;
 
+// See hasMalformedComma in internal/service/mathparser.go.
+const NUMBER_RUN_RE = /[0-9.,]+/g;
+const GROUPED_NUMBER_RE = /^[0-9]{1,3}(,[0-9]{3})+(\.[0-9]*)?$/;
+
 /**
  * Evaluates an amount expression without rounding or bounding the result —
  * the part of parseAmount a caller needs when it scales the value before
@@ -119,6 +123,16 @@ const WHITESPACE_RE = /[\s\u0085]/g;
  */
 export function evaluateAmount(input: string | number | null | undefined): { ok: boolean; value: number } {
   if (input === undefined || input === null) return { ok: false, value: 0 };
+
+  // A comma is only accepted as a well-formed thousands separator ("1,000",
+  // "12,345.5"); "12,5" used to lose its comma and become 125. Decimal-comma
+  // languages are handled before this, by entryValidation's normalizeDecimal.
+  // Keep in sync with groupedNumberRe / hasMalformedComma in
+  // internal/service/mathparser.go.
+  const compact = String(input).replace(WHITESPACE_RE, '');
+  for (const run of compact.match(NUMBER_RUN_RE) ?? []) {
+    if (run.includes(',') && !GROUPED_NUMBER_RE.test(run)) return { ok: false, value: 0 };
+  }
 
   // Reject hex-looking literals before "x" becomes "*". Without this, "0x10"
   // normalizes to "0*10" and is silently accepted as 0, which the entry form
