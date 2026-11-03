@@ -67,6 +67,10 @@
       "overThreshold": "muito acima do objetivo",
       "zero": "sem registos",
       "none": "sem registos"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% acima",
+      "under": "{{metric}} {{pct}}% abaixo da meta"
     }
   },
   "entries": {
@@ -336,5 +340,16 @@
     "toastBodyFatSaveFailed": "Falha ao guardar gordura corporal",
     "bodyFatHint": "A segunda caixa é a sua % de gordura corporal, se a balança a medir.",
     "bodyFatPlaceholder": "% gordura"
+  },
+  "today": {
+    "left": "faltam {{amount}}",
+    "over": "+{{amount}} acima",
+    "toGo": "faltam {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "O anel e os quadrados dos dias se preenchem em relação à sua meta. Sem ela, não há nada para medir.",
+    "cta": "Definir meta",
+    "dismiss": "Agora não",
+    "title": "Defina uma meta de calorias"
   }
 }

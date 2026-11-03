@@ -272,6 +272,82 @@ func TestBuildDailyStats(t *testing.T) {
 	})
 }
 
+// The dot shows the worst status across calories and every macro, while the
+// ring shows calories only. The reason names which metric decided the dot so
+// the client can explain a red dot under an amber ring.
+func TestBuildDailyStatsReason(t *testing.T) {
+	g := func(n int) *int { return &n }
+	day := "2026-10-27"
+
+	t.Run("macro that sets the worst status is the reason", func(t *testing.T) {
+		// Calories 2240/2200 (1.8% over, amber with a 10% threshold); fat
+		// 92/70 (31% over, red). The dot is red because of fat.
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2240},
+			g(2200),
+			[]string{"protein", "fat"},
+			map[string]int{"protein": 110, "fat": 70},
+			map[string]string{"protein": "target"},
+			map[string]map[string]int{day: {"protein": 134, "fat": 92}},
+			10,
+		)
+		if stats[0].Status != "over_threshold" {
+			t.Fatalf("status = %q, want over_threshold", stats[0].Status)
+		}
+		r := stats[0].Reason
+		if r == nil {
+			t.Fatal("reason = nil, want fat")
+		}
+		if r.Metric != "fat" || r.Total != 92 || r.Goal != 70 || r.Mode != "limit" {
+			t.Errorf("reason = %+v, want {fat 92 70 limit}", *r)
+		}
+	})
+
+	t.Run("ties on status pick the largest deviation", func(t *testing.T) {
+		// Both carbs (20% over) and sugar (50% over) are red; sugar explains it best.
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 1800},
+			g(2200),
+			[]string{"carbs", "sugar"},
+			map[string]int{"carbs": 200, "sugar": 40},
+			nil,
+			map[string]map[string]int{day: {"carbs": 240, "sugar": 60}},
+			10,
+		)
+		if r := stats[0].Reason; r == nil || r.Metric != "sugar" {
+			t.Errorf("reason = %+v, want sugar", r)
+		}
+	})
+
+	t.Run("calories over is the reason when no macro is worse", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2240},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		if r := stats[0].Reason; r == nil || r.Metric != "calories" || r.Total != 2240 || r.Goal != 2200 {
+			t.Errorf("reason = %+v, want calories 2240/2200", r)
+		}
+	})
+
+	t.Run("no reason for green, empty or goalless days", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{"2026-10-25", "2026-10-26"},
+			map[string]int{"2026-10-25": 1500},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		for _, s := range stats {
+			if s.Reason != nil {
+				t.Errorf("%s (%s): reason = %+v, want nil", s.Date, s.Status, *s.Reason)
+			}
+		}
+	})
+}
+
 // Verify that the constants are sane
 func TestEntryConstants(t *testing.T) {
 	if MaxHistoryDays <= 0 {

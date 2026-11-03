@@ -54,6 +54,8 @@ export interface DailyStat {
   total: number;
   status: 'none' | 'zero' | 'under' | 'over' | 'over_threshold';
   overThreshold: boolean;
+  /** The metric that decided an amber/red dot (absent for every other status). */
+  reason?: { metric: string; total: number; goal: number; mode: string };
 }
 
 export interface LinkShares {

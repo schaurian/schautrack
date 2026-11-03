@@ -57,6 +57,7 @@
     "done": "Start tracking",
     "next": "Next",
     "progress": "{{current}} of {{total}}",
+    "setGoal": "Set your goal",
     "steps": {
       "day": {
         "art": "An activity ring beside bars for protein, carbs, fat and fiber",

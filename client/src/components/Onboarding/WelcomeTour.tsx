@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { completeOnboarding } from '@/api/onboarding';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { hasCalorieGoal } from '@/lib/goalFeedback';
 import { StreakArt, LogArt, DayArt, PlanArt, ShareArt } from './tourArt';
 
 /**
@@ -43,6 +45,7 @@ export default function WelcomeTour() {
   const open = useOnboardingStore((s) => s.open);
   const start = useOnboardingStore((s) => s.start);
   const close = useOnboardingStore((s) => s.close);
+  const navigate = useNavigate();
 
   const [index, setIndex] = useState(0);
   // Direction of the last move, so the incoming panel slides the way the user
@@ -138,6 +141,11 @@ export default function WelcomeTour() {
   const aiAvailable = !!user?.hasAiKey || !!user?.hasGlobalAiKey;
   const suffix = step.key === 'log' && !aiAvailable ? 'NoAi' : '';
   const stepKey = (part: string) => `onboarding.steps.${step.key}.${part}${suffix}`;
+  // A new account has no calorie goal, so the dashboard it lands on is a ring
+  // with nothing to fill against. End the tour on the one setting that fixes
+  // that instead of dropping the user there.
+  const needsGoal = !!user && user.macrosEnabled?.calories !== false && !hasCalorieGoal(user);
+  const offerGoal = isLast && needsGoal;
 
   return createPortal(
     <div className="fixed inset-0 z-[300] flex items-end justify-center sm:items-center" data-testid="welcome-tour">
@@ -250,8 +258,10 @@ export default function WelcomeTour() {
           </div>
         </div>
 
-        <footer className="mt-5 flex items-center gap-2 border-t border-white/[0.07] pt-4">
-          <p className="flex-1 text-[12px] tabular-nums text-muted-foreground/70">
+        <footer className="mt-5 flex items-center justify-end gap-2 border-t border-white/[0.07] pt-4">
+          {/* With the extra goal button a phone has no room for "5 of 5"; the
+              ring in the header already shows the step. */}
+          <p className={cn('flex-1 whitespace-nowrap text-[12px] tabular-nums text-muted-foreground/70', offerGoal && 'max-sm:hidden')}>
             {t('onboarding.progress', { current: index + 1, total: STEPS.length })}
           </p>
           {index > 0 && (
@@ -260,12 +270,25 @@ export default function WelcomeTour() {
             </Button>
           )}
           <Button
-            ref={nextRef}
+            ref={offerGoal ? undefined : nextRef}
+            variant={offerGoal ? 'ghost' : 'default'}
             onClick={() => (isLast ? dismiss() : go(1))}
             data-testid="welcome-tour-next"
           >
             {isLast ? t('onboarding.done') : t('onboarding.next')}
           </Button>
+          {offerGoal && (
+            <Button
+              ref={nextRef}
+              onClick={() => {
+                dismiss();
+                navigate('/settings');
+              }}
+              data-testid="welcome-tour-set-goal"
+            >
+              {t('onboarding.setGoal')}
+            </Button>
+          )}
         </footer>
       </div>
     </div>,

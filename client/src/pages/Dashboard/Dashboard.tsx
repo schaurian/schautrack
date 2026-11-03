@@ -13,6 +13,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
 import { Fab } from '@/components/ui/Fab';
 import TodayPanel from './TodayPanel';
+import GoalPromptCard from './GoalPromptCard';
 import EntryForm from './EntryForm';
 import SavedFoodsRow from './SavedFoodsRow';
 import Timeline from './Timeline';
@@ -179,6 +180,10 @@ export default function Dashboard() {
           />
         </div>
       </header>
+
+      {canEdit && dashboard.caloriesEnabled && !(dashboard.dailyGoal && dashboard.dailyGoal > 0) && (
+        <GoalPromptCard userId={dashboard.user.id} />
+      )}
 
       {showCat('nutrition') && (
         <TodayPanel

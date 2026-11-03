@@ -67,6 +67,10 @@
       "overThreshold": "muy por encima del objetivo",
       "zero": "sin entradas",
       "none": "sin entradas"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}} % por encima",
+      "under": "{{metric}} {{pct}} % por debajo del objetivo"
     }
   },
   "entries": {
@@ -336,5 +340,16 @@
     "toastBodyFatSaveFailed": "Error al guardar la grasa corporal",
     "bodyFatHint": "La segunda casilla es tu % de grasa corporal, si tu báscula lo mide.",
     "bodyFatPlaceholder": "% grasa"
+  },
+  "today": {
+    "left": "quedan {{amount}}",
+    "over": "+{{amount}} de más",
+    "toGo": "faltan {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "El anillo y los cuadros de cada día se llenan según tu objetivo. Sin él no tienen nada que medir.",
+    "cta": "Fijar objetivo",
+    "dismiss": "Ahora no",
+    "title": "Fija un objetivo de calorías"
   }
 }

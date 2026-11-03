@@ -69,6 +69,10 @@
       "overThreshold": "znacznie powyżej celu",
       "zero": "brak wpisów",
       "none": "brak wpisów"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% ponad",
+      "under": "{{metric}} {{pct}}% poniżej celu"
     }
   },
   "entries": {
@@ -354,5 +358,16 @@
     "toastBodyFatSaveFailed": "Nie udało się zapisać tkanki tłuszczowej",
     "bodyFatHint": "Drugie pole to Twój procent tkanki tłuszczowej, jeśli waga go mierzy.",
     "bodyFatPlaceholder": "% tł."
+  },
+  "today": {
+    "left": "zostało {{amount}}",
+    "over": "+{{amount}} ponad",
+    "toGo": "brakuje {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "Pierścień i kwadraty dni wypełniają się względem twojego celu. Bez niego nie mają czego mierzyć.",
+    "cta": "Ustaw cel",
+    "dismiss": "Nie teraz",
+    "title": "Ustaw cel kaloryczny"
   }
 }

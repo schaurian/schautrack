@@ -61,6 +61,10 @@
     "viewOwnDayAriaLabel": "View your day"
   },
   "dayDot": {
+    "reason": {
+      "over": "{{metric}} {{pct}}% over",
+      "under": "{{metric}} {{pct}}% under target"
+    },
     "status": {
       "none": "no entries",
       "over": "over goal",
@@ -104,6 +108,12 @@
     "trackButton": "Track",
     "undoLabel": "Undo",
     "unnamedEntryFallback": "entry"
+  },
+  "goalPrompt": {
+    "body": "The ring and the day squares fill against your goal. Without one they have nothing to measure.",
+    "cta": "Set goal",
+    "dismiss": "Not now",
+    "title": "Set a calorie goal"
   },
   "notes": {
     "charCount_one": "{{count}}/10000",
@@ -278,6 +288,11 @@
   },
   "store": {
     "you": "You"
+  },
+  "today": {
+    "left": "{{amount}} left",
+    "over": "+{{amount}} over",
+    "toGo": "{{amount}} to go"
   },
   "todos": {
     "addButton": "Add",

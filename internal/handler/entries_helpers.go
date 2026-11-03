@@ -78,6 +78,35 @@ type dailyStat struct {
 	Total         int    `json:"total"`
 	Status        string `json:"status"`
 	OverThreshold bool   `json:"overThreshold"`
+	// Reason names the metric that decided an amber or red dot. The dot takes
+	// the worst status across calories and every macro while the ring shows
+	// calories only, so without it a red dot under an amber ring is a mystery.
+	Reason *dotReason `json:"reason,omitempty"`
+}
+
+type dotReason struct {
+	Metric string `json:"metric"` // "calories" or a macro key
+	Total  int    `json:"total"`
+	Goal   int    `json:"goal"`
+	Mode   string `json:"mode"` // "limit" or "target"
+}
+
+// worseReason reports whether candidate (with dot status cs) explains the day
+// better than the current pick: a worse status wins, and on a tie the larger
+// relative distance from the goal does.
+func worseReason(cs string, c dotReason, bs string, b *dotReason) bool {
+	if b == nil || service.DotStatusRank[cs] != service.DotStatusRank[bs] {
+		return b == nil || service.DotStatusRank[cs] > service.DotStatusRank[bs]
+	}
+	dev := func(r dotReason) int64 {
+		d := int64(r.Total - r.Goal)
+		if d < 0 {
+			d = -d
+		}
+		return d
+	}
+	// |c.Total-c.Goal|/c.Goal > |b.Total-b.Goal|/b.Goal, cross-multiplied.
+	return dev(c)*int64(b.Goal) > dev(*b)*int64(c.Goal)
 }
 
 func getUserTimezone(r *http.Request, user interface{ GetTimezone() string }) string {
@@ -190,6 +219,13 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 		total := totalsByDate[dateStr]
 		_, hasEntries := totalsByDate[dateStr]
 		var statuses []string
+		var reason *dotReason
+		reasonStatus := ""
+		consider := func(dot string, r dotReason) {
+			if worseReason(dot, r, reasonStatus, reason) {
+				reason, reasonStatus = &r, dot
+			}
+		}
 
 		if dailyGoal != nil {
 			if !hasEntries {
@@ -200,7 +236,11 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 					calMode = m
 				}
 				cs := service.ComputeMacroStatus(total, dailyGoal, calMode, threshold)
-				statuses = append(statuses, service.ComputeDotStatus(cs.StatusClass))
+				dot := service.ComputeDotStatus(cs.StatusClass)
+				statuses = append(statuses, dot)
+				if *dailyGoal > 0 {
+					consider(dot, dotReason{Metric: "calories", Total: total, Goal: *dailyGoal, Mode: calMode})
+				}
 			}
 		}
 
@@ -220,7 +260,9 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 					mode = "limit"
 				}
 				ms := service.ComputeMacroStatus(macroTotal, &goal, mode, threshold)
-				statuses = append(statuses, service.ComputeDotStatus(ms.StatusClass))
+				dot := service.ComputeDotStatus(ms.StatusClass)
+				statuses = append(statuses, dot)
+				consider(dot, dotReason{Metric: key, Total: macroTotal, Goal: goal, Mode: mode})
 			}
 		}
 
@@ -229,9 +271,16 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 			status = service.WorstDotStatus(statuses)
 		}
 
+		// Only amber and red dots need explaining; green, empty and goalless
+		// days say everything in their status label.
+		if status != "over" && status != "over_threshold" {
+			reason = nil
+		}
+
 		stats = append(stats, dailyStat{
 			Date: dateStr, Total: total, Status: status,
 			OverThreshold: status == "over_threshold",
+			Reason:        reason,
 		})
 	}
 	return stats
