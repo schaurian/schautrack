@@ -99,6 +99,10 @@ export default function EntryList({ entries, date, canEdit, enabledMacros, calor
     const i = buttons.findIndex((b) => row.contains(b));
     const target = buttons[i + 1] ?? buttons[i - 1] ?? (headingId ? document.getElementById(headingId) : null);
     target?.focus();
+    // Focus lands on the next row's delete button only when the request
+    // returns. On a slow server that is long after the press, so the double
+    // press guard below has expired by then: count the focus move as a reflow.
+    if (target) lastReflowAt.current = Date.now();
   };
 
   return (
@@ -333,6 +337,10 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
               type="button"
               className={cn('bg-transparent border border-transparent px-2 py-0.5 text-foreground text-left truncate w-full rounded-md transition-colors', canEdit ? 'cursor-pointer hover:text-[#0ea5e9]' : 'cursor-default')}
               onClick={() => handleEdit('name', entry.name)}
+              onKeyDown={(e) => {
+                // See MacroPill: a held Enter would loop save -> reopen.
+                if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault();
+              }}
               disabled={!canEdit}
               data-edit-field="name"
             >

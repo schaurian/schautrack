@@ -204,6 +204,54 @@ describe('EntryList keyboard delete guard', () => {
   });
 });
 
+describe('EntryList keyboard delete guard on a slow server', () => {
+  let now = 1000;
+  beforeEach(() => {
+    now = 1000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    vi.mocked(deleteEntry).mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // The guard used to count only from the press and from the row leaving the
+  // list. When the delete takes a second, focus lands on the next row's delete
+  // button long after the press, and an Enter just after that deleted it too.
+  it('ignores Enter just after focus lands on the next row', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    vi.mocked(deleteEntry).mockReturnValueOnce(new Promise((r) => { resolve = r; }) as never).mockResolvedValue({ ok: true } as never);
+    const user = userEvent.setup();
+    renderList([entry(1, 'Apple'), entry(2, 'Oatmeal'), entry(3, 'Pasta')]);
+    deleteButtons()[0].focus();
+    await user.keyboard('{Enter}');
+    now += 1000; // slow server
+    resolve({ ok: true });
+    await waitFor(() => expect(deleteButtons()[1]).toHaveFocus());
+    now += 50;
+    await user.keyboard('{Enter}');
+    expect(vi.mocked(deleteEntry).mock.calls.map((c) => c[0])).toEqual([1]);
+  });
+});
+
+describe('EntryList live region', () => {
+  // One node across the empty and non-empty list: a region created together
+  // with its text is often not announced.
+  it('is the same DOM node before and after the list empties', () => {
+    const client = new QueryClient();
+    const props = { canEdit: true, enabledMacros: [], caloriesEnabled: true, autoCalcCalories: false };
+    const { container, rerender } = render(
+      <QueryClientProvider client={client}><EntryList entries={[entry(1, 'Apple')]} {...props} /></QueryClientProvider>,
+    );
+    const before = container.querySelector('[aria-live="polite"]');
+    expect(before).not.toBeNull();
+    rerender(<QueryClientProvider client={client}><EntryList entries={[]} {...props} /></QueryClientProvider>);
+    expect(container.querySelector('[aria-live="polite"]')).toBe(before);
+    rerender(<QueryClientProvider client={client}><EntryList entries={[entry(2, 'Oatmeal')]} {...props} /></QueryClientProvider>);
+    expect(container.querySelector('[aria-live="polite"]')).toBe(before);
+  });
+});
+
 describe('EntryList inline edit', () => {
   beforeEach(() => {
     vi.mocked(updateEntry).mockReset().mockResolvedValue({ ok: true } as never);
@@ -269,6 +317,24 @@ describe('EntryList inline edit', () => {
     await waitFor(() => expect(updateEntry).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
     expect(protein).toHaveFocus();
+  });
+
+  it('does not loop save and reopen while Enter is held in an inline edit', async () => {
+    const user = userEvent.setup();
+    renderList([entry(1, 'Apple')]);
+    await user.click(screen.getByRole('button', { name: /kcal/i }));
+    await user.keyboard('{Enter>6/}');
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+    expect(updateEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not loop save and reopen while Enter is held in the name edit', async () => {
+    const user = userEvent.setup();
+    renderList([entry(1, 'Apple')]);
+    await user.click(screen.getByRole('button', { name: 'Apple' }));
+    await user.keyboard('{Enter>6/}');
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+    expect(updateEntry).toHaveBeenCalledTimes(1);
   });
 
   it('returns focus to the pill when the edit ends from the keyboard', async () => {

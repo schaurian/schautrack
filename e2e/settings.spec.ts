@@ -285,8 +285,11 @@ test.describe.serial('Settings', () => {
     await page.waitForURL(/\/dashboard/);
     // The TodoList component returns null when disabled, so the "Todos" heading in that widget is gone
     // We check the specific card heading, not the Settings page heading
-    const todoWidget = page.locator('h3').filter({ hasText: 'Todos' });
-    await expect(todoWidget).not.toBeVisible({ timeout: 5000 });
+    // By role and exact name, not tag: the dashboard section headings are h2
+    // now, and an `h3` locator matched nothing, so this passed vacuously.
+    const todoWidget = page.getByRole('heading', { name: 'Todos', exact: true });
+    await expect(page.getByRole('heading', { name: 'Entries', exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(todoWidget).toHaveCount(0);
 
     // Re-enable todos
     await page.goto(`${baseURL}/settings`);
@@ -296,6 +299,10 @@ test.describe.serial('Settings', () => {
     const todosCard2 = page.getByTestId('todo-settings-card');
     await todosCard2.locator('button').first().click();
     await page.waitForTimeout(600);
+
+    // And the same locator finds the section once todos are back on.
+    await page.goto(`${baseURL}/dashboard`);
+    await expect(page.getByRole('heading', { name: 'Todos', exact: true })).toBeVisible({ timeout: 10000 });
 
     await ctx.close();
   });

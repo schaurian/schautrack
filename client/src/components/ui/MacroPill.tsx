@@ -2,13 +2,15 @@ import { cn } from '@/lib/utils';
 
 export type MacroPillKey = 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar';
 
-// Labels at full colour and units at /70. The old /70 and /55 put the 10.5px
-// kcal, carbs and sugar labels at 3.4-3.7:1 on the card, under WCAG AA's 4.5:1;
-// /90 still fell short on the tinted editing pill and on hover. At full colour
-// the weakest (kcal) is >= 4.65:1 on both card ends, tinted or hovered.
+// Labels at full colour and units at /70; kcal's label one step lighter than
+// its token (#8da8ff, the link-hover blue), because #6d8cff only reaches
+// 4.06-4.17:1 in the worst case. That worst case is the lightest end of the
+// card gradient (#141c36) under the editing row's sky tint, with the pill's own
+// 10% tint (editing) or the 6% white hover on top. There kcal is now 5.4:1 and
+// the weakest label, carbs, 4.6:1 (AA for this small text is 4.5:1).
 // eslint-disable-next-line react-refresh/only-export-components -- the style map is colocated with the pill by design; a full reload on HMR here is acceptable
 export const MACRO_PILL_STYLES: Record<MacroPillKey, { bg: string; border: string; label: string }> = {
-  kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20',    label: 'text-macro-kcal' },
+  kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20',    label: 'text-[#8da8ff]' },
   protein: { bg: 'bg-macro-protein/10', border: 'border-macro-protein/20', label: 'text-macro-protein' },
   carbs:   { bg: 'bg-macro-carbs/10',   border: 'border-macro-carbs/20',   label: 'text-macro-carbs' },
   fat:     { bg: 'bg-macro-fat/10',     border: 'border-macro-fat/20',     label: 'text-macro-fat' },
@@ -55,6 +57,11 @@ export function MacroPill({ macroKey, label, value, unit, onClick, canEdit, edit
       onClick={onClick}
       disabled={!interactive}
       data-edit-field={editField}
+      onKeyDown={(e) => {
+        // Enter that ended an edit keeps auto-repeating on this pill once focus
+        // returns here, and each repeat would reopen the editor and save again.
+        if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault();
+      }}
       className={cn(
         'inline-flex min-h-6 items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-sm tabular-nums transition-colors',
         interactive ? 'cursor-pointer hover:bg-white/[0.06]' : 'cursor-default',
