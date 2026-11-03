@@ -10,6 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"schautrack/internal/config"
+	"schautrack/internal/database"
+	"schautrack/internal/middleware"
+	"schautrack/internal/model"
 	"schautrack/internal/service"
 )
 
@@ -208,28 +212,51 @@ func TestEstimate_InvalidJSONReturns400(t *testing.T) {
 	}
 }
 
-// TestEstimate_OverlongContextReturns400 pins the cap on the free-text hint.
+// TestEstimate_ContextCapCountsCharacters pins the cap on the free-text hint.
 // It is pasted into the provider prompt, so an uncapped one let a single
 // request carry megabytes of billed tokens on the operator's global key while
-// counting once against the daily limit. The cap counts characters, not
-// bytes: 200 umlauts are 400 bytes and still one character too few to reject.
-func TestEstimate_OverlongContextReturns400(t *testing.T) {
-	h := &AIHandler{}
-	img := "data:image/jpeg;base64,AAAA"
-	body := `{"image":"` + img + `","context":"` + strings.Repeat("ä", maxAIContextChars+1) + `"}`
-	r := httptest.NewRequest("POST", "/api/ai/estimate", strings.NewReader(body))
-	w := httptest.NewRecorder()
-
-	h.Estimate(w, r)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+// counting once against the daily limit.
+//
+// The cap counts characters, not bytes, and is inclusive: exactly 200 umlauts
+// (400 bytes) must pass, 201 must not. A request that passes the check goes on
+// to the provider lookup, which with nothing configured answers "No AI
+// provider configured." — so the accepted cases assert on that, never on a
+// panic further in.
+func TestEstimate_ContextCapCountsCharacters(t *testing.T) {
+	for _, k := range []string{"AI_PROVIDER", "AI_KEY", "AI_ENDPOINT", "AI_MODEL", "AI_DAILY_LIMIT"} {
+		t.Setenv(k, "")
 	}
-	var resp map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode response: %v", err)
+	cases := []struct {
+		name    string
+		context string
+		wantMsg string
+	}{
+		{"200 multibyte characters pass", strings.Repeat("ä", maxAIContextChars), "No AI provider configured."},
+		{"200 ascii characters pass", strings.Repeat("x", maxAIContextChars), "No AI provider configured."},
+		{"201 characters are rejected", strings.Repeat("ä", maxAIContextChars+1), fmt.Sprintf("Context too long. Maximum %d characters.", maxAIContextChars)},
 	}
-	if msg, _ := resp["error"].(string); !strings.Contains(msg, "Context too long") {
-		t.Errorf("error = %q, want message about context length", msg)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// A pool-less cache resolves every unset setting to "none" without
+			// touching a database.
+			h := &AIHandler{Settings: database.NewSettingsCache(nil), Cfg: &config.Config{}}
+			body := `{"image":"data:image/jpeg;base64,AAAA","context":"` + c.context + `"}`
+			r := httptest.NewRequest("POST", "/api/ai/estimate", strings.NewReader(body))
+			r = r.WithContext(middleware.WithTestUser(r.Context(), &model.User{ID: 1}))
+			w := httptest.NewRecorder()
+
+			h.Estimate(w, r)
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", w.Code, http.StatusBadRequest, w.Body.String())
+			}
+			var resp map[string]any
+			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if msg, _ := resp["error"].(string); msg != c.wantMsg {
+				t.Errorf("error = %q, want %q", msg, c.wantMsg)
+			}
+		})
 	}
 }
