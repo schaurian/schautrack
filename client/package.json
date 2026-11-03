@@ -41,7 +41,9 @@
   },
   "overrides": {
     "sharp": "^0.35.4",
-    "ndarray-pixels": "^5.2.0"
+    "ndarray-pixels": "^5.2.0",
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
