@@ -337,6 +337,12 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
+	partners, err := acceptedLinkPartners(r.Context(), tx, user.ID)
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not delete account. Please try again.")
+		return
+	}
+
 	tables := []string{
 		"DELETE FROM totp_backup_codes WHERE user_id = $1",
 		"DELETE FROM daily_notes WHERE user_id = $1",
@@ -361,6 +367,9 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not delete account. Please try again.")
 		return
+	}
+	if h.Broker != nil {
+		h.Broker.InvalidateLinks(append(partners, user.ID)...)
 	}
 
 	// user_id will be NULLed by the FK ON DELETE SET NULL — capture identifying

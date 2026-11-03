@@ -15,6 +15,7 @@ import (
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
+	"schautrack/internal/sse"
 )
 
 // AuthHandler holds dependencies for auth routes.
@@ -24,6 +25,9 @@ type AuthHandler struct {
 	Email        *service.EmailService
 	Cfg          *config.Config
 	Settings     *database.SettingsCache
+	// Broker, when set, has its link caches invalidated for the partners of a
+	// deleted account.
+	Broker *sse.Broker
 }
 
 // trustProxy reports whether proxy headers may be trusted for client IP

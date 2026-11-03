@@ -15,6 +15,7 @@ import (
 	"schautrack/internal/database"
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
+	"schautrack/internal/sse"
 )
 
 type AdminHandler struct {
@@ -22,6 +23,9 @@ type AdminHandler struct {
 	Settings *database.SettingsCache
 	Cfg      *config.Config
 	Email    *service.EmailService
+	// Broker, when set, has its link caches invalidated for the partners of a
+	// deleted user.
+	Broker *sse.Broker
 }
 
 // UpdateSettings handles POST /admin/settings.
@@ -123,6 +127,12 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
+	partners, err := acceptedLinkPartners(r.Context(), tx, userID)
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete user.")
+		return
+	}
+
 	// Clean up sessions (not FK-linked to users)
 	if _, err := tx.Exec(r.Context(), `DELETE FROM "session" WHERE (sess::jsonb->>'userId')::int = $1`, userID); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete user.")
@@ -137,6 +147,9 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete user.")
 		return
+	}
+	if h.Broker != nil {
+		h.Broker.InvalidateLinks(append(partners, userID)...)
 	}
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "User deleted completely."})
 }
