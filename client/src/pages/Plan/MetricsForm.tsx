@@ -88,17 +88,17 @@ export default function MetricsForm({ metrics }: Props) {
         <div className="mt-4 flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.heightLabel')}</label>
-              <input className={inputClass} type="number" min="0" max="300" value={height} onChange={(e) => setHeight(e.target.value)} placeholder={t('plan.metricsForm.heightPlaceholder')} />
+              <label htmlFor="metrics-height" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.heightLabel')}</label>
+              <input id="metrics-height" className={inputClass} type="number" min="0" max="300" value={height} onChange={(e) => setHeight(e.target.value)} placeholder={t('plan.metricsForm.heightPlaceholder')} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.birthYearLabel')}</label>
-              <input className={inputClass} type="number" min="1900" max={new Date().getFullYear() - 10} value={birthYear} onChange={(e) => setBirthYear(e.target.value)} placeholder={t('plan.metricsForm.birthYearPlaceholder')} />
+              <label htmlFor="metrics-birth-year" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.birthYearLabel')}</label>
+              <input id="metrics-birth-year" className={inputClass} type="number" min="1900" max={new Date().getFullYear() - 10} value={birthYear} onChange={(e) => setBirthYear(e.target.value)} placeholder={t('plan.metricsForm.birthYearPlaceholder')} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.sexLabel')}</label>
+              <label htmlFor="metrics-sex" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.sexLabel')}</label>
               <Select value={sex || NONE} onValueChange={(v) => setSex(v === NONE ? '' : v)}>
-                <SelectTrigger data-testid="metrics-sex"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="metrics-sex" data-testid="metrics-sex"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>{t('plan.metricsForm.selectPlaceholder')}</SelectItem>
                   <SelectItem value="male">{t('plan.metricsForm.sexMale')}</SelectItem>
@@ -108,9 +108,9 @@ export default function MetricsForm({ metrics }: Props) {
               </Select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.activityLevelLabel')}</label>
+              <label htmlFor="metrics-activity" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.metricsForm.activityLevelLabel')}</label>
               <Select value={activityLevel || NONE} onValueChange={(v) => setActivityLevel(v === NONE ? '' : v)}>
-                <SelectTrigger data-testid="metrics-activity"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="metrics-activity" data-testid="metrics-activity"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>{t('plan.metricsForm.selectPlaceholder')}</SelectItem>
                   {ACTIVITY_LEVELS.map(({ value, labelKey }) => (

@@ -264,11 +264,11 @@ export default function ApiTokenSettings() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">
+              <label htmlFor="api-token-expiry" className="text-xs font-medium text-muted-foreground">
                 {t('apiTokens.expiryLabel')}
-              </span>
+              </label>
               <Select value={expiry} onValueChange={setExpiry}>
-                <SelectTrigger data-testid="api-token-expiry"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="api-token-expiry" data-testid="api-token-expiry"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="30">{t('apiTokens.expiry30')}</SelectItem>
                   <SelectItem value="90">{t('apiTokens.expiry90')}</SelectItem>

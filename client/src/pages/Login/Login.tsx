@@ -133,7 +133,7 @@ export default function Login() {
     return (
       <div className="flex justify-center py-12">
         <Card className="w-full max-w-sm">
-          <h2 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h2>
+          <h1 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h1>
           <p className="text-sm text-muted-foreground mb-4">{t('login.reset2faRequestDescription')}</p>
           {error && <Alert type="error" message={error} className="mb-4" />}
           <form onSubmit={handleResetRequest} className="flex flex-col gap-4">
@@ -153,7 +153,7 @@ export default function Login() {
     return (
       <div className="flex justify-center py-12">
         <Card className="w-full max-w-sm">
-          <h2 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h2>
+          <h1 className="mb-2 text-xl font-semibold">{t('login.reset2faTitle')}</h1>
           <p className="text-sm text-muted-foreground mb-4">{t('login.reset2faVerifyDescription')}</p>
           {error && <Alert type="error" message={error} className="mb-4" />}
           <form onSubmit={handleResetVerify} className="flex flex-col gap-4">
@@ -171,7 +171,7 @@ export default function Login() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-6 text-xl font-semibold">{t('login.title')}</h2>
+        <h1 className="mb-6 text-xl font-semibold">{t('login.title')}</h1>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
 

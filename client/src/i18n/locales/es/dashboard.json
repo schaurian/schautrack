@@ -59,7 +59,8 @@
     "todayLabel": "Hoy",
     "entriesDateAndLabel": "{{date}} — {{label}}",
     "viewOwnDayAriaLabel": "Ver tu día",
-    "viewFriendDayAriaLabel": "Ver el día de {{label}}"
+    "viewFriendDayAriaLabel": "Ver el día de {{label}}",
+    "changeDateAriaLabel": "Cambiar fecha, actualmente {{date}}"
   },
   "dayDot": {
     "status": {
@@ -115,7 +116,11 @@
     "toastUpdateFailed": "Error al actualizar la entrada",
     "toastDeleted": "Entrada eliminada",
     "toastRestoreFailed": "Error al restaurar",
-    "toastDeleteFailed": "Error al eliminar la entrada"
+    "toastDeleteFailed": "Error al eliminar la entrada",
+    "editFieldAriaLabel": "{{field}} de {{name}}",
+    "nameFieldLabel": "Nombre",
+    "savedAnnouncement": "{{field}} de {{name}} guardado",
+    "savedLabel": "Guardado"
   },
   "notes": {
     "sectionTitle": "Notas",

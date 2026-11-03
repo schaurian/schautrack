@@ -84,7 +84,7 @@ export default function Register() {
     return (
       <div className="flex justify-center py-12">
         <Card className="w-full max-w-sm">
-          <h2 className="mb-6 text-xl font-semibold">{t('register.title')}</h2>
+          <h1 className="mb-6 text-xl font-semibold">{t('register.title')}</h1>
           <Alert type="warning" message={t('register.registrationDisabled')} className="mb-4" />
           <div className="mt-6 text-sm">
             <Link to="/login">{t('register.alreadyHaveAccount')}</Link>
@@ -97,7 +97,7 @@ export default function Register() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-6 text-xl font-semibold">{t('register.title')}</h2>
+        <h1 className="mb-6 text-xl font-semibold">{t('register.title')}</h1>
         {error && <Alert type="error" message={error} className="mb-4" />}
 
         {step === 'credentials' && authInfo?.oidc && (

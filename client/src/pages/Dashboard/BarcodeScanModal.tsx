@@ -282,6 +282,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     onClick={() => handleModeSwitch(m)}
+                    aria-pressed={mode === m}
                   >
                     {m === 'camera' ? t('dashboard.cameraTab') : m === 'upload' ? t('dashboard.uploadTab') : t('barcodeScan.manualTab')}
                   </button>
