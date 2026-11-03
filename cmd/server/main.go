@@ -139,6 +139,9 @@ func main() {
 	r.Use(middleware.Recovery)
 	r.Use(middleware.MaxBodySize(15 << 20)) // 15MB global limit
 	r.Use(middleware.SecurityHeaders)
+	// JSON responses only (Content-Type gated): SSE and the already-compressed
+	// static bundle pass through. See middleware.CompressJSON.
+	r.Use(middleware.CompressJSON)
 	// Static asset requests (Vite build output, favicons, logos, fonts) never
 	// read the session or the current user, so skip the session load + full
 	// 19-column users SELECT for them — a single page load fans out to ~a dozen

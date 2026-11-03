@@ -1,11 +1,30 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { Outlet } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
 import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
-import WelcomeTour from '@/components/Onboarding/WelcomeTour';
+import { useOnboardingStore } from '@/stores/onboardingStore';
+import { lazyRoute } from '@/lib/lazyRoute';
+
+// The tour (and its illustrations) is for a first login or an explicit replay
+// from Settings, so it stays out of the startup bundle. Fetched once it is
+// needed, then kept mounted so closing it keeps its exit transition.
+const WelcomeTour = lazyRoute(() => import('@/components/Onboarding/WelcomeTour'));
+
+function WelcomeTourGate() {
+  const due = useAuthStore((s) => s.user !== null && !s.user.onboardingCompleted);
+  const open = useOnboardingStore((s) => s.open);
+  const [needed, setNeeded] = useState(false);
+  if ((due || open) && !needed) setNeeded(true);
+  if (!needed) return null;
+  return (
+    <Suspense fallback={null}>
+      <WelcomeTour />
+    </Suspense>
+  );
+}
 
 export default function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -47,7 +66,7 @@ export default function Layout() {
       {/* Mounted once for the whole authenticated shell: the tour opens on the
           first login wherever the user lands, and Settings replays it without
           having to navigate anywhere. */}
-      <WelcomeTour />
+      <WelcomeTourGate />
     </div>
   );
 }
