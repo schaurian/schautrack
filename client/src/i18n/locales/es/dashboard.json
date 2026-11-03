@@ -72,6 +72,9 @@
   "entries": {
     "logSectionTitle": "Registro",
     "addFood": "Añadir comida",
+    "fieldInvalid": "Introduce un número o una operación como 2*150",
+    "fieldRange": "Introduce un valor entre {{min}} y {{max}}",
+    "fieldRangeQty": "Por {{qty}}, debe quedar entre {{min}} y {{max}}",
     "foodNameAriaLabel": "Nombre del alimento",
     "foodNamePlaceholder": "Desayuno, merienda...",
     "qtyLabel": "Cant.",

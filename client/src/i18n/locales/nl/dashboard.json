@@ -72,6 +72,9 @@
   "entries": {
     "logSectionTitle": "Log",
     "addFood": "Voeding toevoegen",
+    "fieldInvalid": "Vul een getal of een som als 2*150 in",
+    "fieldRange": "Vul een waarde van {{min}} tot {{max}} in",
+    "fieldRangeQty": "Maal {{qty}} moet dit tussen {{min}} en {{max}} blijven",
     "foodNameAriaLabel": "Naam van eten",
     "foodNamePlaceholder": "Ontbijt, snack...",
     "qtyLabel": "Aantal",
