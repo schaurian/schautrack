@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Entrez le numéro de code-barres",
     "lookUpButton": "Rechercher",
     "lookingUpText": "Recherche de {{barcode}}...",
-    "calPer100g": "{{value}} cal pour 100 g",
+    "calPer100g": "{{value}} kcal pour 100 g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · portion : {{size}}",
     "addEntryButton": "Ajouter une entrée",
     "scanAnotherButton": "Scanner un autre",
@@ -172,7 +173,7 @@
     },
     "progress": {
       "title": "Progression",
-      "projectedLabel": "Prévu : {{date}}"
+      "projectedLabel": "Selon la tendance actuelle : {{date}}"
     },
     "toastBudgetApplied": "Objectif calorique mis à jour",
     "toastBudgetApplyFailed": "Échec de l'application du budget",
@@ -193,7 +194,7 @@
       "targetDateLabel": "Date cible",
       "completeDetailsHint": "Complétez vos informations ci-dessus pour calculer un budget calorique pour cet objectif.",
       "budgetLabel": "Budget : ",
-      "etaLabel": "Date estimée : ",
+      "etaLabel": "Date cible du plan : ",
       "weeksLabel_one": " semaine",
       "weeksLabel_other": " semaines"
     },
@@ -245,6 +246,13 @@
       "fitness": "En forme",
       "average": "Moyenne",
       "obese": "Obésité"
+    },
+    "disclaimer": "Ce plan est une estimation fondée sur des formules standard (Mifflin-St Jeor, ou Katch-McArdle si un taux de masse grasse est disponible) et des recommandations générales d’activité. Ce n’est pas un avis médical : consultez un professionnel de santé avant de commencer tout programme de perte ou de prise de poids, en particulier si vous avez des problèmes de santé.",
+    "warnings": {
+      "aggressive_rate": "Votre rythme cible dépasse 1 % du poids corporel par semaine, ce qui peut être risqué ou difficile à tenir.",
+      "budget_clamped": "Votre budget calorique recommandé a été relevé au minimum sûr pour votre profil.",
+      "target_obese": "Votre poids cible se situe dans la plage d’obésité de l’IMC.",
+      "target_underweight": "Votre poids cible se situe dans la plage d’insuffisance pondérale de l’IMC."
     }
   },
   "savedFoods": {

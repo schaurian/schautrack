@@ -211,6 +211,7 @@
     }
   },
   "macro": {
+    "autoCalcFormula": "P×4 + C×4 + F×9",
     "autoCalculate": "Auto-calculate calories",
     "calories": "Calories",
     "goalPlaceholder": "Goal",
@@ -218,6 +219,7 @@
     "modeLimit": "Limit",
     "modeTarget": "Target",
     "threshold": "Threshold",
+    "thresholdHelp": "How far you can miss a goal before it shows red instead of yellow — at 10%, a 2000 kcal limit turns red above 2200 kcal.",
     "unitGram": "g",
     "unitKcal": "kcal"
   },

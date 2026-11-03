@@ -64,7 +64,10 @@
     "dismiss": "Chiudi"
   },
   "errors": {
-    "failedToSave": "Salvataggio non riuscito"
+    "failedToSave": "Salvataggio non riuscito",
+    "forbidden": "Accesso negato",
+    "requestFailed": "Richiesta non riuscita",
+    "unauthorized": "Accesso non effettuato"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} vuole collegarsi con te"

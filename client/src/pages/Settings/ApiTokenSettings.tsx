@@ -8,6 +8,7 @@ import {
   type ScopeInfo,
 } from '@/api/apiTokens';
 import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/format';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isAtTokenLimit, isTokenExpired } from '@/lib/apiTokenLimits';
 import { useToastStore } from '@/stores/toastStore';
@@ -116,7 +117,6 @@ export default function ApiTokenSettings() {
   // tokens.length instead hid the "New token" button from anyone whose expired
   // tokens padded the list to `max`, for tokens the server would have minted.
   const atLimit = isAtTokenLimit(tokens, max);
-  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
 
   return (
     <div className="surface overflow-hidden">
@@ -198,16 +198,16 @@ export default function ApiTokenSettings() {
                   </div>
                   <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
                     {tok.last_used_at
-                      ? t('apiTokens.usedOn', { date: fmtDate(tok.last_used_at) })
+                      ? t('apiTokens.usedOn', { date: formatDate(tok.last_used_at) })
                       : t('apiTokens.neverUsed')}
                     {tok.expires_at && ' · '}
                     {tok.expires_at &&
                       (expired ? (
                         <span className="text-destructive">
-                          {t('apiTokens.expiredOn', { date: fmtDate(tok.expires_at) })}
+                          {t('apiTokens.expiredOn', { date: formatDate(tok.expires_at) })}
                         </span>
                       ) : (
-                        t('apiTokens.expires', { date: fmtDate(tok.expires_at) })
+                        t('apiTokens.expires', { date: formatDate(tok.expires_at) })
                       ))}
                   </span>
                   <button

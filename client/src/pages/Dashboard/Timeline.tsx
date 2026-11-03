@@ -6,6 +6,7 @@ import ShareCard from './ShareCard';
 import { Button } from '@/components/ui/Button';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { cn } from '@/lib/utils';
+import { viewLabel } from './viewLabel';
 
 const RANGE_PRESETS = [7, 14, 30, 60, 120];
 
@@ -42,7 +43,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   };
 
   const handleDotClick = (view: SharedView, date: string) => {
-    selectUser(view.userId, view.label, view.isSelf);
+    selectUser(view.userId, viewLabel(view, t), view.isSelf);
     selectDay(date);
   };
 
@@ -50,7 +51,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   // current date. This is the only way to reach a friend who shares no
   // nutrition — their card renders no day-dots to click.
   const handleSelect = (view: SharedView) => {
-    selectUser(view.userId, view.label, view.isSelf);
+    selectUser(view.userId, viewLabel(view, t), view.isSelf);
   };
 
   const active = rangePreset || range.preset;

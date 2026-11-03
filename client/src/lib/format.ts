@@ -72,3 +72,44 @@ export function formatRelativeTime(
   }
   return rtf.format(-Math.round(amount), 'year');
 }
+
+/**
+ * Fixed-precision decimal in the active locale — `82.5` in English, `82,5` in
+ * German. The read-only replacement for `n.toFixed(digits)`, which always
+ * prints a period whatever the UI language. Not for values seeded into an
+ * editable input: those are parsed back as JavaScript numbers.
+ */
+export function formatDecimal(value: number, digits = 1, locale: string = activeLocale()): string {
+  return formatNumber(value, locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    useGrouping: false,
+  });
+}
+
+/**
+ * The two date styles the app shows a calendar day in, so every surface that
+ * names a day reads the same way in a given language:
+ *
+ * - `short` — the day you are looking at, year implied: "Tue, Nov 3" / "Di., 3. Nov."
+ *   (the dashboard date pill and the entries header).
+ * - `long`  — a day that may be in another year: "Nov 3, 2026" / "3. Nov. 2026"
+ *   (plan target and projected dates, chart axis, measurement dates).
+ */
+export const DAY_STYLES = {
+  short: { weekday: 'short', month: 'short', day: 'numeric' },
+  long: { year: 'numeric', month: 'short', day: 'numeric' },
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+export type DayStyle = keyof typeof DAY_STYLES;
+
+/**
+ * Format a calendar day ("YYYY-MM-DD", which has no time zone) in the active
+ * locale. Parsed as a local date on purpose: `new Date('2026-11-03')` is UTC
+ * midnight, which renders as Nov 2 anywhere west of Greenwich. Anything that
+ * is not a bare day is returned unchanged rather than rendered as "Invalid Date".
+ */
+export function formatDay(day: string, style: DayStyle = 'long', locale: string = activeLocale()): string {
+  if (!isDateOnly(day)) return day;
+  return new Intl.DateTimeFormat(locale, DAY_STYLES[style]).format(parseLocalDate(day));
+}

@@ -16,7 +16,9 @@
     "modeLimit": "Limite",
     "modeTarget": "Cible",
     "autoCalculate": "Calculer automatiquement les calories",
+    "autoCalcFormula": "P×4 + G×4 + L×9",
     "threshold": "Seuil",
+    "thresholdHelp": "Marge tolérée avant qu’un objectif passe du jaune au rouge : à 10 %, une limite de 2000 kcal devient rouge au-delà de 2200 kcal.",
     "unitKcal": "kcal",
     "unitGram": "g"
   },

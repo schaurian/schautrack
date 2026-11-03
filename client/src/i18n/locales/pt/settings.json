@@ -16,7 +16,9 @@
     "modeLimit": "Limite",
     "modeTarget": "Meta",
     "autoCalculate": "Calcular calorias automaticamente",
+    "autoCalcFormula": "P×4 + H×4 + G×9",
     "threshold": "Limiar",
+    "thresholdHelp": "Quanto pode desviar-se de um objetivo antes de este ficar vermelho em vez de amarelo: com 10%, um limite de 2000 kcal fica vermelho acima de 2200 kcal.",
     "unitKcal": "kcal",
     "unitGram": "g"
   },

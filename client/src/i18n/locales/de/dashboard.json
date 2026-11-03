@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Barcode-Nummer eingeben",
     "lookUpButton": "Nachschlagen",
     "lookingUpText": "{{barcode}} wird gesucht...",
-    "calPer100g": "{{value}} cal pro 100g",
+    "calPer100g": "{{value}} kcal pro 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · Portion: {{size}}",
     "addEntryButton": "Eintrag hinzufügen",
     "scanAnotherButton": "Weiteren scannen",
@@ -172,7 +173,7 @@
     },
     "progress": {
       "title": "Fortschritt",
-      "projectedLabel": "Voraussichtlich: {{date}}"
+      "projectedLabel": "Beim aktuellen Trend: {{date}}"
     },
     "toastBudgetApplied": "Kalorienziel aktualisiert",
     "toastBudgetApplyFailed": "Budget konnte nicht übernommen werden",
@@ -193,7 +194,7 @@
       "targetDateLabel": "Zieldatum",
       "completeDetailsHint": "Vervollständige deine Angaben oben, um ein Kalorienbudget für dieses Ziel zu berechnen.",
       "budgetLabel": "Budget: ",
-      "etaLabel": "Voraussichtlich: ",
+      "etaLabel": "Zieldatum laut Plan: ",
       "weeksLabel_one": " Woche",
       "weeksLabel_other": " Wochen"
     },
@@ -245,6 +246,13 @@
       "fitness": "Fit",
       "average": "Durchschnitt",
       "obese": "Adipositas"
+    },
+    "disclaimer": "Dieser Plan ist eine Schätzung auf Basis gängiger Formeln (Mifflin-St Jeor bzw. Katch-McArdle, wenn ein Körperfettwert vorliegt) und allgemeiner Aktivitätsrichtwerte. Er ist keine medizinische Beratung – sprich mit medizinischem Fachpersonal, bevor du ein Programm zum Ab- oder Zunehmen beginnst, besonders bei Vorerkrankungen.",
+    "warnings": {
+      "aggressive_rate": "Dein Zieltempo liegt über 1 % des Körpergewichts pro Woche und ist womöglich ungesund oder nicht durchzuhalten.",
+      "budget_clamped": "Dein empfohlenes Kalorienbudget wurde auf das sichere Minimum für dein Profil angehoben.",
+      "target_obese": "Dein Zielgewicht liegt im BMI-Bereich Adipositas.",
+      "target_underweight": "Dein Zielgewicht liegt im BMI-Bereich Untergewicht."
     }
   },
   "savedFoods": {

@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Inserisci il numero del codice a barre",
     "lookUpButton": "Cerca",
     "lookingUpText": "Ricerca di {{barcode}} in corso...",
-    "calPer100g": "{{value}} cal per 100g",
+    "calPer100g": "{{value}} kcal per 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · porzione: {{size}}",
     "addEntryButton": "Aggiungi voce",
     "scanAnotherButton": "Scansiona un altro",
@@ -172,7 +173,7 @@
     },
     "progress": {
       "title": "Progresso",
-      "projectedLabel": "Previsto: {{date}}"
+      "projectedLabel": "Con l’andamento attuale: {{date}}"
     },
     "toastBudgetApplied": "Obiettivo calorico aggiornato",
     "toastBudgetApplyFailed": "Applicazione del budget non riuscita",
@@ -193,7 +194,7 @@
       "targetDateLabel": "Data obiettivo",
       "completeDetailsHint": "Completa i tuoi dati qui sopra per calcolare un budget calorico per questo obiettivo.",
       "budgetLabel": "Budget: ",
-      "etaLabel": "Stima: ",
+      "etaLabel": "Data obiettivo del piano: ",
       "weeksLabel_one": " settimana",
       "weeksLabel_other": " settimane"
     },
@@ -245,6 +246,13 @@
       "fitness": "In forma",
       "average": "Nella media",
       "obese": "Obeso"
+    },
+    "disclaimer": "Questo piano è una stima basata su formule standard (Mifflin-St Jeor, oppure Katch-McArdle se è disponibile un valore di massa grassa) e su indicazioni generali sull’attività fisica. Non è un consiglio medico: consulta un professionista sanitario prima di iniziare qualsiasi programma per perdere o aumentare peso, soprattutto in presenza di patologie.",
+    "warnings": {
+      "aggressive_rate": "Il ritmo obiettivo supera l’1% del peso corporeo a settimana e potrebbe non essere sicuro o sostenibile.",
+      "budget_clamped": "Il budget calorico consigliato è stato portato al minimo sicuro per il tuo profilo.",
+      "target_obese": "Il peso obiettivo rientra nella fascia di obesità del BMI.",
+      "target_underweight": "Il peso obiettivo rientra nella fascia di sottopeso del BMI."
     }
   },
   "savedFoods": {

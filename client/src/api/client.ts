@@ -1,3 +1,7 @@
+// The bare i18next singleton, not '@/i18n': it is the same instance (src/i18n
+// initialises it), but importing the module would pull the English catalogs
+// out of the entry chunk into a shared one (tests/i18nBundleSplit.test.ts).
+import i18n from 'i18next';
 import { useStepUpStore } from '@/stores/stepUpStore';
 
 let csrfToken: string | null = null;
@@ -71,7 +75,7 @@ export async function api<T = unknown>(
     // stale-token 403. A 403 on GET/HEAD is a real authorization failure.
     const method = (options.method || 'GET').toUpperCase();
     if (method === 'GET' || method === 'HEAD') {
-      throw new ApiError(403, body?.error || 'Forbidden', (body ?? {}));
+      throw new ApiError(403, body?.error || i18n.t('errors.forbidden', { ns: 'common' }), (body ?? {}));
     }
 
     // CSRF failure — refresh token and retry once.
@@ -80,8 +84,8 @@ export async function api<T = unknown>(
     headers.set('X-CSRF-Token', freshToken);
     const retry = await fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
     if (!retry.ok) {
-      const err = await retry.json().catch(() => ({ error: 'Request failed' })) as { error?: string };
-      throw new ApiError(retry.status, err.error || 'Request failed', err);
+      const err = await retry.json().catch(() => ({})) as { error?: string };
+      throw new ApiError(retry.status, err.error || i18n.t('errors.requestFailed', { ns: 'common' }), err);
     }
     return parseBody<T>(retry);
   }
@@ -93,19 +97,19 @@ export async function api<T = unknown>(
     // destroyed the session after too many failed attempts; in that case we
     // do want the on401 redirect path (clear user, kick to /login).
     const isStepUpEndpoint = url.startsWith('/api/auth/step-up');
-    const err = await res.json().catch(() => ({ error: 'Unauthorized' })) as
+    const err = await res.json().catch(() => ({})) as
       { error?: string; lockout?: boolean };
     const sessionKilled = !isStepUpEndpoint || err.lockout === true;
     if (sessionKilled) {
       csrfToken = null;
       if (on401Callback) on401Callback();
     }
-    throw new ApiError(401, err.error || 'Unauthorized', err);
+    throw new ApiError(401, err.error || i18n.t('errors.unauthorized', { ns: 'common' }), err);
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Request failed' })) as { error?: string };
-    throw new ApiError(res.status, err.error || 'Request failed', err);
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new ApiError(res.status, err.error || i18n.t('errors.requestFailed', { ns: 'common' }), err);
   }
 
   return parseBody<T>(res);

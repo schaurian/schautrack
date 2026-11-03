@@ -16,7 +16,9 @@
     "modeLimit": "Límite",
     "modeTarget": "Objetivo",
     "autoCalculate": "Calcular calorías automáticamente",
+    "autoCalcFormula": "P×4 + C×4 + G×9",
     "threshold": "Umbral",
+    "thresholdHelp": "Cuánto puedes desviarte de un objetivo antes de que se muestre en rojo en lugar de amarillo: con un 10 %, un límite de 2000 kcal pasa a rojo por encima de 2200 kcal.",
     "unitKcal": "kcal",
     "unitGram": "g"
   },

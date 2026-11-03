@@ -20,7 +20,7 @@
     "addEntryButton": "Add Entry",
     "attributionLinkText": "Open Food Facts",
     "attributionPrefix": "Barcode data is sent to and provided by",
-    "calPer100g": "{{value}} cal per 100g",
+    "calPer100g": "{{value}} kcal per 100g",
     "cameraNotAvailable": "Camera not available.",
     "enterBarcodePlaceholder": "Enter barcode number",
     "errorInvalidBarcode": "Enter a valid barcode (8-13 digits).",
@@ -28,6 +28,7 @@
     "errorNoBarcodeInImage": "No barcode found in image. Try a clearer photo.",
     "errorNoCalorieData": "No calorie data available.",
     "errorProductNotFound": "Product not found.",
+    "kcalValue": "{{value}} kcal",
     "lookingUpText": "Looking up {{barcode}}...",
     "lookUpButton": "Look up",
     "manualTab": "Manual",
@@ -174,12 +175,13 @@
       "sparkTitleTarget": ", target {{value}} {{unit}}",
       "title": "Weight Trend"
     },
+    "disclaimer": "This plan is an estimate based on standard formulas (Mifflin-St Jeor, or Katch-McArdle when a body-fat reading is available) and general activity guidelines. It is not medical advice — consult a healthcare professional before starting any weight-loss or weight-gain program, especially if you have underlying health conditions.",
     "goalForm": {
       "budgetLabel": "Budget: ",
       "byDateButton": "By date",
       "byRateButton": "By rate",
       "completeDetailsHint": "Complete your details above to compute a calorie budget for this goal.",
-      "etaLabel": "ETA: ",
+      "etaLabel": "Plan target date: ",
       "paceLabel": "Pace",
       "ratePlaceholder": "e.g. 0.5",
       "rateUnitLabel": "{{unit}}/week",
@@ -219,7 +221,7 @@
     },
     "percentToGoal": "{{percent}}% to goal",
     "progress": {
-      "projectedLabel": "Projected: {{date}}",
+      "projectedLabel": "At current trend: {{date}}",
       "title": "Progress"
     },
     "recommendedBudget": {
@@ -251,6 +253,12 @@
       "onTrack": "On track",
       "stalled": "Stalled",
       "wrongDirection": "Wrong direction"
+    },
+    "warnings": {
+      "aggressive_rate": "Your target pace is faster than 1% of body weight per week, which may be unsafe or unsustainable.",
+      "budget_clamped": "Your recommended calorie budget was raised to the safe minimum for your profile.",
+      "target_obese": "Your target weight falls in the obese BMI range.",
+      "target_underweight": "Your target weight falls in the underweight BMI range."
     }
   },
   "savedFoods": {

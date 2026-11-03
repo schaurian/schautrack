@@ -64,7 +64,10 @@
     "dismiss": "Schließen"
   },
   "errors": {
-    "failedToSave": "Speichern fehlgeschlagen"
+    "failedToSave": "Speichern fehlgeschlagen",
+    "forbidden": "Zugriff verweigert",
+    "requestFailed": "Anfrage fehlgeschlagen",
+    "unauthorized": "Nicht angemeldet"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} möchte sich mit dir verknüpfen"
