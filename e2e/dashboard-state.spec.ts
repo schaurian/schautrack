@@ -32,8 +32,8 @@ test.describe('Dashboard State', () => {
   test('today dot has ring indicator', async ({ page }) => {
     await login(page);
 
-    // Today's dot should have a ring (ring-2 class)
-    const todayDot = page.locator('button.ring-2');
+    // Today's dot should have a ring (ring-2 on the visible square inside the hit-area button)
+    const todayDot = page.locator('button > span.ring-2');
     await expect(todayDot).toBeVisible({ timeout: 5000 });
   });
 });

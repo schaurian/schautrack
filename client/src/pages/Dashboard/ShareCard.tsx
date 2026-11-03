@@ -95,7 +95,13 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
           </span>
         )}
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(18px,32px))] justify-between gap-x-3 gap-y-4 py-2 px-1">
+      {/* Each dot is a 44px hit area (DayDot) in a 44px track with no gap, so
+          hit areas tile without overlapping. auto-fit collapses the unused
+          tracks and justify-between spreads the rest across the full width,
+          as the dots always were; auto-fill would keep the empty tracks and
+          bunch the dots to the left on wide screens. The negative margin puts
+          the first and last visible squares where they sat before. */}
+      <div className="-mx-[7px] grid grid-cols-[repeat(auto-fit,44px)] justify-between py-1">
         {view.dailyStats.map((stat) => (
           <DayDot
             key={stat.date}
