@@ -299,6 +299,36 @@ func parseLimitOffset(limitStr, offsetStr string, def, max int) (limit, offset i
 	return limit, offset, nil
 }
 
+// adminUsersOrderBy maps the admin user list's ?sort=&order= to an ORDER BY
+// clause from a fixed whitelist. ok is false for anything it does not know.
+//
+//   - no sort (or "created"): newest account first — the list's original order.
+//   - sort=last_login: most recent sign-in first (order=desc, the default) or
+//     the longest-ago first (order=asc). Accounts with no recorded login sort
+//     LAST in both directions: NULL means "unknown", not "longest ago", so it
+//     must not crowd out the real oldest logins an admin is looking for.
+//
+// Every clause ends in an id DESC tiebreaker so equal timestamps never make
+// pagination skip or repeat rows, and the block of unknowns reads the same
+// (newest account first) whichever direction is chosen.
+func adminUsersOrderBy(sort, order string) (string, bool) {
+	switch sort {
+	case "", "created":
+		if order != "" && order != "desc" {
+			return "", false
+		}
+		return "created_at DESC, id DESC", true
+	case "last_login":
+		switch order {
+		case "", "desc":
+			return "last_login_at DESC NULLS LAST, id DESC", true
+		case "asc":
+			return "last_login_at ASC NULLS LAST, id DESC", true
+		}
+	}
+	return "", false
+}
+
 // AdminData handles GET /api/admin
 func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminEmail string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -310,10 +340,16 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 			return
 		}
 
-		// id DESC tiebreaker keeps the order deterministic when created_at
-		// collides, so pagination never skips or repeats rows.
+		orderBy, ok := adminUsersOrderBy(r.URL.Query().Get("sort"), r.URL.Query().Get("order"))
+		if !ok {
+			ErrorJSON(w, http.StatusBadRequest, "Invalid sort/order parameter.")
+			return
+		}
+
+		// orderBy comes from a fixed whitelist (adminUsersOrderBy), never from
+		// the request text itself.
 		rows, err := pool.Query(r.Context(),
-			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2",
+			"SELECT id, email, email_verified, created_at, last_login_at FROM users ORDER BY "+orderBy+" LIMIT $1 OFFSET $2",
 			limit, offset)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not load users.")
@@ -327,7 +363,8 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 			var email string
 			var emailVerified bool
 			var createdAt interface{}
-			if err := rows.Scan(&id, &email, &emailVerified, &createdAt); err != nil {
+			var lastLoginAt *time.Time
+			if err := rows.Scan(&id, &email, &emailVerified, &createdAt, &lastLoginAt); err != nil {
 				continue
 			}
 			users = append(users, map[string]any{
@@ -335,6 +372,8 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 				"email":          email,
 				"email_verified": emailVerified,
 				"created_at":     createdAt,
+				// null = no login recorded since the column was introduced.
+				"last_login_at": lastLoginAt,
 			})
 		}
 		if users == nil {

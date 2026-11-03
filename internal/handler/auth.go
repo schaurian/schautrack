@@ -90,6 +90,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		newSess.SetUserID(user.ID)
+		recordLogin(r.Context(), h.Pool, user.ID)
 		newSess.Set("auth_method", "password")
 		session.SetSession(r, newSess)
 		OkJSON(w)
@@ -190,6 +191,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newSess.SetUserID(userID)
+	recordLogin(r.Context(), h.Pool, userID)
 	newSess.Set("auth_method", "password")
 	session.SetSession(r, newSess)
 	OkJSON(w)
@@ -511,6 +513,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			return
 		}
 		newSess.SetUserID(userID)
+		recordLogin(r.Context(), h.Pool, userID)
 		newSess.Set("auth_method", "password")
 		session.SetSession(r, newSess)
 		OkJSON(w)

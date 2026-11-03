@@ -93,11 +93,16 @@ test.describe('Passkeys', () => {
       await page.getByRole('button', { name: 'Logout' }).click();
       await page.waitForURL(/\/login|\/$/, { timeout: 10000 });
 
+      // The passkey sign-in must stamp users.last_login_at on its own (the
+      // password login above already did; clear it to prove this one does).
+      psql(`UPDATE users SET last_login_at = NULL WHERE id = ${user.id}`);
+
       await page.goto('/login');
       await page.getByRole('button', { name: /sign in with passkey/i }).click();
 
       await page.waitForURL('/dashboard', { timeout: 15000 });
       await expect(page).toHaveURL(/\/dashboard/);
+      expect(psql(`SELECT last_login_at > NOW() - INTERVAL '5 minutes' FROM users WHERE id = ${user.id}`)).toBe('t');
     } finally {
       await teardown();
       await ctx.close();

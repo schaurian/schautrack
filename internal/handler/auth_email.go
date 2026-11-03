@@ -87,6 +87,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newSess.SetUserID(userID)
+	recordLogin(r.Context(), h.Pool, userID)
 	newSess.Set("auth_method", "password")
 	session.SetSession(r, newSess)
 	OkJSON(w)

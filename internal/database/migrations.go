@@ -921,6 +921,24 @@ func ensureOnboardingSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	})
 }
 
+// ensureLastLoginSchema adds users.last_login_at, stamped by the handlers on
+// every completed sign-in (handler.recordLogin) and shown in the admin user
+// list. Nullable and additive, so a rolling deploy is safe: old pods simply
+// never write it.
+//
+// There is no backfill, on purpose. Nothing recorded login times before this
+// column existed — the "session" table has no creation time (its expire is
+// pushed forward on activity, so it measures last activity, not login), and
+// the audit log's "login" action was declared but never written. Pre-existing
+// accounts therefore stay NULL, which the admin UI shows as "no login recorded
+// since this was introduced" rather than claiming the user never logged in.
+func ensureLastLoginSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	return withTransaction(ctx, pool, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`)
+		return err
+	})
+}
+
 // migrationLockKey is the application-scoped pg_advisory_lock key that
 // serializes schema migrations across replicas. Multiple pods starting at
 // once (rolling deploy, scale-up) would otherwise race conflicting DDL:
@@ -971,6 +989,7 @@ func migrationSteps() []migrationStep {
 		{"backup_codes", ensureBackupCodesSchema},
 		{"invite", ensureInviteSchema},
 		{"body_fat", ensureBodyFatSchema},
+		{"last_login", ensureLastLoginSchema},
 		// Data migrations (depend on columns created by "macros")
 		{"calorie_goal_to_macro_goals", migrateCalorieGoalToMacroGoals},
 		{"auto_calc_calories", migrateAutoCalcCalories},

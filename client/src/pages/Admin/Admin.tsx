@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAdmin } from '@/hooks/useAuth';
 import { getAdminData, saveAdminSettings, deleteUser, createInvite, getInvites, deleteInvite } from '@/api/admin';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,9 @@ import { useAutosave } from '@/hooks/useAutosave';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { InviteCode } from '@/types';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { formatDate, formatRelativeTime } from '@/lib/format';
+import type { AdminUser, AdminUserSort, InviteCode } from '@/types';
 
 /** Sentinel for "no value" — Radix Select disallows an item with value="". */
 const UNSET = '__unset__';
@@ -18,7 +20,15 @@ export default function Admin() {
   const { t } = useTranslation('settings');
   const { isLoading: authLoading } = useRequireAdmin();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['admin'], queryFn: getAdminData });
+  // The user list is ordered server-side (it is paginated there). Keeping the
+  // previous data while a new order loads stops the whole page flashing back
+  // to the spinner on every sort change.
+  const [userSort, setUserSort] = useState<AdminUserSort>('created');
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', userSort],
+    queryFn: () => getAdminData(userSort),
+    placeholderData: keepPreviousData,
+  });
 
   if (authLoading || isLoading || !data) {
     return <div className="flex items-center justify-center p-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
@@ -44,7 +54,7 @@ export default function Admin() {
 
       <InviteManager />
 
-      <UserList users={data.users} onDelete={handleDeleteUser} />
+      <UserList users={data.users} sort={userSort} onSortChange={setUserSort} onDelete={handleDeleteUser} />
     </div>
   );
 }
@@ -52,7 +62,17 @@ export default function Admin() {
 const INITIAL_USERS = 25;
 const LOAD_MORE_BATCH = 25;
 
-function UserList({ users, onDelete }: { users: { id: number; email: string; email_verified: boolean; created_at: string }[]; onDelete: (id: number) => void }) {
+function UserList({
+  users,
+  sort,
+  onSortChange,
+  onDelete,
+}: {
+  users: AdminUser[];
+  sort: AdminUserSort;
+  onSortChange: (sort: AdminUserSort) => void;
+  onDelete: (id: number) => void;
+}) {
   const { t } = useTranslation('settings');
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(INITIAL_USERS);
@@ -84,8 +104,19 @@ function UserList({ users, onDelete }: { users: { id: number; email: string; ema
 
   return (
     <Card>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h3 className="text-base font-semibold">{t('admin.usersHeading', { count: filtered.length })}</h3>
+        <SegmentedControl
+          name="admin-user-sort"
+          aria-label={t('admin.sortLabel')}
+          value={sort}
+          onChange={(v) => { onSortChange(v as AdminUserSort); setShown(INITIAL_USERS); }}
+          options={[
+            { value: 'created', label: t('admin.sortNewest') },
+            { value: 'last_login_desc', label: t('admin.sortRecentLogin') },
+            { value: 'last_login_asc', label: t('admin.sortOldestLogin') },
+          ]}
+        />
       </div>
       <input
         type="text"
@@ -96,13 +127,21 @@ function UserList({ users, onDelete }: { users: { id: number; email: string; ema
       />
       <div className="flex flex-col">
         {visible.map((user) => (
-          <div key={user.id} className="flex items-center gap-3 border-b border-border py-2 text-sm last:border-b-0">
-            <span className="flex-1 font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</span>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {user.email_verified ? t('admin.verified') : t('admin.unverified')}
-              {' \u00B7 '}
-              {new Date(user.created_at).toLocaleDateString()}
-            </span>
+          <div key={user.id} data-testid="admin-user-row" className="flex items-center gap-3 border-b border-border py-2 text-sm last:border-b-0">
+            {/* Email on its own line with the details wrapping underneath, so the
+                row still fits at phone width (the Android app is a WebView). */}
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</div>
+              <div className="flex flex-wrap gap-x-1 text-xs text-muted-foreground">
+                <span className="whitespace-nowrap">
+                  {user.email_verified ? t('admin.verified') : t('admin.unverified')}
+                  {' \u00B7 '}
+                  {new Date(user.created_at).toLocaleDateString()}
+                  {' \u00B7'}
+                </span>
+                <LastLogin value={user.last_login_at} />
+              </div>
+            </div>
             <Button size="sm" variant="destructive" onClick={() => onDelete(user.id)}>{t('admin.delete')}</Button>
           </div>
         ))}
@@ -116,6 +155,31 @@ function UserList({ users, onDelete }: { users: { id: number; email: string; ema
         </div>
       )}
     </Card>
+  );
+}
+
+/**
+ * "Last login 3 days ago", exact time on hover. A NULL is not "never": the
+ * column only started recording on the deploy that introduced it, so an older
+ * account may well have signed in before then — say exactly that instead.
+ */
+function LastLogin({ value }: { value: string | null }) {
+  const { t } = useTranslation('settings');
+  if (!value) {
+    const why = t('admin.lastLoginUnknownTitle');
+    return (
+      <span data-testid="admin-user-last-login" className="whitespace-nowrap" title={why}>
+        {t('admin.lastLoginLabel')} {'\u2014'}
+        <span className="sr-only"> ({why})</span>
+      </span>
+    );
+  }
+  const absolute = formatDate(value, undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return (
+    <span data-testid="admin-user-last-login" className="whitespace-nowrap">
+      {t('admin.lastLoginLabel')}{' '}
+      <time dateTime={value} title={absolute}>{formatRelativeTime(value)}</time>
+    </span>
   );
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatNumber, formatDate } from './format';
+import { formatNumber, formatDate, formatRelativeTime } from './format';
 
 describe('formatNumber', () => {
   it('groups by locale', () => {
@@ -19,5 +19,30 @@ describe('formatDate', () => {
     };
     expect(formatDate(iso, 'en-US', opts)).toBe('July 19, 2026');
     expect(formatDate(iso, 'de', opts)).toBe('19. Juli 2026');
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const now = new Date('2026-11-03T12:00:00Z');
+  const ago = (seconds: number) => new Date(now.getTime() - seconds * 1000);
+
+  it('picks the largest unit that keeps the number at least one', () => {
+    expect(formatRelativeTime(ago(0), now, 'en')).toBe('now');
+    expect(formatRelativeTime(ago(30), now, 'en')).toBe('30 seconds ago');
+    expect(formatRelativeTime(ago(5 * 60), now, 'en')).toBe('5 minutes ago');
+    expect(formatRelativeTime(ago(3 * 3600), now, 'en')).toBe('3 hours ago');
+    expect(formatRelativeTime(ago(86400), now, 'en')).toBe('yesterday');
+    expect(formatRelativeTime(ago(3 * 86400), now, 'en')).toBe('3 days ago');
+    expect(formatRelativeTime(ago(60 * 86400), now, 'en')).toBe('2 months ago');
+    expect(formatRelativeTime(ago(800 * 86400), now, 'en')).toBe('2 years ago');
+  });
+
+  it('never shows a full unit as the smaller one (59.6s is a minute, not "60 seconds")', () => {
+    expect(formatRelativeTime(ago(59.6), now, 'en')).toBe('1 minute ago');
+  });
+
+  it('is locale-aware', () => {
+    expect(formatRelativeTime(ago(3 * 86400), now, 'de')).toBe('vor 3 Tagen');
+    expect(formatRelativeTime(ago(3 * 86400), now, 'fr')).toBe('il y a 3 jours');
   });
 });
