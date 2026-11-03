@@ -100,9 +100,10 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
           hit areas tile without overlapping. auto-fit collapses the unused
           tracks and justify-between spreads the rest across the full width,
           as the dots always were; auto-fill would keep the empty tracks and
-          bunch the dots to the left on wide screens. The negative margin puts
-          the first and last visible squares where they sat before. */}
-      <div className="-mx-[7px] grid grid-cols-[repeat(auto-fit,44px)] justify-between py-1">
+          bunch the dots to the left on wide screens. The negative margins put
+          the outer squares where they sat before the 44px hit areas: 4px in
+          from the sides and 8px from the top and bottom. */}
+      <div className="-mx-[7px] -my-[3px] grid grid-cols-[repeat(auto-fit,44px)] justify-between">
         {view.dailyStats.map((stat) => (
           <DayDot
             key={stat.date}
