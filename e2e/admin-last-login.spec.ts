@@ -90,7 +90,7 @@ test.describe('Admin user list — last login', () => {
 
         // The column: relative text, absolute time on hover, honest unknown.
         await expect(row(page, 'recent').getByTestId('admin-user-last-login')).toHaveText(/Last login (now|\d+ seconds? ago|1 minute ago|\d+ minutes ago)/);
-        await expect(row(page, 'old').getByTestId('admin-user-last-login')).toHaveText(/Last login (last month|\d+ months? ago)/);
+        await expect(row(page, 'old').getByTestId('admin-user-last-login')).toHaveText('Last login 1 month ago');
         const oldTitle = await row(page, 'old').locator('time').getAttribute('title');
         expect(oldTitle).toMatch(/\d{4}/);
         const none = row(page, 'none').getByTestId('admin-user-last-login');
@@ -98,6 +98,24 @@ test.describe('Admin user list — last login', () => {
         await expect(none).toHaveAttribute('title', 'No login recorded since this was introduced');
 
         // The row must fit at phone width: no horizontal scroll, delete button on screen.
+        // Separator: on one line at desktop width, gone at phone width where the
+        // last login wraps onto its own line (no "Verified · 11/3/2026 ·").
+        const sep = row(page, 'old').getByTestId('admin-user-last-login-sep');
+        // Both tops in one evaluate: the page may still shift between two
+        // separate boundingBox() calls.
+        const [dateTop, loginTop] = await row(page, 'old').evaluate((el) => {
+          const date = [...el.querySelectorAll('span')].find((s) => /^(Verified|Unverified) · /.test(s.textContent ?? ''));
+          const login = el.querySelector('[data-testid="admin-user-last-login"]');
+          return [date?.getBoundingClientRect().top ?? Number.NaN, login?.getBoundingClientRect().top ?? Number.NaN];
+        });
+        if (viewport.width < 640) {
+          await expect(sep).toBeHidden();
+          expect(loginTop).toBeGreaterThan(dateTop + 4);
+        } else {
+          await expect(sep).toBeVisible();
+          expect(Math.abs(loginTop - dateTop)).toBeLessThan(4);
+        }
+
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow).toBeLessThanOrEqual(0);
         const btn = await row(page, 'none').getByRole('button', { name: 'Delete' }).boundingBox();

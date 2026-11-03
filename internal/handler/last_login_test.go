@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/types"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -256,7 +257,10 @@ func TestOIDCLoginRecordsLastLogin(t *testing.T) {
 // The passkey ceremony needs a real WebAuthn assertion, so it is covered in
 // e2e/passkey.spec.ts. This guard covers it — and any login path added later —
 // structurally: every handler that hands out an authenticated session
-// (SetUserID) must also stamp the login, once per SetUserID.
+// (SetUserID(x)) must also stamp the login for that same user
+// (recordLogin(ctx, pool, x)), once per SetUserID. Matching the argument, not
+// just the call count, is what stops a stamp written to the wrong id — say a
+// literal 0, or the pending user of another flow — from passing.
 func TestEveryLoginPathRecordsLastLogin(t *testing.T) {
 	funcs := parseHandlerPackage(t)
 	checked := 0
@@ -264,7 +268,7 @@ func TestEveryLoginPathRecordsLastLogin(t *testing.T) {
 		if fn.Body == nil {
 			continue
 		}
-		sets, records := 0, 0
+		var sets, records []string
 		ast.Inspect(fn.Body, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
@@ -272,22 +276,29 @@ func TestEveryLoginPathRecordsLastLogin(t *testing.T) {
 			}
 			switch f := call.Fun.(type) {
 			case *ast.SelectorExpr:
-				if f.Sel.Name == "SetUserID" {
-					sets++
+				if f.Sel.Name == "SetUserID" && len(call.Args) == 1 {
+					sets = append(sets, types.ExprString(call.Args[0]))
 				}
 			case *ast.Ident:
 				if f.Name == "recordLogin" {
-					records++
+					if len(call.Args) != 3 {
+						t.Errorf("%s: recordLogin called with %d args, want (ctx, pool, userID)", name, len(call.Args))
+						return true
+					}
+					records = append(records, types.ExprString(call.Args[2]))
 				}
 			}
 			return true
 		})
-		if sets == 0 {
+		if len(sets) == 0 {
 			continue
 		}
 		checked++
-		if records != sets {
-			t.Errorf("%s calls SetUserID %d time(s) but recordLogin %d time(s); every new authenticated session must stamp users.last_login_at", name, sets, records)
+		sort.Strings(sets)
+		sort.Strings(records)
+		if strings.Join(sets, ",") != strings.Join(records, ",") {
+			t.Errorf("%s: SetUserID is called for [%s] but recordLogin for [%s]; every new authenticated session must stamp users.last_login_at for that same user",
+				name, strings.Join(sets, ", "), strings.Join(records, ", "))
 		}
 	}
 	// Password, password+2FA, register, verify-email, passkey, OIDC: if this

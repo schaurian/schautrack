@@ -50,6 +50,11 @@ const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
  * in the largest unit that keeps the number above one, via the locale's own
  * Intl.RelativeTimeFormat. Months are 30 days and years 12 of those: this is
  * for at-a-glance recency, the exact timestamp belongs in a tooltip.
+ *
+ * numeric:'always' on purpose: 'auto' names calendar units ("yesterday",
+ * "vorgestern", "last month"), which reads oddly for elapsed time after a
+ * label like "Last login". A time in the future can only be clock skew, so it
+ * and anything under half a second read as the locale's "now".
  */
 export function formatRelativeTime(
   value: string | number | Date,
@@ -57,11 +62,13 @@ export function formatRelativeTime(
   locale: string = activeLocale(),
 ): string {
   const d = value instanceof Date ? value : new Date(value);
-  let amount = (d.getTime() - now.getTime()) / 1000;
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  // Seconds elapsed, as a positive magnitude so .5 rounds up either way.
+  let amount = (now.getTime() - d.getTime()) / 1000;
+  if (Math.round(amount) <= 0) return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(0, 'second');
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'always' });
   for (const [unit, size] of RELATIVE_STEPS) {
-    if (Math.abs(Math.round(amount)) < size) return rtf.format(Math.round(amount), unit);
+    if (Math.round(amount) < size) return rtf.format(-Math.round(amount), unit);
     amount /= size;
   }
-  return rtf.format(Math.round(amount), 'year');
+  return rtf.format(-Math.round(amount), 'year');
 }

@@ -90,6 +90,20 @@ describe('Admin user list — last login', () => {
     expect(cell.textContent).not.toMatch(/never/i);
   });
 
+  // At phone width the last login wraps onto its own line; a "·" glued to the
+  // date then dangled at the end of the first line ("Verified · 11/3/2026 ·").
+  it('does not end the verified/date part with a separator', async () => {
+    renderAdmin();
+    const row = (await screen.findByText('bob@example.test')).closest('[data-testid="admin-user-row"]') as HTMLElement;
+    const details = within(row).getByText(/^Verified · /);
+    expect(details.textContent).not.toMatch(/\u00B7\s*$/);
+    // The separator is its own element, shown only where the line does not wrap.
+    const sep = within(row).getByTestId('admin-user-last-login-sep');
+    expect(sep).toHaveTextContent('\u00B7');
+    expect(sep).toHaveAttribute('aria-hidden', 'true');
+    expect(sep).toHaveClass('hidden', 'sm:inline');
+  });
+
   it('keeps the default order and asks the server for it', async () => {
     renderAdmin();
     expect(await emailsInOrder()).toEqual(['carol@example.test', 'bob@example.test', 'alice@example.test']);
