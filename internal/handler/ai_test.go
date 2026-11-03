@@ -207,3 +207,29 @@ func TestEstimate_InvalidJSONReturns400(t *testing.T) {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
+
+// TestEstimate_OverlongContextReturns400 pins the cap on the free-text hint.
+// It is pasted into the provider prompt, so an uncapped one let a single
+// request carry megabytes of billed tokens on the operator's global key while
+// counting once against the daily limit. The cap counts characters, not
+// bytes: 200 umlauts are 400 bytes and still one character too few to reject.
+func TestEstimate_OverlongContextReturns400(t *testing.T) {
+	h := &AIHandler{}
+	img := "data:image/jpeg;base64,AAAA"
+	body := `{"image":"` + img + `","context":"` + strings.Repeat("ä", maxAIContextChars+1) + `"}`
+	r := httptest.NewRequest("POST", "/api/ai/estimate", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	h.Estimate(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if msg, _ := resp["error"].(string); !strings.Contains(msg, "Context too long") {
+		t.Errorf("error = %q, want message about context length", msg)
+	}
+}
