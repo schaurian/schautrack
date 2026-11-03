@@ -58,10 +58,20 @@ func TestPlanDatesUseUsersCalendarDay(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, offStart := clock.In(loc).Zone()
-			_, offEnd := clock.In(loc).AddDate(0, 0, 14).Zone()
-			if clock.UTC().Format("2006-01-02") == tc.localDate && offStart == offEnd {
-				t.Fatalf("case is not a boundary case: UTC date equals local date %s and no DST change in the window", tc.localDate)
+			// A DST-only case must also start within the offset change of
+			// midnight; otherwise "14 days" and "336 hours" still land on the
+			// same date and the case proves nothing about AddDate.
+			local := clock.In(loc)
+			_, offStart := local.Zone()
+			_, offEnd := local.AddDate(0, 0, 14).Zone()
+			shift := time.Duration(offEnd-offStart) * time.Second
+			if shift < 0 {
+				shift = -shift
+			}
+			sinceMidnight := time.Duration(local.Hour())*time.Hour + time.Duration(local.Minute())*time.Minute
+			nearMidnight := sinceMidnight < shift || 24*time.Hour-sinceMidnight <= shift
+			if clock.UTC().Format("2006-01-02") == tc.localDate && (shift == 0 || !nearMidnight) {
+				t.Fatalf("case is not a boundary case: UTC date equals local date %s and the window has no DST change within reach of midnight", tc.localDate)
 			}
 			prev := planClock
 			planClock = func() time.Time { return clock }

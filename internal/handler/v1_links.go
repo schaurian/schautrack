@@ -65,6 +65,12 @@ func (h *V1Handler) ListLinksV1(w http.ResponseWriter, r *http.Request) {
 			apierr.Write(w, r, dbFail("scan link", err))
 			return
 		}
+		// The column can hold a name the server cannot load (written before
+		// validation existed); report the UTC that is actually in force, the
+		// same as the session dashboard does for a linked user.
+		if !service.ValidTimezone(l.Timezone) {
+			l.Timezone = "UTC"
+		}
 		l.SharesWithMe = decodeShareFlags(withMe)
 		l.SharesToThem = decodeShareFlags(toThem)
 		out = append(out, l)
