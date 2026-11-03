@@ -376,7 +376,7 @@
   },
   "today": {
     "left": "zostało {{amount}}",
-    "over": "+{{amount}} ponad",
+    "over": "+{{amount}} powyżej",
     "toGo": "brakuje {{amount}}"
   },
   "goalPrompt": {

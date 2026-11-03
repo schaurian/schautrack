@@ -93,6 +93,25 @@ describe('EntryList delete toast', () => {
     expect(screen.queryByText('Entry deleted')).toBeNull();
   });
 
+  // Staging bug: logged 20:50, deleted 20:51, Undo brought it back at 20:51.
+  // Undo must re-post the row the server says it deleted — its created_at and
+  // every macro column — not the time-less snapshot taken from the list.
+  it('restores with the original logged time from the delete response', async () => {
+    const restore = {
+      entry_date: '2026-11-03', entry_name: 'Bread', amount: 250,
+      created_at: '2026-11-03T19:50:12.345678Z', protein_g: 9, fiber_g: 3,
+    };
+    vi.mocked(deleteEntry).mockResolvedValue({ ok: true, restore } as never);
+    const user = userEvent.setup();
+    renderList();
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete entry' })[1]);
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(createEntry).toHaveBeenCalledTimes(1));
+    expect(createEntry).toHaveBeenCalledWith(restore);
+  });
+
   it('plays the replace animation on the toast that took over the slot', async () => {
     const user = userEvent.setup();
     renderList();

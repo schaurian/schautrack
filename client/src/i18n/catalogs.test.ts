@@ -143,3 +143,34 @@ describe('energy unit', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// The ring's "+N over" (dashboard today.over) and the tooltip on the same ring
+// (common macros.over, via computeMacroStatus) describe one number, so they
+// must use one word. German once read "+100 drüber" on the ring and "100 über"
+// in its tooltip; Italian and Polish had the same split.
+describe('ring overshoot wording', () => {
+  it.each(LOCALES)('%s: ring text is the tooltip text with a leading +', (lng) => {
+    const inst = makeI18n(lng);
+    const ring = inst.t('today.over', { ns: 'dashboard', amount: 100 });
+    const tooltip = inst.t('macros.over', { ns: 'common', amount: 100 });
+    expect(ring).toBe(`+${tooltip}`);
+  });
+});
+
+// German shipped the English "Todos" as the section title. The feature is
+// "Aufgaben" in German; no German string may show the English word.
+describe('German todo wording', () => {
+  it('uses Aufgabe/Aufgaben, never the English Todo', () => {
+    const offenders: string[] = [];
+    const walk = (node: unknown, path: string) => {
+      if (typeof node === 'string') {
+        if (/\bTodos?\b|Todo-/.test(node)) offenders.push(`${path}: ${node}`);
+      } else if (node && typeof node === 'object') {
+        for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+      }
+    };
+    for (const ns of NAMESPACES) walk(catalogs.de[ns], ns);
+    expect(offenders).toEqual([]);
+    expect(makeI18n('de').t('todos.sectionTitle', { ns: 'dashboard' })).toBe('Aufgaben');
+  });
+});

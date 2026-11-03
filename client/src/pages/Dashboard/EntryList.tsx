@@ -186,8 +186,10 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     const seq = nextToastSeq();
     // Snapshot the entry so an accidental delete can be undone. The recreated
     // entry gets a new id (the server has no soft-delete) — an acceptable
-    // trade-off, matching the saved-foods Undo pattern.
-    const snapshot: Parameters<typeof createEntry>[0] = { entry_date: entry.date };
+    // trade-off, matching the saved-foods Undo pattern. The delete response's
+    // `restore` body replaces this snapshot when present: it carries the
+    // logged time and macros hidden from this list, which the snapshot lacks.
+    let snapshot: Parameters<typeof createEntry>[0] = { entry_date: entry.date };
     if (entry.name) snapshot.entry_name = entry.name;
     if (entry.amount) snapshot.amount = entry.amount;
     if (entry.macros) {
@@ -200,7 +202,8 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     }
 
     try {
-      await deleteEntry(entry.id);
+      const res = await deleteEntry(entry.id);
+      if (res?.restore) snapshot = res.restore;
       onUpdate();
       addToast('success', t('entries.toastDeleted'), {
         label: t('entries.undoLabel'),

@@ -358,7 +358,7 @@
   },
   "today": {
     "left": "{{amount}} rimanenti",
-    "over": "+{{amount}} in più",
+    "over": "+{{amount}} in eccesso",
     "toGo": "ne mancano {{amount}}"
   },
   "goalPrompt": {
