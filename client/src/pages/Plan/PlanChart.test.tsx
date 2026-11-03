@@ -60,7 +60,7 @@ describe('PlanChart "today" uses the stored zone', () => {
     );
     const labels = [...container.querySelectorAll('text')].map((n) => n.textContent);
     // The curve ends two weeks after the user's today (Nov 4 + 14 = Nov 18).
-    expect(labels).toContain('Nov 18, 26');
-    expect(labels).not.toContain('Nov 17, 26');
+    expect(labels).toContain('Nov 18, 2026');
+    expect(labels).not.toContain('Nov 17, 2026');
   });
 });
