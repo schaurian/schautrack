@@ -72,6 +72,10 @@
   "entries": {
     "logSectionTitle": "Registo",
     "addFood": "Adicionar alimento",
+    "fieldComputedRange": "As calorias destes macros excedem {{max}}",
+    "fieldInvalid": "Introduz um número ou uma conta como 2*150",
+    "fieldRange": "Introduz um valor entre {{min}} e {{max}}",
+    "fieldRangeQty": "Vezes {{qty}}, tem de ficar entre {{min}} e {{max}}",
     "foodNameAriaLabel": "Nome da comida",
     "foodNamePlaceholder": "Pequeno-almoço, lanche...",
     "qtyLabel": "Qtd",

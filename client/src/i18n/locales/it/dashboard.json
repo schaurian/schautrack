@@ -72,6 +72,10 @@
   "entries": {
     "logSectionTitle": "Registro",
     "addFood": "Aggiungi cibo",
+    "fieldComputedRange": "Le calorie di questi macro superano {{max}}",
+    "fieldInvalid": "Inserisci un numero o un calcolo come 2*150",
+    "fieldRange": "Inserisci un valore tra {{min}} e {{max}}",
+    "fieldRangeQty": "Moltiplicato per {{qty}}, deve restare tra {{min}} e {{max}}",
     "foodNameAriaLabel": "Nome del cibo",
     "foodNamePlaceholder": "Colazione, spuntino...",
     "qtyLabel": "Qtà",

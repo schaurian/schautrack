@@ -62,7 +62,7 @@ test.describe('Mobile Viewport', () => {
     await loginAndGo(page);
 
     await page.getByRole('button', { name: 'Add food' }).click();
-    const calorieInput = page.locator('input[inputmode="tel"]');
+    const calorieInput = page.locator('[data-testid="entry-calories"]');
     await expect(calorieInput).toBeVisible({ timeout: 10000 });
     await expect(calorieInput).toHaveAttribute('inputmode', 'tel');
     await ctx.close();
@@ -114,7 +114,7 @@ test.describe('Mobile Viewport', () => {
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
 
-    const calorieInput = page.locator('input[inputmode="tel"]');
+    const calorieInput = page.locator('[data-testid="entry-calories"]');
     await expect(calorieInput).toBeVisible({ timeout: 5000 });
 
     await nameInput.fill('Mobile test meal');

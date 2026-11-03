@@ -63,7 +63,7 @@ test.describe('Desktop shell', () => {
     await expect(dialog).toBeVisible();
 
     await dialog.locator('input[placeholder="Breakfast, snack..."]').fill('Desktop sheet food');
-    await dialog.locator('input[inputmode="tel"]').first().fill('321');
+    await dialog.locator('[data-testid="entry-calories"]').first().fill('321');
     await dialog.getByRole('button', { name: 'Track' }).click();
 
     // Tracking closes the sheet and the entry lands in the list without a reload.
@@ -85,7 +85,7 @@ test.describe('Desktop shell', () => {
     await page.getByRole('button', { name: 'Add food' }).click();
     const dialog = page.getByRole('dialog', { name: 'Add food' });
     await dialog.locator('input[placeholder="Breakfast, snack..."]').fill('Desktop undo overlap');
-    await dialog.locator('input[inputmode="tel"]').first().fill('123');
+    await dialog.locator('[data-testid="entry-calories"]').first().fill('123');
     await dialog.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Desktop undo overlap')).toBeVisible({ timeout: 10000 });
 

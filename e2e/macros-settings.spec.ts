@@ -233,13 +233,14 @@ test.describe.serial('Macro Settings', () => {
     // viewport, so the form has to be opened before its fields exist at all.
     const addFood = await openAddFood(page);
 
-    // Macro inputs use inputmode="numeric"; calories auto-calc field is readonly with inputmode="tel".
+    // Macro and calorie inputs both use inputmode="tel", so they are found by
+    // data-testid; the auto-calc calories field is readonly.
     // Scoped to the dialog so these cannot accidentally match a label of the
     // same name elsewhere on the dashboard behind the sheet.
-    const proteinInput = addFood.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input[inputmode="numeric"]');
-    const carbsInput = addFood.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input[inputmode="numeric"]');
-    const fatInput = addFood.locator('label').filter({ hasText: 'Fat' }).locator('..').locator('input[inputmode="numeric"]');
-    const caloriesInput = addFood.locator('label').filter({ hasText: 'Calories' }).locator('..').locator('input[inputmode="tel"]');
+    const proteinInput = addFood.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input[data-testid^="entry-macro-"]');
+    const carbsInput = addFood.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input[data-testid^="entry-macro-"]');
+    const fatInput = addFood.locator('label').filter({ hasText: 'Fat' }).locator('..').locator('input[data-testid^="entry-macro-"]');
+    const caloriesInput = addFood.locator('label').filter({ hasText: 'Calories' }).locator('..').locator('[data-testid="entry-calories"]');
 
     await expect(proteinInput).toBeVisible({ timeout: 10000 });
     await proteinInput.click();

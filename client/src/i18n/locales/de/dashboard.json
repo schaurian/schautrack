@@ -72,6 +72,10 @@
   "entries": {
     "logSectionTitle": "Eintragen",
     "addFood": "Essen hinzufügen",
+    "fieldComputedRange": "Die Kalorien aus diesen Makros übersteigen {{max}}",
+    "fieldInvalid": "Gib eine Zahl oder eine Rechnung wie 2*150 ein",
+    "fieldRange": "Gib einen Wert von {{min}} bis {{max}} ein",
+    "fieldRangeQty": "Mal {{qty}} muss der Wert zwischen {{min}} und {{max}} liegen",
     "foodNameAriaLabel": "Name des Lebensmittels",
     "foodNamePlaceholder": "Frühstück, Snack...",
     "qtyLabel": "Menge",

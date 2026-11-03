@@ -72,6 +72,10 @@
   "entries": {
     "logSectionTitle": "Journal",
     "addFood": "Ajouter un aliment",
+    "fieldComputedRange": "Les calories de ces macros dépassent {{max}}",
+    "fieldInvalid": "Saisissez un nombre ou un calcul comme 2*150",
+    "fieldRange": "Saisissez une valeur entre {{min}} et {{max}}",
+    "fieldRangeQty": "Multiplié par {{qty}}, cela doit rester entre {{min}} et {{max}}",
     "foodNameAriaLabel": "Nom de l'aliment",
     "foodNamePlaceholder": "Petit-déjeuner, collation...",
     "qtyLabel": "Qté",

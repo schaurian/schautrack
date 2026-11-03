@@ -107,7 +107,7 @@ test.describe('AI Photo Estimation', () => {
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toHaveValue('Grilled Chicken Breast');
 
-    const caloriesInput = page.locator('input[inputmode="tel"]');
+    const caloriesInput = page.locator('[data-testid="entry-calories"]');
     await expect(caloriesInput).toHaveValue('280');
     await ctx.close();
   });

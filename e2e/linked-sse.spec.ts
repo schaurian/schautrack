@@ -79,7 +79,7 @@ test.describe('Linked User SSE Propagation', () => {
       const entryName = `SSE Linked Entry ${Date.now()}`;
       await openAddFood(pageA);
       await pageA.locator('input[placeholder="Breakfast, snack..."]').fill(entryName);
-      await pageA.locator('input[inputmode="tel"]').first().fill('444');
+      await pageA.locator('[data-testid="entry-calories"]').first().fill('444');
       await pageA.getByRole('button', { name: 'Track' }).click();
       await expect(pageA.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 

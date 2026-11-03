@@ -74,6 +74,10 @@
   "entries": {
     "logSectionTitle": "Dziennik",
     "addFood": "Dodaj posiłek",
+    "fieldComputedRange": "Kalorie z tych makr przekraczają {{max}}",
+    "fieldInvalid": "Wpisz liczbę lub działanie, np. 2*150",
+    "fieldRange": "Wpisz wartość od {{min}} do {{max}}",
+    "fieldRangeQty": "Razy {{qty}} wartość musi mieścić się między {{min}} a {{max}}",
     "foodNameAriaLabel": "Nazwa jedzenia",
     "foodNamePlaceholder": "Śniadanie, przekąska...",
     "qtyLabel": "Ilość",
