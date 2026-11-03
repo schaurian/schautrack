@@ -215,7 +215,7 @@ func TestGetTargetsResolvesWithNoLocalClients(t *testing.T) {
 	// silently dropped every cross-instance event. Targets must resolve anyway.
 	// (nil pool: the seeded cache keeps the lookup off the DB.)
 	b := newTestBroker()
-	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}})
+	b.storeLinks(1, linkStamp{}, []linkTarget{{userID: 2, shares: allShared}})
 
 	got := b.getTargets(1, service.ShareNutrition)
 
@@ -231,7 +231,7 @@ func TestGetTargetsUsesCacheWithoutQueryingDB(t *testing.T) {
 	ch := b.Subscribe(1)
 	defer b.Unsubscribe(1, ch)
 
-	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}, {userID: 3, shares: allShared}})
+	b.storeLinks(1, linkStamp{}, []linkTarget{{userID: 2, shares: allShared}, {userID: 3, shares: allShared}})
 	got := b.getTargets(1, service.ShareNutrition)
 
 	if len(got) != 3 || got[0] != 1 {
@@ -251,11 +251,11 @@ func TestGetTargetsDoesNotAliasCache(t *testing.T) {
 	ch := b.Subscribe(1)
 	defer b.Unsubscribe(1, ch)
 
-	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}})
+	b.storeLinks(1, linkStamp{}, []linkTarget{{userID: 2, shares: allShared}})
 	got := b.getTargets(1, service.ShareNutrition)
 	got[len(got)-1] = 999 // mutating the returned slice must not corrupt the cache
 
-	linked, ok := b.cachedLinks(1)
+	linked, _, ok := b.cachedLinks(1)
 	if !ok || len(linked) != 1 || linked[0].userID != 2 {
 		t.Fatalf("cache was mutated through the returned slice: %v", linked)
 	}
@@ -263,12 +263,12 @@ func TestGetTargetsDoesNotAliasCache(t *testing.T) {
 
 func TestInvalidateLinksForcesRefresh(t *testing.T) {
 	b := newTestBroker()
-	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}})
-	if _, ok := b.cachedLinks(1); !ok {
+	b.storeLinks(1, linkStamp{}, []linkTarget{{userID: 2, shares: allShared}})
+	if _, _, ok := b.cachedLinks(1); !ok {
 		t.Fatal("expected a fresh cache entry after storeLinks")
 	}
 	b.InvalidateLinks(1)
-	if _, ok := b.cachedLinks(1); ok {
+	if _, _, ok := b.cachedLinks(1); ok {
 		t.Fatal("expected a cache miss after InvalidateLinks")
 	}
 }
@@ -278,7 +278,7 @@ func TestCachedLinksExpires(t *testing.T) {
 	b.linkCache = map[int]linkCacheEntry{
 		1: {linked: []linkTarget{{userID: 2, shares: allShared}}, expires: time.Now().Add(-time.Second)},
 	}
-	if _, ok := b.cachedLinks(1); ok {
+	if _, _, ok := b.cachedLinks(1); ok {
 		t.Fatal("expected an expired cache entry to miss")
 	}
 }
@@ -397,7 +397,7 @@ func TestActivityEventsReachOnlyFriendsSharedThatCategory(t *testing.T) {
 					others[k] = true
 				}
 			}
-			b.storeLinks(1, []linkTarget{{userID: 2, shares: shared}, {userID: 3, shares: others}})
+			b.storeLinks(1, linkStamp{}, []linkTarget{{userID: 2, shares: shared}, {userID: 3, shares: others}})
 
 			chans := map[int]chan []byte{}
 			for _, id := range []int{1, 2, 3} {
