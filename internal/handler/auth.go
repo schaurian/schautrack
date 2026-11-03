@@ -380,6 +380,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 
 	if emailClean == "" || hash == "" || (createdAt > 0 && time.Since(time.Unix(int64(createdAt), 0)) > 30*time.Minute) {
 		sess.Delete("pendingRegistration")
+		// Not observable today (nothing reads it without a pending registration), but a stale answer must never outlive its flow.
 		sess.Delete(registerCaptchaKey)
 		ErrorJSON(w, http.StatusBadRequest, "Registration session expired.")
 		return
