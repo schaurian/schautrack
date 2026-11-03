@@ -37,7 +37,7 @@ func TestPlanDatesUseUsersCalendarDay(t *testing.T) {
 		// land on different calendar days. These catch an ETA computed with
 		// Add(n*24h) instead of calendar AddDate.
 		{"berlin 23:30 the evening before spring-forward", "Europe/Berlin", "2026-03-28T22:30:00Z", "2026-03-28", "2026-04-11"},
-		{"berlin 00:30 two weeks before fall-back", "Europe/Berlin", "2026-10-23T22:30:00Z", "2026-10-24", "2026-11-07"},
+		{"berlin 00:30 the day before fall-back", "Europe/Berlin", "2026-10-23T22:30:00Z", "2026-10-24", "2026-11-07"},
 		{"los angeles 23:30 a week before spring-forward", "America/Los_Angeles", "2026-03-02T07:30:00Z", "2026-03-01", "2026-03-15"},
 	}
 

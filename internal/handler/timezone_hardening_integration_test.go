@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,7 +136,7 @@ func TestLinkedUserInvalidTimezoneReadsAsUTC(t *testing.T) {
 }
 
 // "Local" passes time.LoadLocation but names the server's zone, not one the
-// user chose; it must not be stored by either write path.
+// user chose; it must not be stored by either write path. Neither may "" on v1.
 func TestTimezoneLocalIsRejected(t *testing.T) {
 	e := newV1Env(t)
 
@@ -155,16 +156,21 @@ func TestTimezoneLocalIsRejected(t *testing.T) {
 		}
 	})
 
-	t.Run("PATCH /api/v1/me", func(t *testing.T) {
-		e.setTimezone(e.UserID, "Europe/Berlin")
-		rec := e.patch("/api/v1/me", e.token(service.ScopeSettingsWrite), `{"timezone":"Local"}`)
-		if rec.Code != http.StatusUnprocessableEntity {
-			t.Fatalf("status = %d, want 422: %s", rec.Code, rec.Body.String())
-		}
-		if tz, _ := e.storedTimezone(e.UserID); tz != "Europe/Berlin" {
-			t.Errorf("stored timezone = %q, want Europe/Berlin unchanged", tz)
-		}
-	})
+	// "" also loads (as UTC) but is not a zone either: storing it pinned the
+	// account to UTC days with timezone_manual set.
+	for _, bad := range []string{"Local", ""} {
+		t.Run(fmt.Sprintf("PATCH /api/v1/me timezone=%q", bad), func(t *testing.T) {
+			e.setTimezone(e.UserID, "Europe/Berlin")
+			body, _ := json.Marshal(map[string]string{"timezone": bad})
+			rec := e.patch("/api/v1/me", e.token(service.ScopeSettingsWrite), string(body))
+			if rec.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want 422: %s", rec.Code, rec.Body.String())
+			}
+			if tz, manual := e.storedTimezone(e.UserID); tz != "Europe/Berlin" || manual {
+				t.Errorf("stored timezone = %q (manual %v), want Europe/Berlin unchanged", tz, manual)
+			}
+		})
+	}
 }
 
 // An import file with "timezone": "" carries no zone. It used to store an empty string and
