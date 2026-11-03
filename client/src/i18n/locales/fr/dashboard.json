@@ -66,7 +66,12 @@
       "over": "au-dessus de l'objectif",
       "overThreshold": "largement au-dessus de l'objectif",
       "zero": "aucune entrée",
-      "none": "aucune entrée"
+      "none": "aucune entrée",
+      "missedTarget": "objectif manqué"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}} % au-dessus",
+      "under": "{{metric}} {{pct}} % sous l'objectif"
     }
   },
   "entries": {
@@ -340,5 +345,16 @@
     "toastBodyFatSaveFailed": "Échec de l’enregistrement de la masse grasse",
     "bodyFatHint": "La seconde case est votre % de masse grasse, si votre balance le mesure.",
     "bodyFatPlaceholder": "% gras"
+  },
+  "today": {
+    "left": "{{amount}} restants",
+    "over": "+{{amount}} en trop",
+    "toGo": "encore {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "L'anneau et les carrés du jour se remplissent par rapport à votre objectif. Sans objectif, ils n'ont rien à mesurer.",
+    "cta": "Définir l'objectif",
+    "dismiss": "Plus tard",
+    "title": "Définir un objectif calorique"
   }
 }

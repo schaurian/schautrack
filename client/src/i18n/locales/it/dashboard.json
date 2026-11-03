@@ -66,7 +66,12 @@
       "over": "sopra l'obiettivo",
       "overThreshold": "ben oltre l'obiettivo",
       "zero": "nessuna voce",
-      "none": "nessuna voce"
+      "none": "nessuna voce",
+      "missedTarget": "obiettivo mancato"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% sopra",
+      "under": "{{metric}} {{pct}}% sotto l'obiettivo"
     }
   },
   "entries": {
@@ -340,5 +345,16 @@
     "toastBodyFatSaveFailed": "Salvataggio del grasso corporeo non riuscito",
     "bodyFatHint": "Il secondo campo è la tua percentuale di grasso corporeo, se la bilancia la misura.",
     "bodyFatPlaceholder": "% grasso"
+  },
+  "today": {
+    "left": "{{amount}} rimanenti",
+    "over": "+{{amount}} in più",
+    "toGo": "ne mancano {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "L'anello e i quadratini dei giorni si riempiono rispetto al tuo obiettivo. Senza, non hanno nulla da misurare.",
+    "cta": "Imposta obiettivo",
+    "dismiss": "Non ora",
+    "title": "Imposta un obiettivo di calorie"
   }
 }

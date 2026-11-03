@@ -101,6 +101,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
             key={stat.date}
             date={stat.date}
             status={stat.status}
+            reason={stat.reason}
             isToday={stat.date === todayStr}
             isSelected={isActive && stat.date === selectedDate}
             onClick={() => onDotClick(stat.date)}

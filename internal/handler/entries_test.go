@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -268,6 +269,132 @@ func TestBuildDailyStats(t *testing.T) {
 		// WorstDotStatus picks over_threshold
 		if stats[0].Status != "over_threshold" {
 			t.Errorf("status = %q, want \"over_threshold\"", stats[0].Status)
+		}
+	})
+}
+
+// The dot shows the worst status across calories and every macro, while the
+// ring shows calories only. The reason names which metric decided the dot so
+// the client can explain a red dot under an amber ring.
+func TestBuildDailyStatsReason(t *testing.T) {
+	g := func(n int) *int { return &n }
+	day := "2026-10-27"
+
+	t.Run("macro that sets the worst status is the reason", func(t *testing.T) {
+		// Calories 2240/2200 (1.8% over, amber with a 10% threshold); fat
+		// 92/70 (31% over, red). The dot is red because of fat.
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2240},
+			g(2200),
+			[]string{"protein", "fat"},
+			map[string]int{"protein": 110, "fat": 70},
+			map[string]string{"protein": "target"},
+			map[string]map[string]int{day: {"protein": 134, "fat": 92}},
+			10,
+		)
+		if stats[0].Status != "over_threshold" {
+			t.Fatalf("status = %q, want over_threshold", stats[0].Status)
+		}
+		r := stats[0].Reason
+		if r == nil {
+			t.Fatal("reason = nil, want fat")
+		}
+		// 22/70 = 31.4% over. Only the percentage leaves the server.
+		want := dotReason{Metric: "fat", Mode: "limit", Pct: 31, Direction: "over"}
+		if *r != want {
+			t.Errorf("reason = %+v, want %+v", *r, want)
+		}
+	})
+
+	t.Run("ties on status pick the largest deviation", func(t *testing.T) {
+		// Both carbs (20% over) and sugar (50% over) are red; sugar explains it best.
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 1800},
+			g(2200),
+			[]string{"carbs", "sugar"},
+			map[string]int{"carbs": 200, "sugar": 40},
+			nil,
+			map[string]map[string]int{day: {"carbs": 240, "sugar": 60}},
+			10,
+		)
+		if r := stats[0].Reason; r == nil || r.Metric != "sugar" {
+			t.Errorf("reason = %+v, want sugar", r)
+		}
+	})
+
+	t.Run("calories over is the reason when no macro is worse", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2240},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		// 40/2200 = 1.8% over, rounded to 2.
+		want := dotReason{Metric: "calories", Mode: "limit", Pct: 2, Direction: "over"}
+		if r := stats[0].Reason; r == nil || *r != want {
+			t.Errorf("reason = %+v, want %+v", r, want)
+		}
+	})
+
+	t.Run("missed target reports under", func(t *testing.T) {
+		// Protein target 110, ate 60: 45.5% short, red.
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 1500},
+			g(2200),
+			[]string{"protein"},
+			map[string]int{"protein": 110},
+			map[string]string{"protein": "target"},
+			map[string]map[string]int{day: {"protein": 60}},
+			10,
+		)
+		want := dotReason{Metric: "protein", Mode: "target", Pct: 45, Direction: "under"}
+		if r := stats[0].Reason; r == nil || *r != want {
+			t.Errorf("reason = %+v, want %+v", r, want)
+		}
+	})
+
+	t.Run("a tiny overshoot is never 0%", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2201},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		if r := stats[0].Reason; r == nil || r.Pct != 1 {
+			t.Errorf("reason = %+v, want pct 1", r)
+		}
+	})
+
+	t.Run("the JSON carries no totals or goals", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2240},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		b, err := json.Marshal(stats[0].Reason)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(b); got != `{"metric":"calories","mode":"limit","pct":2,"direction":"over"}` {
+			t.Errorf("reason JSON = %s", got)
+		}
+	})
+
+	t.Run("no reason for green, empty or goalless days", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{"2026-10-25", "2026-10-26"},
+			map[string]int{"2026-10-25": 1500},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		for _, s := range stats {
+			if s.Reason != nil {
+				t.Errorf("%s (%s): reason = %+v, want nil", s.Date, s.Status, *s.Reason)
+			}
 		}
 	})
 }

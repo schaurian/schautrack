@@ -13,6 +13,8 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
 import { Fab } from '@/components/ui/Fab';
 import TodayPanel from './TodayPanel';
+import GoalPromptCard from './GoalPromptCard';
+import { shouldShowGoalPrompt } from '@/lib/goalFeedback';
 import EntryForm from './EntryForm';
 import SavedFoodsRow from './SavedFoodsRow';
 import Timeline from './Timeline';
@@ -180,6 +182,10 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {shouldShowGoalPrompt({ canEdit, caloriesEnabled: dashboard.caloriesEnabled, dailyGoal: dashboard.dailyGoal }) && (
+        <GoalPromptCard userId={dashboard.user.id} />
+      )}
+
       {showCat('nutrition') && (
         <TodayPanel
           dailyGoal={dashboard.dailyGoal}
@@ -193,6 +199,7 @@ export default function Dashboard() {
           macroModes={dashboard.macroModes}
           selectedDate={selectedDate}
           todayStr={dashboard.todayStr}
+          showDeltas={canEdit}
         />
       )}
 

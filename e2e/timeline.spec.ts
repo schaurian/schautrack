@@ -158,7 +158,7 @@ test.describe('Timeline', () => {
     await expect(customBtn).toBeVisible();
 
     // Dots for the selected range should be visible; check for a dot matching start date
-    const startDot = page.locator(`button[title="${startStr}"]`);
+    const startDot = page.locator(`button[aria-label^="${startStr}:"]`);
     if (await startDot.count() > 0) {
       await expect(startDot.first()).toBeVisible({ timeout: 5000 });
     }

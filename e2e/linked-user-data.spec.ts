@@ -69,7 +69,7 @@ test.describe('Linked User Data', () => {
     // The dots grid is a sibling div of the label's parent div, inside the same .rounded-xl
     // Navigate: span -> parent div.mb-2 -> parent .rounded-xl -> find the today dot
     const ownerCard = ownerLabel.locator('../..'); // span -> div.mb-2 -> .rounded-xl
-    const todayDot = ownerCard.locator(`button[title="${TODAY}"]`);
+    const todayDot = ownerCard.locator(`button[aria-label^="${TODAY}:"]`);
     await expect(todayDot).toBeVisible({ timeout: 5000 });
     await todayDot.click();
 

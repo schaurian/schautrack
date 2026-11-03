@@ -81,8 +81,11 @@ test.describe('Entry Tracking', () => {
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // Wait for the dot's status to update via SSE (may take a moment after the toast)
-    await expect(todayDot).toHaveAttribute('aria-label', new RegExp(`${today}:.*over`), { timeout: 15000 });
+    // Wait for the dot's status to update via SSE (may take a moment after the toast).
+    // The dot names the metric that decided its colour: here calories (25% over)
+    // and the untouched protein target (100% under) are both red, and the larger
+    // miss wins, so the label may read "missed target" rather than "over goal".
+    await expect(todayDot).toHaveAttribute('aria-label', new RegExp(`${today}:.*(over goal|missed target)`), { timeout: 15000 });
 
     psql(`DELETE FROM calorie_entries WHERE user_id = ${user.id}`);
     await ctx.close();

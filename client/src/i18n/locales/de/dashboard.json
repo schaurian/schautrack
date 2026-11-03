@@ -66,7 +66,12 @@
       "over": "über Ziel",
       "overThreshold": "deutlich über Ziel",
       "zero": "keine Einträge",
-      "none": "keine Einträge"
+      "none": "keine Einträge",
+      "missedTarget": "Ziel verfehlt"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}} % drüber",
+      "under": "{{metric}} {{pct}} % unter Ziel"
     }
   },
   "entries": {
@@ -340,5 +345,16 @@
     "toastBodyFatSaveFailed": "Körperfett konnte nicht gespeichert werden",
     "bodyFatHint": "Das zweite Feld ist dein Körperfettanteil in %, falls deine Waage ihn misst.",
     "bodyFatPlaceholder": "% Fett"
+  },
+  "today": {
+    "left": "noch {{amount}}",
+    "over": "+{{amount}} drüber",
+    "toGo": "noch {{amount}} bis Ziel"
+  },
+  "goalPrompt": {
+    "body": "Ring und Tagesquadrate füllen sich gegen dein Ziel. Ohne Ziel haben sie nichts zu messen.",
+    "cta": "Ziel festlegen",
+    "dismiss": "Nicht jetzt",
+    "title": "Kalorienziel festlegen"
   }
 }
