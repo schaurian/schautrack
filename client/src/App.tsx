@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
@@ -7,28 +7,9 @@ import { useSSE } from '@/hooks/useSSE';
 import { setOn401 } from '@/api/client';
 import { queryClient } from './main';
 import Toaster from '@/components/ui/Toaster';
-import { useStepUpStore } from '@/stores/stepUpStore';
-import { lazyRoute } from '@/lib/lazyRoute';
+import StepUpModal from '@/components/StepUpModal';
 import AppRouter from './router';
 import i18n, { isSupportedLanguage } from '@/i18n';
-
-// The step-up modal pulls in Radix Dialog and the WebAuthn library, and it is
-// needed only when a gated request is refused — rare, and never on a cold load.
-// It is fetched the first time a step-up is pending and then stays mounted, so
-// its cached OIDC info and Radix's close animation survive later prompts.
-const StepUpModal = lazyRoute(() => import('@/components/StepUpModal'));
-
-function StepUpGate() {
-  const pending = useStepUpStore((s) => s.pending);
-  const [needed, setNeeded] = useState(false);
-  if (pending && !needed) setNeeded(true);
-  if (!needed) return null;
-  return (
-    <Suspense fallback={null}>
-      <StepUpModal />
-    </Suspense>
-  );
-}
 
 export default function App() {
   const { fetchUser, isInitialized, user, clearUser } = useAuthStore();
@@ -68,7 +49,7 @@ export default function App() {
     <>
       {user && <SSEProvider />}
       <Toaster />
-      <StepUpGate />
+      <StepUpModal />
       {isInitialized ? <AppRouter /> : <LoadingScreen />}
     </>
   );

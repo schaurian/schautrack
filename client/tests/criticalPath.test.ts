@@ -8,30 +8,36 @@ import { build, type Rollup } from 'vite';
  * and every chunk it imports statically (Vite emits those as modulepreload
  * links in index.html). Dynamic imports are not on that path.
  *
- * These modules are needed only after a user action — a step-up prompt, the
- * first-login tour, the passkey button — or only on a signed-out page that a
- * returning user (and every Android cold start, which opens /dashboard) never
- * renders. One stray static import pulls any of them back into the startup
- * bundle without failing anything else, so this runs the real production build
- * (in memory) and walks the chunk graph.
+ * Some modules are needed only after a user action (the first-login tour) or
+ * only on a page that a cold start rarely opens. One stray static import pulls
+ * any of them back into the startup bundle without failing anything else, so
+ * this runs the real production build (in memory) and walks the chunk graph.
+ *
+ * The opposite also matters. Landing and Login are the signed-out cold-start
+ * pages and must render in the frame the session check lands: a lazy page
+ * suspends on its first render, and React then holds the reveal back by ~300
+ * ms. The step-up modal guards security-sensitive actions and must never
+ * depend on a chunk that can fail to load.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const clientRoot = resolve(here, '..');
 
 const DEFERRED: { what: string; id: RegExp }[] = [
-  { what: 'the WebAuthn library', id: /node_modules\/@simplewebauthn\// },
-  { what: 'Radix Dialog', id: /node_modules\/@radix-ui\/react-dialog\// },
-  { what: 'the step-up modal', id: /src\/components\/StepUpModal\.tsx$/ },
   { what: 'the welcome tour', id: /src\/components\/Onboarding\// },
-  { what: 'the landing page', id: /src\/pages\/Landing\// },
-  { what: 'the login page', id: /src\/pages\/Login\// },
   { what: 'the register page', id: /src\/pages\/Register\// },
+  { what: 'the password-reset pages', id: /src\/pages\/(ForgotPassword|ResetPassword)\// },
   { what: 'the dashboard page', id: /src\/pages\/Dashboard\// },
 ];
 
+const EAGER: { what: string; id: RegExp }[] = [
+  { what: 'the landing page', id: /src\/pages\/Landing\/Landing\.tsx$/ },
+  { what: 'the login page', id: /src\/pages\/Login\/Login\.tsx$/ },
+  { what: 'the step-up modal', id: /src\/components\/StepUpModal\.tsx$/ },
+  { what: 'the WebAuthn library the login and step-up use', id: /node_modules\/@simplewebauthn\// },
+];
+
 let critical: string[] = [];
-let loginPage: string[] = [];
 
 /** Module ids of the given chunks plus everything they import statically. */
 function closure(byName: Map<string, Rollup.OutputChunk>, roots: string[]): string[] {
@@ -62,23 +68,16 @@ beforeAll(async () => {
   expect(entries).toHaveLength(1);
 
   critical = closure(byName, [entries[0].fileName]);
-  const loginChunk = chunks.find((c) => Object.keys(c.modules).some((m) => /src\/pages\/Login\/Login\.tsx$/.test(m)));
-  expect(loginChunk).toBeDefined();
-  loginPage = closure(byName, [(loginChunk as Rollup.OutputChunk).fileName]);
   expect(critical.length).toBeGreaterThan(0);
 }, 180_000);
-
-describe('the login page', () => {
-  it('fetches the WebAuthn library only when the passkey button is used', () => {
-    // A cold start to /login downloads the login chunk and its static imports;
-    // the passkey helper is for one button on it.
-    expect(loginPage.filter((m) => /node_modules\/@simplewebauthn\//.test(m))).toEqual([]);
-  });
-});
 
 describe('the startup bundle', () => {
   it.each(DEFERRED)('leaves out $what', ({ id }) => {
     expect(critical.filter((m) => id.test(m))).toEqual([]);
+  });
+
+  it.each(EAGER)('carries $what', ({ id }) => {
+    expect(critical.some((m) => id.test(m))).toBe(true);
   });
 
   it('still carries React and the router', () => {
