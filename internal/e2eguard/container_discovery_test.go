@@ -25,7 +25,7 @@ func TestSuiteNeverDiscoversContainersByListing(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || !(strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".sh")) {
+			if d.IsDir() || (!strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".sh")) {
 				return nil
 			}
 			src, err := os.ReadFile(path)
