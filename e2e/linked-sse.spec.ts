@@ -66,13 +66,13 @@ test.describe('Linked User SSE Propagation', () => {
 
       // Click today's dot in User A's share card to switch to their view
       const userACard = pageB.getByTestId('share-card').filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') });
-      const todayDot = userACard.locator(`button[title="${TODAY}"]`).first();
-      const dotVisible = await todayDot.isVisible({ timeout: 5000 }).catch(() => false);
-
-      if (dotVisible) {
-        await todayDot.click();
-        await pageB.waitForTimeout(600);
-      }
+      // DayDot's aria-label starts with the ISO date; its title is the localized
+      // tooltip (#654), so it can't be matched by date any more. Today is always
+      // in range, so a missing dot is a real failure, not a reason to skip.
+      const todayDot = userACard.locator(`button[aria-label^="${TODAY}:"]`).first();
+      await expect(todayDot).toBeVisible({ timeout: 5000 });
+      await todayDot.click();
+      await pageB.waitForTimeout(600);
 
       // Now User A adds an entry via the UI (this fires the SSE event)
       const entryName = `SSE Linked Entry ${Date.now()}`;
@@ -84,14 +84,7 @@ test.describe('Linked User SSE Propagation', () => {
 
       // User B's page (viewing User A) should show the new entry without a manual reload
       // SSE fires a broadcast that triggers a refetch in the viewer's dashboard
-      if (dotVisible) {
-        await expect(pageB.getByText(entryName)).toBeVisible({ timeout: 15000 });
-      } else {
-        // If the share card dot wasn't clickable (e.g., no range coverage), skip SSE assertion
-        // but verify the entry exists for User A
-        await expect(pageA.getByRole('button', { name: entryName })).toBeVisible({ timeout: 5000 });
-        test.skip(true, 'Share card dot not visible; cannot verify cross-user SSE in this configuration');
-      }
+      await expect(pageB.getByText(entryName)).toBeVisible({ timeout: 15000 });
     } finally {
       await ctxA.close();
       await ctxB.close();
