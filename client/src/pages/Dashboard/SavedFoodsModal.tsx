@@ -4,7 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoods, deleteSavedFood, createSavedFood, updateSavedFood } from '@/api/savedFoods';
 import type { SavedFoodPayload } from '@/api/savedFoods';
-import { useToastStore } from '@/stores/toastStore';
+import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
@@ -301,6 +301,7 @@ function SavedFoodRow({
   };
 
   const handleDelete = async () => {
+    const seq = nextToastSeq();
     setBusy(true);
     // Snapshot so Undo can re-create the row. use_count/last_used_at are not
     // preserved — acceptable trade-off vs. a soft-delete column on the table.
@@ -327,7 +328,8 @@ function SavedFoodRow({
             addToast('error', err instanceof Error ? err.message : t('savedFoods.toastRestoreFailed'));
           }
         },
-      });
+        // One delete toast at a time, as for entries (EntryList).
+      }, { replaceKey: 'saved-food-delete', seq });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('savedFoods.toastDeleteFailed'));
     }

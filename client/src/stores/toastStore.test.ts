@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useToastStore } from './toastStore';
+import { nextToastSeq, useToastStore } from './toastStore';
 
 // A toast carrying a replace key occupies one slot: a second toast with the
 // same key takes that slot over instead of stacking under it. Deleting three
@@ -58,5 +58,37 @@ describe('toastStore replaceKey', () => {
     store().addToast('success', 'Entry deleted', action, { replaceKey: 'entry-delete' });
     store().addToast('success', 'Deleted Apple', action, { replaceKey: 'saved-food-delete' });
     expect(store().toasts).toHaveLength(2);
+  });
+
+  it('keeps a paused toast paused when it is replaced', () => {
+    // Hovering or focusing a toast holds off its dismissal. Replacing it must
+    // not start a timer behind the pointer's back: resumeToast would then see
+    // a timer and skip, and the toast would vanish while still hovered.
+    const action = { label: 'Undo', onClick: () => {} };
+    store().addToast('success', 'Entry deleted', action, { replaceKey: 'entry-delete' });
+    const { id } = store().toasts[0];
+    store().pauseToast(id);
+    store().addToast('success', 'Entry deleted', action, { replaceKey: 'entry-delete' });
+    vi.advanceTimersByTime(20000);
+    expect(store().toasts).toHaveLength(1);
+
+    store().resumeToast(id);
+    vi.advanceTimersByTime(10001);
+    expect(store().toasts).toHaveLength(0);
+  });
+
+  it('ignores a keyed toast from an earlier click arriving late', () => {
+    const early = vi.fn();
+    const late = vi.fn();
+    const first = nextToastSeq();
+    const second = nextToastSeq();
+    store().addToast('success', 'Entry deleted', { label: 'Undo', onClick: late }, { replaceKey: 'entry-delete', seq: second });
+    store().addToast('success', 'Entry deleted', { label: 'Undo', onClick: early }, { replaceKey: 'entry-delete', seq: first });
+
+    const { toasts } = store();
+    expect(toasts).toHaveLength(1);
+    toasts[0].action?.onClick();
+    expect(late).toHaveBeenCalledTimes(1);
+    expect(early).not.toHaveBeenCalled();
   });
 });

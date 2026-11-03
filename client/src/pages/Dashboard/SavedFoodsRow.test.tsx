@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SavedFood } from '@/types';
+import Toaster from '@/components/ui/Toaster';
 import SavedFoodsRow from './SavedFoodsRow';
 
 // The quick-add row shows the first 8 foods on desktop / 6 on mobile and folds
@@ -156,5 +157,30 @@ describe('SavedFoodsRow overflow', () => {
 
     await screen.findAllByRole('button', { name: 'Food 1' });
     expect(screen.queryByRole('button', { name: '+ more' })).toBeNull();
+  });
+
+  it('shows one Undo toast when tracking quick-adds in a row', async () => {
+    // Like entry deletes: tracking A then B leaves the latest toast and its
+    // Undo, not a stack. Both entries are already logged.
+    const user = userEvent.setup();
+    vi.mocked(listSavedFoodsWithShared).mockResolvedValue({ ok: true, savedFoods: [food(1), food(2)] });
+    vi.mocked(trackSavedFood)
+      .mockResolvedValueOnce({ ok: true, entry: { id: 501 } as never })
+      .mockResolvedValueOnce({ ok: true, entry: { id: 502 } as never });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <SavedFoodsRow selectedDate="2026-08-30" />
+        <Toaster />
+      </QueryClientProvider>,
+    );
+
+    await user.click((await screen.findAllByRole('button', { name: 'Food 1' }))[0]);
+    await screen.findByText('Tracked Food 1');
+    await user.click(screen.getAllByRole('button', { name: 'Food 2' })[0]);
+    await screen.findByText('Tracked Food 2');
+
+    expect(screen.queryByText('Tracked Food 1')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Undo' })).toHaveLength(1);
   });
 });

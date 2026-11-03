@@ -91,4 +91,50 @@ describe('EntryList delete toast', () => {
     const toast = screen.getByText('Entry deleted').parentElement;
     expect(toast).toHaveClass('animate-toast-replace');
   });
+
+  it('remounts the toast on every replacement', async () => {
+    // A new DOM node is what replays the animation and makes the live region
+    // announce the delete again; an in-place update would do neither.
+    const user = userEvent.setup();
+    renderList();
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete entry' });
+    const toastEl = () => screen.getByText('Entry deleted').parentElement;
+
+    await user.click(deleteButtons[0]);
+    await screen.findByText('Entry deleted');
+    let prev = toastEl();
+    for (const [i, button] of [deleteButtons[1], deleteButtons[2]].entries()) {
+      await user.click(button);
+      await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(i + 2));
+      const now = toastEl();
+      expect(now).not.toBe(prev);
+      expect(prev?.isConnected).toBe(false);
+      prev = now;
+    }
+    expect(screen.getAllByText('Entry deleted')).toHaveLength(1);
+  });
+
+  it('follows the delete clicked last, not the response that arrived last', async () => {
+    const user = userEvent.setup();
+    let finishFirst: (v: unknown) => void = () => {};
+    vi.mocked(deleteEntry)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve; }) as never)
+      .mockResolvedValueOnce({ ok: true } as never);
+    renderList();
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete entry' });
+
+    await user.click(deleteButtons[0]); // Apple: response held back
+    await user.click(deleteButtons[1]); // Bread: answers at once
+    await screen.findByText('Entry deleted');
+
+    finishFirst({ ok: true });
+    await waitFor(() => expect(deleteEntry).toHaveBeenCalledTimes(2));
+    // Let Apple's late continuation run.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.getAllByText('Entry deleted')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(createEntry).toHaveBeenCalledTimes(1));
+    expect(createEntry).toHaveBeenCalledWith({ entry_date: '2026-11-03', entry_name: 'Bread', amount: 250 });
+  });
 });

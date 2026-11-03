@@ -6,7 +6,7 @@ import { saveEntryAsFood } from '@/api/savedFoods';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
 import { cn } from '@/lib/utils';
-import { useToastStore } from '@/stores/toastStore';
+import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
 
 interface Props {
@@ -106,6 +106,9 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   };
 
   const handleDelete = async () => {
+    // Taken at click time: the toast follows the delete clicked last, not the
+    // one whose response happened to arrive last.
+    const seq = nextToastSeq();
     // Snapshot the entry so an accidental delete can be undone. The recreated
     // entry gets a new id (the server has no soft-delete) — an acceptable
     // trade-off, matching the saved-foods Undo pattern.
@@ -134,7 +137,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             addToast('error', err instanceof Error ? err.message : t('entries.toastRestoreFailed'));
           }
         },
-      }, { replaceKey: 'entry-delete' });
+      }, { replaceKey: 'entry-delete', seq });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('entries.toastDeleteFailed'));
     }
