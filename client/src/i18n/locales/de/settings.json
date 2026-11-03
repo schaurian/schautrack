@@ -34,8 +34,8 @@
     }
   },
   "todo": {
-    "heading": "Todos",
-    "description": "Verwalte deine Todos im Dashboard.",
+    "heading": "Aufgaben",
+    "description": "Verwalte deine Aufgaben im Dashboard.",
     "toggleFailed": "Einstellung konnte nicht aktualisiert werden"
   },
   "note": {
@@ -171,7 +171,7 @@
       "readOnlyNote": "Du teilst mit ihnen (schreibgeschützt):",
       "nutrition": "Ernährung",
       "weight": "Gewicht",
-      "todos": "Todos",
+      "todos": "Aufgaben",
       "notes": "Notizen",
       "updateFailed": "Freigabe konnte nicht aktualisiert werden",
       "savedfoods": "Schnellauswahl"

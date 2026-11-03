@@ -10,6 +10,9 @@ export interface SavedFoodPayload {
   fat_g?: number | null;
   fiber_g?: number | null;
   sugar_g?: number | null;
+  /** Create only: Undo puts a deleted food back at its old rank. */
+  use_count?: number;
+  last_used_at?: string | null;
 }
 
 /**

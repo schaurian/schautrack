@@ -52,7 +52,7 @@
       "items": {
         "email": "E-Mail-Adresse (zur Authentifizierung und Kontowiederherstellung)",
         "entries": "Von dir erstellte Kalorien-, Makro- und Gewichtseinträge",
-        "notes": "Tägliche Notizen und Todos (falls aktiviert)",
+        "notes": "Tägliche Notizen und Aufgaben (falls aktiviert)",
         "preferences": "Zeitzone und Anzeigeeinstellungen",
         "authMaterial": "Von dir eingerichtetes Authentifizierungsmaterial: Passwort-Hash, TOTP-Secret, Backup-Codes, Passkey-Anmeldedaten",
         "bodyMetrics": "Körpermaße, die du optional für den Gewichtsplaner angibst — Größe, Geburtsjahr, Geschlecht und Aktivitätslevel — sowie eventuell von dir festgelegte Gewichtsziele"
@@ -68,7 +68,7 @@
     },
     "accountLinking": {
       "heading": "Kontoverknüpfung",
-      "body": "Wenn du eine Verknüpfungsanfrage eines anderen Nutzers annimmst, kann dieser Nutzer deine Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge einsehen. Er kann sie nicht bearbeiten oder löschen. Du kannst die Verknüpfung jederzeit in den Einstellungen entfernen."
+      "body": "Wenn du eine Verknüpfungsanfrage eines anderen Nutzers annimmst, kann dieser Nutzer deine Kalorien-, Makro-, Gewichts-, Notiz- und Aufgaben-Einträge einsehen. Er kann sie nicht bearbeiten oder löschen. Du kannst die Verknüpfung jederzeit in den Einstellungen entfernen."
     },
     "subprocessors": {
       "heading": "Unterauftragsverarbeiter",
@@ -88,7 +88,7 @@
     "retention": {
       "heading": "Aufbewahrung",
       "items": {
-        "entries": "Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge, Körpermaße und Gewichtsziele werden aufbewahrt, bis du sie löschst oder dein Konto löschst.",
+        "entries": "Kalorien-, Makro-, Gewichts-, Notiz- und Aufgaben-Einträge, Körpermaße und Gewichtsziele werden aufbewahrt, bis du sie löschst oder dein Konto löschst.",
         "sessions": "Authentifizierte Sitzungen laufen 30 Tage nach deinem letzten Besuch ab; anonyme Sitzungen laufen nach 15 Minuten Inaktivität ab.",
         "auditLog": "Audit-Log-Einträge (sicherheitsrelevante Authentifizierungsaktionen mit IP-Adresse und User-Agent) werden für die Dauer des Kontos aufbewahrt.",
         "accountDeletion": "Wenn du dein Konto löschst, werden alle zugehörigen Daten entfernt.",
@@ -144,7 +144,7 @@
     },
     "accountLinking": {
       "heading": "Kontoverknüpfung",
-      "body": "Wenn du eine Verknüpfungsanfrage eines anderen Nutzers annimmst, kann dieser Nutzer deine Kalorien-, Makro-, Gewichts-, Notiz- und Todo-Einträge einsehen. Verknüpfe dein Konto nur mit Personen, denen du vertraust, und entferne die Verknüpfung in den Einstellungen, wenn du nicht mehr teilen möchtest."
+      "body": "Wenn du eine Verknüpfungsanfrage eines anderen Nutzers annimmst, kann dieser Nutzer deine Kalorien-, Makro-, Gewichts-, Notiz- und Aufgaben-Einträge einsehen. Verknüpfe dein Konto nur mit Personen, denen du vertraust, und entferne die Verknüpfung in den Einstellungen, wenn du nicht mehr teilen möchtest."
     },
     "thirdPartyData": {
       "heading": "Daten Dritter",

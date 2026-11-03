@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
@@ -47,6 +48,14 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	// Absent and null both mean "no name"; there is nothing to preserve on a
 	// create, so the two collapse to a NULL entry_name.
 	entryName, _ := optionalEntryName(body, "entry_name")
+
+	// An explicit created_at is how Undo restores a deleted entry at the time
+	// it was logged; without one the column default (now) applies as before.
+	createdAt, ok := optionalPastTimestamp(body, "created_at", time.Now())
+	if !ok {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid created_at")
+		return
+	}
 
 	// Parse weight (frontend may send as string or number).
 	//
@@ -137,6 +146,12 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		vals := "$1, $2, $3, $4"
 		args := []any{user.ID, entryDate, entryAmount, entryName}
 		idx := 5
+		if createdAt != nil {
+			cols += ", created_at"
+			vals += fmt.Sprintf(", $%d", idx)
+			args = append(args, *createdAt)
+			idx++
+		}
 		for _, key := range service.MacroKeys {
 			if v, ok := macroValues[key]; ok {
 				cols += ", " + key + "_g"
@@ -301,15 +316,42 @@ func (h *EntriesHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := middleware.GetCurrentUser(r)
-	tag, err := h.Pool.Exec(r.Context(), "DELETE FROM calorie_entries WHERE id = $1 AND user_id = $2", entryID, user.ID)
+	var (
+		entryDate                              string
+		amount                                 int
+		entryName                              *string
+		createdAt                              time.Time
+		proteinG, carbsG, fatG, fiberG, sugarG *int
+	)
+	err = h.Pool.QueryRow(r.Context(),
+		`DELETE FROM calorie_entries WHERE id = $1 AND user_id = $2
+		 RETURNING entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g`,
+		entryID, user.ID).Scan(&entryDate, &amount, &entryName, &createdAt, &proteinG, &carbsG, &fatG, &fiberG, &sugarG)
+	if errors.Is(err, pgx.ErrNoRows) {
+		ErrorJSON(w, http.StatusNotFound, "Entry not found")
+		return
+	}
 	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete entry")
 		return
 	}
-	if tag.RowsAffected() == 0 {
-		ErrorJSON(w, http.StatusNotFound, "Entry not found")
-		return
-	}
 	h.Broker.BroadcastEntryChange(user.ID)
-	OkJSON(w)
+
+	// restore is the deleted row as a POST /entries body, so Undo can put it
+	// back exactly — its logged time and every macro column, including ones
+	// the user has since hidden and so never saw on the dashboard.
+	restore := map[string]any{
+		"entry_date": entryDate,
+		"amount":     amount,
+		"created_at": createdAt.UTC().Format(time.RFC3339Nano),
+	}
+	if entryName != nil {
+		restore["entry_name"] = *entryName
+	}
+	for key, v := range map[string]*int{"protein": proteinG, "carbs": carbsG, "fat": fatG, "fiber": fiberG, "sugar": sugarG} {
+		if v != nil {
+			restore[key+"_g"] = *v
+		}
+	}
+	JSON(w, http.StatusOK, map[string]any{"ok": true, "restore": restore})
 }

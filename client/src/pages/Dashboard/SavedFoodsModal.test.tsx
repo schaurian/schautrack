@@ -66,4 +66,28 @@ describe('SavedFoodsModal delete toast', () => {
     await waitFor(() => expect(createSavedFood).toHaveBeenCalledTimes(1));
     expect(vi.mocked(createSavedFood).mock.calls[0][0]).toMatchObject({ name: 'Food 2', amount: 200 });
   });
+
+  // use_count/last_used_at rank the chips; an Undo without them dropped the
+  // restored food to the end of the row and lost its "N×" count.
+  it('undo restores the food with its use count and last-used time', async () => {
+    const used = { ...food(1), use_count: 7, last_used_at: '2026-10-30T08:15:00Z' };
+    vi.mocked(listSavedFoods).mockResolvedValue({ ok: true, savedFoods: [used] } as never);
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <SavedFoodsModal isOpen onClose={() => {}} />
+        <Toaster />
+      </QueryClientProvider>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Delete saved food' }));
+    await waitFor(() => expect(screen.getByText('Deleted Food 1')).toBeInTheDocument());
+    await user.click(document.querySelector<HTMLButtonElement>('[data-toast-control="action"]')!);
+
+    await waitFor(() => expect(createSavedFood).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createSavedFood).mock.calls[0][0]).toMatchObject({
+      name: 'Food 1', use_count: 7, last_used_at: '2026-10-30T08:15:00Z',
+    });
+  });
 });

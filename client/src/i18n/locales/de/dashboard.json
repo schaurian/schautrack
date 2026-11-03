@@ -71,7 +71,7 @@
       "missedTarget": "Ziel verfehlt"
     },
     "reason": {
-      "over": "{{metric}} {{pct}} % drüber",
+      "over": "{{metric}} {{pct}} % über",
       "under": "{{metric}} {{pct}} % unter Ziel"
     }
   },
@@ -299,20 +299,20 @@
     "you": "Du"
   },
   "todos": {
-    "sectionTitle": "Todos",
+    "sectionTitle": "Aufgaben",
     "progressCount": "{{completed}}/{{total}}",
     "doneButton": "Fertig",
     "editButton": "Bearbeiten",
     "checkAriaLabel": "{{name}} abhaken",
     "uncheckAriaLabel": "Haken bei {{name}} entfernen",
-    "addTodoButton": "Todo hinzufügen",
-    "addTodoManagerButton": "Todo hinzufügen",
+    "addTodoButton": "Aufgabe hinzufügen",
+    "addTodoManagerButton": "Aufgabe hinzufügen",
     "addButton": "Hinzufügen",
     "cancelButton": "Abbrechen",
     "saveButton": "Speichern",
     "removeButton": "Entfernen",
     "clearButton": "Leeren",
-    "namePlaceholder": "Todo-Name",
+    "namePlaceholder": "Name der Aufgabe",
     "dailyOption": "Täglich",
     "specificDaysOption": "Bestimmte Tage",
     "missedYesterday": "Gestern",
@@ -324,9 +324,9 @@
     "minuteLabel": "Minute",
     "setTimeButton": "Zeit wählen",
     "timeOfDayAriaLabel": "Uhrzeit",
-    "toastCreateFailed": "Todo konnte nicht erstellt werden",
-    "toastUpdateFailed": "Todo konnte nicht aktualisiert werden",
-    "toastDeleteFailed": "Todo konnte nicht gelöscht werden",
+    "toastCreateFailed": "Aufgabe konnte nicht erstellt werden",
+    "toastUpdateFailed": "Aufgabe konnte nicht aktualisiert werden",
+    "toastDeleteFailed": "Aufgabe konnte nicht gelöscht werden",
     "days": {
       "mon": "Mo",
       "tue": "Di",
@@ -358,7 +358,7 @@
   },
   "today": {
     "left": "noch {{amount}}",
-    "over": "+{{amount}} drüber",
+    "over": "+{{amount}} über",
     "toGo": "noch {{amount}} bis Ziel"
   },
   "goalPrompt": {
