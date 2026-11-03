@@ -19,7 +19,7 @@ export function InlineEditInput({ className, ...props }: React.ComponentProps<'i
   return (
     <input
       className={cn(
-        'min-w-0 rounded-md border border-ring bg-muted/50 text-foreground outline-none [font:inherit] [letter-spacing:inherit]',
+        'min-w-0 rounded-md border border-input focus:border-ring bg-muted/50 text-foreground outline-none [font:inherit] [letter-spacing:inherit]',
         className,
       )}
       {...props}

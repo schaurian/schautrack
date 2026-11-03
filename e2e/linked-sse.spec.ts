@@ -57,9 +57,8 @@ test.describe('Linked User SSE Propagation', () => {
       // Wait directly for user A's share card label — don't use Timeline heading as a proxy
       // because Timeline renders before share cards data loads.
       const userALabel = pageB
-        .locator('.text-sm.font-medium')
-        .filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') })
-        .first();
+        .getByTestId('share-card')
+        .filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') });
 
       // Scroll to bottom to ensure the share card area is in the viewport
       await pageB.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -113,15 +112,14 @@ test.describe('Linked User SSE Propagation', () => {
     try {
       await pageB.goto('/dashboard');
       const userALabel = pageB
-        .locator('.text-sm.font-medium')
-        .filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') })
-        .first();
+        .getByTestId('share-card')
+        .filter({ hasText: new RegExp(userA.email.split('@')[0], 'i') });
       await expect(userALabel).toBeVisible({ timeout: 20000 });
 
       await pageA.goto('/settings');
       const linkButton = pageA.getByRole('button', { name: userB.email });
       await expect(linkButton).toBeVisible({ timeout: 10000 });
-      const linkRow = linkButton.locator('../..');
+      const linkRow = pageA.getByTestId('link-row').filter({ has: linkButton });
       const nutrition = linkRow.getByTestId('share-toggle-nutrition');
       await expect(nutrition.locator('input')).toBeChecked();
       await nutrition.click();

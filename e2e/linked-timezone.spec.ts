@@ -63,9 +63,8 @@ test.describe('Linked User Timezone Display', () => {
 
     const creatorEmail = creator.email;
     const creatorLabel = page
-      .locator('.text-sm.font-medium')
-      .filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') })
-      .first();
+      .getByTestId('share-card')
+      .filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') });
 
     await expect(creatorLabel).toBeVisible({ timeout: 20000 });
 

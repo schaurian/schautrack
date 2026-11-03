@@ -96,7 +96,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
           <div key={pk.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2.5 text-sm">
             {editingId === pk.id ? (
               <InlineEditInput
-                className="flex-1 -ml-2 -my-1 px-2 py-1"
+                className="flex-1 -ml-[9px] -my-[5px] px-2 py-1"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRename(pk.id)}
@@ -106,7 +106,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
               />
             ) : (
               <button
-                className="flex-1 min-w-0 -ml-2 -my-1 truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-left text-foreground cursor-pointer hover:text-primary transition-colors"
+                className="flex-1 min-w-0 -ml-[9px] -my-[5px] truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-left text-foreground cursor-pointer hover:text-primary transition-colors"
                 onClick={() => { setEditingId(pk.id); setEditName(pk.name); }}
                 title={t('passkey.renameTitle')}
               >

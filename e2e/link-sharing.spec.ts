@@ -49,8 +49,8 @@ test.describe('Granular link sharing', () => {
 
   // Returns the owner's ShareCard label locator (absent when nothing is shared).
   function ownerCard(page: import('@playwright/test').Page) {
-    return page.locator('.text-sm.font-medium')
-      .filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') }).first();
+    return page.getByTestId('share-card')
+      .filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') });
   }
 
   test('default off: owner card is absent (nothing shared)', async ({ browser }) => {

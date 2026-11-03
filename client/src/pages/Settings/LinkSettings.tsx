@@ -143,7 +143,7 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
   ];
 
   return (
-    <div className="mb-3 border-b border-border pb-3 last:border-0">
+    <div data-testid="link-row" className="mb-3 border-b border-border pb-3 last:border-0">
       <div className="flex items-center gap-2 mb-2 text-sm">
         {editing ? (
           <InlineEditInput
@@ -152,10 +152,10 @@ function LinkRow({ link, onRemove, onUpdate }: { link: AcceptedLink; onRemove: (
             onBlur={saveLabel}
             onKeyDown={(e) => e.key === 'Enter' && saveLabel()}
             autoFocus
-            className="flex-1 -ml-2 -my-0.5 rounded px-2 py-0.5"
+            className="flex-1 -ml-[9px] -my-[3px] rounded px-2 py-0.5"
           />
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="flex-1 -ml-2 -my-0.5 rounded border border-transparent bg-transparent px-2 py-0.5 text-foreground cursor-pointer text-left">
+          <button type="button" onClick={() => setEditing(true)} className="flex-1 -ml-[9px] -my-[3px] rounded border border-transparent bg-transparent px-2 py-0.5 text-foreground cursor-pointer text-left">
             {link.label || link.email}
           </button>
         )}
