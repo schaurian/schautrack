@@ -15,10 +15,17 @@ import (
 	"schautrack/internal/service"
 )
 
-// linkCacheEntry holds a resolved set of accepted-link user IDs for one source
-// user together with its expiry.
+// linkTarget is one accepted link of a source user: the friend's ID and what
+// the SOURCE shares toward that friend (service.LinkUser.SharesWithThem).
+type linkTarget struct {
+	userID int
+	shares map[string]bool
+}
+
+// linkCacheEntry holds a resolved set of accepted links for one source user
+// together with its expiry.
 type linkCacheEntry struct {
-	linked  []int
+	linked  []linkTarget
 	expires time.Time
 }
 
@@ -184,62 +191,45 @@ func (b *Broker) listenOnce(ctx context.Context, dsn string) error {
 	}
 }
 
+// The activity broadcasts below reach the source user and only those linked
+// friends the source shares the matching category with. An event carries no
+// data, but its arrival alone tells the receiver "they just logged a meal /
+// weighed in / edited a note" — so a friend who cannot see that category must
+// not get it either. Same reasoning as BroadcastSavedFoodChange.
+
+// BroadcastEntryChange announces a change to calorie entries or to the daily
+// budget (planner) — the nutrition category.
 func (b *Broker) BroadcastEntryChange(sourceUserID int) {
-	targets := b.getTargets(sourceUserID)
-	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
-	for _, id := range targets {
-		b.SendEvent(id, "entry-change", payload)
-	}
+	b.broadcastActivity(sourceUserID, "entry-change", service.ShareNutrition)
+}
+
+// BroadcastWeightChange announces a weight change. The event name stays
+// "entry-change": the client refetches weight on it.
+func (b *Broker) BroadcastWeightChange(sourceUserID int) {
+	b.broadcastActivity(sourceUserID, "entry-change", service.ShareWeight)
 }
 
 func (b *Broker) BroadcastTodoChange(sourceUserID int) {
-	targets := b.getTargets(sourceUserID)
+	b.broadcastActivity(sourceUserID, "todo-change", service.ShareTodos)
+}
+
+func (b *Broker) BroadcastNoteChange(sourceUserID int) {
+	b.broadcastActivity(sourceUserID, "note-change", service.ShareNotes)
+}
+
+func (b *Broker) broadcastActivity(sourceUserID int, event, category string) {
 	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
-	for _, id := range targets {
-		b.SendEvent(id, "todo-change", payload)
+	for _, id := range b.getTargets(sourceUserID, category) {
+		b.SendEvent(id, event, payload)
 	}
 }
 
 // BroadcastSavedFoodChange notifies the owner and only those linked friends the
-// owner actually shares quick-adds with.
-//
-// Category-filtered, unlike the other broadcasts, because this one carries a
-// signal even when its payload is empty: a friend who is NOT shared savedfoods
-// has nothing to refetch, so an event to them is both wasted work and a
-// low-grade activity oracle — they would learn, up to ten links wide, every
-// time the owner edits their quick-add list.
-//
-// Uncached on purpose. getTargets memoises the link set as bare IDs, which
-// cannot answer "does this link carry savedfoods", and editing a quick-add is
-// rare enough that one query costs nothing. On failure it falls back to the
-// owner alone: a missed refetch on someone else's screen is recoverable, an
-// event sent to someone who should not have it is not.
+// owner shares quick-adds with: a friend who is not shared savedfoods has
+// nothing to refetch, so an event to them is both wasted work and an activity
+// oracle.
 func (b *Broker) BroadcastSavedFoodChange(sourceUserID int) {
-	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
-	b.SendEvent(sourceUserID, "saved-food-change", payload)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
-	if err != nil {
-		slog.Error("failed to load links for saved-food broadcast", "error", err)
-		return
-	}
-	for _, link := range links {
-		// SharesWithThem is what the SOURCE exposes toward this friend, which
-		// is the direction that decides whether they can see the food at all.
-		if link.SharesWithThem[service.ShareSavedFoods] {
-			b.SendEvent(link.UserID, "saved-food-change", payload)
-		}
-	}
-}
-
-func (b *Broker) BroadcastNoteChange(sourceUserID int) {
-	targets := b.getTargets(sourceUserID)
-	payload := map[string]any{"sourceUserId": sourceUserID, "at": time.Now().UnixMilli()}
-	for _, id := range targets {
-		b.SendEvent(id, "note-change", payload)
-	}
+	b.broadcastActivity(sourceUserID, "saved-food-change", service.ShareSavedFoods)
 }
 
 func (b *Broker) BroadcastSettingsChange(userID int, settings any) {
@@ -348,11 +338,13 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // linkCacheTTL bounds how long a resolved accepted-links set is reused between
 // broadcasts. It absorbs bursts of rapid mutations — which would otherwise each
 // issue an identical link lookup — while keeping staleness small even if an
-// explicit invalidation were ever missed. Link accept/remove call
-// InvalidateLinks, so newly (un)linked users take effect immediately.
+// explicit invalidation were ever missed. Link accept/remove and share changes
+// call InvalidateLinks, so they take effect immediately on this instance.
 const linkCacheTTL = 5 * time.Second
 
-func (b *Broker) getTargets(sourceUserID int) []int {
+// getTargets returns the source user followed by every linked friend the
+// source shares category with.
+func (b *Broker) getTargets(sourceUserID int, category string) []int {
 	// This used to return early when *this* instance held no subscribers, on
 	// the reasoning that an event with nobody to deliver it to is waste. That
 	// only holds for a single instance: behind a load balancer the pod handling
@@ -360,32 +352,35 @@ func (b *Broker) getTargets(sourceUserID int) []int {
 	// fired exactly when the event was needed and nothing was ever published.
 	// Resolving targets is cheap — the link set is cached below, and publishing
 	// is one pg_notify.
-
-	// Serve the linked-user set from the cache while it is fresh.
-	if linked, ok := b.cachedLinks(sourceUserID); ok {
-		return append([]int{sourceUserID}, linked...)
+	linked, ok := b.cachedLinks(sourceUserID)
+	if !ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
+		if err != nil {
+			// Don't cache failures — fall back to just the source user.
+			slog.Error("failed to load linked users for broadcast", "error", err)
+			return []int{sourceUserID}
+		}
+		linked = make([]linkTarget, 0, len(links))
+		for _, link := range links {
+			linked = append(linked, linkTarget{userID: link.UserID, shares: link.SharesWithThem})
+		}
+		b.storeLinks(sourceUserID, linked)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
-	if err != nil {
-		// Don't cache failures — fall back to just the source user.
-		slog.Error("failed to load linked users for broadcast", "error", err)
-		return []int{sourceUserID}
+	targets := []int{sourceUserID}
+	for _, l := range linked {
+		if l.shares[category] {
+			targets = append(targets, l.userID)
+		}
 	}
-	linked := make([]int, 0, len(links))
-	for _, link := range links {
-		linked = append(linked, link.UserID)
-	}
-	b.storeLinks(sourceUserID, linked)
-	return append([]int{sourceUserID}, linked...)
+	return targets
 }
 
-// cachedLinks returns the cached accepted-link target IDs for userID when a
-// fresh entry exists. The returned slice is owned by the cache and must not be
-// mutated by callers (getTargets only ever appends it onto a fresh slice).
-func (b *Broker) cachedLinks(userID int) ([]int, bool) {
+// cachedLinks returns the cached accepted links for userID when a fresh entry
+// exists. The returned slice is owned by the cache and must not be mutated by
+// callers (getTargets only reads it).
+func (b *Broker) cachedLinks(userID int) ([]linkTarget, bool) {
 	b.linkMu.Lock()
 	defer b.linkMu.Unlock()
 	entry, ok := b.linkCache[userID]
@@ -395,7 +390,7 @@ func (b *Broker) cachedLinks(userID int) ([]int, bool) {
 	return entry.linked, true
 }
 
-func (b *Broker) storeLinks(userID int, linked []int) {
+func (b *Broker) storeLinks(userID int, linked []linkTarget) {
 	b.linkMu.Lock()
 	defer b.linkMu.Unlock()
 	if b.linkCache == nil {
@@ -406,7 +401,7 @@ func (b *Broker) storeLinks(userID int, linked []int) {
 
 // InvalidateLinks drops any cached accepted-links set for the given users so the
 // next broadcast re-resolves it from the database. Callers in the link handlers
-// invoke this whenever a user's set of accepted links changes (accept/remove),
+// invoke this whenever a user's set of accepted links or their shares change,
 // which keeps real-time delivery correct without waiting for the TTL.
 func (b *Broker) InvalidateLinks(userIDs ...int) {
 	b.linkMu.Lock()

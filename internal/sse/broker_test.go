@@ -9,7 +9,16 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"schautrack/internal/service"
 )
+
+// allShared is a share map with every category on, for tests about delivery
+// mechanics rather than about which categories a friend may see.
+var allShared = map[string]bool{
+	service.ShareNutrition: true, service.ShareWeight: true, service.ShareTodos: true,
+	service.ShareNotes: true, service.ShareSavedFoods: true,
+}
 
 func newTestBroker() *Broker {
 	// nil pool — tests that don't broadcast don't need DB
@@ -206,9 +215,9 @@ func TestGetTargetsResolvesWithNoLocalClients(t *testing.T) {
 	// silently dropped every cross-instance event. Targets must resolve anyway.
 	// (nil pool: the seeded cache keeps the lookup off the DB.)
 	b := newTestBroker()
-	b.storeLinks(1, []int{2})
+	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}})
 
-	got := b.getTargets(1)
+	got := b.getTargets(1, service.ShareNutrition)
 
 	if len(got) != 2 || got[0] != 1 || got[1] != 2 {
 		t.Fatalf("expected [1 2] with no local subscribers, got %v", got)
@@ -222,8 +231,8 @@ func TestGetTargetsUsesCacheWithoutQueryingDB(t *testing.T) {
 	ch := b.Subscribe(1)
 	defer b.Unsubscribe(1, ch)
 
-	b.storeLinks(1, []int{2, 3})
-	got := b.getTargets(1)
+	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}, {userID: 3, shares: allShared}})
+	got := b.getTargets(1, service.ShareNutrition)
 
 	if len(got) != 3 || got[0] != 1 {
 		t.Fatalf("expected [1 2 3] with source first, got %v", got)
@@ -242,19 +251,19 @@ func TestGetTargetsDoesNotAliasCache(t *testing.T) {
 	ch := b.Subscribe(1)
 	defer b.Unsubscribe(1, ch)
 
-	b.storeLinks(1, []int{2})
-	got := b.getTargets(1)
+	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}})
+	got := b.getTargets(1, service.ShareNutrition)
 	got[len(got)-1] = 999 // mutating the returned slice must not corrupt the cache
 
 	linked, ok := b.cachedLinks(1)
-	if !ok || len(linked) != 1 || linked[0] != 2 {
+	if !ok || len(linked) != 1 || linked[0].userID != 2 {
 		t.Fatalf("cache was mutated through the returned slice: %v", linked)
 	}
 }
 
 func TestInvalidateLinksForcesRefresh(t *testing.T) {
 	b := newTestBroker()
-	b.storeLinks(1, []int{2})
+	b.storeLinks(1, []linkTarget{{userID: 2, shares: allShared}})
 	if _, ok := b.cachedLinks(1); !ok {
 		t.Fatal("expected a fresh cache entry after storeLinks")
 	}
@@ -267,7 +276,7 @@ func TestInvalidateLinksForcesRefresh(t *testing.T) {
 func TestCachedLinksExpires(t *testing.T) {
 	b := newTestBroker()
 	b.linkCache = map[int]linkCacheEntry{
-		1: {linked: []int{2}, expires: time.Now().Add(-time.Second)},
+		1: {linked: []linkTarget{{userID: 2, shares: allShared}}, expires: time.Now().Add(-time.Second)},
 	}
 	if _, ok := b.cachedLinks(1); ok {
 		t.Fatal("expected an expired cache entry to miss")
@@ -357,5 +366,61 @@ func TestOversizedPayloadFallsBackToLocalDelivery(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("oversized event was dropped instead of delivered locally")
+	}
+}
+
+// TestActivityEventsReachOnlyFriendsSharedThatCategory pins that an activity
+// event goes to the source and to the linked friends the source shares the
+// event's category with — nobody else. The event carries no data, but its
+// arrival alone tells a friend "they just logged a meal / weighed in / edited a
+// note", so a friend who cannot see the category must not receive it.
+func TestActivityEventsReachOnlyFriendsSharedThatCategory(t *testing.T) {
+	cases := []struct {
+		name      string
+		broadcast func(b *Broker, source int)
+		event     string
+		category  string
+	}{
+		{"entries", (*Broker).BroadcastEntryChange, "entry-change", service.ShareNutrition},
+		{"weight", (*Broker).BroadcastWeightChange, "entry-change", service.ShareWeight},
+		{"todos", (*Broker).BroadcastTodoChange, "todo-change", service.ShareTodos},
+		{"notes", (*Broker).BroadcastNoteChange, "note-change", service.ShareNotes},
+		{"saved foods", (*Broker).BroadcastSavedFoodChange, "saved-food-change", service.ShareSavedFoods},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := newTestBroker() // nil pool: delivery stays local, lookups hit the seeded cache
+			shared := map[string]bool{tc.category: true}
+			others := map[string]bool{}
+			for k := range allShared {
+				if k != tc.category {
+					others[k] = true
+				}
+			}
+			b.storeLinks(1, []linkTarget{{userID: 2, shares: shared}, {userID: 3, shares: others}})
+
+			chans := map[int]chan []byte{}
+			for _, id := range []int{1, 2, 3} {
+				chans[id] = b.Subscribe(id)
+				defer b.Unsubscribe(id, chans[id])
+			}
+
+			tc.broadcast(b, 1)
+
+			for id, want := range map[int]bool{1: true, 2: true, 3: false} {
+				select {
+				case msg := <-chans[id]:
+					if !want {
+						t.Errorf("user %d is not shared %q but received %s", id, tc.category, msg)
+					} else if !strings.Contains(string(msg), "event: "+tc.event) {
+						t.Errorf("user %d got %s, want a %s event", id, msg, tc.event)
+					}
+				default:
+					if want {
+						t.Errorf("user %d should have received %s", id, tc.event)
+					}
+				}
+			}
+		})
 	}
 }
