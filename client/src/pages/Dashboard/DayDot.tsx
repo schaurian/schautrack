@@ -55,25 +55,32 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
       : t('dayDot.reason.under', { metric, pct: reason.pct });
   }
 
+  // The button is the 44x44 hit area. Inside it, stacked and centred: the 22px
+  // coloured square, then its day number 2px below. ShareCard lays the buttons
+  // out edge to edge, so neighbouring hit areas touch without overlapping, and
+  // each number sits inside its own dot's button rather than between rows.
   return (
-    <div className="flex flex-col items-center gap-1">
-      <button
-        type="button"
+    <button
+      type="button"
+      className="group/dot flex size-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-transparent p-0"
+      onClick={onClick}
+      title={`${dateLabel} — ${statusLabel}${reasonText ? `: ${reasonText}` : ''}`}
+      // The ISO date leads so the label stays unique and machine-findable.
+      aria-label={`${date}: ${statusLabel}${reasonText ? `, ${reasonText}` : ''}, ${dateLabel}`}
+    >
+      <span
+        aria-hidden="true"
         className={cn(
-          'size-[22px] rounded-md cursor-pointer transition-shadow border-0 p-0 shrink-0',
+          'size-[22px] shrink-0 rounded-md transition-shadow',
           STATUS_COLORS[status] || 'bg-white/[0.03]',
           isToday && 'ring-2 ring-primary',
           isSelected && 'ring-2 ring-foreground',
-          !isToday && !isSelected && 'hover:ring-1 hover:ring-muted-foreground/40'
+          !isToday && !isSelected && 'group-hover/dot:ring-1 group-hover/dot:ring-muted-foreground/40'
         )}
-        onClick={onClick}
-        title={`${dateLabel} — ${statusLabel}${reasonText ? `: ${reasonText}` : ''}`}
-        // The ISO date leads so the label stays unique and machine-findable.
-        aria-label={`${date}: ${statusLabel}${reasonText ? `, ${reasonText}` : ''}, ${dateLabel}`}
       />
       <span aria-hidden="true" className={cn('text-[9px] leading-none tabular-nums', isToday ? 'font-bold text-primary' : 'text-muted-foreground')}>
         {dayNumber}
       </span>
-    </div>
+    </button>
   );
 }

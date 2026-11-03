@@ -211,8 +211,8 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
                 }[state];
                 const checkboxClass = {
                   completed: 'border-green-500 bg-green-500 text-white',
-                  overdue: 'border-red-400 bg-muted/50 hover:border-red-500',
-                  upcoming: 'border-input bg-muted/50 hover:border-ring',
+                  overdue: 'border-red-400 bg-muted/50 group-hover/check:border-red-500',
+                  upcoming: 'border-input bg-muted/50 group-hover/check:border-ring',
                 }[state];
 
                 return (
@@ -234,18 +234,23 @@ export default function TodoList({ date, userId, canEdit, timezone }: Props) {
                       {todo.streak > 1 && (
                         <span className="text-xs text-primary font-medium">{t('todos.streakDays', { count: todo.streak })}</span>
                       )}
+                      {/* 44x44 hit area around the 20px visual box. The negative
+                          margins keep the row height and the box's right edge
+                          where they were, so only the tappable area grows. */}
                       <button
                         type="button"
                         onClick={() => handleToggle(todo)}
                         disabled={!canEdit}
-                        className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${checkboxClass} ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
+                        className={`group/check -my-2.5 -mr-3 flex size-11 shrink-0 items-center justify-center ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
                         aria-label={todo.completed ? t('todos.uncheckAriaLabel', { name: todo.name }) : t('todos.checkAriaLabel', { name: todo.name })}
                       >
-                        {todo.completed && (
-                          <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 6l3 3 5-5" />
-                          </svg>
-                        )}
+                        <span aria-hidden="true" className={`flex size-5 items-center justify-center rounded border transition-colors ${checkboxClass}`}>
+                          {todo.completed && (
+                            <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M2 6l3 3 5-5" />
+                            </svg>
+                          )}
+                        </span>
                       </button>
                     </div>
                   </li>
