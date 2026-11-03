@@ -6,12 +6,17 @@ import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
-import { formatDate } from '@/lib/format';
+import { formatDay } from '@/lib/format';
+import { followToday } from '@/lib/date';
+import { useDayRollover } from '@/hooks/useDayRollover';
+import { viewLabel } from './viewLabel';
 import { QueryError } from '@/components/ui/QueryError';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
 import { Fab } from '@/components/ui/Fab';
 import TodayPanel from './TodayPanel';
+import GoalPromptCard from './GoalPromptCard';
+import { shouldShowGoalPrompt } from '@/lib/goalFeedback';
 import EntryForm from './EntryForm';
 import SavedFoodsRow from './SavedFoodsRow';
 import Timeline from './Timeline';
@@ -20,6 +25,9 @@ import WeightRow from './WeightRow';
 import PlanCard from './PlanCard';
 import TodoList from './TodoList';
 import NoteEditor from './NoteEditor';
+
+// The server's todayStr as of the last dashboard render; see followToday below.
+let lastSeenToday: string | undefined;
 
 export default function Dashboard() {
   const { t } = useTranslation('dashboard');
@@ -48,6 +56,25 @@ export default function Dashboard() {
       selectDay(dashboard.selectedDate);
     }
   }, [dashboard, currentUserId, selectUser, selectDay, t]);
+
+  // A tab left open across midnight refetches (on focus, SSE) and the server's
+  // todayStr moves on — but selectedDate would stay on yesterday, dropping the
+  // "Today" label and filing new entries under the previous day. Follow the
+  // day only when the user was on today. lastSeenToday is module-level so it
+  // also covers leaving the dashboard open in the store and coming back to it.
+  const todayStr = dashboard?.todayStr;
+  // And don't wait for a refetch to notice: re-check just after the user's
+  // own midnight (stored zone, as the server counts days), so a tab left
+  // visible across 00:00 moves on by itself.
+  useDayRollover(dashboard?.timeZone, () => {
+    void refetch();
+  });
+  useEffect(() => {
+    if (!todayStr) return;
+    const next = followToday(selectedDate, lastSeenToday, todayStr);
+    lastSeenToday = todayStr;
+    if (next !== selectedDate) selectDay(next);
+  }, [todayStr, selectedDate, selectDay]);
 
   const effectiveUserId = currentUserId || dashboard?.user.id;
   const activeView = dashboard?.sharedViews.find((v) => v.userId === effectiveUserId);
@@ -149,7 +176,7 @@ export default function Dashboard() {
           <span className="tabular-nums">
             {selectedDate === dashboard.todayStr
               ? t('dashboard.todayLabel')
-              : formatDate(`${selectedDate}T00:00:00`, undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+              : formatDay(selectedDate, 'short')}
           </span>
           <input
             ref={dateInputRef}
@@ -162,6 +189,10 @@ export default function Dashboard() {
           />
         </div>
       </header>
+
+      {shouldShowGoalPrompt({ canEdit, caloriesEnabled: dashboard.caloriesEnabled, dailyGoal: dashboard.dailyGoal }) && (
+        <GoalPromptCard userId={dashboard.user.id} />
+      )}
 
       {showCat('nutrition') && (
         <TodayPanel
@@ -176,6 +207,7 @@ export default function Dashboard() {
           macroModes={dashboard.macroModes}
           selectedDate={selectedDate}
           todayStr={dashboard.todayStr}
+          showDeltas={canEdit}
         />
       )}
 
@@ -238,11 +270,12 @@ export default function Dashboard() {
 
       {showCat('nutrition') && (
         <section className="surface p-4">
-          <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>}>
+          <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: formatDay(selectedDate, 'short'), label: activeView ? viewLabel(activeView, t) : currentLabel })}</span>}>
             {t('dashboard.entriesSectionTitle')}
           </SectionLabel>
           <EntryList
             entries={dayData?.entries || []}
+            date={selectedDate}
             canEdit={canEdit}
             enabledMacros={dashboard.enabledMacros}
             caloriesEnabled={dashboard.caloriesEnabled}

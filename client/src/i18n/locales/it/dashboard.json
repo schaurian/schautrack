@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Inserisci il numero del codice a barre",
     "lookUpButton": "Cerca",
     "lookingUpText": "Ricerca di {{barcode}} in corso...",
-    "calPer100g": "{{value}} cal per 100g",
+    "calPer100g": "{{value}} kcal per 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · porzione: {{size}}",
     "addEntryButton": "Aggiungi voce",
     "scanAnotherButton": "Scansiona un altro",
@@ -66,12 +67,24 @@
       "over": "sopra l'obiettivo",
       "overThreshold": "ben oltre l'obiettivo",
       "zero": "nessuna voce",
-      "none": "nessuna voce"
+      "none": "nessuna voce",
+      "missedTarget": "obiettivo mancato"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% sopra",
+      "under": "{{metric}} {{pct}}% sotto l'obiettivo"
     }
   },
   "entries": {
     "logSectionTitle": "Registro",
     "addFood": "Aggiungi cibo",
+    "fieldAmbiguous": "Scrivi {{whole}}, oppure {{decimal}} per un decimale",
+    "fieldAmbiguousDecimal": "Scrivi {{decimal}} per un decimale",
+    "fieldComputedRange": "Le calorie di questi macro superano {{max}}",
+    "fieldComputedRangeQty": "Moltiplicate per {{qty}}, le calorie di questi macro superano {{max}}",
+    "fieldInvalid": "Inserisci un numero o un calcolo come 2*150",
+    "fieldRange": "Inserisci un valore tra {{min}} e {{max}}",
+    "fieldRangeQty": "Moltiplicato per {{qty}}, deve restare tra {{min}} e {{max}}",
     "foodNameAriaLabel": "Nome del cibo",
     "foodNamePlaceholder": "Colazione, spuntino...",
     "qtyLabel": "Qtà",
@@ -93,7 +106,6 @@
     "undoLabel": "Annulla",
     "unnamedEntryFallback": "voce",
     "toastInvalidCalorieAmount": "Quantità di calorie non valida",
-    "toastInvalidMacroValue": "Valore non valido per {{macro}}",
     "toastTracked": "Voce registrata",
     "toastTrackFailed": "Registrazione della voce non riuscita",
     "toastSavedFood": "\"{{name}}\" salvato",
@@ -163,7 +175,7 @@
     },
     "progress": {
       "title": "Progresso",
-      "projectedLabel": "Previsto: {{date}}"
+      "projectedLabel": "Con l’andamento attuale: {{date}}"
     },
     "toastBudgetApplied": "Obiettivo calorico aggiornato",
     "toastBudgetApplyFailed": "Applicazione del budget non riuscita",
@@ -184,7 +196,7 @@
       "targetDateLabel": "Data obiettivo",
       "completeDetailsHint": "Completa i tuoi dati qui sopra per calcolare un budget calorico per questo obiettivo.",
       "budgetLabel": "Budget: ",
-      "etaLabel": "Stima: ",
+      "etaLabel": "Data obiettivo del piano: ",
       "weeksLabel_one": " settimana",
       "weeksLabel_other": " settimane"
     },
@@ -236,6 +248,13 @@
       "fitness": "In forma",
       "average": "Nella media",
       "obese": "Obeso"
+    },
+    "disclaimer": "Questo piano è una stima basata su formule standard (Mifflin-St Jeor, oppure Katch-McArdle se è disponibile un valore di massa grassa) e su indicazioni generali sull’attività fisica. Non è un consiglio medico: consulta un professionista sanitario prima di iniziare qualsiasi programma per perdere o aumentare peso, soprattutto in presenza di patologie.",
+    "warnings": {
+      "aggressive_rate": "Il ritmo obiettivo supera l’1% del peso corporeo a settimana e potrebbe non essere sicuro o sostenibile.",
+      "budget_clamped": "Il budget calorico consigliato è stato portato al minimo sicuro per il tuo profilo.",
+      "target_obese": "Il peso obiettivo rientra nella fascia di obesità del BMI.",
+      "target_underweight": "Il peso obiettivo rientra nella fascia di sottopeso del BMI."
     }
   },
   "savedFoods": {
@@ -336,5 +355,16 @@
     "toastBodyFatSaveFailed": "Salvataggio del grasso corporeo non riuscito",
     "bodyFatHint": "Il secondo campo è la tua percentuale di grasso corporeo, se la bilancia la misura.",
     "bodyFatPlaceholder": "% grasso"
+  },
+  "today": {
+    "left": "{{amount}} rimanenti",
+    "over": "+{{amount}} in più",
+    "toGo": "ne mancano {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "L'anello e i quadratini dei giorni si riempiono rispetto al tuo obiettivo. Senza, non hanno nulla da misurare.",
+    "cta": "Imposta obiettivo",
+    "dismiss": "Non ora",
+    "title": "Imposta un obiettivo di calorie"
   }
 }

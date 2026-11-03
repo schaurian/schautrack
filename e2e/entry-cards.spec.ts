@@ -23,12 +23,12 @@ test.describe('Entry Cards', () => {
     await expect(nameInput).toBeVisible({ timeout: 10000 });
 
     // Check whether macro inputs are available (protein)
-    const macroInputs = page.locator('input[inputmode="numeric"][placeholder="0"]');
+    const macroInputs = page.locator('input[data-testid^="entry-macro-"]');
     const hasMacros = await macroInputs.first().isVisible({ timeout: 5000 }).catch(() => false);
 
     // Fill the entry form
     await nameInput.fill('Card Test');
-    await page.locator('input[inputmode="tel"]').first().fill('300');
+    await page.locator('[data-testid="entry-calories"]').first().fill('300');
 
     if (hasMacros) {
       // First numeric input is protein

@@ -313,14 +313,17 @@ func parseAIResponse(provider string, body []byte) (*AIResult, error) {
 	return &result, nil
 }
 
-// GetAIUsageToday returns the user's AI request count for today. A missing
-// row means zero usage; any other query error is propagated so callers can
-// fail closed instead of treating outages as "no usage yet".
-func GetAIUsageToday(ctx context.Context, pool *pgxpool.Pool, userID int) (int, error) {
+// GetAIUsageToday returns the user's AI request count for day, the user's
+// local calendar date ("YYYY-MM-DD", see FormatDateInTz). The daily limit
+// resets at the user's midnight, not the database's: keyed on CURRENT_DATE it
+// reset at 13:00 for an Auckland user and at 16:00 for one in Los Angeles. A
+// missing row means zero usage; any other query error is propagated so
+// callers can fail closed instead of treating outages as "no usage yet".
+func GetAIUsageToday(ctx context.Context, pool *pgxpool.Pool, userID int, day string) (int, error) {
 	var count int
 	err := pool.QueryRow(ctx,
-		"SELECT COALESCE(request_count, 0) FROM ai_usage WHERE user_id = $1 AND usage_date = CURRENT_DATE",
-		userID).Scan(&count)
+		"SELECT COALESCE(request_count, 0) FROM ai_usage WHERE user_id = $1 AND usage_date = $2::date",
+		userID, day).Scan(&count)
 	return aiUsageFromScan(count, err)
 }
 
@@ -340,15 +343,16 @@ func aiUsageFromScan(count int, err error) (int, error) {
 // post-increment count. Callers reserve a slot BEFORE calling the provider —
 // rejecting when the returned count exceeds the daily limit — so concurrent
 // requests cannot all pass a stale pre-increment check. Reservations that do
-// not produce an estimation are handed back via ReleaseAIUsage.
-func ReserveAIUsage(ctx context.Context, pool *pgxpool.Pool, userID int) (int, error) {
+// not produce an estimation are handed back via ReleaseAIUsage, with the same
+// day — a request that straddles midnight must hand back the slot it took.
+func ReserveAIUsage(ctx context.Context, pool *pgxpool.Pool, userID int, day string) (int, error) {
 	var count int
 	err := pool.QueryRow(ctx, `
 		INSERT INTO ai_usage (user_id, usage_date, request_count)
-		VALUES ($1, CURRENT_DATE, 1)
+		VALUES ($1, $2::date, 1)
 		ON CONFLICT (user_id, usage_date) DO UPDATE SET request_count = ai_usage.request_count + 1
 		RETURNING request_count`,
-		userID).Scan(&count)
+		userID, day).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -356,12 +360,12 @@ func ReserveAIUsage(ctx context.Context, pool *pgxpool.Pool, userID int) (int, e
 }
 
 // ReleaseAIUsage hands back a slot reserved by ReserveAIUsage (e.g. after a
-// provider failure or an over-limit rejection).
-func ReleaseAIUsage(ctx context.Context, pool *pgxpool.Pool, userID int) {
+// provider failure or an over-limit rejection), on the day it was reserved.
+func ReleaseAIUsage(ctx context.Context, pool *pgxpool.Pool, userID int, day string) {
 	if _, err := pool.Exec(ctx, `
 		UPDATE ai_usage SET request_count = GREATEST(request_count - 1, 0)
-		WHERE user_id = $1 AND usage_date = CURRENT_DATE`,
-		userID); err != nil {
+		WHERE user_id = $1 AND usage_date = $2::date`,
+		userID, day); err != nil {
 		slog.Error("failed to release AI usage reservation", "error", err, "userID", userID)
 	}
 }

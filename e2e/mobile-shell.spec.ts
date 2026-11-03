@@ -41,7 +41,7 @@ test.describe('Mobile shell (redesign)', () => {
     await expect(dialog).toBeVisible();
 
     await dialog.locator('input[placeholder="Breakfast, snack..."]').fill('Sheet test food');
-    await dialog.locator('input[inputmode="tel"]').first().fill('123');
+    await dialog.locator('[data-testid="entry-calories"]').first().fill('123');
     await dialog.getByRole('button', { name: 'Track' }).click();
 
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
@@ -213,7 +213,7 @@ test.describe('Mobile shell (redesign)', () => {
     await page.getByRole('button', { name: 'Add food' }).click();
     const dialog = page.getByRole('dialog', { name: 'Add food' });
     await dialog.locator('input[placeholder="Breakfast, snack..."]').fill('Undo overlap');
-    await dialog.locator('input[inputmode="tel"]').first().fill('123');
+    await dialog.locator('[data-testid="entry-calories"]').first().fill('123');
     await dialog.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Undo overlap')).toBeVisible({ timeout: 10000 });
 

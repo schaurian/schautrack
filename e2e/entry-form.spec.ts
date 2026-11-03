@@ -32,7 +32,7 @@ test.describe('Entry Form', () => {
 
     // Fill name and a macro (works even if cal is auto-calc)
     await nameInput.fill('Clear test');
-    const macroInput = page.locator('input[inputmode="numeric"][placeholder="0"]').first();
+    const macroInput = page.locator('input[data-testid^="entry-macro-"]').first();
     if (await macroInput.isVisible().catch(() => false)) {
       await macroInput.fill('10');
     }

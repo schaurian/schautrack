@@ -66,7 +66,9 @@ func (h *V1Handler) UpdateMeV1(w http.ResponseWriter, r *http.Request) {
 	if in.Timezone != nil {
 		// Validated by loading it: an unknown zone would silently shift every
 		// date boundary for this account.
-		if _, err := time.LoadLocation(*in.Timezone); err != nil {
+		// ValidTimezone rather than LoadLocation: "Local" loads, but names the
+		// server's zone, and "" loads as UTC — neither is a zone to store.
+		if !service.ValidTimezone(*in.Timezone) {
 			apierr.Write(w, r, apierr.Unprocessable("That is not a known IANA time zone.",
 				apierr.InvalidParam{Name: "timezone", Reason: "must be an IANA name such as Europe/Berlin"}))
 			return

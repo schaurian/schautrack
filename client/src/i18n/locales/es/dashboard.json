@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Introduce el número de código de barras",
     "lookUpButton": "Buscar",
     "lookingUpText": "Buscando {{barcode}}...",
-    "calPer100g": "{{value}} cal por 100 g",
+    "calPer100g": "{{value}} kcal por 100 g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · porción: {{size}}",
     "addEntryButton": "Añadir entrada",
     "scanAnotherButton": "Escanear otro",
@@ -66,12 +67,24 @@
       "over": "por encima del objetivo",
       "overThreshold": "muy por encima del objetivo",
       "zero": "sin entradas",
-      "none": "sin entradas"
+      "none": "sin entradas",
+      "missedTarget": "objetivo no alcanzado"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}} % por encima",
+      "under": "{{metric}} {{pct}} % por debajo del objetivo"
     }
   },
   "entries": {
     "logSectionTitle": "Registro",
     "addFood": "Añadir comida",
+    "fieldAmbiguous": "Escribe {{whole}}, o {{decimal}} para un decimal",
+    "fieldAmbiguousDecimal": "Escribe {{decimal}} para un decimal",
+    "fieldComputedRange": "Las calorías de estos macros superan {{max}}",
+    "fieldComputedRangeQty": "Por {{qty}}, las calorías de estos macros superan {{max}}",
+    "fieldInvalid": "Introduce un número o una operación como 2*150",
+    "fieldRange": "Introduce un valor entre {{min}} y {{max}}",
+    "fieldRangeQty": "Por {{qty}}, debe quedar entre {{min}} y {{max}}",
     "foodNameAriaLabel": "Nombre del alimento",
     "foodNamePlaceholder": "Desayuno, merienda...",
     "qtyLabel": "Cant.",
@@ -93,7 +106,6 @@
     "undoLabel": "Deshacer",
     "unnamedEntryFallback": "entrada",
     "toastInvalidCalorieAmount": "Cantidad de calorías no válida",
-    "toastInvalidMacroValue": "Valor no válido para {{macro}}",
     "toastTracked": "Entrada registrada",
     "toastTrackFailed": "Error al registrar la entrada",
     "toastSavedFood": "Se guardó «{{name}}»",
@@ -163,7 +175,7 @@
     },
     "progress": {
       "title": "Progreso",
-      "projectedLabel": "Previsto: {{date}}"
+      "projectedLabel": "Con la tendencia actual: {{date}}"
     },
     "toastBudgetApplied": "Objetivo de calorías actualizado",
     "toastBudgetApplyFailed": "Error al aplicar el presupuesto",
@@ -184,7 +196,7 @@
       "targetDateLabel": "Fecha objetivo",
       "completeDetailsHint": "Completa tus datos arriba para calcular un presupuesto de calorías para este objetivo.",
       "budgetLabel": "Presupuesto: ",
-      "etaLabel": "Fecha estimada: ",
+      "etaLabel": "Fecha objetivo del plan: ",
       "weeksLabel_one": " semana",
       "weeksLabel_other": " semanas"
     },
@@ -236,6 +248,13 @@
       "fitness": "En forma",
       "average": "Medio",
       "obese": "Obesidad"
+    },
+    "disclaimer": "Este plan es una estimación basada en fórmulas estándar (Mifflin-St Jeor, o Katch-McArdle si hay un valor de grasa corporal) y pautas generales de actividad. No es consejo médico: consulta a un profesional sanitario antes de empezar cualquier programa para perder o ganar peso, sobre todo si tienes problemas de salud previos.",
+    "warnings": {
+      "aggressive_rate": "Tu ritmo objetivo supera el 1 % del peso corporal por semana, lo que puede ser poco seguro o insostenible.",
+      "budget_clamped": "Tu presupuesto calórico recomendado se ha elevado al mínimo seguro para tu perfil.",
+      "target_obese": "Tu peso objetivo está en el rango de obesidad del IMC.",
+      "target_underweight": "Tu peso objetivo está en el rango de bajo peso del IMC."
     }
   },
   "savedFoods": {
@@ -336,5 +355,16 @@
     "toastBodyFatSaveFailed": "Error al guardar la grasa corporal",
     "bodyFatHint": "La segunda casilla es tu % de grasa corporal, si tu báscula lo mide.",
     "bodyFatPlaceholder": "% grasa"
+  },
+  "today": {
+    "left": "quedan {{amount}}",
+    "over": "+{{amount}} de más",
+    "toGo": "faltan {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "El anillo y los cuadros de cada día se llenan según tu objetivo. Sin él no tienen nada que medir.",
+    "cta": "Fijar objetivo",
+    "dismiss": "Ahora no",
+    "title": "Fija un objetivo de calorías"
   }
 }

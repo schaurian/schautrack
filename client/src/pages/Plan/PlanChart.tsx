@@ -2,7 +2,8 @@ import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'r
 import { useTranslation } from 'react-i18next';
 import type { SeriesPoint, CurvePoint, HealthyRange } from '@/types';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/format';
+import { DAY_STYLES, formatDate, formatNumber } from '@/lib/format';
+import { parseLocalDate, todayInTz } from '@/lib/date';
 import { niceTicks, clampBand } from '@/lib/chartScale';
 
 export interface PlanChartProps {
@@ -18,6 +19,8 @@ export interface PlanChartProps {
    * the spark variant, which has no axes to tell the two scales apart.
    */
   showBodyFat?: boolean;
+  /** The user's stored IANA zone; decides which calendar day is "today". */
+  timeZone?: string;
   className?: string;
 }
 
@@ -25,10 +28,14 @@ const DAY_MS = 86_400_000;
 const FULL_SIZE = { width: 640, height: 260 };
 const SPARK_SIZE = { width: 240, height: 64 };
 
-function startOfToday(): number {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+/**
+ * Today on the chart's timeline: the user's calendar day in their stored zone
+ * (the day the server dates the series and the ETA from), placed at local
+ * midnight like every series point. The browser's own date would put "today"
+ * a day off from the data whenever the two zones disagree on the date.
+ */
+function startOfToday(timeZone: string | undefined): number {
+  return parseLocalDate(todayInTz(timeZone)).getTime();
 }
 
 /**
@@ -59,10 +66,10 @@ const FAT_TICK_TARGET = 3;
 
 // The year is always present, not just when the range crosses a boundary: with
 // only three ticks a reader cannot tell a Nov→Feb span from a Feb→Nov one, and
-// a year that appears only sometimes is worse than one that always does.
-const fmtTickDate = (ts: number) =>
-  formatDate(ts, undefined, { month: 'short', day: 'numeric', year: '2-digit' });
-const fmtWeight = (w: number) => (Number.isInteger(w) ? String(w) : w.toFixed(1));
+// a year that appears only sometimes is worse than one that always does. Full
+// year (DAY_STYLES.long, as everywhere else): "Aug 11, 26" reads as a day.
+const fmtTickDate = (ts: number) => formatDate(ts, undefined, DAY_STYLES.long);
+const fmtWeight = (w: number) => formatNumber(w, undefined, { maximumFractionDigits: 1, useGrouping: false });
 
 /** Tick label font size, shared by the renderer and the fits-in-plot estimate below. */
 const TICK_FONT_PX = 10;
@@ -76,8 +83,8 @@ const MIN_TICK_GAP = 12;
  * is a safe average for the digits and lowercase these labels are made of.
  *
  * Worth estimating rather than assuming: label width varies ~2.5x across the
- * supported locales once the year is included — en renders "Feb 14, 25" (10
- * chars) where pt renders "14 de fev. de 25" (16). Three Portuguese labels
+ * supported locales once the year is included — en renders "Feb 14, 2025" (12
+ * chars) where pt renders "14 de fev. de 2025" (18). Three Portuguese labels
  * overflow a phone-width plot; three English ones fit with room to spare.
  */
 const estTickLabelW = (s: string) => s.length * TICK_FONT_PX * 0.55;
@@ -99,6 +106,7 @@ export default function PlanChart({
   weightUnit,
   variant = 'full',
   showBodyFat = false,
+  timeZone,
   className,
 }: PlanChartProps) {
   const { t } = useTranslation('dashboard');
@@ -140,7 +148,10 @@ export default function PlanChart({
 
   const layout = useMemo(() => {
     const actual = series
-      .map((p) => ({ t: new Date(p.date).getTime(), w: p.weight, bf: p.bodyFat }))
+      // Local midnight, like startOfToday() and the tick labels: new Date(ymd)
+      // is UTC midnight, which put every point (and the first tick's label) on
+      // the previous day west of UTC.
+      .map((p) => ({ t: parseLocalDate(p.date).getTime(), w: p.weight, bf: p.bodyFat }))
       .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.w))
       .sort((a, b) => a.t - b.t);
 
@@ -155,7 +166,7 @@ export default function PlanChart({
     // Plan-curve weeks are offsets from today — map onto the same timeline as the
     // logged series. Spark keeps the domain tight to logged history (no axes to
     // orient the reader to a projected range), so it skips the plan curve entirely.
-    const today = startOfToday();
+    const today = startOfToday(timeZone);
     const plan = isSpark ? [] : planCurve.map((p) => ({ t: today + p.week * 7 * DAY_MS, w: p.weight }));
 
     const tValues = [...actual.map((p) => p.t), ...plan.map((p) => p.t)];
@@ -249,7 +260,7 @@ export default function PlanChart({
       xAxisTicks: isSpark ? [] : xTickTs.map((t) => ({ t, x: x(t) })),
       yAxisTicks: isSpark ? [] : niceTicks(wMinPadded, wMaxPadded, Y_TICK_TARGET).map((w) => ({ w, y: y(w) })),
     };
-  }, [series, planCurve, targetWeight, healthyRange, isSpark, showBodyFat, size]);
+  }, [series, planCurve, targetWeight, healthyRange, isSpark, showBodyFat, size, timeZone]);
 
   const chartTitle = isSpark
     ? `${t('plan.chart.sparkTitle')}${targetWeight != null ? t('plan.chart.sparkTitleTarget', { value: fmtWeight(targetWeight), unit: weightUnit }) : ''}`
@@ -397,7 +408,7 @@ export default function PlanChart({
 
       {fatTicks.map(({ v, y: ty }) => (
         <text key={`bftick-${v}`} x={margin.left + plotW + 4} y={ty} textAnchor="start" dominantBaseline="middle" className="text-macro-protein" fill="currentColor" fontSize={10} opacity={0.75}>
-          {Number.isInteger(v) ? v : v.toFixed(1)}%
+          {formatNumber(v, undefined, { maximumFractionDigits: 1, useGrouping: false })}%
         </text>
       ))}
 

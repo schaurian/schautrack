@@ -39,12 +39,17 @@ package dbtest
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // EnvVar is the connection string tests read. Kept as the single source of
@@ -81,6 +86,52 @@ func URL(t *testing.T) string {
 		t.Skipf("%s not set and no container could be started; skipping integration test", EnvVar)
 	}
 	return url
+}
+
+// FreshDatabase creates an empty database on the integration-test server for
+// this test alone and returns its connection string; it is dropped when the
+// test ends. For tests whose code under test acts on the WHOLE database — the
+// cleanup reaper deletes every row matching its predicate — so they neither
+// depend on nor disturb what other packages, running in parallel against the
+// same server in CI, have written. Skips like URL when there is no server.
+func FreshDatabase(t *testing.T) string {
+	t.Helper()
+	base := URL(t)
+	u, err := url.Parse(base)
+	if err != nil {
+		t.Fatalf("dbtest: parse %s: %v", EnvVar, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	admin, err := pgx.Connect(ctx, base)
+	if err != nil {
+		t.Fatalf("dbtest: connect: %v", err)
+	}
+	defer admin.Close(context.Background())
+
+	var suffix [6]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
+		t.Fatalf("dbtest: random name: %v", err)
+	}
+	name := "dbtest_" + hex.EncodeToString(suffix[:])
+	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
+		t.Fatalf("dbtest: create database %s: %v", name, err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		c, err := pgx.Connect(ctx, base)
+		if err != nil {
+			t.Logf("dbtest: could not drop %s: %v", name, err)
+			return
+		}
+		defer c.Close(context.Background())
+		if _, err := c.Exec(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)"); err != nil {
+			t.Logf("dbtest: could not drop %s: %v", name, err)
+		}
+	})
+	u.Path = "/" + name
+	return u.String()
 }
 
 // Run is the TestMain body for packages with DB-backed tests:

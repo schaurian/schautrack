@@ -63,9 +63,8 @@ test.describe('Linked User Timezone Display', () => {
 
     const creatorEmail = creator.email;
     const creatorLabel = page
-      .locator('.text-sm.font-medium')
-      .filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') })
-      .first();
+      .getByTestId('share-card')
+      .filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') });
 
     await expect(creatorLabel).toBeVisible({ timeout: 20000 });
 
@@ -75,9 +74,9 @@ test.describe('Linked User Timezone Display', () => {
     await page.waitForTimeout(500);
 
     // Click the creator's dot for the entry date. DayDot renders
-    // <button title="{date}" aria-label="{date}: {status}">.
+    // <button aria-label="{date}: {status}, …">.
     const creatorCard = page.getByTestId('share-card').filter({ hasText: new RegExp(creatorEmail.split('@')[0], 'i') });
-    const entryDot = creatorCard.locator(`button[title="${ENTRY_DATE}"]`).first();
+    const entryDot = creatorCard.locator(`button[aria-label^="${ENTRY_DATE}:"]`).first();
     await entryDot.scrollIntoViewIfNeeded({ timeout: 5000 });
     await expect(entryDot).toBeVisible({ timeout: 5000 });
     await entryDot.click();

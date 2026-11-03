@@ -14,20 +14,17 @@
  */
 import { execFileSync } from 'child_process';
 
+// The stack to seed: compose.test.yml's by default (what screenshots.sh brings
+// up), or COMPOSE_PROJECT_NAME / DB_CONTAINER — never a guess from `docker ps`.
+import { DB_CONTAINER } from '../e2e/fixtures/containers';
+
 const DEMO_EMAIL = 'demo@schautrack.app';
 const FRIEND_EMAIL = 'friend@schautrack.app';
 // bcrypt of "demo1234demo" — a throwaway credential for a throwaway database.
 const DEMO_HASH = '$2b$10$yGfth4QccMugcvNRMqNLhOPdL.1j9UI00W7Fy4oKBEWjriE8OdV6W';
 
-const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
-
-function detectDbContainer(): string {
-  const out = execFileSync('sh', ['-c', 'docker ps --format "{{.Names}}" | grep -E "schautrack.*db"'], { encoding: 'utf-8' }).trim();
-  const names = out.split('\n').map((n) => n.trim()).filter(Boolean);
-  return names.find((n) => n.includes('test')) || names[0] || 'schautrack-test-db-1';
-}
 
 function psql(sql: string): string {
   const raw = execFileSync('docker', ['exec', '-i', DB_CONTAINER, 'psql', '-U', DB_USER, '-d', DB_NAME, '-tA'], {

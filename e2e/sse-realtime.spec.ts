@@ -59,10 +59,10 @@ test.describe('SSE Real-time Updates', () => {
     await openAddFood(pageA);
     await pageA.locator('input[placeholder="Breakfast, snack..."]').fill('SSE Test Entry');
 
-    const calInput = pageA.locator('input[inputmode="tel"][placeholder="0"]').first();
+    const calInput = pageA.locator('[data-testid="entry-calories"]').first();
     const isReadonly = await calInput.getAttribute('readonly');
     if (isReadonly !== null) {
-      await pageA.locator('input[inputmode="numeric"][placeholder="0"]').first().fill('25');
+      await pageA.locator('input[data-testid^="entry-macro-"]').first().fill('25');
     } else {
       await calInput.fill('123');
     }

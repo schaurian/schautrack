@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAutosave } from '@/hooks/useAutosave';
 import { cn } from '@/lib/utils';
+import { formatDay } from '@/lib/format';
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
@@ -92,7 +93,9 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
           <div className="flex flex-col gap-1.5">
             {warnings.map((w, i) => (
               <p key={`${w.code}-${i}`} className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-yellow-300">
-                {w.message}
+                {/* Named by the stable `code`; the server's English `message`
+                    covers a code this client does not know yet. */}
+                {t(`plan.warnings.${w.code}`, { defaultValue: w.message })}
               </p>
             ))}
           </div>
@@ -107,7 +110,7 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
             {computed.etaDate && (
               <div>
                 <span className="text-muted-foreground">{t('plan.goalForm.etaLabel')}</span>
-                <span className="font-semibold">{computed.etaDate}</span>
+                <span className="font-semibold">{formatDay(computed.etaDate)}</span>
               </div>
             )}
             <div>

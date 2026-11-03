@@ -71,10 +71,10 @@ func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tz := strings.TrimSpace(body.Timezone)
-	if tz != "" {
-		if _, err := time.LoadLocation(tz); err != nil {
-			tz = ""
-		}
+	// ValidTimezone, not a bare LoadLocation: "Local" loads fine but means
+	// the server's own zone, not anything the user picked.
+	if tz != "" && !service.ValidTimezone(tz) {
+		tz = ""
 	}
 
 	// Empty/unsupported language means "Automatic" — store NULL so browser
@@ -935,6 +935,9 @@ func (h *LinksHandler) SetShares(w http.ResponseWriter, r *http.Request) {
 	// error is discarded deliberately rather than by omission.
 	_ = json.Unmarshal(saved, &savedMap)
 	savedMap = service.SanitizeShareMap(savedMap)
+	// The broker caches each user's links with their shares; drop it so a
+	// revoked category stops receiving activity events right away.
+	h.Broker.InvalidateLinks(user.ID, otherUserID)
 	// Notify both sides: the caller may have another settings tab open, while
 	// the linked user must immediately gain/lose the affected dashboard data.
 	h.Broker.BroadcastLinkSharesChange(linkID, user.ID, savedMap)

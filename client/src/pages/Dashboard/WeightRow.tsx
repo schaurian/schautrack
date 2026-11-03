@@ -6,6 +6,7 @@ import { upsertWeight, deleteWeight } from '@/api/weight';
 import { MAX_BODY_FAT_PCT, parseBodyFatInput } from '@/lib/bodyFat';
 import { useToastStore } from '@/stores/toastStore';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { formatDay, formatDecimal } from '@/lib/format';
 
 interface Props {
   weightEntry: WeightEntry | null;
@@ -129,7 +130,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
       <SectionLabel
         right={!isToday && entry?.entry_date ? (
           <span className="text-xs text-muted-foreground">
-            {entry.entry_date} &middot; {t('weight.daysAgo', { count: daysAgo })}
+            {formatDay(entry.entry_date)} &middot; {t('weight.daysAgo', { count: daysAgo })}
           </span>
         ) : undefined}
       >
@@ -155,7 +156,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
           </span>
         ) : (
           <span className={`text-lg font-semibold tabular-nums ${colorClass}`}>
-            {entry ? entry.weight.toFixed(1) : '—'}
+            {entry ? formatDecimal(entry.weight) : '—'}
             <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
           </span>
         )}
@@ -183,7 +184,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
             {/* showBodyFat already proved this branch has a reading; reading it
                 through `?.` would quietly render "NaN" if that ever stopped
                 holding, so take the value directly and let it fail loudly. */}
-            {Number(bodyFatValue).toFixed(1)}
+            {formatDecimal(Number(bodyFatValue))}
             <span className="text-sm font-normal ml-1">%</span>
           </span>
         ))}

@@ -23,7 +23,7 @@ const NUMBER_RE = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
  *
  * Keep in sync with ParseAmount in internal/service/mathparser.go.
  */
-function roundHalfAwayFromZero(value: number): number {
+export function roundHalfAwayFromZero(value: number): number {
   return value < 0 ? -Math.round(-value) : Math.round(value);
 }
 
@@ -110,9 +110,29 @@ const HEX_LITERAL_RE = /(^|[^0-9.])0[xX][0-9a-fA-F]/;
 // site in parseAmount and stripWhitespace in internal/service/mathparser.go.
 const WHITESPACE_RE = /[\s\u0085]/g;
 
-export function parseAmount(input: string | number | null | undefined, options: { maxAbs?: number } = {}): { ok: boolean; value: number } {
-  const maxAbs = options.maxAbs ?? null;
+// See hasMalformedComma in internal/service/mathparser.go.
+const NUMBER_RUN_RE = /[0-9.,]+/g;
+const GROUPED_NUMBER_RE = /^[0-9]{1,3}(,[0-9]{3})+(\.[0-9]*)?$/;
+
+/**
+ * Evaluates an amount expression without rounding or bounding the result —
+ * the part of parseAmount a caller needs when it scales the value before
+ * rounding it (the entry form multiplies by quantity first, so 12.5 g × 2 is
+ * 25, not round(12.5) × 2 = 26). parseAmount is this plus the rounding and
+ * the bounds, and remains the function that mirrors the Go ParseAmount.
+ */
+export function evaluateAmount(input: string | number | null | undefined): { ok: boolean; value: number } {
   if (input === undefined || input === null) return { ok: false, value: 0 };
+
+  // A comma is only accepted as a well-formed thousands separator ("1,000",
+  // "12,345.5"); "12,5" used to lose its comma and become 125. Decimal-comma
+  // languages are handled before this, by entryValidation's normalizeDecimal.
+  // Keep in sync with groupedNumberRe / hasMalformedComma in
+  // internal/service/mathparser.go.
+  const compact = String(input).replace(WHITESPACE_RE, '');
+  for (const run of compact.match(NUMBER_RUN_RE) ?? []) {
+    if (run.includes(',') && !GROUPED_NUMBER_RE.test(run)) return { ok: false, value: 0 };
+  }
 
   // Reject hex-looking literals before "x" becomes "*". Without this, "0x10"
   // normalizes to "0*10" and is silently accepted as 0, which the entry form
@@ -144,19 +164,26 @@ export function parseAmount(input: string | number | null | undefined, options: 
   try {
     const value = safeMathEval(expr);
     if (typeof value !== 'number' || !Number.isFinite(value)) return { ok: false, value: 0 };
-    const rounded = roundHalfAwayFromZero(value);
-    // Reject anything outside the int32 range even when no maxAbs is given.
-    // The Go side must do this because converting an out-of-range float64 to
-    // int is implementation-defined there and yields math.MinInt64 (#364);
-    // JavaScript has no such trap, but the two parsers have to agree, and the
-    // value ends up in an INTEGER column either way. Without this, an
-    // unbounded parseAmount("99999999999999999999*99999999999999999999")
-    // returned ok on one side and not the other.
-    // Keep in sync with the bound in internal/service/mathparser.go.
-    if (rounded > 2147483647 || rounded < -2147483648) return { ok: false, value: 0 };
-    if (maxAbs !== null && Math.abs(rounded) > maxAbs) return { ok: false, value: 0 };
-    return { ok: true, value: rounded };
+    return { ok: true, value };
   } catch {
     return { ok: false, value: 0 };
   }
+}
+
+export function parseAmount(input: string | number | null | undefined, options: { maxAbs?: number } = {}): { ok: boolean; value: number } {
+  const maxAbs = options.maxAbs ?? null;
+  const evaluated = evaluateAmount(input);
+  if (!evaluated.ok) return { ok: false, value: 0 };
+  const rounded = roundHalfAwayFromZero(evaluated.value);
+  // Reject anything outside the int32 range even when no maxAbs is given.
+  // The Go side must do this because converting an out-of-range float64 to
+  // int is implementation-defined there and yields math.MinInt64 (#364);
+  // JavaScript has no such trap, but the two parsers have to agree, and the
+  // value ends up in an INTEGER column either way. Without this, an
+  // unbounded parseAmount("99999999999999999999*99999999999999999999")
+  // returned ok on one side and not the other.
+  // Keep in sync with the bound in internal/service/mathparser.go.
+  if (rounded > 2147483647 || rounded < -2147483648) return { ok: false, value: 0 };
+  if (maxAbs !== null && Math.abs(rounded) > maxAbs) return { ok: false, value: 0 };
+  return { ok: true, value: rounded };
 }

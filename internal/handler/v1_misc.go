@@ -197,7 +197,7 @@ func (h *V1Handler) PutNoteV1(w http.ResponseWriter, r *http.Request) {
 			apierr.Write(w, r, dbFail("delete note", err))
 			return
 		}
-		h.broadcastEntries(user.ID)
+		h.broadcastNotes(user.ID)
 		writeV1(w, http.StatusOK, v1Note{Date: date})
 		return
 	}
@@ -213,7 +213,7 @@ func (h *V1Handler) PutNoteV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.broadcastEntries(user.ID)
+	h.broadcastNotes(user.ID)
 	writeV1(w, http.StatusOK, out)
 }
 

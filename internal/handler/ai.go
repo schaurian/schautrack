@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -38,6 +40,12 @@ const (
 	// 14MB base64 image plus JSON overhead and matches the global 15MB
 	// body cap set in cmd/server/main.go.
 	maxAIRequestBytes = 15 << 20
+	// maxAIContextChars bounds the optional free-text hint, in characters. It
+	// is pasted into the provider prompt, so without a cap one request could
+	// carry megabytes of text — billed per token on the operator's global key
+	// while counting as a single request against the daily limit. Matches the
+	// client input's maxLength.
+	maxAIContextChars = 200
 )
 
 // aiConfigInputs are the effective global (admin panel / env) and user-level
@@ -127,6 +135,10 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(body.Image) > maxImageBase64Bytes {
 		ErrorJSON(w, http.StatusRequestEntityTooLarge, "Image too large. Maximum size is 10MB.")
+		return
+	}
+	if utf8.RuneCountInString(body.Context) > maxAIContextChars {
+		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Context too long. Maximum %d characters.", maxAIContextChars))
 		return
 	}
 
@@ -244,9 +256,11 @@ Only respond with the JSON object, no other text.`,
 	// concurrent requests cannot all pass a stale pre-increment check.
 	// A reservation that yields no estimation is released again below.
 	trackUsage := usingGlobalKey || (user.AIDailyLimit != nil && *user.AIDailyLimit > 0)
+	// One day for the reservation and any release: the user's calendar day.
+	usageDay := aiUsageDay(r, user)
 	reserved := false
 	if trackUsage {
-		count, err := service.ReserveAIUsage(ctx, h.Pool, user.ID)
+		count, err := service.ReserveAIUsage(ctx, h.Pool, user.ID, usageDay)
 		if err != nil {
 			// Fail closed: without a usage count we must not hand out
 			// unmetered AI calls.
@@ -256,7 +270,7 @@ Only respond with the JSON object, no other text.`,
 		}
 		reserved = true
 		if dailyLimit > 0 && count > dailyLimit {
-			service.ReleaseAIUsage(context.WithoutCancel(ctx), h.Pool, user.ID)
+			service.ReleaseAIUsage(context.WithoutCancel(ctx), h.Pool, user.ID, usageDay)
 			JSON(w, http.StatusTooManyRequests, map[string]any{
 				"ok": false, "error": fmt.Sprintf("Daily limit reached (%d requests).", dailyLimit),
 				"limitReached": true, "limit": dailyLimit, "used": count - 1,
@@ -270,7 +284,7 @@ Only respond with the JSON object, no other text.`,
 		if reserved {
 			// No estimation happened — hand the slot back. Use a
 			// non-cancelable context so an aborted request still releases.
-			service.ReleaseAIUsage(context.WithoutCancel(ctx), h.Pool, user.ID)
+			service.ReleaseAIUsage(context.WithoutCancel(ctx), h.Pool, user.ID, usageDay)
 		}
 		if err.Error() == "NO_FOOD_DETECTED" {
 			JSON(w, http.StatusBadRequest, map[string]any{
@@ -307,6 +321,17 @@ Only respond with the JSON object, no other text.`,
 		"ok": true, "calories": calories, "food": result.Food,
 		"confidence": result.Confidence, "macros": macros,
 	})
+}
+
+// aiClock is the wall clock for the AI daily quota, a variable so tests can
+// pin it to an instant where UTC and the user disagree on the date.
+var aiClock = time.Now
+
+// aiUsageDay is the ai_usage row a request counts against: the user's local
+// calendar date, so the daily limit resets at their midnight — the same day
+// the dashboard shows the usage under.
+func aiUsageDay(r *http.Request, user interface{ GetTimezone() string }) string {
+	return service.FormatDateInTz(aiClock(), getUserTimezone(r, user))
 }
 
 func derefString(s *string) string {

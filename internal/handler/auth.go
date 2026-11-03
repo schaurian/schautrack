@@ -15,6 +15,7 @@ import (
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
+	"schautrack/internal/sse"
 )
 
 // AuthHandler holds dependencies for auth routes.
@@ -24,6 +25,9 @@ type AuthHandler struct {
 	Email        *service.EmailService
 	Cfg          *config.Config
 	Settings     *database.SettingsCache
+	// Broker, when set, has its link caches invalidated for the partners of a
+	// deleted account.
+	Broker *sse.Broker
 }
 
 // trustProxy reports whether proxy headers may be trusted for client IP
@@ -90,6 +94,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		newSess.SetUserID(user.ID)
+		recordLogin(r.Context(), h.Pool, user.ID)
 		newSess.Set("auth_method", "password")
 		session.SetSession(r, newSess)
 		OkJSON(w)
@@ -104,25 +109,23 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	email := strings.ToLower(strings.TrimSpace(body.Email))
 	clientAddr := clientip.FromRequest(r, h.trustProxy())
 
-	captchaAnswer := sess.GetString("captchaAnswer")
+	captchaAnswer := sess.GetString(loginCaptchaKey)
 	if captchaAnswer == "" && loginCaptchaRequired(sess, email, clientAddr) {
 		// The server-side failure counters (keyed by account email and
 		// client IP) demand a captcha, but this session has none in flight —
 		// e.g. a client dropping its cookies between attempts to keep the
 		// session counter at zero. Issue a challenge instead of processing.
-		c := service.GenerateCaptcha()
-		sess.Set("captchaAnswer", c.Text)
+		c := issueCaptcha(sess, loginCaptchaKey)
 		JSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Captcha required.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 		return
 	}
 	if captchaAnswer != "" {
 		if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
-			c := service.GenerateCaptcha()
-			sess.Set("captchaAnswer", c.Text)
+			c := issueCaptcha(sess, loginCaptchaKey)
 			JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 			return
 		}
-		sess.Delete("captchaAnswer")
+		sess.Delete(loginCaptchaKey)
 	}
 
 	var userID int
@@ -192,6 +195,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newSess.SetUserID(userID)
+	recordLogin(r.Context(), h.Pool, userID)
 	newSess.Set("auth_method", "password")
 	session.SetSession(r, newSess)
 	OkJSON(w)
@@ -337,12 +341,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if timezone == "" {
-		timezone = middleware.GetClientTimezone(r)
-	}
-	if timezone == "" {
-		timezone = "UTC"
-	}
+	timezone = registrationTimezone(timezone, middleware.GetClientTimezone(r))
 
 	hash, err := hashPassword(password)
 	if err != nil {
@@ -360,8 +359,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		"legalConsent": requireConsent && legalAccepted && healthConsent,
 	})
 
-	c := service.GenerateCaptcha()
-	sess.Set("captchaAnswer", c.Text)
+	c := issueCaptcha(sess, registerCaptchaKey)
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "requireCaptcha": true, "captchaSvg": c.Data, "captchaQuestion": c.Question})
 }
 
@@ -381,18 +379,19 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 
 	if emailClean == "" || hash == "" || (createdAt > 0 && time.Since(time.Unix(int64(createdAt), 0)) > 30*time.Minute) {
 		sess.Delete("pendingRegistration")
+		// Not observable today (nothing reads it without a pending registration), but a stale answer must never outlive its flow.
+		sess.Delete(registerCaptchaKey)
 		ErrorJSON(w, http.StatusBadRequest, "Registration session expired.")
 		return
 	}
 
-	captchaAnswer := sess.GetString("captchaAnswer")
+	captchaAnswer := sess.GetString(registerCaptchaKey)
 	if !service.VerifyCaptcha(captchaAnswer, captcha) {
-		c := service.GenerateCaptcha()
-		sess.Set("captchaAnswer", c.Text)
+		c := issueCaptcha(sess, registerCaptchaKey)
 		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question})
 		return
 	}
-	sess.Delete("captchaAnswer")
+	sess.Delete(registerCaptchaKey)
 
 	var exists bool
 	err := h.Pool.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", emailClean).Scan(&exists)
@@ -514,6 +513,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			return
 		}
 		newSess.SetUserID(userID)
+		recordLogin(r.Context(), h.Pool, userID)
 		newSess.Set("auth_method", "password")
 		session.SetSession(r, newSess)
 		OkJSON(w)
@@ -534,4 +534,24 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	OkJSON(w)
+}
+
+// registrationTimezone picks the zone a new account starts with: the one the
+// registration form sent if the server can load it, else the client's
+// remembered zone (already validated by middleware), else UTC. A zone the
+// server cannot load used to be stored verbatim and then silently count every
+// day in UTC; now it is logged and replaced instead of failing the signup —
+// the user can still pick a zone in Settings.
+func registrationTimezone(requested, clientTz string) string {
+	requested = strings.TrimSpace(requested)
+	if service.ValidTimezone(requested) {
+		return requested
+	}
+	if requested != "" {
+		slog.Warn("registration sent an unknown timezone; falling back", "timezone", requested, "fallback_client", clientTz)
+	}
+	if clientTz != "" {
+		return clientTz
+	}
+	return "UTC"
 }

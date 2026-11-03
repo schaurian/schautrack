@@ -64,7 +64,10 @@
     "dismiss": "Odrzuć"
   },
   "errors": {
-    "failedToSave": "Nie udało się zapisać"
+    "failedToSave": "Nie udało się zapisać",
+    "forbidden": "Odmowa dostępu",
+    "requestFailed": "Żądanie nie powiodło się",
+    "unauthorized": "Nie zalogowano"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} chce się z Tobą połączyć"
@@ -121,6 +124,7 @@
         "eyebrow": "Witamy",
         "title": "Dzień po dniu"
       }
-    }
+    },
+    "setGoal": "Ustaw swój cel"
   }
 }

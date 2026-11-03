@@ -539,3 +539,18 @@ func (h *V1Handler) broadcastEntries(userID int) {
 		h.Broker.BroadcastEntryChange(userID)
 	}
 }
+
+// broadcastWeight and broadcastNotes are broadcastEntries for the weight and
+// notes categories: the broker only tells a linked friend about a change in a
+// category they are shared.
+func (h *V1Handler) broadcastWeight(userID int) {
+	if h.Broker != nil {
+		h.Broker.BroadcastWeightChange(userID)
+	}
+}
+
+func (h *V1Handler) broadcastNotes(userID int) {
+	if h.Broker != nil {
+		h.Broker.BroadcastNoteChange(userID)
+	}
+}

@@ -64,7 +64,10 @@
     "dismiss": "Descartar"
   },
   "errors": {
-    "failedToSave": "Error al guardar"
+    "failedToSave": "Error al guardar",
+    "forbidden": "Acceso denegado",
+    "requestFailed": "La solicitud ha fallado",
+    "unauthorized": "Sesión no iniciada"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} quiere vincularse contigo"
@@ -121,6 +124,7 @@
         "eyebrow": "Bienvenida",
         "title": "Un día a la vez"
       }
-    }
+    },
+    "setGoal": "Fija tu objetivo"
   }
 }

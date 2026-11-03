@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Voer barcodenummer in",
     "lookUpButton": "Opzoeken",
     "lookingUpText": "{{barcode}} wordt opgezocht...",
-    "calPer100g": "{{value}} cal per 100 g",
+    "calPer100g": "{{value}} kcal per 100 g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · portie: {{size}}",
     "addEntryButton": "Item toevoegen",
     "scanAnotherButton": "Nog een scannen",
@@ -66,12 +67,24 @@
       "over": "boven doel",
       "overThreshold": "ruim boven doel",
       "zero": "geen items",
-      "none": "geen items"
+      "none": "geen items",
+      "missedTarget": "doel gemist"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% te veel",
+      "under": "{{metric}} {{pct}}% onder doel"
     }
   },
   "entries": {
     "logSectionTitle": "Log",
     "addFood": "Voeding toevoegen",
+    "fieldAmbiguous": "Schrijf {{whole}}, of {{decimal}} voor een decimaal getal",
+    "fieldAmbiguousDecimal": "Schrijf {{decimal}} voor een decimaal getal",
+    "fieldComputedRange": "De calorieën uit deze macro's overschrijden {{max}}",
+    "fieldComputedRangeQty": "Maal {{qty}} overschrijden de calorieën uit deze macro's {{max}}",
+    "fieldInvalid": "Vul een getal of een berekening als 2*150 in",
+    "fieldRange": "Vul een waarde van {{min}} tot {{max}} in",
+    "fieldRangeQty": "Maal {{qty}} moet dit tussen {{min}} en {{max}} blijven",
     "foodNameAriaLabel": "Naam van eten",
     "foodNamePlaceholder": "Ontbijt, snack...",
     "qtyLabel": "Aantal",
@@ -93,7 +106,6 @@
     "undoLabel": "Ongedaan maken",
     "unnamedEntryFallback": "item",
     "toastInvalidCalorieAmount": "Ongeldig aantal calorieën",
-    "toastInvalidMacroValue": "Ongeldige waarde voor {{macro}}",
     "toastTracked": "Item bijgehouden",
     "toastTrackFailed": "Bijhouden van item mislukt",
     "toastSavedFood": "\"{{name}}\" opgeslagen",
@@ -163,7 +175,7 @@
     },
     "progress": {
       "title": "Voortgang",
-      "projectedLabel": "Verwacht: {{date}}"
+      "projectedLabel": "Bij huidige trend: {{date}}"
     },
     "toastBudgetApplied": "Caloriedoel bijgewerkt",
     "toastBudgetApplyFailed": "Toepassen van budget mislukt",
@@ -184,7 +196,7 @@
       "targetDateLabel": "Streefdatum",
       "completeDetailsHint": "Vul je gegevens hierboven aan om een caloriebudget voor dit doel te berekenen.",
       "budgetLabel": "Budget: ",
-      "etaLabel": "Verwacht op: ",
+      "etaLabel": "Streefdatum volgens plan: ",
       "weeksLabel_one": " week",
       "weeksLabel_other": " weken"
     },
@@ -236,6 +248,13 @@
       "fitness": "Fit",
       "average": "Gemiddeld",
       "obese": "Obesitas"
+    },
+    "disclaimer": "Dit plan is een schatting op basis van standaardformules (Mifflin-St Jeor, of Katch-McArdle als er een vetpercentage bekend is) en algemene activiteitsrichtlijnen. Het is geen medisch advies — raadpleeg een zorgprofessional voordat je begint met afvallen of aankomen, zeker als je onderliggende gezondheidsproblemen hebt.",
+    "warnings": {
+      "aggressive_rate": "Je doeltempo is sneller dan 1% van je lichaamsgewicht per week en is mogelijk onveilig of niet vol te houden.",
+      "budget_clamped": "Je aanbevolen caloriebudget is verhoogd naar het veilige minimum voor je profiel.",
+      "target_obese": "Je streefgewicht valt in het BMI-bereik voor obesitas.",
+      "target_underweight": "Je streefgewicht valt in het BMI-bereik voor ondergewicht."
     }
   },
   "savedFoods": {
@@ -336,5 +355,16 @@
     "toastBodyFatSaveFailed": "Opslaan van vetpercentage mislukt",
     "bodyFatHint": "Het tweede vak is je vetpercentage, als je weegschaal dat meet.",
     "bodyFatPlaceholder": "% vet"
+  },
+  "today": {
+    "left": "nog {{amount}}",
+    "over": "+{{amount}} te veel",
+    "toGo": "nog {{amount}} te gaan"
+  },
+  "goalPrompt": {
+    "body": "De ring en de dagvakjes vullen zich ten opzichte van je doel. Zonder doel hebben ze niets om te meten.",
+    "cta": "Doel instellen",
+    "dismiss": "Niet nu",
+    "title": "Stel een caloriedoel in"
   }
 }

@@ -176,7 +176,7 @@ describe('parseAmount', () => {
       ['100x2', true, 200, 'left operand ends in 00, still multiplication'],
       ['1.0x2', true, 2, '0 after a decimal point is not a hex prefix'],
       ['0 x 10', true, 0, 'spaced form is an explicit multiplication by zero'],
-      ['1,0x2', true, 20, 'comma is stripped first, so this is 10*2'],
+      ['1,0x2', false, 0, '1,0 is not a thousands group: rejected'],
 
       // Whitespace stripping: ALL whitespace goes, so a space inside a
       // number closes over silently.
@@ -194,13 +194,16 @@ describe('parseAmount', () => {
       ['1\u00a0000', true, 1000, 'NBSP thousands separator, what fr-FR and de-CH produce'],
       ['5\u200b5', false, 0, 'U+200B ZWSP is not whitespace in either language: still rejected'],
 
-      // Comma stripping: a comma is ALWAYS a thousands separator, never a
-      // decimal point. In an expression parser it cannot be both.
+      // Commas: only ever a thousands separator, never a decimal point — in
+      // an expression parser it cannot be both. A comma that is not a
+      // well-formed thousands group is an error; it used to be stripped, so
+      // "1,5" became 15. (The entry form reads a decimal comma itself, in
+      // decimal-comma languages, before this parser sees the input.)
       ['1,000', true, 1000, 'comma as a thousands separator, intended'],
       ['1,234 + 500', true, 1734, 'thousands separator inside an expression'],
-      ['1,5', true, 15, 'European decimal becomes 15, NOT 1.5'],
-      ['1,50', true, 150, 'same, two decimal places'],
-      ['0,4', true, 4, 'same, leading zero'],
+      ['1,5', false, 0, 'European decimal: rejected, no longer 15'],
+      ['1,50', false, 0, 'same, two decimal places (was 150)'],
+      ['0,4', false, 0, 'same, leading zero (was 4)'],
 
       // Sign forms: parseFactor recurses on unary +/-, so signs stack.
       ['+5', true, 5, 'leading unary plus'],

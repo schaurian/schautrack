@@ -117,9 +117,12 @@ test.describe('Timeline', () => {
     await firstDot.click();
     await page.waitForTimeout(300);
 
-    // The Entries section header shows the selected date
+    // The Entries section header shows the selected date, formatted like the
+    // date pill (src/lib/format.ts DAY_STYLES.short) in the app's English.
     if (dotDate) {
-      const dateDisplay = page.locator('span').filter({ hasText: dotDate });
+      const [y, m, d] = dotDate.split('-').map(Number);
+      const shown = new Intl.DateTimeFormat('en', { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(y, m - 1, d));
+      const dateDisplay = page.locator('span').filter({ hasText: `${shown} — ` });
       await expect(dateDisplay).toBeVisible({ timeout: 5000 });
     }
 
@@ -158,7 +161,7 @@ test.describe('Timeline', () => {
     await expect(customBtn).toBeVisible();
 
     // Dots for the selected range should be visible; check for a dot matching start date
-    const startDot = page.locator(`button[title="${startStr}"]`);
+    const startDot = page.locator(`button[aria-label^="${startStr}:"]`);
     if (await startDot.count() > 0) {
       await expect(startDot.first()).toBeVisible({ timeout: 5000 });
     }

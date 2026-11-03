@@ -1,5 +1,6 @@
 import { api } from './client';
 import type { SettingsData } from '@/types';
+import { localDateStr } from '@/lib/date';
 
 export function getSettings() {
   return api<SettingsData>('/api/settings');
@@ -130,7 +131,7 @@ export async function exportData(): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `schautrack-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `schautrack-export-${localDateStr()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

@@ -112,6 +112,7 @@ func TestRunAllMigrationsIdempotentBodyProfileAndWeightGoals(t *testing.T) {
 	for _, c := range []struct{ table, column string }{
 		{"weight_entries", "body_fat"},
 		{"users", "body_fat_enabled"},
+		{"users", "last_login_at"},
 	} {
 		var exists bool
 		if err := pool.QueryRow(ctx, `

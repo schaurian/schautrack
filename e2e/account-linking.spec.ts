@@ -135,7 +135,7 @@ test.describe('Account Linking', () => {
     await expect(partnerLabel).toBeVisible({ timeout: 5000 });
 
     const partnerCard = page.getByTestId('share-card').filter({ hasText: 'My Test Partner' });
-    const partnerDot = partnerCard.locator('button[title*="-"]').first();
+    const partnerDot = partnerCard.locator('button[aria-label^="20"]').first();
     await partnerDot.click();
     await page.waitForTimeout(500);
 

@@ -107,10 +107,10 @@ type BodyComposition struct {
 const BodyFatRecencyDays = 90
 
 // BodyFatReadingAgeDays returns how many whole days old a YYYY-MM-DD reading is
-// relative to now's calendar date, plus whether the date parsed at all. A
-// reading dated ahead of now yields a negative age (the reading date is the
-// user's local date while now is the server's, so a few hours of skew is
-// normal); callers treat that as fresh rather than as an error.
+// relative to now's calendar date, plus whether the date parsed at all. now
+// must already be in the user's zone (the handler passes NowInTz), so both
+// sides are the user's local calendar. A reading dated ahead of now yields a
+// negative age; callers treat that as fresh rather than as an error.
 func BodyFatReadingAgeDays(readingDate string, now time.Time) (int, bool) {
 	d, err := time.Parse("2006-01-02", readingDate)
 	if err != nil {

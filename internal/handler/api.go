@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"schautrack/internal/config"
@@ -17,6 +18,7 @@ import (
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
+	"schautrack/internal/sse"
 )
 
 // CsrfToken handles GET /api/csrf
@@ -68,9 +70,11 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 			macroGoals = map[string]any{}
 		}
 
-		tz := "UTC"
-		if user.Timezone != nil {
-			tz = *user.Timezone
+		// GetTimezone drops a stored name the server cannot load, so a bad
+		// value reads as the UTC actually in force (and a Settings save fixes it).
+		tz := user.GetTimezone()
+		if tz == "" {
+			tz = "UTC"
 		}
 
 		globalKey := settingsCache.GetEffectiveSetting(r.Context(), "ai_key", cfg.AIKey)
@@ -150,9 +154,11 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 			macroGoals = map[string]any{}
 		}
 
-		tz := "UTC"
-		if user.Timezone != nil {
-			tz = *user.Timezone
+		// GetTimezone drops a stored name the server cannot load, so a bad
+		// value reads as the UTC actually in force (and a Settings save fixes it).
+		tz := user.GetTimezone()
+		if tz == "" {
+			tz = "UTC"
 		}
 
 		hasAiKey := user.AIKey != nil && *user.AIKey != ""
@@ -299,6 +305,36 @@ func parseLimitOffset(limitStr, offsetStr string, def, max int) (limit, offset i
 	return limit, offset, nil
 }
 
+// adminUsersOrderBy maps the admin user list's ?sort=&order= to an ORDER BY
+// clause from a fixed whitelist. ok is false for anything it does not know.
+//
+//   - no sort (or "created"): newest account first — the list's original order.
+//   - sort=last_login: most recent sign-in first (order=desc, the default) or
+//     the longest-ago first (order=asc). Accounts with no recorded login sort
+//     LAST in both directions: NULL means "unknown", not "longest ago", so it
+//     must not crowd out the real oldest logins an admin is looking for.
+//
+// Every clause ends in an id DESC tiebreaker so equal timestamps never make
+// pagination skip or repeat rows, and the block of unknowns reads the same
+// (newest account first) whichever direction is chosen.
+func adminUsersOrderBy(sort, order string) (string, bool) {
+	switch sort {
+	case "", "created":
+		if order != "" && order != "desc" {
+			return "", false
+		}
+		return "created_at DESC, id DESC", true
+	case "last_login":
+		switch order {
+		case "", "desc":
+			return "last_login_at DESC NULLS LAST, id DESC", true
+		case "asc":
+			return "last_login_at ASC NULLS LAST, id DESC", true
+		}
+	}
+	return "", false
+}
+
 // AdminData handles GET /api/admin
 func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminEmail string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -310,10 +346,16 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 			return
 		}
 
-		// id DESC tiebreaker keeps the order deterministic when created_at
-		// collides, so pagination never skips or repeats rows.
+		orderBy, ok := adminUsersOrderBy(r.URL.Query().Get("sort"), r.URL.Query().Get("order"))
+		if !ok {
+			ErrorJSON(w, http.StatusBadRequest, "Invalid sort/order parameter.")
+			return
+		}
+
+		// orderBy comes from a fixed whitelist (adminUsersOrderBy), never from
+		// the request text itself.
 		rows, err := pool.Query(r.Context(),
-			"SELECT id, email, email_verified, created_at FROM users ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2",
+			"SELECT id, email, email_verified, created_at, last_login_at FROM users ORDER BY "+orderBy+" LIMIT $1 OFFSET $2",
 			limit, offset)
 		if err != nil {
 			ErrorJSON(w, http.StatusInternalServerError, "Could not load users.")
@@ -327,7 +369,8 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 			var email string
 			var emailVerified bool
 			var createdAt interface{}
-			if err := rows.Scan(&id, &email, &emailVerified, &createdAt); err != nil {
+			var lastLoginAt *time.Time
+			if err := rows.Scan(&id, &email, &emailVerified, &createdAt, &lastLoginAt); err != nil {
 				continue
 			}
 			users = append(users, map[string]any{
@@ -335,6 +378,8 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 				"email":          email,
 				"email_verified": emailVerified,
 				"created_at":     createdAt,
+				// null = no login recorded since the column was introduced.
+				"last_login_at": lastLoginAt,
 			})
 		}
 		if users == nil {
@@ -385,7 +430,9 @@ func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config)
 }
 
 // CleanExpiredTokens runs periodic cleanup of expired tokens.
-func CleanExpiredTokens(pool *pgxpool.Pool) {
+// broker may be nil; when set, the link caches of reaped accounts' partners
+// are invalidated.
+func CleanExpiredTokens(pool *pgxpool.Pool, broker *sse.Broker) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if _, err := pool.Exec(ctx, "DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE"); err != nil {
@@ -409,15 +456,31 @@ func CleanExpiredTokens(pool *pgxpool.Pool) {
 	// recover (resend the code, or re-login to get a fresh token) before the
 	// account is reaped — previously a single failed/expired verification
 	// email could silently cost the account within one cleanup tick.
-	if _, err := pool.Exec(ctx, `
-		DELETE FROM users
-		WHERE email_verified = FALSE
-			AND created_at < NOW() - interval '1 hour'
-			AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
-			AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
-			AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
+	//
+	// Every sub-statement of one query sees the same snapshot, so the SELECT
+	// below still reads the links the DELETE cascades away: it returns each
+	// reaped id and its accepted-link partners, whose caches must be dropped.
+	if rows, err := pool.Query(ctx, `
+		WITH reaped AS (
+			DELETE FROM users
+			WHERE email_verified = FALSE
+				AND created_at < NOW() - interval '1 hour'
+				AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
+				AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
+				AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
+			RETURNING id
+		)
+		SELECT r.id FROM reaped r
+		UNION
+		SELECT CASE WHEN al.requester_id = r.id THEN al.target_id ELSE al.requester_id END
+		FROM reaped r
+		JOIN account_links al ON al.status = 'accepted' AND (al.requester_id = r.id OR al.target_id = r.id)
 	`); err != nil {
 		slog.Error("failed to clean unverified users", "error", err)
+	} else if ids, err := pgx.CollectRows(rows, pgx.RowTo[int]); err != nil {
+		slog.Error("failed to clean unverified users", "error", err)
+	} else if broker != nil && len(ids) > 0 {
+		broker.InvalidateLinks(ids...)
 	}
 	// Retention: audit_log and ai_usage otherwise grow unbounded.
 	if _, err := pool.Exec(ctx, "DELETE FROM audit_log WHERE created_at < NOW() - interval '90 days'"); err != nil {

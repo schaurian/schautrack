@@ -87,6 +87,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newSess.SetUserID(userID)
+	recordLogin(r.Context(), h.Pool, userID)
 	newSess.Set("auth_method", "password")
 	session.SetSession(r, newSess)
 	OkJSON(w)
@@ -126,16 +127,15 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 			})
 			return
 		}
-		captchaAnswer := sess.GetString("resendCaptchaAnswer")
+		captchaAnswer := sess.GetString(resendCaptchaKey)
 		if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
-			c := service.GenerateCaptcha()
-			sess.Set("resendCaptchaAnswer", c.Text)
+			c := issueCaptcha(sess, resendCaptchaKey)
 			JSON(w, http.StatusBadRequest, map[string]any{
 				"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true,
 			})
 			return
 		}
-		sess.Delete("resendCaptchaAnswer")
+		sess.Delete(resendCaptchaKey)
 	}
 
 	var userID int
@@ -169,8 +169,7 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 	sess.Set("lastResendAt", float64(time.Now().Unix()))
 
 	if resendAttempts == 0 {
-		c := service.GenerateCaptcha()
-		sess.Set("resendCaptchaAnswer", c.Text)
+		c := issueCaptcha(sess, resendCaptchaKey)
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "nextRequiresCaptcha": true, "captchaSvg": c.Data})
 		return
 	}
@@ -338,6 +337,12 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
+	partners, err := acceptedLinkPartners(r.Context(), tx, user.ID)
+	if err != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not delete account. Please try again.")
+		return
+	}
+
 	tables := []string{
 		"DELETE FROM totp_backup_codes WHERE user_id = $1",
 		"DELETE FROM daily_notes WHERE user_id = $1",
@@ -362,6 +367,9 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(r.Context()); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not delete account. Please try again.")
 		return
+	}
+	if h.Broker != nil {
+		h.Broker.InvalidateLinks(append(partners, user.ID)...)
 	}
 
 	// user_id will be NULLed by the FK ON DELETE SET NULL — capture identifying

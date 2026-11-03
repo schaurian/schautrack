@@ -4,11 +4,13 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoods, deleteSavedFood, createSavedFood, updateSavedFood } from '@/api/savedFoods';
 import type { SavedFoodPayload } from '@/api/savedFoods';
-import { useToastStore } from '@/stores/toastStore';
+import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
+import { InlineEditInput } from '@/components/ui/InlineEditInput';
 import { MACRO_LABELS, getEnabledMacros } from '@/lib/macros';
+import { entryFieldErrorText, parseInlineEdit, type FieldError } from '@/lib/entryValidation';
 
 const numOrNull = (v: string | undefined) => {
   const n = Number((v ?? '').trim());
@@ -41,6 +43,10 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
   // Calories and each macro, keyed the way the payload expects them.
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  // The draft row reports a value it refused (it keeps showing the error);
+  // bumping the tick asks it to put focus back on that field.
+  const [draftInvalid, setDraftInvalid] = useState(false);
+  const [draftFocusTick, setDraftFocusTick] = useState(0);
   const draftRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery({
@@ -103,9 +109,17 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
     setCreating(false);
     setDraftName('');
     setDraftValues({});
+    setDraftInvalid(false);
   };
 
   const commitDraft = async () => {
+    // Clicking Add blurs the field being edited; that save refuses an invalid
+    // value and never hands it up, so without this the food was created
+    // without it and the row — with its error — disappeared.
+    if (draftInvalid) {
+      setDraftFocusTick((n) => n + 1);
+      return;
+    }
     const name = draftName.trim();
     if (!name) {
       addToast('error', t('savedFoods.toastNameRequired'));
@@ -182,6 +196,8 @@ export default function SavedFoodsModal({ isOpen, onClose }: Props) {
                 onDraftChange={handleDraftField}
                 onDraftSubmit={commitDraft}
                 onDraftCancel={cancelDraft}
+                onDraftInvalid={setDraftInvalid}
+                focusInvalidTick={draftFocusTick}
                 saving={saving}
               />
             </div>
@@ -231,6 +247,10 @@ interface RowProps {
   onDraftChange?: (field: Exclude<EditField, null>, value: string) => void;
   onDraftSubmit?: () => void;
   onDraftCancel?: () => void;
+  /** Draft mode: told whether the row currently holds a refused value. */
+  onDraftInvalid?: (invalid: boolean) => void;
+  /** Draft mode: each change focuses the field holding a refused value. */
+  focusInvalidTick?: number;
   saving?: boolean;
 }
 
@@ -240,22 +260,51 @@ type EditField = 'name' | 'emoji' | 'amount' | 'protein' | 'carbs' | 'fat' | 'fi
 
 function SavedFoodRow({
   food, enabledMacros, caloriesEnabled, onChange,
-  draft = false, initialEditing = null, onDraftChange, onDraftSubmit, onDraftCancel, saving = false,
+  draft = false, initialEditing = null, onDraftChange, onDraftSubmit, onDraftCancel, onDraftInvalid, focusInvalidTick = 0, saving = false,
 }: RowProps) {
-  const { t } = useTranslation('dashboard');
+  const { t, i18n } = useTranslation('dashboard');
+  const lang = i18n.resolvedLanguage || i18n.language || 'en';
   const addToast = useToastStore((s) => s.addToast);
   const [editing, setEditing] = useState<EditField>(initialEditing);
   const [editValue, setEditValue] = useState('');
+  const [editError, setEditErrorState] = useState<FieldError | null>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const setEditError = (err: FieldError | null) => {
+    setEditErrorState(err);
+    if (draft) onDraftInvalid?.(err !== null);
+  };
+
+  useEffect(() => {
+    if (focusInvalidTick > 0) rowRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+  }, [focusInvalidTick]);
+  const editErrorId = `saved-food-${food.id}-edit-error`;
   const [busy, setBusy] = useState(false);
 
   const beginEdit = (field: EditField, current: string | number | null) => {
     if (field === null) return;
     setEditing(field);
     setEditValue(current == null ? '' : String(current));
+    setEditError(null);
+  };
+
+  const handleEditChange = (v: string) => {
+    setEditValue(v);
+    setEditError(null);
   };
 
   const save = async (field: EditField, raw: string) => {
     if (field === null) return;
+    // Numbers are evaluated here, in the active language, and sent as
+    // integers. `Number(raw)` turned "abc" or German "12,5" into NaN, which
+    // JSON serialises as null — silently clearing the stored value.
+    if (field !== 'name' && field !== 'emoji') {
+      const parsed = parseInlineEdit(field === 'amount' ? 'calories' : 'macro', raw, lang);
+      if (!parsed.ok) {
+        setEditError(parsed);
+        return;
+      }
+      raw = parsed.value === null ? '' : String(parsed.value);
+    }
     if (draft) {
       // Nothing to update yet — hand the value up and stay on screen.
       onDraftChange?.(field, raw);
@@ -274,10 +323,9 @@ function SavedFoodRow({
     } else if (field === 'emoji') {
       payload.emoji = raw.trim() || null;
     } else if (field === 'amount') {
-      payload.amount = raw.trim() === '' ? null : Number(raw);
+      payload.amount = raw === '' ? null : Number(raw);
     } else {
-      const n = raw.trim() === '' ? null : Number(raw);
-      (payload as Record<string, unknown>)[`${field}_g`] = n;
+      (payload as Record<string, unknown>)[`${field}_g`] = raw === '' ? null : Number(raw);
     }
     try {
       await updateSavedFood(food.id, payload);
@@ -297,10 +345,12 @@ function SavedFoodRow({
     if (e.key === 'Escape') {
       e.stopPropagation();
       setEditing(null);
+      setEditError(null);
     }
   };
 
   const handleDelete = async () => {
+    const seq = nextToastSeq();
     setBusy(true);
     // Snapshot so Undo can re-create the row. use_count/last_used_at are not
     // preserved — acceptable trade-off vs. a soft-delete column on the table.
@@ -327,7 +377,8 @@ function SavedFoodRow({
             addToast('error', err instanceof Error ? err.message : t('savedFoods.toastRestoreFailed'));
           }
         },
-      });
+        // One delete toast at a time, as for entries (EntryList).
+      }, { replaceKey: 'saved-food-delete', seq });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('savedFoods.toastDeleteFailed'));
     }
@@ -338,7 +389,7 @@ function SavedFoodRow({
   const hasPills = caloriesEnabled || enabledMacros.length > 0;
 
   return (
-    <div className={cn(
+    <div ref={rowRef} className={cn(
       'group rounded-[10px] border border-border bg-white/[0.015] transition-[border-color,background] duration-150 hover:bg-white/[0.04] hover:border-white/10',
       editing && 'border-[#0ea5e9]/40 ring-1 ring-primary/40',
     )}>
@@ -367,10 +418,10 @@ function SavedFoodRow({
         ) : null}
 
         {/* Name */}
-        <span className="flex-1 min-w-0 truncate">
+        <span className="flex-1 min-w-0 truncate text-[15px] font-semibold">
           {editing === 'name' ? (
-            <input
-              className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full"
+            <InlineEditInput
+              className="px-2 py-0.5 w-full"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={handleSave}
@@ -382,7 +433,7 @@ function SavedFoodRow({
             <button
               type="button"
               className={cn(
-                'bg-transparent border border-transparent px-2 py-0.5 text-[15px] font-semibold text-left truncate w-full rounded-md transition-colors cursor-pointer hover:text-[#0ea5e9]',
+                'bg-transparent border border-transparent px-2 py-0.5 text-left truncate w-full rounded-md transition-colors cursor-pointer hover:text-[#0ea5e9]',
                 food.name ? 'text-foreground' : 'text-muted-foreground/60 italic',
               )}
               onClick={() => beginEdit('name', food.name)}
@@ -427,10 +478,12 @@ function SavedFoodRow({
                 label={t('entries.caloriesLabel')}
                 unit="kcal"
                 editValue={editValue}
-                onChange={setEditValue}
+                onChange={handleEditChange}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
                 inputMode="tel"
+                invalid={!!editError}
+                describedBy={editErrorId}
               />
             ) : (
               <MacroPill
@@ -452,9 +505,11 @@ function SavedFoodRow({
                 label={label}
                 unit="g"
                 editValue={editValue}
-                onChange={setEditValue}
+                onChange={handleEditChange}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
+                invalid={!!editError}
+                describedBy={editErrorId}
               />
             ) : (
               <MacroPill
@@ -468,6 +523,11 @@ function SavedFoodRow({
             );
           })}
         </div>
+      )}
+      {editError && (
+        <p id={editErrorId} className="px-3 pb-2.5 text-xs text-destructive">
+          {entryFieldErrorText(t, editError)}
+        </p>
       )}
     </div>
   );

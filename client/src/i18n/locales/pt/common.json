@@ -64,7 +64,10 @@
     "dismiss": "Dispensar"
   },
   "errors": {
-    "failedToSave": "Falha ao guardar"
+    "failedToSave": "Falha ao guardar",
+    "forbidden": "Acesso negado",
+    "requestFailed": "O pedido falhou",
+    "unauthorized": "Sessão não iniciada"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} quer associar-se a si"
@@ -121,6 +124,7 @@
         "eyebrow": "Bem-vindo",
         "title": "Um dia de cada vez"
       }
-    }
+    },
+    "setGoal": "Defina sua meta"
   }
 }

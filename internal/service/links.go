@@ -156,7 +156,7 @@ func GetAcceptedLinkUsers(ctx context.Context, pool *pgxpool.Pool, userID int) (
 		lu.SharesWithThem = decodeShareMap(sharesWithThem)
 		lu.SharesToMe = decodeShareMap(sharesToMe)
 		lu.Timezone = "UTC"
-		if timezone != nil {
+		if timezone != nil && ValidTimezone(*timezone) {
 			lu.Timezone = *timezone
 		}
 		if macroGoals != nil {

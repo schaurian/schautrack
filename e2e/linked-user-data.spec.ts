@@ -61,15 +61,11 @@ test.describe('Linked User Data', () => {
     const timeline = page.getByText('Timeline');
     await timeline.scrollIntoViewIfNeeded({ timeout: 5000 });
 
-    // Find the label span for the owner's card, then find the card's today dot as a sibling
-    // The ShareCard structure: .rounded-xl > div.mb-2 > span[label], followed by a div with dots
-    const ownerLabel = page.locator('.text-sm.font-medium').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') }).first();
-    await expect(ownerLabel).toBeVisible({ timeout: 8000 });
-
-    // The dots grid is a sibling div of the label's parent div, inside the same .rounded-xl
-    // Navigate: span -> parent div.mb-2 -> parent .rounded-xl -> find the today dot
-    const ownerCard = ownerLabel.locator('../..'); // span -> div.mb-2 -> .rounded-xl
-    const todayDot = ownerCard.locator(`button[title="${TODAY}"]`);
+    // Scope by the ShareCard root (data-testid), not by styling classes or DOM depth:
+    // both move whenever the card's markup is restyled.
+    const ownerCard = page.getByTestId('share-card').filter({ hasText: new RegExp(owner.email.split('@')[0], 'i') });
+    await expect(ownerCard).toBeVisible({ timeout: 8000 });
+    const todayDot = ownerCard.locator(`button[aria-label^="${TODAY}:"]`);
     await expect(todayDot).toBeVisible({ timeout: 5000 });
     await todayDot.click();
 

@@ -3,6 +3,10 @@ import { cn } from '@/lib/utils';
 // Floating action button — the add-food entry point at every width. On mobile it
 // clears the bottom tab bar; on desktop there is no tab bar, so it sits in the
 // corner.
+//
+// `data-fab` is what the shell's footer keys its extra bottom clearance on (see
+// Layout.tsx): with a FAB on the page the content has to scroll far enough that
+// nothing — the last card, the footer links — ends up permanently under it.
 export function Fab({ onClick, className, 'aria-label': ariaLabel }: {
   onClick: () => void;
   className?: string;
@@ -13,6 +17,7 @@ export function Fab({ onClick, className, 'aria-label': ariaLabel }: {
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
+      data-fab=""
       className={cn(
         'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-[60] grid size-14 cursor-pointer place-items-center rounded-2xl',
         'bg-gradient-to-br from-secondary to-primary text-primary-foreground shadow-[0_6px_24px_rgba(109,140,255,0.45)]',

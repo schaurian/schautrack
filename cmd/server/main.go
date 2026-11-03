@@ -87,6 +87,7 @@ func main() {
 		Email:        emailService,
 		Cfg:          cfg,
 		Settings:     settingsCache,
+		Broker:       sseBroker,
 	}
 
 	// OIDC handler
@@ -329,7 +330,7 @@ func main() {
 
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
-	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)
+	r.With(strictLimiter.Middleware, middleware.RequireLogin, session.CsrfProtection).Post("/api/ai/estimate", aiHandler.Estimate)
 	warnUncappedAIKey(ctx, cfg, settingsCache)
 
 	// Personal access token management. Session-authenticated, NOT part of
@@ -389,7 +390,7 @@ func main() {
 	}
 
 	// Admin routes
-	adminHandler := &handler.AdminHandler{Pool: pool, Settings: settingsCache, Cfg: cfg, Email: emailService}
+	adminHandler := &handler.AdminHandler{Pool: pool, Settings: settingsCache, Cfg: cfg, Email: emailService, Broker: sseBroker}
 	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/settings", adminHandler.UpdateSettings)
 	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/users/{id}/delete", adminHandler.DeleteUser)
 	r.With(middleware.RequireLogin, middleware.RequireAdmin(cfg.AdminEmail), session.CsrfProtection).Post("/admin/invites", adminHandler.CreateInvite)
@@ -409,7 +410,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				handler.CleanExpiredTokens(pool)
+				handler.CleanExpiredTokens(pool, sseBroker)
 				handler.CleanExpiredIdempotencyKeys(pool)
 			}
 		}

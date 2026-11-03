@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Barcode-Nummer eingeben",
     "lookUpButton": "Nachschlagen",
     "lookingUpText": "{{barcode}} wird gesucht...",
-    "calPer100g": "{{value}} cal pro 100g",
+    "calPer100g": "{{value}} kcal pro 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · Portion: {{size}}",
     "addEntryButton": "Eintrag hinzufügen",
     "scanAnotherButton": "Weiteren scannen",
@@ -66,12 +67,24 @@
       "over": "über Ziel",
       "overThreshold": "deutlich über Ziel",
       "zero": "keine Einträge",
-      "none": "keine Einträge"
+      "none": "keine Einträge",
+      "missedTarget": "Ziel verfehlt"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}} % drüber",
+      "under": "{{metric}} {{pct}} % unter Ziel"
     }
   },
   "entries": {
     "logSectionTitle": "Eintragen",
     "addFood": "Essen hinzufügen",
+    "fieldAmbiguous": "Schreib {{whole}} oder {{decimal}} für eine Dezimalzahl",
+    "fieldAmbiguousDecimal": "Schreib {{decimal}} für eine Dezimalzahl",
+    "fieldComputedRange": "Die Kalorien aus diesen Makros übersteigen {{max}}",
+    "fieldComputedRangeQty": "Mal {{qty}} übersteigen die Kalorien aus diesen Makros {{max}}",
+    "fieldInvalid": "Gib eine Zahl oder eine Rechnung wie 2*150 ein",
+    "fieldRange": "Gib einen Wert von {{min}} bis {{max}} ein",
+    "fieldRangeQty": "Mal {{qty}} muss der Wert zwischen {{min}} und {{max}} liegen",
     "foodNameAriaLabel": "Name des Lebensmittels",
     "foodNamePlaceholder": "Frühstück, Snack...",
     "qtyLabel": "Menge",
@@ -93,7 +106,6 @@
     "undoLabel": "Rückgängig",
     "unnamedEntryFallback": "Eintrag",
     "toastInvalidCalorieAmount": "Ungültiger Kalorienwert",
-    "toastInvalidMacroValue": "Ungültiger Wert für {{macro}}",
     "toastTracked": "Eintrag getrackt",
     "toastTrackFailed": "Eintrag konnte nicht getrackt werden",
     "toastSavedFood": "\"{{name}}\" gespeichert",
@@ -163,7 +175,7 @@
     },
     "progress": {
       "title": "Fortschritt",
-      "projectedLabel": "Voraussichtlich: {{date}}"
+      "projectedLabel": "Beim aktuellen Trend: {{date}}"
     },
     "toastBudgetApplied": "Kalorienziel aktualisiert",
     "toastBudgetApplyFailed": "Budget konnte nicht übernommen werden",
@@ -184,7 +196,7 @@
       "targetDateLabel": "Zieldatum",
       "completeDetailsHint": "Vervollständige deine Angaben oben, um ein Kalorienbudget für dieses Ziel zu berechnen.",
       "budgetLabel": "Budget: ",
-      "etaLabel": "Voraussichtlich: ",
+      "etaLabel": "Zieldatum laut Plan: ",
       "weeksLabel_one": " Woche",
       "weeksLabel_other": " Wochen"
     },
@@ -236,6 +248,13 @@
       "fitness": "Fit",
       "average": "Durchschnitt",
       "obese": "Adipositas"
+    },
+    "disclaimer": "Dieser Plan ist eine Schätzung auf Basis gängiger Formeln (Mifflin-St Jeor bzw. Katch-McArdle, wenn ein Körperfettwert vorliegt) und allgemeiner Aktivitätsrichtwerte. Er ist keine medizinische Beratung – sprich mit medizinischem Fachpersonal, bevor du ein Programm zum Ab- oder Zunehmen beginnst, besonders bei Vorerkrankungen.",
+    "warnings": {
+      "aggressive_rate": "Dein Zieltempo liegt über 1 % des Körpergewichts pro Woche und ist womöglich ungesund oder nicht durchzuhalten.",
+      "budget_clamped": "Dein empfohlenes Kalorienbudget wurde auf das sichere Minimum für dein Profil angehoben.",
+      "target_obese": "Dein Zielgewicht liegt im BMI-Bereich Adipositas.",
+      "target_underweight": "Dein Zielgewicht liegt im BMI-Bereich Untergewicht."
     }
   },
   "savedFoods": {
@@ -336,5 +355,16 @@
     "toastBodyFatSaveFailed": "Körperfett konnte nicht gespeichert werden",
     "bodyFatHint": "Das zweite Feld ist dein Körperfettanteil in %, falls deine Waage ihn misst.",
     "bodyFatPlaceholder": "% Fett"
+  },
+  "today": {
+    "left": "noch {{amount}}",
+    "over": "+{{amount}} drüber",
+    "toGo": "noch {{amount}} bis Ziel"
+  },
+  "goalPrompt": {
+    "body": "Ring und Tagesquadrate füllen sich gegen dein Ziel. Ohne Ziel haben sie nichts zu messen.",
+    "cta": "Ziel festlegen",
+    "dismiss": "Nicht jetzt",
+    "title": "Kalorienziel festlegen"
   }
 }

@@ -25,7 +25,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="group/shell min-h-screen overflow-x-hidden">
       <Sidebar />
       <div className="flex min-h-screen flex-col lg:pl-[220px]">
         {/* On mobile the tab-bar clearance lives on the footer wrapper below,
@@ -36,7 +36,10 @@ export default function Layout() {
             <Outlet />
           </Suspense>
         </main>
-        <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] opacity-60 lg:pb-0 lg:opacity-100">
+        {/* With a FAB on the page the clearance grows to the FAB's top edge
+            (its 4.5rem offset + 3.5rem height) plus a 1rem gap, so the footer
+            and the last card above it can always be scrolled clear of it. */}
+        <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] opacity-60 group-has-[[data-fab]]/shell:pb-[calc(9rem+env(safe-area-inset-bottom))] lg:pb-0 lg:opacity-100 lg:group-has-[[data-fab]]/shell:pb-0">
           <Footer />
         </div>
       </div>

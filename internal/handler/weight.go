@@ -209,7 +209,7 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Broker != nil {
-		h.Broker.BroadcastEntryChange(user.ID)
+		h.Broker.BroadcastWeightChange(user.ID)
 	}
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "entry": entry})
 }
@@ -232,7 +232,7 @@ func (h *WeightHandler) WeightDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Broker != nil {
-		h.Broker.BroadcastEntryChange(user.ID)
+		h.Broker.BroadcastWeightChange(user.ID)
 	}
 	OkJSON(w)
 }

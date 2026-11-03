@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Wpisz numer kodu kreskowego",
     "lookUpButton": "Wyszukaj",
     "lookingUpText": "Wyszukiwanie {{barcode}}...",
-    "calPer100g": "{{value}} cal na 100g",
+    "calPer100g": "{{value}} kcal na 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · porcja: {{size}}",
     "addEntryButton": "Dodaj wpis",
     "scanAnotherButton": "Skanuj kolejny",
@@ -68,12 +69,24 @@
       "over": "powyżej celu",
       "overThreshold": "znacznie powyżej celu",
       "zero": "brak wpisów",
-      "none": "brak wpisów"
+      "none": "brak wpisów",
+      "missedTarget": "cel nieosiągnięty"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% ponad",
+      "under": "{{metric}} {{pct}}% poniżej celu"
     }
   },
   "entries": {
     "logSectionTitle": "Dziennik",
     "addFood": "Dodaj posiłek",
+    "fieldAmbiguous": "Wpisz {{whole}} albo {{decimal}} dla ułamka dziesiętnego",
+    "fieldAmbiguousDecimal": "Wpisz {{decimal}} dla ułamka dziesiętnego",
+    "fieldComputedRange": "Kalorie z tych makr przekraczają {{max}}",
+    "fieldComputedRangeQty": "Razy {{qty}} kalorie z tych makr przekraczają {{max}}",
+    "fieldInvalid": "Wpisz liczbę lub działanie, np. 2*150",
+    "fieldRange": "Wpisz wartość od {{min}} do {{max}}",
+    "fieldRangeQty": "Razy {{qty}} wartość musi mieścić się między {{min}} a {{max}}",
     "foodNameAriaLabel": "Nazwa jedzenia",
     "foodNamePlaceholder": "Śniadanie, przekąska...",
     "qtyLabel": "Ilość",
@@ -97,7 +110,6 @@
     "undoLabel": "Cofnij",
     "unnamedEntryFallback": "wpis",
     "toastInvalidCalorieAmount": "Nieprawidłowa wartość kalorii",
-    "toastInvalidMacroValue": "Nieprawidłowa wartość dla {{macro}}",
     "toastTracked": "Wpis zapisany",
     "toastTrackFailed": "Nie udało się zapisać wpisu",
     "toastSavedFood": "Zapisano \"{{name}}\"",
@@ -169,7 +181,7 @@
     },
     "progress": {
       "title": "Postęp",
-      "projectedLabel": "Przewidywane: {{date}}"
+      "projectedLabel": "Przy obecnym trendzie: {{date}}"
     },
     "toastBudgetApplied": "Cel kaloryczny zaktualizowany",
     "toastBudgetApplyFailed": "Nie udało się zastosować budżetu",
@@ -190,7 +202,7 @@
       "targetDateLabel": "Data docelowa",
       "completeDetailsHint": "Uzupełnij swoje dane powyżej, aby obliczyć budżet kaloryczny dla tego celu.",
       "budgetLabel": "Budżet: ",
-      "etaLabel": "Szacowany czas: ",
+      "etaLabel": "Data docelowa planu: ",
       "weeksLabel_one": " tydzień",
       "weeksLabel_few": " tygodnie",
       "weeksLabel_many": " tygodni",
@@ -244,6 +256,13 @@
       "fitness": "Dobra forma",
       "average": "Przeciętna",
       "obese": "Otyłość"
+    },
+    "disclaimer": "Ten plan to szacunek oparty na standardowych wzorach (Mifflin-St Jeor lub Katch-McArdle, gdy znany jest poziom tkanki tłuszczowej) i ogólnych zaleceniach dotyczących aktywności. Nie jest poradą medyczną — przed rozpoczęciem odchudzania lub przybierania na wadze skonsultuj się z lekarzem, zwłaszcza jeśli masz choroby współistniejące.",
+    "warnings": {
+      "aggressive_rate": "Twoje docelowe tempo przekracza 1% masy ciała na tydzień, co może być niebezpieczne lub trudne do utrzymania.",
+      "budget_clamped": "Zalecany budżet kaloryczny podniesiono do bezpiecznego minimum dla Twojego profilu.",
+      "target_obese": "Twoja waga docelowa mieści się w zakresie BMI oznaczającym otyłość.",
+      "target_underweight": "Twoja waga docelowa mieści się w zakresie BMI oznaczającym niedowagę."
     }
   },
   "savedFoods": {
@@ -354,5 +373,16 @@
     "toastBodyFatSaveFailed": "Nie udało się zapisać tkanki tłuszczowej",
     "bodyFatHint": "Drugie pole to Twój procent tkanki tłuszczowej, jeśli waga go mierzy.",
     "bodyFatPlaceholder": "% tł."
+  },
+  "today": {
+    "left": "zostało {{amount}}",
+    "over": "+{{amount}} ponad",
+    "toGo": "brakuje {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "Pierścień i kwadraty dni wypełniają się względem twojego celu. Bez niego nie mają czego mierzyć.",
+    "cta": "Ustaw cel",
+    "dismiss": "Nie teraz",
+    "title": "Ustaw cel kaloryczny"
   }
 }

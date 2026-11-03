@@ -64,7 +64,10 @@
     "dismiss": "Ignorer"
   },
   "errors": {
-    "failedToSave": "Échec de l'enregistrement"
+    "failedToSave": "Échec de l'enregistrement",
+    "forbidden": "Accès refusé",
+    "requestFailed": "La requête a échoué",
+    "unauthorized": "Non connecté"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} souhaite se lier à vous"
@@ -121,6 +124,7 @@
         "eyebrow": "Bienvenue",
         "title": "Un jour à la fois"
       }
-    }
+    },
+    "setGoal": "Définir votre objectif"
   }
 }

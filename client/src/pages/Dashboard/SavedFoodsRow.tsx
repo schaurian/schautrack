@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listSavedFoodsWithShared, trackSavedFood } from '@/api/savedFoods';
 import { deleteEntry } from '@/api/entries';
-import { useToastStore } from '@/stores/toastStore';
+import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { Button } from '@/components/ui/Button';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { cn } from '@/lib/utils';
@@ -58,6 +58,7 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
 
   const handleTrack = async (food: SavedFood, quantity: number) => {
     if (tracking) return;
+    const seq = nextToastSeq();
     setTracking(food.id);
     try {
       const res = await trackSavedFood(food.id, selectedDate, quantity);
@@ -78,7 +79,9 @@ export default function SavedFoodsRow({ selectedDate, onTracked }: Props) {
             addToast('error', err instanceof Error ? err.message : t('savedFoods.toastUndoFailed'));
           }
         },
-      });
+        // Tracking several quick-adds in a row shows only the latest and its
+        // Undo; the earlier ones are already logged.
+      }, { replaceKey: 'saved-food-track', seq });
       onTracked?.();
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('savedFoods.toastTrackFailed'));

@@ -24,6 +24,8 @@
     "expiresOn": "expires {{date}}",
     "inviteCodesHeading": "Invite Codes",
     "inviteUnredeemable": "cannot be redeemed — delete and reissue",
+    "lastLoginLabel": "Last login",
+    "lastLoginUnknownTitle": "No login recorded since this was introduced",
     "loadingMore": "Loading more…",
     "noChanges": "No changes to save.",
     "noUsersFound": "No users found",
@@ -79,6 +81,10 @@
       }
     },
     "settingsSaved": "Settings saved.",
+    "sortLabel": "Sort users",
+    "sortNewest": "Newest",
+    "sortOldestLogin": "Oldest login",
+    "sortRecentLogin": "Recent login",
     "unsavedBadge": "• unsaved",
     "unset": "(unset)",
     "unverified": "Unverified",
@@ -205,6 +211,7 @@
     }
   },
   "macro": {
+    "autoCalcFormula": "P×4 + C×4 + F×9",
     "autoCalculate": "Auto-calculate calories",
     "calories": "Calories",
     "goalPlaceholder": "Goal",
@@ -212,6 +219,7 @@
     "modeLimit": "Limit",
     "modeTarget": "Target",
     "threshold": "Threshold",
+    "thresholdHelp": "How far you can miss a goal before it shows red instead of yellow — at 10%, a 2000 kcal limit turns red above 2200 kcal.",
     "unitGram": "g",
     "unitKcal": "kcal"
   },

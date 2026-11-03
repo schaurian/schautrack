@@ -109,7 +109,7 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if amount.Reject {
-		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories))
+		ErrorJSON(w, http.StatusBadRequest, amount.RejectMsg)
 		return
 	}
 

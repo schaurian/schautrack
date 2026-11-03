@@ -136,7 +136,7 @@ export default function MacroSettings({ user, onSave }: Props) {
               />
               <span className="text-primary font-medium">{t('macro.autoCalculate')}</span>
             </label>
-            <span className="text-xs text-muted-foreground ml-auto">P×4 + C×4 + F×9</span>
+            <span className="text-xs text-muted-foreground ml-auto">{t('macro.autoCalcFormula')}</span>
           </div>
         )}
 
@@ -147,7 +147,7 @@ export default function MacroSettings({ user, onSave }: Props) {
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <span className="relative flex items-center">
-              <input className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
+              <input className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-describedby="macro-threshold-help" />
               <span className="absolute right-2.5 text-[10px] tracking-wide text-warning opacity-60 pointer-events-none">%</span>
             </span>
             {/* Spacer matching the segmented control's width above, so the
@@ -165,6 +165,9 @@ export default function MacroSettings({ user, onSave }: Props) {
               />
             </div>
           </div>
+          <p id="macro-threshold-help" className="basis-full text-xs text-muted-foreground">
+            {t('macro.thresholdHelp')}
+          </p>
         </div>
       </div>
     </Card>

@@ -5,7 +5,8 @@ import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
 import { createSavedFood } from '@/api/savedFoods';
 import { MACRO_LABELS, computeCaloriesFromMacros } from '@/lib/macros';
-import { parseAmount } from '@/lib/mathParser';
+import { MAX_ENTRY_CALORIES, entryFieldErrorText, expressionPreview, validateEntryField, type FieldError } from '@/lib/entryValidation';
+import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { useToastStore } from '@/stores/toastStore';
@@ -29,7 +30,23 @@ interface Props {
   onSubmit: () => void;
 }
 
-const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50';
+// A server rejection names the field and its bounds only in its message
+// (internal/handler/entries_crud.go). Parsed so a mismatch with the client-side
+// rules still lands on the fields that are actually out of the server's range;
+// anything else stays a toast.
+const SERVER_RANGE = /^(Calories|Macro values) must be between (-?\d+) and (-?\d+)/;
+const SERVER_COMPUTED = /^Calories computed from macros exceed the maximum of (\d+)/;
+
+// `computed`: the auto-calculated calories (from protein/carbs/fat) are over
+// the limit — the field is read-only, so the message says why, not what to type.
+type FormError = FieldError & { computed?: boolean };
+type FormErrors = Record<string, FormError>;
+
+const inputBase = 'w-full rounded-md border bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:ring-1 placeholder:text-muted-foreground/50';
+const inputClass = `${inputBase} border-input focus:border-ring focus:ring-ring`;
+// Swapped in rather than layered on: two border colours in one class list
+// resolve by stylesheet order, not by which was written last.
+const invalidInputClass = `${inputBase} border-destructive focus:border-destructive focus:ring-destructive`;
 
 // Secondary entry methods (photo, barcode) and save-as-quick-add. Same
 // vocabulary as .surface — hairline edge plus a 1px inner top highlight —
@@ -42,7 +59,7 @@ const actionTileClass =
   'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/[0.04] disabled:hover:text-muted-foreground';
 
 export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, aiProviderName, barcodeEnabled, onSubmit }: Props) {
-  const { t } = useTranslation('dashboard');
+  const { t, i18n } = useTranslation('dashboard');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [macros, setMacros] = useState<Record<string, string>>({});
@@ -53,6 +70,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
   const [savingFood, setSavingFood] = useState(false);
   const [localAiUsage, setLocalAiUsage] = useState<AIUsage | null>(aiUsage);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const queryClient = useQueryClient();
 
   // Once a modal has been opened it stays mounted (kept alive by these latches)
@@ -68,14 +87,22 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   }, [aiUsage]);
   const addToast = useToastStore((s) => s.addToast);
 
+  // Follow the dashboard's day (a dot click, the midnight rollover) until the
+  // user picks a date in this form themselves — after that their choice wins,
+  // so a rollover while the sheet is open cannot silently re-date the entry.
+  const dateTouched = useRef(false);
   useEffect(() => {
-    setDate(selectedDate);
+    if (!dateTouched.current) setDate(selectedDate);
   }, [selectedDate]);
 
+  const lang = i18n.resolvedLanguage || i18n.language || 'en';
+  const qty = Math.max(1, Math.trunc(quantity));
+
+  // Same evaluation the submit uses, so "2*15" protein feeds 30 g into the
+  // auto-calculated calories rather than parseInt's 2.
   const safeParseMacro = (val: string | undefined): number => {
-    if (!val) return 0;
-    const n = parseInt(val, 10);
-    return Number.isFinite(n) ? n : 0;
+    const r = validateEntryField('macro', val, { lang });
+    return r.ok && r.total !== null ? r.total : 0;
   };
 
   const computedCalories = autoCalcCalories
@@ -86,38 +113,179 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
       )
     : null;
 
+  const clearError = useCallback((field: string) => {
+    setErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
   const handleMacroChange = useCallback((key: string, value: string) => {
     setMacros((prev) => ({ ...prev, [key]: value }));
-  }, []);
+    clearError(key);
+    // A computed-calories error is about these macros, so editing one clears
+    // it; an error on typed calories is left for the calories field.
+    setErrors((prev) => {
+      if (!prev.calories?.computed) return prev;
+      const next = { ...prev };
+      delete next.calories;
+      return next;
+    });
+  }, [clearError]);
+
+  // Field order matches the DOM, so the first entry is the field to focus.
+  const fieldOrder = [...(caloriesEnabled ? ['calories'] : []), ...enabledMacros];
+
+  // Validates every field for quantity `q` and returns the errors plus the
+  // totals that would be sent (value × q, rounded).
+  const validateAll = (q: number) => {
+    const found: FormErrors = {};
+    const totals: Record<string, number> = {};
+    if (amount && !autoCalcCalories) {
+      const r = validateEntryField('calories', amount, { qty: q, lang });
+      if (!r.ok) found.calories = r;
+      else if (r.total !== null) totals.calories = r.total;
+    }
+    for (const key of enabledMacros) {
+      const r = validateEntryField('macro', macros[key], { qty: q, lang });
+      if (!r.ok) found[key] = r;
+      else if (r.total !== null) totals[key] = r.total;
+    }
+    // The server computes calories from the macros it receives and rejects
+    // the entry when that exceeds the calorie limit; check the same sum.
+    if (autoCalcCalories && Object.keys(found).length === 0) {
+      const c = computeCaloriesFromMacros(totals.protein ?? 0, totals.carbs ?? 0, totals.fat ?? 0);
+      if (c !== null && c > MAX_ENTRY_CALORIES) {
+        found.calories = { ok: false, error: 'range', min: -MAX_ENTRY_CALORIES, max: MAX_ENTRY_CALORIES, computed: true };
+      }
+    }
+    return { found, totals };
+  };
+
+  const showErrors = (next: FormErrors) => {
+    setErrors(next);
+    const first = fieldOrder.find((f) => f in next);
+    if (first) fieldRefs.current[first]?.focus();
+  };
+
+  // A quantity change moves every total, so a range error shown for the old
+  // quantity may no longer hold (or may now hold for a different reason).
+  // Re-check only the fields already marked; new errors wait for a submit.
+  //
+  // Each field is re-checked against the bounds its own error carries, so an
+  // error set from a server rejection's tighter bounds is not judged by the
+  // looser client defaults and silently dropped.
+  const recheck = (key: string, err: FormError, q: number): FormError | null => {
+    if (err.computed) {
+      const { totals } = validateAll(q);
+      const c = computeCaloriesFromMacros(totals.protein ?? 0, totals.carbs ?? 0, totals.fat ?? 0);
+      return c !== null && c > err.max ? { ...err } : null;
+    }
+    const r = key === 'calories'
+      ? validateEntryField('calories', amount, { qty: q, lang, min: err.min, max: err.max })
+      : validateEntryField('macro', macros[key], { qty: q, lang, min: err.min, max: err.max });
+    return r.ok ? null : r;
+  };
+
+  const handleQuantityChange = (next: number) => {
+    setQuantity(next);
+    const q = Math.max(1, Math.trunc(next));
+    setErrors((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      const kept: FormErrors = {};
+      for (const [k, err] of Object.entries(prev)) {
+        const r = recheck(k, err, q);
+        if (r) kept[k] = r;
+      }
+      return kept;
+    });
+  };
+
+  // Maps a server rejection onto the fields it is about, using the bounds the
+  // message names. Null when no field can be blamed — the caller toasts.
+  const fieldErrorsFromServer = (msg: string): FormErrors | null => {
+    const computed = SERVER_COMPUTED.exec(msg);
+    if (computed) {
+      if (!caloriesEnabled) return null;
+      const max = Number(computed[1]);
+      return { calories: { ok: false, error: 'range', min: -max, max, computed: true } };
+    }
+    const range = SERVER_RANGE.exec(msg);
+    if (!range) return null;
+    const min = Number(range[2]);
+    const max = Number(range[3]);
+    const found: FormErrors = {};
+    if (range[1] === 'Calories') {
+      if (caloriesEnabled && !autoCalcCalories) {
+        const r = validateEntryField('calories', amount, { qty, lang, min, max });
+        if (!r.ok) found.calories = r;
+      }
+    } else {
+      for (const key of enabledMacros) {
+        const r = validateEntryField('macro', macros[key], { qty, lang, min, max });
+        if (!r.ok) found[key] = r;
+      }
+    }
+    return Object.keys(found).length > 0 ? found : null;
+  };
+
+  const errorText = (err: FormError) => entryFieldErrorText(t, err, qty);
+
+  // The "= 300" preview and the inline error, both wired to the input via
+  // aria-describedby so a screen reader reads them with the field. The
+  // preview sits inside the input's right edge rather than on a line below,
+  // so it appearing and disappearing while typing moves nothing.
+  const fieldProps = (field: string, inputId: string, raw: string | undefined) => {
+    const err = errors[field];
+    const preview = err ? null : expressionPreview(raw, lang, qty);
+    const errorId = `${inputId}-error`;
+    const previewId = `${inputId}-preview`;
+    return {
+      inputProps: {
+        id: inputId,
+        'data-testid': inputId,
+        ref: (el: HTMLInputElement | null) => { fieldRefs.current[field] = el; },
+        'aria-invalid': err ? true : undefined,
+        'aria-describedby': err ? errorId : preview !== null ? previewId : undefined,
+        // Room for "= n" so typed text never runs under it.
+        style: preview !== null ? { paddingRight: `calc(1rem + ${preview.length + 2}ch)` } : undefined,
+      },
+      inputClass: err ? invalidInputClass : inputClass,
+      preview: preview !== null && (
+        <span
+          id={previewId}
+          data-testid={previewId}
+          className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs tabular-nums text-muted-foreground"
+        >
+          = {preview}
+        </span>
+      ),
+      error: err && (
+        <span id={errorId} className="text-xs text-destructive">
+          {errorText(err)}
+        </span>
+      ),
+    };
+  };
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    const qty = Math.max(1, Math.trunc(quantity));
     const data: Parameters<typeof createEntry>[0] = { entry_date: date };
     if (name.trim()) data.entry_name = name.trim();
-    if (amount && !autoCalcCalories) {
-      const parsed = parseAmount(amount, { maxAbs: 100000 });
-      if (!parsed.ok) {
-        addToast('error', t('entries.toastInvalidCalorieAmount'));
-        setLoading(false);
-        return;
-      }
-      data.amount = parsed.value * qty;
+    const { found, totals } = validateAll(qty);
+    if (Object.keys(found).length > 0) {
+      showErrors(found);
+      return;
     }
+    if (totals.calories !== undefined) data.amount = totals.calories;
     for (const key of enabledMacros) {
-      if (macros[key]) {
-        const parsed = Number(macros[key]);
-        if (!Number.isFinite(parsed)) {
-          addToast('error', t('entries.toastInvalidMacroValue', { macro: key }));
-          setLoading(false);
-          return;
-        }
-        const macroKey = `${key}_g` as keyof typeof data;
-        (data as Record<string, unknown>)[macroKey] = parsed * qty;
-      }
+      if (totals[key] !== undefined) (data as Record<string, unknown>)[`${key}_g`] = totals[key];
     }
+    setErrors({});
+    setLoading(true);
 
     try {
       await createEntry(data);
@@ -128,7 +296,9 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
       onSubmit();
       addToast('success', t('entries.toastTracked'));
     } catch (err) {
-      addToast('error', err instanceof Error ? err.message : t('entries.toastTrackFailed'));
+      const mapped = err instanceof ApiError ? fieldErrorsFromServer(err.message) : null;
+      if (mapped) showErrors(mapped);
+      else addToast('error', err instanceof Error ? err.message : t('entries.toastTrackFailed'));
     }
     setLoading(false);
   };
@@ -159,18 +329,15 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     try {
       const payload: Parameters<typeof createSavedFood>[0] = { name: name.trim() };
       if (amount && !autoCalcCalories) {
-        const parsed = parseAmount(amount, { maxAbs: 100000 });
-        if (parsed.ok) payload.amount = parsed.value;
+        const r = validateEntryField('calories', amount, { lang });
+        if (r.ok && r.total !== null) payload.amount = r.total;
       } else if (computedCalories) {
         payload.amount = computedCalories;
       }
       for (const key of enabledMacros) {
-        const raw = macros[key];
-        if (raw) {
-          const n = Number(raw);
-          if (Number.isFinite(n)) {
-            (payload as Record<string, unknown>)[`${key}_g`] = n;
-          }
+        const r = validateEntryField('macro', macros[key], { lang });
+        if (r.ok && r.total !== null) {
+          (payload as Record<string, unknown>)[`${key}_g`] = r.total;
         }
       }
       await createSavedFood(payload);
@@ -201,26 +368,33 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('entries.qtyLabel')}</label>
-            <QuantityStepper value={quantity} onChange={setQuantity} />
+            <QuantityStepper value={quantity} onChange={handleQuantityChange} />
           </div>
         </div>
 
         {/* Calories */}
-        {caloriesEnabled && (
-          <div className="mb-3 flex flex-col gap-1">
-            <label htmlFor="entry-calories" className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">{t('entries.caloriesLabel')}</label>
-            <input
-              id="entry-calories"
-              className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
-              type="text"
-              inputMode="tel"
-              placeholder="0"
-              value={autoCalcCalories ? (computedCalories ?? '') : amount}
-              onChange={(e) => setAmount(e.target.value)}
-              readOnly={autoCalcCalories}
-            />
-          </div>
-        )}
+        {caloriesEnabled && (() => {
+          const f = fieldProps('calories', 'entry-calories', autoCalcCalories ? undefined : amount);
+          return (
+            <div className="mb-3 flex flex-col gap-1">
+              <label htmlFor="entry-calories" className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">{t('entries.caloriesLabel')}</label>
+              <div className="relative">
+                <input
+                  {...f.inputProps}
+                  className={`${f.inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  type="text"
+                  inputMode="tel"
+                  placeholder="0"
+                  value={autoCalcCalories ? (computedCalories ?? '') : amount}
+                  onChange={(e) => { setAmount(e.target.value); clearError('calories'); }}
+                  readOnly={autoCalcCalories}
+                />
+                {f.preview}
+              </div>
+              {f.error}
+            </div>
+          );
+        })()}
 
         {/* Macros grid */}
         {enabledMacros.length > 0 && (
@@ -237,20 +411,29 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 sugar: 'text-macro-sugar',
               }[key] || 'text-muted-foreground';
 
+              const f = fieldProps(key, `entry-macro-${key}`, macros[key]);
+
               return (
                 <div key={key} className="flex flex-col gap-1">
                   <label htmlFor={`entry-macro-${key}`} className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
                     {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
                   </label>
-                  <input
-                    id={`entry-macro-${key}`}
-                    className={inputClass}
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={macros[key] || ''}
-                    onChange={(e) => handleMacroChange(key, e.target.value)}
-                  />
+                  <div className="relative">
+                    <input
+                      {...f.inputProps}
+                      className={f.inputClass}
+                      type="text"
+                      // "tel", like calories: the "numeric" keypad has no
+                      // * + . or , so neither an expression nor a decimal
+                      // could be typed on a phone.
+                      inputMode="tel"
+                      placeholder="0"
+                      value={macros[key] || ''}
+                      onChange={(e) => handleMacroChange(key, e.target.value)}
+                    />
+                    {f.preview}
+                  </div>
+                  {f.error}
                 </div>
               );
             })}
@@ -271,7 +454,10 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             aria-label={t('entries.entryDateAriaLabel')}
             className="rounded-md border border-input bg-muted/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => {
+              dateTouched.current = true;
+              setDate(e.target.value);
+            }}
           />
 
           <div className="flex items-center gap-2 sm:ml-auto">

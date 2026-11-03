@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Introduza o número do código de barras",
     "lookUpButton": "Procurar",
     "lookingUpText": "A procurar {{barcode}}...",
-    "calPer100g": "{{value}} cal por 100g",
+    "calPer100g": "{{value}} kcal por 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · dose: {{size}}",
     "addEntryButton": "Adicionar Registo",
     "scanAnotherButton": "Ler Outro",
@@ -66,12 +67,24 @@
       "over": "acima do objetivo",
       "overThreshold": "muito acima do objetivo",
       "zero": "sem registos",
-      "none": "sem registos"
+      "none": "sem registos",
+      "missedTarget": "meta não atingida"
+    },
+    "reason": {
+      "over": "{{metric}} {{pct}}% acima",
+      "under": "{{metric}} {{pct}}% abaixo da meta"
     }
   },
   "entries": {
     "logSectionTitle": "Registo",
     "addFood": "Adicionar alimento",
+    "fieldAmbiguous": "Escreve {{whole}}, ou {{decimal}} para um decimal",
+    "fieldAmbiguousDecimal": "Escreve {{decimal}} para um decimal",
+    "fieldComputedRange": "As calorias destes macros excedem {{max}}",
+    "fieldComputedRangeQty": "Vezes {{qty}}, as calorias destes macros excedem {{max}}",
+    "fieldInvalid": "Introduz um número ou uma conta como 2*150",
+    "fieldRange": "Introduz um valor entre {{min}} e {{max}}",
+    "fieldRangeQty": "Vezes {{qty}}, tem de ficar entre {{min}} e {{max}}",
     "foodNameAriaLabel": "Nome da comida",
     "foodNamePlaceholder": "Pequeno-almoço, lanche...",
     "qtyLabel": "Qtd",
@@ -93,7 +106,6 @@
     "undoLabel": "Desfazer",
     "unnamedEntryFallback": "registo",
     "toastInvalidCalorieAmount": "Quantidade de calorias inválida",
-    "toastInvalidMacroValue": "Valor inválido para {{macro}}",
     "toastTracked": "Registo adicionado",
     "toastTrackFailed": "Falha ao registar entrada",
     "toastSavedFood": "\"{{name}}\" guardado",
@@ -163,7 +175,7 @@
     },
     "progress": {
       "title": "Progresso",
-      "projectedLabel": "Data prevista: {{date}}"
+      "projectedLabel": "Na tendência atual: {{date}}"
     },
     "toastBudgetApplied": "Objetivo calórico atualizado",
     "toastBudgetApplyFailed": "Falha ao aplicar orçamento",
@@ -184,7 +196,7 @@
       "targetDateLabel": "Data-Alvo",
       "completeDetailsHint": "Complete os seus dados acima para calcular um orçamento calórico para este objetivo.",
       "budgetLabel": "Orçamento: ",
-      "etaLabel": "Previsão: ",
+      "etaLabel": "Data-alvo do plano: ",
       "weeksLabel_one": " semana",
       "weeksLabel_other": " semanas"
     },
@@ -236,6 +248,13 @@
       "fitness": "Em forma",
       "average": "Médio",
       "obese": "Obesidade"
+    },
+    "disclaimer": "Este plano é uma estimativa baseada em fórmulas padrão (Mifflin-St Jeor, ou Katch-McArdle quando existe um valor de gordura corporal) e em orientações gerais de atividade. Não é aconselhamento médico — consulte um profissional de saúde antes de iniciar qualquer programa de perda ou ganho de peso, especialmente se tiver problemas de saúde.",
+    "warnings": {
+      "aggressive_rate": "O seu ritmo-alvo é superior a 1% do peso corporal por semana, o que pode ser inseguro ou insustentável.",
+      "budget_clamped": "O seu orçamento calórico recomendado foi aumentado para o mínimo seguro para o seu perfil.",
+      "target_obese": "O seu peso-alvo está no intervalo de obesidade do IMC.",
+      "target_underweight": "O seu peso-alvo está no intervalo de baixo peso do IMC."
     }
   },
   "savedFoods": {
@@ -336,5 +355,16 @@
     "toastBodyFatSaveFailed": "Falha ao guardar gordura corporal",
     "bodyFatHint": "A segunda caixa é a sua % de gordura corporal, se a balança a medir.",
     "bodyFatPlaceholder": "% gordura"
+  },
+  "today": {
+    "left": "faltam {{amount}}",
+    "over": "+{{amount}} acima",
+    "toGo": "faltam {{amount}}"
+  },
+  "goalPrompt": {
+    "body": "O anel e os quadrados dos dias se preenchem em relação à sua meta. Sem ela, não há nada para medir.",
+    "cta": "Definir meta",
+    "dismiss": "Agora não",
+    "title": "Defina uma meta de calorias"
   }
 }

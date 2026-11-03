@@ -296,7 +296,7 @@ func (h *V1Handler) PutWeightV1(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusCreated
 		w.Header().Set("Location", "/api/v1/weight/"+date)
 	}
-	h.broadcastEntries(user.ID)
+	h.broadcastWeight(user.ID)
 	writeV1(w, status, v1Weight{
 		Date: entry.Date, Weight: entry.Weight, BodyFat: entry.BodyFat,
 		Unit:      h.weightUnit(r),
@@ -360,6 +360,6 @@ func (h *V1Handler) DeleteWeightV1(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, r, apierr.NotFound("No weight recorded for that date."))
 		return
 	}
-	h.broadcastEntries(user.ID)
+	h.broadcastWeight(user.ID)
 	noContent(w)
 }

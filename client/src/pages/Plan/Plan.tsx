@@ -7,7 +7,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/format';
+import { formatDay, formatDecimal } from '@/lib/format';
 import MetricsForm from './MetricsForm';
 import GoalForm from './GoalForm';
 import PlanChart from './PlanChart';
@@ -126,7 +126,7 @@ export default function Plan() {
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.currentWeightLabel')}</div>
             <div className="text-xl font-bold tabular-nums">
-              {data.currentWeight != null ? data.currentWeight.toFixed(1) : '—'}
+              {data.currentWeight != null ? formatDecimal(data.currentWeight) : '—'}
               <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
             </div>
           </div>
@@ -134,7 +134,7 @@ export default function Plan() {
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.bmiLabel')}</div>
             {data.bmi != null ? (
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold tabular-nums">{data.bmi.toFixed(1)}</span>
+                <span className="text-xl font-bold tabular-nums">{formatDecimal(data.bmi)}</span>
                 {data.bmiCategory && (
                   <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', bmiCategoryClass)}>
                     {BMI_CATEGORY_LABELS[data.bmiCategory] || data.bmiCategory}
@@ -149,7 +149,7 @@ export default function Plan() {
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.bodyFatLabel')}</div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold tabular-nums">{composition.bodyFatPct.toFixed(1)}<span className="text-sm text-muted-foreground font-normal ml-0.5">%</span></span>
+                <span className="text-xl font-bold tabular-nums">{formatDecimal(composition.bodyFatPct)}<span className="text-sm text-muted-foreground font-normal ml-0.5">%</span></span>
                 {composition.category && (
                   <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', BODY_FAT_CATEGORY_CLASSES[composition.category])}>
                     {BODY_FAT_CATEGORY_LABELS[composition.category] || composition.category}
@@ -158,8 +158,8 @@ export default function Plan() {
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {t('plan.status.leanFatSplit', {
-                  lean: composition.leanMass.toFixed(1),
-                  fat: composition.fatMass.toFixed(1),
+                  lean: formatDecimal(composition.leanMass),
+                  fat: formatDecimal(composition.fatMass),
                   unit: weightUnit,
                 })}
               </div>
@@ -167,7 +167,7 @@ export default function Plan() {
                   onto today's weight, so an undated number would present a
                   months-old measurement as if it were current. */}
               <div className={cn('text-xs mt-1', composition.stale ? 'text-yellow-400' : 'text-muted-foreground')}>
-                {t('plan.status.bodyFatMeasured', { date: formatDate(composition.date) })}
+                {t('plan.status.bodyFatMeasured', { date: formatDay(composition.date) })}
                 {composition.stale && (
                   /* stale implies ageDays > the server's window, so the plural
                      wording in this string is always the right one. */
@@ -180,7 +180,7 @@ export default function Plan() {
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{t('plan.status.healthyRangeLabel')}</div>
             {data.healthyRange ? (
               <div className="text-xl font-bold tabular-nums">
-                {data.healthyRange.min.toFixed(1)}&ndash;{data.healthyRange.max.toFixed(1)}
+                {formatDecimal(data.healthyRange.min)}&ndash;{formatDecimal(data.healthyRange.max)}
                 <span className="text-sm text-muted-foreground font-normal ml-1">{weightUnit}</span>
               </div>
             ) : (
@@ -222,7 +222,7 @@ export default function Plan() {
                   a number the user did log. */}
               <div className="text-xs text-muted-foreground mt-1">
                 {data.computed.bmrFormula === 'katch_mcardle' && composition
-                  ? t('plan.recommendedBudget.formulaKatch', { lean: composition.leanMass.toFixed(1), unit: weightUnit })
+                  ? t('plan.recommendedBudget.formulaKatch', { lean: formatDecimal(composition.leanMass), unit: weightUnit })
                   : composition?.stale
                     ? t('plan.recommendedBudget.formulaMifflinStale', { days: composition.ageDays })
                     : t('plan.recommendedBudget.formulaMifflin')}
@@ -243,6 +243,7 @@ export default function Plan() {
         showBodyFat
         healthyRange={data.healthyRange}
         weightUnit={weightUnit}
+        timeZone={user?.timezone}
       />
 
       {/* Progress */}
@@ -266,14 +267,16 @@ export default function Plan() {
               </span>
             )}
             {data.trend?.projectedDate && (
-              <span className="text-xs text-muted-foreground">{t('plan.progress.projectedLabel', { date: data.trend.projectedDate })}</span>
+              <span className="text-xs text-muted-foreground">{t('plan.progress.projectedLabel', { date: formatDay(data.trend.projectedDate) })}</span>
             )}
           </div>
         </Card>
       )}
 
       {/* Disclaimer */}
-      <p className="text-xs text-muted-foreground text-center">{data.disclaimer}</p>
+      {/* The server still sends its fixed English `disclaimer` (API contract); the
+          page shows the catalog copy so it follows the UI language. */}
+      <p className="text-xs text-muted-foreground text-center">{t('plan.disclaimer')}</p>
     </div>
   );
 }

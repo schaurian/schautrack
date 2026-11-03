@@ -37,6 +37,23 @@ type amountDecision struct {
 	HasCalorieEntry bool
 	// Reject means the field was present and unparseable: answer 400.
 	Reject bool
+	// RejectMsg is the 400's message: a range message only when the value
+	// parsed and is out of range, otherwise InvalidNumberFormatMsg.
+	RejectMsg string
+}
+
+// InvalidNumberFormatMsg answers an amount that is not a number or expression
+// at all ("abc", or "12,5" — a comma is only a thousands separator). It used
+// to share the range message, which told the caller to fix a bound they had
+// not exceeded.
+const InvalidNumberFormatMsg = "Invalid number format"
+
+// amountRejectMsg is the 400 message for a failed ParseAmount.
+func amountRejectMsg(res service.ParseAmountResult) string {
+	if res.OutOfRange {
+		return fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)
+	}
+	return InvalidNumberFormatMsg
 }
 
 // classifyAmount interprets the raw `amount` field of an entry request.
@@ -66,11 +83,15 @@ type amountDecision struct {
 //     is where it now lives.
 func classifyAmount(rawAmount string, maxAbs int) amountDecision {
 	res := service.ParseAmount(rawAmount, maxAbs)
-	return amountDecision{
+	d := amountDecision{
 		Value:           res.Value,
 		HasCalorieEntry: res.Ok && res.Value != 0,
 		Reject:          !res.Ok && rawAmount != "",
 	}
+	if d.Reject {
+		d.RejectMsg = amountRejectMsg(res)
+	}
+	return d
 }
 
 type dailyStat struct {
@@ -78,6 +99,61 @@ type dailyStat struct {
 	Total         int    `json:"total"`
 	Status        string `json:"status"`
 	OverThreshold bool   `json:"overThreshold"`
+	// Reason names the metric that decided an amber or red dot. The dot takes
+	// the worst status across calories and every macro while the ring shows
+	// calories only, so without it a red dot under an amber ring is a mystery.
+	Reason *dotReason `json:"reason,omitempty"`
+}
+
+// dotReason is what the client shows: which metric, and how far off in
+// percent. The exact total and goal are deliberately not sent — the dots
+// travel to linked accounts too, and the percentage is all the UI needs.
+type dotReason struct {
+	Metric    string `json:"metric"`    // "calories" or a macro key
+	Mode      string `json:"mode"`      // "limit" or "target"
+	Pct       int    `json:"pct"`       // distance from the goal, rounded, at least 1
+	Direction string `json:"direction"` // "over" or "under"
+}
+
+// dotCandidate is one metric's day total against its goal, compared while
+// picking the reason and then reduced to a dotReason.
+type dotCandidate struct {
+	Metric      string
+	Total, Goal int
+	Mode        string
+}
+
+func (c dotCandidate) reason() *dotReason {
+	diff := c.Total - c.Goal
+	dir := "over"
+	if diff < 0 {
+		diff, dir = -diff, "under"
+	}
+	// Round half up in integers; a coloured dot is always a real miss, so
+	// never report 0%.
+	pct := (diff*200 + c.Goal) / (2 * c.Goal)
+	if pct < 1 {
+		pct = 1
+	}
+	return &dotReason{Metric: c.Metric, Mode: c.Mode, Pct: pct, Direction: dir}
+}
+
+// worseReason reports whether candidate (with dot status cs) explains the day
+// better than the current pick: a worse status wins, and on a tie the larger
+// relative distance from the goal does.
+func worseReason(cs string, c dotCandidate, bs string, b *dotCandidate) bool {
+	if b == nil || service.DotStatusRank[cs] != service.DotStatusRank[bs] {
+		return b == nil || service.DotStatusRank[cs] > service.DotStatusRank[bs]
+	}
+	dev := func(r dotCandidate) int64 {
+		d := int64(r.Total - r.Goal)
+		if d < 0 {
+			d = -d
+		}
+		return d
+	}
+	// |c.Total-c.Goal|/c.Goal > |b.Total-b.Goal|/b.Goal, cross-multiplied.
+	return dev(c)*int64(b.Goal) > dev(*b)*int64(c.Goal)
 }
 
 func getUserTimezone(r *http.Request, user interface{ GetTimezone() string }) string {
@@ -190,6 +266,13 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 		total := totalsByDate[dateStr]
 		_, hasEntries := totalsByDate[dateStr]
 		var statuses []string
+		var pick *dotCandidate
+		reasonStatus := ""
+		consider := func(dot string, c dotCandidate) {
+			if worseReason(dot, c, reasonStatus, pick) {
+				pick, reasonStatus = &c, dot
+			}
+		}
 
 		if dailyGoal != nil {
 			if !hasEntries {
@@ -200,7 +283,11 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 					calMode = m
 				}
 				cs := service.ComputeMacroStatus(total, dailyGoal, calMode, threshold)
-				statuses = append(statuses, service.ComputeDotStatus(cs.StatusClass))
+				dot := service.ComputeDotStatus(cs.StatusClass)
+				statuses = append(statuses, dot)
+				if *dailyGoal > 0 {
+					consider(dot, dotCandidate{Metric: "calories", Total: total, Goal: *dailyGoal, Mode: calMode})
+				}
 			}
 		}
 
@@ -220,7 +307,9 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 					mode = "limit"
 				}
 				ms := service.ComputeMacroStatus(macroTotal, &goal, mode, threshold)
-				statuses = append(statuses, service.ComputeDotStatus(ms.StatusClass))
+				dot := service.ComputeDotStatus(ms.StatusClass)
+				statuses = append(statuses, dot)
+				consider(dot, dotCandidate{Metric: key, Total: macroTotal, Goal: goal, Mode: mode})
 			}
 		}
 
@@ -229,9 +318,17 @@ func buildDailyStats(dayOptions []string, totalsByDate map[string]int, dailyGoal
 			status = service.WorstDotStatus(statuses)
 		}
 
+		// Only amber and red dots need explaining; green, empty and goalless
+		// days say everything in their status label.
+		var reason *dotReason
+		if pick != nil && (status == "over" || status == "over_threshold") {
+			reason = pick.reason()
+		}
+
 		stats = append(stats, dailyStat{
 			Date: dateStr, Total: total, Status: status,
 			OverThreshold: status == "over_threshold",
+			Reason:        reason,
 		})
 	}
 	return stats
@@ -368,7 +465,7 @@ func buildEntryUpdates(body map[string]any, autoCalc bool) ([]string, []any, str
 		if raw != nil && *raw != "" && *raw != "0" {
 			result := service.ParseAmount(*raw, MaxEntryCalories)
 			if !result.Ok {
-				return nil, nil, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)
+				return nil, nil, amountRejectMsg(result)
 			}
 			amount = result.Value
 		}

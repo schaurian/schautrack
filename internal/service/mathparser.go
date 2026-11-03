@@ -12,9 +12,46 @@ import (
 type ParseAmountResult struct {
 	Ok    bool
 	Value int
+	// OutOfRange is set when the input parsed but its value is outside maxAbs
+	// (or the int32 range). !Ok && !OutOfRange means the input is not a
+	// number or expression at all ("abc", "12,5"), so callers can answer
+	// "invalid number format" rather than a range message that does not apply.
+	OutOfRange bool
 }
 
 var validExprRe = regexp.MustCompile(`^[0-9+\-*/().]+$`)
+
+// numberRunRe finds each run of digits, dots and commas — the characters a
+// number literal (with thousands separators) is made of.
+var numberRunRe = regexp.MustCompile(`[0-9.,]+`)
+
+// groupedNumberRe is the only shape a run containing a comma may have: one to
+// three leading digits, then comma-separated groups of exactly three, then an
+// optional decimal part — "1,000", "12,345.5". Anything else with a comma in
+// it is rejected rather than having the comma deleted.
+//
+// Deleting every comma turned a European decimal into a number ten or a
+// hundred times too large: "12,5" was stored as 125 kcal and "0,4" as 4, with
+// a success response. A comma that is not a thousands separator is now an
+// error, so a raw API caller gets a 400 instead of silent 10x data. The SPA
+// never sends such a string: it reads the comma as the decimal point in
+// decimal-comma languages and sends the evaluated number
+// (client/src/lib/entryValidation.ts).
+//
+// Keep in sync with GROUPED_NUMBER_RE in client/src/lib/mathParser.ts; the
+// shared cases live in testdata/parse_amount_cases.json.
+var groupedNumberRe = regexp.MustCompile(`^[0-9]{1,3}(,[0-9]{3})+(\.[0-9]*)?$`)
+
+// hasMalformedComma reports whether any number in s uses a comma other than
+// as a well-formed thousands separator. s must already be whitespace-free.
+func hasMalformedComma(s string) bool {
+	for _, run := range numberRunRe.FindAllString(s, -1) {
+		if strings.Contains(run, ",") && !groupedNumberRe.MatchString(run) {
+			return true
+		}
+	}
+	return false
+}
 
 // hexLiteralRe matches a C-style hex literal ("0x10", "0XfF") anywhere in the
 // input. The `(^|[^0-9.])` prefix keeps genuine multiplications whose left
@@ -67,6 +104,10 @@ func ParseAmount(input string, maxAbs int) ParseAmountResult {
 		return ParseAmountResult{Ok: false, Value: 0}
 	}
 
+	if hasMalformedComma(stripWhitespace(input)) {
+		return ParseAmountResult{Ok: false, Value: 0}
+	}
+
 	// Normalize input. Stripping whitespace and commas are independent global
 	// replacements of distinct characters, so their relative order does not
 	// matter; commas go first only so the hex check below can still see the
@@ -113,13 +154,13 @@ func ParseAmount(input string, maxAbs int) ParseAmountResult {
 	// exact for every magnitude that could pass — maxAbs is at most 9999.
 	rounded := math.Round(val)
 	if maxAbs > 0 && math.Abs(rounded) > float64(maxAbs) {
-		return ParseAmountResult{Ok: false, Value: 0}
+		return ParseAmountResult{Ok: false, Value: 0, OutOfRange: true}
 	}
 	// With no maxAbs the caller has opted out of the range check, so the
 	// conversion still has to be guarded — otherwise the same indefinite value
 	// escapes through the unbounded path.
 	if rounded > math.MaxInt32 || rounded < math.MinInt32 {
-		return ParseAmountResult{Ok: false, Value: 0}
+		return ParseAmountResult{Ok: false, Value: 0, OutOfRange: true}
 	}
 	return ParseAmountResult{Ok: true, Value: int(rounded)}
 }
