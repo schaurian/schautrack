@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'child_process';
 
+import { WEB_CONTAINER } from './fixtures/containers';
+
 // Infrastructure test: verifies the Go server handles SIGTERM gracefully (exit code 0).
 //
 // It does NOT signal the web container the rest of the suite is talking to.
@@ -20,11 +22,8 @@ import { execFileSync } from 'child_process';
 // while having no effect on anything else. The `shutdown` project therefore
 // needs no dependencies at all and can run concurrently with everything.
 //
-// E2E_WEB_CONTAINER names the container to clone. It defaults to the container
-// `compose.test.yml` produces under its own project name, which is what CI and
-// `npm run test:e2e` use; override it when driving a second, differently-named
-// stack.
-const WEB_CONTAINER = process.env.E2E_WEB_CONTAINER || 'schautrack-test-web-1';
+// WEB_CONTAINER (fixtures/containers.ts) names the container to clone: the
+// compose project's web container, or E2E_WEB_CONTAINER when set.
 const PROBE_CONTAINER = `${WEB_CONTAINER}-sigterm-probe`;
 
 function docker(args: string[], timeoutMs = 15000): string {

@@ -329,7 +329,7 @@ func main() {
 
 	// AI estimation
 	aiHandler := &handler.AIHandler{Pool: pool, Cfg: cfg, Settings: settingsCache}
-	r.With(strictLimiter.Middleware, middleware.RequireLogin).Post("/api/ai/estimate", aiHandler.Estimate)
+	r.With(strictLimiter.Middleware, middleware.RequireLogin, session.CsrfProtection).Post("/api/ai/estimate", aiHandler.Estimate)
 	warnUncappedAIKey(ctx, cfg, settingsCache)
 
 	// Personal access token management. Session-authenticated, NOT part of

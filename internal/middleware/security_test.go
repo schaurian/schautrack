@@ -20,7 +20,10 @@ const wantCSP = "default-src 'self'; " +
 	"style-src 'self' 'unsafe-inline'; " +
 	"font-src 'self'; " +
 	"img-src 'self' data: blob:; " +
-	"script-src 'self'"
+	"script-src 'self'; " +
+	"frame-ancestors 'self'; " +
+	"base-uri 'self'; " +
+	"object-src 'none'"
 
 // wantSecurityHeaders is the full header set, name → exact value.
 var wantSecurityHeaders = map[string]string{

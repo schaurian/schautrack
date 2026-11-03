@@ -3874,7 +3874,8 @@
         "properties": {
           "context": {
             "type": "string",
-            "description": "Optional hint, e.g. \"a large bowl\"."
+            "description": "Optional hint, e.g. \"a large bowl\". Up to 200 characters.",
+            "maxLength": 200
           },
           "image": {
             "type": "string",

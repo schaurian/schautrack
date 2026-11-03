@@ -1,24 +1,12 @@
-import { execSync, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as crypto from 'crypto';
 
 import { bcryptHash } from './bcrypt';
+import { DB_CONTAINER, WEB_CONTAINER } from './containers';
 
-const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
 const MAILPIT_URL = process.env.MAILPIT_URL || 'http://localhost:8025';
-
-function detectDbContainer(): string {
-  try {
-    const out = execSync('docker ps --format "{{.Names}}" | grep -E "schautrack.*db"', { encoding: 'utf-8' }).trim();
-    const names = out.split('\n').map(n => n.trim()).filter(Boolean);
-    // Prefer the test DB container over dev when both are running
-    const testDb = names.find(n => n.includes('test'));
-    return testDb || names[0] || 'schautrack-test-db-1';
-  } catch {
-    return 'schautrack-test-db-1';
-  }
-}
 
 /**
  * Run a SQL query against the test database and return the first line of trimmed output.
@@ -32,20 +20,13 @@ function detectDbContainer(): string {
  * name and variable values are never re-parsed by a shell.
  */
 /**
- * The admin email the app under test recognises, read from the running web
- * container's ADMIN_EMAIL. Prefers the test container: with a dev stack up too,
- * taking the first match reads the dev value and every admin check then fails
- * against the test app — silently skipping the whole admin project.
+ * The admin email the app under test recognises, read from its web
+ * container's ADMIN_EMAIL (see ./containers for which container that is).
  */
 export function detectAdminEmail(): string {
   try {
-    const out = execSync('docker ps --format "{{.Names}}" | grep -E "schautrack.*web"', { encoding: 'utf-8' }).trim();
-    const names = out.split('\n').map((n) => n.trim()).filter(Boolean);
-    const container = names.find((n) => n.includes('test')) || names[0];
-    if (container) {
-      const email = execSync(`docker exec ${container} printenv ADMIN_EMAIL`, { encoding: 'utf-8' }).trim();
-      if (email) return email;
-    }
+    const email = execFileSync('docker', ['exec', WEB_CONTAINER, 'printenv', 'ADMIN_EMAIL'], { encoding: 'utf-8' }).trim();
+    if (email) return email;
   } catch { /* fall through to the compose.test.yml default */ }
   return 'admin@test.com';
 }

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -38,6 +39,12 @@ const (
 	// 14MB base64 image plus JSON overhead and matches the global 15MB
 	// body cap set in cmd/server/main.go.
 	maxAIRequestBytes = 15 << 20
+	// maxAIContextChars bounds the optional free-text hint, in characters. It
+	// is pasted into the provider prompt, so without a cap one request could
+	// carry megabytes of text — billed per token on the operator's global key
+	// while counting as a single request against the daily limit. Matches the
+	// client input's maxLength.
+	maxAIContextChars = 200
 )
 
 // aiConfigInputs are the effective global (admin panel / env) and user-level
@@ -127,6 +134,10 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(body.Image) > maxImageBase64Bytes {
 		ErrorJSON(w, http.StatusRequestEntityTooLarge, "Image too large. Maximum size is 10MB.")
+		return
+	}
+	if utf8.RuneCountInString(body.Context) > maxAIContextChars {
+		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Context too long. Maximum %d characters.", maxAIContextChars))
 		return
 	}
 

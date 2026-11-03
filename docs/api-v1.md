@@ -1061,7 +1061,7 @@ A food photo to estimate.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `context` | `string` |  | Optional hint, e.g. "a large bowl". |
+| `context` | `string` |  | Optional hint, e.g. "a large bowl". Up to 200 characters. |
 | `image` | `string` | yes | The photo as a `data:image/...;base64,...` URI. Maximum 10 MB. |
 
 ### HealthyRange

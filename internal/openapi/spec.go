@@ -629,7 +629,7 @@ func schemas() map[string]*Schema {
 
 		"EstimateInput": object("A food photo to estimate.", map[string]*Schema{
 			"image":   str("The photo as a `data:image/...;base64,...` URI. Maximum 10 MB."),
-			"context": str("Optional hint, e.g. \"a large bowl\"."),
+			"context": {Type: "string", Description: "Optional hint, e.g. \"a large bowl\". Up to 200 characters.", MaxLength: intp(200)},
 		}, "image"),
 		"Estimate": {
 			Type:                 "object",
