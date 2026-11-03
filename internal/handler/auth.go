@@ -104,25 +104,23 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	email := strings.ToLower(strings.TrimSpace(body.Email))
 	clientAddr := clientip.FromRequest(r, h.trustProxy())
 
-	captchaAnswer := sess.GetString("captchaAnswer")
+	captchaAnswer := sess.GetString(loginCaptchaKey)
 	if captchaAnswer == "" && loginCaptchaRequired(sess, email, clientAddr) {
 		// The server-side failure counters (keyed by account email and
 		// client IP) demand a captcha, but this session has none in flight —
 		// e.g. a client dropping its cookies between attempts to keep the
 		// session counter at zero. Issue a challenge instead of processing.
-		c := service.GenerateCaptcha()
-		sess.Set("captchaAnswer", c.Text)
+		c := issueCaptcha(sess, loginCaptchaKey)
 		JSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Captcha required.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 		return
 	}
 	if captchaAnswer != "" {
 		if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
-			c := service.GenerateCaptcha()
-			sess.Set("captchaAnswer", c.Text)
+			c := issueCaptcha(sess, loginCaptchaKey)
 			JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true})
 			return
 		}
-		sess.Delete("captchaAnswer")
+		sess.Delete(loginCaptchaKey)
 	}
 
 	var userID int
@@ -360,8 +358,7 @@ func (h *AuthHandler) registerCredentials(w http.ResponseWriter, r *http.Request
 		"legalConsent": requireConsent && legalAccepted && healthConsent,
 	})
 
-	c := service.GenerateCaptcha()
-	sess.Set("captchaAnswer", c.Text)
+	c := issueCaptcha(sess, registerCaptchaKey)
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "requireCaptcha": true, "captchaSvg": c.Data, "captchaQuestion": c.Question})
 }
 
@@ -381,18 +378,18 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 
 	if emailClean == "" || hash == "" || (createdAt > 0 && time.Since(time.Unix(int64(createdAt), 0)) > 30*time.Minute) {
 		sess.Delete("pendingRegistration")
+		sess.Delete(registerCaptchaKey)
 		ErrorJSON(w, http.StatusBadRequest, "Registration session expired.")
 		return
 	}
 
-	captchaAnswer := sess.GetString("captchaAnswer")
+	captchaAnswer := sess.GetString(registerCaptchaKey)
 	if !service.VerifyCaptcha(captchaAnswer, captcha) {
-		c := service.GenerateCaptcha()
-		sess.Set("captchaAnswer", c.Text)
+		c := issueCaptcha(sess, registerCaptchaKey)
 		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question})
 		return
 	}
-	sess.Delete("captchaAnswer")
+	sess.Delete(registerCaptchaKey)
 
 	var exists bool
 	err := h.Pool.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", emailClean).Scan(&exists)

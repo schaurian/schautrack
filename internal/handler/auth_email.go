@@ -126,16 +126,15 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 			})
 			return
 		}
-		captchaAnswer := sess.GetString("resendCaptchaAnswer")
+		captchaAnswer := sess.GetString(resendCaptchaKey)
 		if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
-			c := service.GenerateCaptcha()
-			sess.Set("resendCaptchaAnswer", c.Text)
+			c := issueCaptcha(sess, resendCaptchaKey)
 			JSON(w, http.StatusBadRequest, map[string]any{
 				"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question, "requireCaptcha": true,
 			})
 			return
 		}
-		sess.Delete("resendCaptchaAnswer")
+		sess.Delete(resendCaptchaKey)
 	}
 
 	var userID int
@@ -169,8 +168,7 @@ func (h *AuthHandler) VerifyEmailResend(w http.ResponseWriter, r *http.Request) 
 	sess.Set("lastResendAt", float64(time.Now().Unix()))
 
 	if resendAttempts == 0 {
-		c := service.GenerateCaptcha()
-		sess.Set("resendCaptchaAnswer", c.Text)
+		c := issueCaptcha(sess, resendCaptchaKey)
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "nextRequiresCaptcha": true, "captchaSvg": c.Data})
 		return
 	}

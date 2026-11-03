@@ -194,7 +194,7 @@ Legend for the **Auth** column:
 | GET | `/api/me` | Session¹ | Current user profile + flags; `401 { "ok": false, "error": "Not authenticated" }` if no session. |
 | GET | `/api/auth/registration-info` | Public | `{ "registrationEnabled": bool, "inviteRequired": bool }`. |
 | GET | `/api/auth/info` | Public | Available auth methods: `{ "passkeysEnabled": bool, "oidc": {label,slug,logo} \| null }`. |
-| GET | `/api/auth/captcha` | Public | Returns a fresh captcha challenge for the current session. |
+| GET | `/api/auth/captcha` | Public | Returns a fresh captcha challenge for the forgot-password form. Each flow (login, register, forgot-password, verification resend) keeps its own challenge in the session, so one never gates or satisfies another. |
 | GET | `/robots.txt` | Public | SEO robots file (indexing gated by `ROBOTS_INDEX`). |
 | GET | `/sitemap.xml` | Public | SEO sitemap. |
 | GET | `/llms.txt` | Public | Machine-readable guide to Schautrack and its canonical documentation links. |
