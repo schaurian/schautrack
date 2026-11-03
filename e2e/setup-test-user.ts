@@ -1,23 +1,15 @@
 /**
  * Creates/resets test users in the E2E test database.
- * Works with both compose.dev.yml and compose.test.yml.
+ * Targets compose.test.yml's stack by default; see fixtures/containers.ts to
+ * point it at another one (e.g. the dev stack).
  */
 import { execSync } from 'child_process';
 
 import { bcryptHash } from './fixtures/bcrypt';
+import { DB_CONTAINER } from './fixtures/containers';
 
-const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
-
-function detectDbContainer(): string {
-  try {
-    const out = execSync('docker ps --format "{{.Names}}" | grep -E "schautrack.*db"', { encoding: 'utf-8' }).trim();
-    return out.split('\n')[0];
-  } catch {
-    return 'schautrack-db-1';
-  }
-}
 
 function psql(sql: string): string {
   return execSync(
