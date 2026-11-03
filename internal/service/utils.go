@@ -15,6 +15,18 @@ func FormatDateInTz(t time.Time, tz string) string {
 	return t.In(loc).Format("2006-01-02")
 }
 
+// NowInTz returns t in the named IANA zone, falling back to UTC for an empty or
+// unknown name exactly like FormatDateInTz. Calendar arithmetic on the result
+// (Year/Month/Day, AddDate, Format("2006-01-02")) then happens on the user's
+// local calendar rather than the server's.
+func NowInTz(t time.Time, tz string) time.Time {
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		return t.UTC()
+	}
+	return t.In(loc)
+}
+
 func FormatTimeInTz(t time.Time, tz string) string {
 	loc, err := time.LoadLocation(tz)
 	if err != nil {

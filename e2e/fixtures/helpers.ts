@@ -249,7 +249,7 @@ export function refreshStepUpGrace(userId: string | number): void {
  * Login as a specific user via the API (fast, no UI interaction).
  * Uses direct HTTP requests to get a session cookie, then creates a browser context with it.
  */
-export async function loginUser(browser: import('@playwright/test').Browser, email: string, password: string): Promise<{ context: import('@playwright/test').BrowserContext; page: import('@playwright/test').Page }> {
+export async function loginUser(browser: import('@playwright/test').Browser, email: string, password: string, contextOptions: import('@playwright/test').BrowserContextOptions = {}): Promise<{ context: import('@playwright/test').BrowserContext; page: import('@playwright/test').Page }> {
   const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 
   // Get CSRF token and session cookie via API
@@ -282,6 +282,7 @@ export async function loginUser(browser: import('@playwright/test').Browser, ema
 
   // Create browser context with the session cookie
   const context = await browser.newContext({
+    ...contextOptions,
     baseURL,
     storageState: {
       cookies: [{
