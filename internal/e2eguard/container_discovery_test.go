@@ -41,7 +41,7 @@ func TestSuiteNeverDiscoversContainersByListing(t *testing.T) {
 				if strings.HasPrefix(strings.TrimSpace(line), "#") {
 					continue // shell comment
 				}
-				if strings.Contains(line, "docker ps") || strings.Contains(line, "'ps'") {
+				if listsContainers(line) {
 					t.Errorf("%s:%d lists running containers to pick one; name it via e2e/fixtures/containers.ts instead:\n\t%s",
 						path, i+1, strings.TrimSpace(line))
 				}
@@ -53,6 +53,42 @@ func TestSuiteNeverDiscoversContainersByListing(t *testing.T) {
 		}
 		if scanned == 0 {
 			t.Fatalf("no .ts/.sh files found under %s; the guard would pass vacuously", dir)
+		}
+	}
+}
+
+// listsContainers reports whether a line enumerates running containers: the
+// shell forms (`docker ps`, `docker container ls`/`list`) or an argv-style
+// "ps" / 'ps' handed to execFileSync and friends.
+func listsContainers(line string) bool {
+	for _, needle := range []string{"docker ps", "docker container ls", "docker container list", `'ps'`, `"ps"`} {
+		if strings.Contains(line, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// TestListsContainersCatchesEveryForm keeps the matcher honest on its own,
+// since the tree it scans is (correctly) clean.
+func TestListsContainersCatchesEveryForm(t *testing.T) {
+	for _, line := range []string{
+		`execSync('docker ps --format "{{.Names}}"')`,
+		`execFileSync('docker', ['ps', '--format', '{{.Names}}'])`,
+		`execFileSync("docker", ["ps", "-q"])`,
+		`docker container ls --filter name=db`,
+		`docker container list -q`,
+	} {
+		if !listsContainers(line) {
+			t.Errorf("not caught: %s", line)
+		}
+	}
+	for _, line := range []string{
+		`execFileSync('docker', ['exec', '-i', DB_CONTAINER, 'psql'])`,
+		`docker inspect schautrack-test-web-1`,
+	} {
+		if listsContainers(line) {
+			t.Errorf("false positive: %s", line)
 		}
 	}
 }
