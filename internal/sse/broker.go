@@ -36,9 +36,24 @@ type Broker struct {
 	pool    *pgxpool.Pool
 
 	// linkMu guards linkCache, a short-TTL cache of each user's accepted-link
-	// target IDs so a burst of broadcasts does not repeat the same DB lookup.
+	// target IDs so a burst of broadcasts does not repeat the same DB lookup,
+	// and the two counters that keep a lookup racing an invalidation from
+	// refilling the cache with what it read before the change: linkGen is
+	// bumped per user by invalidateLocal, linkEpoch by clearLinkCache.
 	linkMu    sync.Mutex
 	linkCache map[int]linkCacheEntry
+	linkGen   map[int]uint64
+	linkEpoch uint64
+
+	// loadLinks resolves a user's accepted links; nil means the database.
+	// A seam for tests that need to interleave a lookup with an invalidation.
+	loadLinks func(ctx context.Context, userID int) ([]linkTarget, error)
+}
+
+// linkStamp is the cache version a lookup started from. storeLinks only keeps
+// the result if neither the user's generation nor the epoch moved meanwhile.
+type linkStamp struct {
+	gen, epoch uint64
 }
 
 func NewBroker(pool *pgxpool.Pool) *Broker {
@@ -182,6 +197,11 @@ func (b *Broker) listenOnce(ctx context.Context, dsn string) error {
 	if _, err := conn.Exec(ctx, "LISTEN "+notifyChannel); err != nil {
 		return err
 	}
+	// Invalidations published while this instance was not listening — before
+	// the first connect, or during a reconnect gap — are lost, so nothing in
+	// the cache can be trusted any more. Cleared only now that LISTEN is in
+	// place: every invalidation from here on will be heard.
+	b.clearLinkCache()
 	slog.Info("sse: listening for cross-instance events", "channel", notifyChannel)
 
 	for {
@@ -354,9 +374,10 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // linkCacheTTL bounds how long a resolved accepted-links set is reused between
 // broadcasts. It absorbs bursts of rapid mutations — which would otherwise each
-// issue an identical link lookup — while keeping staleness small even if an
-// explicit invalidation were ever missed. Link accept/remove and share changes
-// call InvalidateLinks, which reaches every instance through the listener.
+// issue an identical link lookup — and is the upper bound on staleness:
+// InvalidateLinks reaches other instances only as fast as their listeners
+// hear it, and not at all while one is disconnected (the cache is cleared when
+// it reconnects, but a lookup during the gap can still be stale until then).
 const linkCacheTTL = 5 * time.Second
 
 // getTargets returns the source user followed by every linked friend the
@@ -369,21 +390,18 @@ func (b *Broker) getTargets(sourceUserID int, category string) []int {
 	// fired exactly when the event was needed and nothing was ever published.
 	// Resolving targets is cheap — the link set is cached below, and publishing
 	// is one pg_notify.
-	linked, ok := b.cachedLinks(sourceUserID)
+	linked, stamp, ok := b.cachedLinks(sourceUserID)
 	if !ok {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
+		var err error
+		linked, err = b.lookupLinks(ctx, sourceUserID)
 		if err != nil {
 			// Don't cache failures — fall back to just the source user.
 			slog.Error("failed to load linked users for broadcast", "error", err)
 			return []int{sourceUserID}
 		}
-		linked = make([]linkTarget, 0, len(links))
-		for _, link := range links {
-			linked = append(linked, linkTarget{userID: link.UserID, shares: link.SharesWithThem})
-		}
-		b.storeLinks(sourceUserID, linked)
+		b.storeLinks(sourceUserID, stamp, linked)
 	}
 	targets := []int{sourceUserID}
 	for _, l := range linked {
@@ -394,22 +412,46 @@ func (b *Broker) getTargets(sourceUserID int, category string) []int {
 	return targets
 }
 
-// cachedLinks returns the cached accepted links for userID when a fresh entry
-// exists. The returned slice is owned by the cache and must not be mutated by
-// callers (getTargets only reads it).
-func (b *Broker) cachedLinks(userID int) ([]linkTarget, bool) {
-	b.linkMu.Lock()
-	defer b.linkMu.Unlock()
-	entry, ok := b.linkCache[userID]
-	if !ok || time.Now().After(entry.expires) {
-		return nil, false
+func (b *Broker) lookupLinks(ctx context.Context, userID int) ([]linkTarget, error) {
+	if b.loadLinks != nil {
+		return b.loadLinks(ctx, userID)
 	}
-	return entry.linked, true
+	links, err := service.GetAcceptedLinkUsers(ctx, b.pool, userID)
+	if err != nil {
+		return nil, err
+	}
+	linked := make([]linkTarget, 0, len(links))
+	for _, link := range links {
+		linked = append(linked, linkTarget{userID: link.UserID, shares: link.SharesWithThem})
+	}
+	return linked, nil
 }
 
-func (b *Broker) storeLinks(userID int, linked []linkTarget) {
+// cachedLinks returns the cached accepted links for userID when a fresh entry
+// exists, and otherwise the stamp a lookup must hand to storeLinks. The
+// returned slice is owned by the cache and must not be mutated by callers
+// (getTargets only reads it).
+func (b *Broker) cachedLinks(userID int) ([]linkTarget, linkStamp, bool) {
 	b.linkMu.Lock()
 	defer b.linkMu.Unlock()
+	stamp := linkStamp{gen: b.linkGen[userID], epoch: b.linkEpoch}
+	entry, ok := b.linkCache[userID]
+	if !ok || time.Now().After(entry.expires) {
+		return nil, stamp, false
+	}
+	return entry.linked, stamp, true
+}
+
+// storeLinks caches linked for userID — unless an invalidation for that user,
+// or a full clear, happened since stamp was taken. A lookup that read the
+// links just before a revoke committed would otherwise write the old set back
+// after the invalidation dropped it, and serve it for the whole TTL.
+func (b *Broker) storeLinks(userID int, stamp linkStamp, linked []linkTarget) {
+	b.linkMu.Lock()
+	defer b.linkMu.Unlock()
+	if b.linkGen[userID] != stamp.gen || b.linkEpoch != stamp.epoch {
+		return
+	}
 	if b.linkCache == nil {
 		b.linkCache = make(map[int]linkCacheEntry)
 	}
@@ -422,9 +464,11 @@ func (b *Broker) storeLinks(userID int, linked []linkTarget) {
 //
 // This instance forgets at once; every other instance forgets when its
 // listener hears the published invalidation, which arrives through the same
-// ordered channel as events — so a revoked share stops activity events
-// everywhere, not only after linkCacheTTL on the other replicas. If the
-// publish fails, the TTL still bounds the staleness.
+// ordered channel as events. That shortens staleness elsewhere to the
+// listener's lag; it does not remove it. A failed publish, or a listener that
+// is disconnected when the invalidation goes out, leaves the old set in place
+// until linkCacheTTL (or, for the disconnected one, until it reconnects and
+// clears its whole cache).
 func (b *Broker) InvalidateLinks(userIDs ...int) {
 	b.invalidateLocal(userIDs...)
 	if b.pool == nil || len(userIDs) == 0 {
@@ -444,9 +488,25 @@ func (b *Broker) InvalidateLinks(userIDs ...int) {
 func (b *Broker) invalidateLocal(userIDs ...int) {
 	b.linkMu.Lock()
 	defer b.linkMu.Unlock()
+	if b.linkGen == nil {
+		b.linkGen = make(map[int]uint64)
+	}
 	for _, id := range userIDs {
 		delete(b.linkCache, id)
+		b.linkGen[id]++
 	}
+}
+
+// clearLinkCache drops every cached link set and fences off lookups already in
+// flight. The per-user generations are reset with it: the epoch bump alone
+// already rejects every stamp taken before this point, and starting the map
+// over keeps it from growing with every user ever invalidated.
+func (b *Broker) clearLinkCache() {
+	b.linkMu.Lock()
+	defer b.linkMu.Unlock()
+	b.linkCache = make(map[int]linkCacheEntry)
+	b.linkGen = make(map[int]uint64)
+	b.linkEpoch++
 }
 
 func (b *Broker) cleanupLoop() {

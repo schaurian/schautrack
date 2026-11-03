@@ -278,7 +278,9 @@ Design points:
   shared that category.** `getTargets()` resolves who else should see a change
   — only friends the source shares the event's category with (nutrition,
   weight, todos, notes, saved foods) — with a short-lived cache invalidated
-  whenever links or their shares change. An event's arrival alone says "they
+  whenever links or their shares change or a linked account is deleted (on
+  every replica, via the same NOTIFY channel), and cleared whole whenever a
+  listener (re)connects; the 5 s TTL is the remaining bound on staleness. An event's arrival alone says "they
   just logged something", so a friend who cannot see the category gets nothing.
 - **The events that fan out carry no tracked data.** The four content events —
   `entry-change` (nutrition, and weight), `todo-change`, `note-change`,

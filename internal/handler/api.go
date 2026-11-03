@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"schautrack/internal/config"
@@ -17,6 +18,7 @@ import (
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
 	"schautrack/internal/session"
+	"schautrack/internal/sse"
 )
 
 // CsrfToken handles GET /api/csrf
@@ -428,7 +430,9 @@ func RegistrationInfo(settingsCache *database.SettingsCache, cfg *config.Config)
 }
 
 // CleanExpiredTokens runs periodic cleanup of expired tokens.
-func CleanExpiredTokens(pool *pgxpool.Pool) {
+// broker may be nil; when set, the link caches of reaped accounts' partners
+// are invalidated.
+func CleanExpiredTokens(pool *pgxpool.Pool, broker *sse.Broker) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if _, err := pool.Exec(ctx, "DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE"); err != nil {
@@ -452,15 +456,31 @@ func CleanExpiredTokens(pool *pgxpool.Pool) {
 	// recover (resend the code, or re-login to get a fresh token) before the
 	// account is reaped — previously a single failed/expired verification
 	// email could silently cost the account within one cleanup tick.
-	if _, err := pool.Exec(ctx, `
-		DELETE FROM users
-		WHERE email_verified = FALSE
-			AND created_at < NOW() - interval '1 hour'
-			AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
-			AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
-			AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
+	//
+	// Every sub-statement of one query sees the same snapshot, so the SELECT
+	// below still reads the links the DELETE cascades away: it returns each
+	// reaped id and its accepted-link partners, whose caches must be dropped.
+	if rows, err := pool.Query(ctx, `
+		WITH reaped AS (
+			DELETE FROM users
+			WHERE email_verified = FALSE
+				AND created_at < NOW() - interval '1 hour'
+				AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
+				AND NOT EXISTS (SELECT 1 FROM user_oidc_accounts o WHERE o.user_id = users.id)
+				AND NOT EXISTS (SELECT 1 FROM user_passkeys p WHERE p.user_id = users.id)
+			RETURNING id
+		)
+		SELECT r.id FROM reaped r
+		UNION
+		SELECT CASE WHEN al.requester_id = r.id THEN al.target_id ELSE al.requester_id END
+		FROM reaped r
+		JOIN account_links al ON al.status = 'accepted' AND (al.requester_id = r.id OR al.target_id = r.id)
 	`); err != nil {
 		slog.Error("failed to clean unverified users", "error", err)
+	} else if ids, err := pgx.CollectRows(rows, pgx.RowTo[int]); err != nil {
+		slog.Error("failed to clean unverified users", "error", err)
+	} else if broker != nil && len(ids) > 0 {
+		broker.InvalidateLinks(ids...)
 	}
 	// Retention: audit_log and ai_usage otherwise grow unbounded.
 	if _, err := pool.Exec(ctx, "DELETE FROM audit_log WHERE created_at < NOW() - interval '90 days'"); err != nil {
