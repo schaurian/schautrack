@@ -3,7 +3,9 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -291,4 +293,34 @@ func optionalPastTimestamp(body map[string]any, key string, now time.Time) (*tim
 		return nil, false
 	}
 	return &t, true
+}
+
+// optionalCount reads an optional whole number in 0..max. Absent, null and ""
+// give (0, true). A JSON number decoded into `any` is a float64, so it is
+// checked for being integral directly: formatting it with %v (what
+// optionalString does) turns 1000000 into "1e+06", which no integer parser
+// accepts. A numeric string is accepted too. Anything fractional, negative,
+// above max or non-numeric is (0, false).
+func optionalCount(body map[string]any, key string, max int) (int, bool) {
+	switch v := body[key].(type) {
+	case nil:
+		return 0, true
+	case float64:
+		if v != math.Trunc(v) || v < 0 || v > float64(max) {
+			return 0, false
+		}
+		return int(v), true
+	case string:
+		s := strings.TrimSpace(v)
+		if s == "" {
+			return 0, true
+		}
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || n < 0 || n > int64(max) {
+			return 0, false
+		}
+		return int(n), true
+	default:
+		return 0, false
+	}
 }

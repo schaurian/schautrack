@@ -19,11 +19,17 @@ import (
 // deleteEntry drives the real POST /entries/{id}/delete for the seeded user.
 func deleteEntryReq(t *testing.T, e *v1Env, id int) *httptest.ResponseRecorder {
 	t.Helper()
+	return deleteEntryAs(t, e, e.UserID, id)
+}
+
+// deleteEntryAs drives POST /entries/{id}/delete as an arbitrary user.
+func deleteEntryAs(t *testing.T, e *v1Env, userID, id int) *httptest.ResponseRecorder {
+	t.Helper()
 	h := &EntriesHandler{Pool: e.Pool, Broker: sse.NewBroker(e.Pool)}
 	r := chi.NewRouter()
 	r.Post("/entries/{id}/delete", h.DeleteEntry)
 	req := httptest.NewRequest(http.MethodPost, "/entries/"+strconv.Itoa(id)+"/delete", nil)
-	req = req.WithContext(middleware.WithTestUser(req.Context(), &model.User{ID: e.UserID, Email: e.Email}))
+	req = req.WithContext(middleware.WithTestUser(req.Context(), &model.User{ID: userID}))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec
@@ -72,8 +78,8 @@ func TestUndoDeleteRestoresTheOriginalEntry(t *testing.T) {
 
 	var origID int
 	if err := e.Pool.QueryRow(e.Ctx,
-		`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g)
-		 VALUES ($1, $2, 520, 'Pasta', $3, 20, 70, 15, 6) RETURNING id`,
+		`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g)
+		 VALUES ($1, $2, 520, 'Pasta', $3, 20, 70, 15, 6, 4) RETURNING id`,
 		e.UserID, date, logged).Scan(&origID); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -127,6 +133,36 @@ func TestUndoDeleteRestoresTheOriginalEntry(t *testing.T) {
 	}
 }
 
+// TestDeleteEntryIsOwnerScoped: the delete now RETURNs the row as a restore
+// body, so a missing owner check would both destroy another user's entry and
+// hand its contents to the caller. User B naming user A's id must get a 404,
+// no restore body, and leave A's row in place.
+func TestDeleteEntryIsOwnerScoped(t *testing.T) {
+	e := newV1Env(t)
+	otherID, _ := e.seedUser("-b")
+	const date = "2026-08-03"
+
+	var id int
+	if err := e.Pool.QueryRow(e.Ctx,
+		`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, 300, 'Private') RETURNING id`,
+		e.UserID, date).Scan(&id); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	rec := deleteEntryAs(t, e, otherID, id)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("foreign delete: status %d, want 404 (%s)", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if _, leaked := resp["restore"]; leaked {
+		t.Errorf("foreign delete returned a restore body: %s", rec.Body.String())
+	}
+	if got := entriesOn(t, e, date); len(got) != 1 || got[0].ID != id {
+		t.Errorf("owner's row after a foreign delete = %+v, want id %d still present", got, id)
+	}
+}
+
 // TestCreateEntryCreatedAtIsValidated pins the bounds of the new optional
 // created_at: a past or near-now RFC 3339 instant is stored as given, anything
 // else is a 400 that writes nothing, and leaving it out keeps the old default.
@@ -169,6 +205,48 @@ func TestCreateEntryCreatedAtIsValidated(t *testing.T) {
 	}
 	if d := time.Since(got[1].CreatedAt); d < -time.Minute || d > time.Minute {
 		t.Errorf("default created_at %s is not about now", got[1].CreatedAt)
+	}
+}
+
+// TestSavedFoodCreateUseCountNumbers: use_count arrives as a JSON number from
+// Undo. A number decoded into any is a float64, and formatting 1000000 with
+// %v gives "1e+06", which Atoi refused — so a food tracked a million times
+// could not be restored. Integral numbers of any size up to MaxInt32 must be
+// accepted; anything above it, fractional, or garbage is a 400, never a 500.
+func TestSavedFoodCreateUseCountNumbers(t *testing.T) {
+	e := newV1Env(t)
+	h := &SavedFoodsHandler{Pool: e.Pool, Broker: sse.NewBroker(e.Pool)}
+	post := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/saved-foods", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = req.WithContext(middleware.WithTestUser(req.Context(), &model.User{ID: e.UserID, Email: e.Email}))
+		rec := httptest.NewRecorder()
+		h.Create(rec, req)
+		return rec
+	}
+	stored := func(name string) int {
+		t.Helper()
+		var n int
+		if err := e.Pool.QueryRow(e.Ctx, `SELECT use_count FROM saved_foods WHERE user_id = $1 AND name = $2`, e.UserID, name).Scan(&n); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return n
+	}
+
+	for name, uc := range map[string]string{"Million": `1000000`, "MillionStr": `"1000000"`, "MaxInt32": `2147483647`} {
+		if rec := post(`{"name":"` + name + `","amount":100,"use_count":` + uc + `}`); rec.Code != http.StatusOK {
+			t.Errorf("use_count %s: status %d, want 200 (%s)", uc, rec.Code, rec.Body.String())
+			continue
+		}
+		want, _ := strconv.Atoi(strings.Trim(uc, `"`))
+		if got := stored(name); got != want {
+			t.Errorf("use_count %s stored as %d", uc, got)
+		}
+	}
+	for _, uc := range []string{`"3000000000"`, `3000000000`, `2147483648`, `1.5`, `1e400`, `true`} {
+		if rec := post(`{"name":"Bad","amount":100,"use_count":` + uc + `}`); rec.Code != http.StatusBadRequest {
+			t.Errorf("use_count %s: status %d, want 400 (%s)", uc, rec.Code, rec.Body.String())
+		}
 	}
 }
 

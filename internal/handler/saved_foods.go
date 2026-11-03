@@ -252,14 +252,10 @@ func (h *SavedFoodsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// use_count and last_used_at decide where the chip ranks (savedFoodRank).
 	// Undo sends them back so a restored food returns to its old place rather
 	// than the bottom of the row; a plain create leaves them at 0 / NULL.
-	useCount := 0
-	if v, _ := optionalString(body, "use_count"); v != nil && *v != "" {
-		n, err := strconv.Atoi(*v)
-		if err != nil || n < 0 || n > math.MaxInt32 {
-			ErrorJSON(w, http.StatusBadRequest, "Invalid use_count")
-			return
-		}
-		useCount = n
+	useCount, ok := optionalCount(body, "use_count", math.MaxInt32)
+	if !ok {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid use_count")
+		return
 	}
 	lastUsedAt, ok := optionalPastTimestamp(body, "last_used_at", time.Now())
 	if !ok {
