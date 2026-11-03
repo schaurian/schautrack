@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { listPasskeys, deletePasskey, renamePasskey, passkeyRegisterBegin, passkeyRegisterFinish, getAuthInfo, type Passkey, type AuthInfo } from '@/api/passkeys';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/format';
+import { InlineEditInput } from '@/components/ui/InlineEditInput';
 import { useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -92,10 +93,10 @@ export default function PasskeySettings({ onUpdate }: Props) {
         )}
 
         {passkeys.map((pk) => (
-          <div key={pk.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2.5">
+          <div key={pk.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2.5 text-sm">
             {editingId === pk.id ? (
-              <input
-                className="flex-1 min-w-0 rounded-md border border-input bg-muted/50 px-2 py-1 text-sm text-foreground outline-none focus:border-ring"
+              <InlineEditInput
+                className="flex-1 -ml-[9px] -my-[5px] px-2 py-1"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRename(pk.id)}
@@ -105,7 +106,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
               />
             ) : (
               <button
-                className="flex-1 min-w-0 truncate text-left text-sm text-foreground cursor-pointer bg-transparent border-0 p-0 hover:text-primary transition-colors"
+                className="flex-1 min-w-0 -ml-[9px] -my-[5px] truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-left text-foreground cursor-pointer hover:text-primary transition-colors"
                 onClick={() => { setEditingId(pk.id); setEditName(pk.name); }}
                 title={t('passkey.renameTitle')}
               >

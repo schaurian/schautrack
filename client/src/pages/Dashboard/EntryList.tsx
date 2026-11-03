@@ -10,6 +10,7 @@ import { entryFieldErrorText, parseInlineEdit, type FieldError } from '@/lib/ent
 import { cn } from '@/lib/utils';
 import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
+import { InlineEditInput } from '@/components/ui/InlineEditInput';
 
 // Deleting an entry reflows the list, so the next row's delete button slides
 // up under the pointer: a double-click or double-tap meant for one entry would
@@ -244,13 +245,14 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     )}>
       {/* Row 1: Name + Time + Delete */}
       <div className="flex items-center gap-1.5 px-1 py-2">
-        <span className="flex-1 min-w-0 truncate">
+        {/* Typography lives on the wrapper so the edit input inherits it and the text doesn't jump. */}
+        <span className="flex-1 min-w-0 truncate text-[15px] font-semibold">
           {editing === 'name' ? (
-            <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
+            <InlineEditInput className="px-2 py-0.5 w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
           ) : (
             <button
               type="button"
-              className={cn('bg-transparent border border-transparent px-2 py-0.5 text-[15px] font-semibold text-foreground text-left truncate w-full rounded-md transition-colors', canEdit ? 'cursor-pointer hover:text-[#0ea5e9]' : 'cursor-default')}
+              className={cn('bg-transparent border border-transparent px-2 py-0.5 text-foreground text-left truncate w-full rounded-md transition-colors', canEdit ? 'cursor-pointer hover:text-[#0ea5e9]' : 'cursor-default')}
               onClick={() => handleEdit('name', entry.name)}
               disabled={!canEdit}
             >

@@ -8,6 +8,7 @@ import { useToastStore } from '@/stores/toastStore';
 import DayDot from './DayDot';
 import { cn } from '@/lib/utils';
 import { viewLabel } from './viewLabel';
+import { InlineEditInput } from '@/components/ui/InlineEditInput';
 
 interface Props {
   view: SharedView;
@@ -66,12 +67,12 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
       className="group cursor-pointer px-1 py-1.5"
     >
       <div className={cn(
-        'mb-1 inline-flex items-center gap-1.5 border-b-2 pb-0.5 transition-colors',
+        'mb-1 inline-flex items-center gap-1.5 border-b-2 pb-0.5 text-sm font-medium transition-colors',
         isActive ? 'border-primary' : 'border-transparent group-hover:border-white/15'
       )}>
         {editing && canEditLabel ? (
-          <input
-            className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full"
+          <InlineEditInput
+            className="-ml-1.5 -my-0.5 rounded px-1.5 py-0.5 w-full"
             value={label}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => setLabel(e.target.value)}
@@ -83,7 +84,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
         ) : canEditLabel ? (
           <button
             type="button"
-            className="bg-transparent border border-transparent p-0 text-sm font-medium text-foreground text-left cursor-pointer hover:text-primary transition-colors"
+            className="-ml-1.5 -my-0.5 bg-transparent border border-transparent px-1.5 py-0.5 text-foreground text-left cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => { e.stopPropagation(); setEditing(true); }}
             aria-label={t('dashboard.editLabelAriaLabel', { label: view.label })}
             title={t('dashboard.clickToEditLabelTitle')}
@@ -91,7 +92,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
             {view.label}
           </button>
         ) : (
-          <span className="text-sm font-medium text-foreground">
+          <span className="text-foreground">
             {viewLabel(view, t)}
           </span>
         )}
