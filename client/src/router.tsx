@@ -2,25 +2,68 @@ import { Routes, Route, Navigate } from 'react-router';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { useAuthStore } from '@/stores/authStore';
 import Layout from '@/components/Layout/Layout';
-import Landing from '@/pages/Landing/Landing';
-import Login from '@/pages/Login/Login';
-import Register from '@/pages/Register/Register';
-import ForgotPassword from '@/pages/ForgotPassword/ForgotPassword';
-import ResetPassword from '@/pages/ResetPassword/ResetPassword';
-import VerifyEmail from '@/pages/VerifyEmail/VerifyEmail';
 
 // The authenticated and legal pages are code-split into their own chunks so
 // the initial (unauthenticated) load no longer ships the entire app.
-const Dashboard = lazyRoute(() => import('@/pages/Dashboard/Dashboard'));
-const Plan = lazyRoute(() => import('@/pages/Plan/Plan'));
-const Settings = lazyRoute(() => import('@/pages/Settings/Settings'));
-const Account = lazyRoute(() => import('@/pages/Account/Account'));
+// The signed-out pages are split too: a returning user (and every Android cold
+// start, which opens /dashboard) never renders them. preloadRouteChunk below
+// fetches the one being opened at boot, so a direct visit to /login does not
+// wait for it.
+const loadLanding = () => import('@/pages/Landing/Landing');
+const loadLogin = () => import('@/pages/Login/Login');
+const loadRegister = () => import('@/pages/Register/Register');
+const loadForgotPassword = () => import('@/pages/ForgotPassword/ForgotPassword');
+const loadResetPassword = () => import('@/pages/ResetPassword/ResetPassword');
+const loadVerifyEmail = () => import('@/pages/VerifyEmail/VerifyEmail');
+const Landing = lazyRoute(loadLanding);
+const Login = lazyRoute(loadLogin);
+const Register = lazyRoute(loadRegister);
+const ForgotPassword = lazyRoute(loadForgotPassword);
+const ResetPassword = lazyRoute(loadResetPassword);
+const VerifyEmail = lazyRoute(loadVerifyEmail);
+const loadDashboard = () => import('@/pages/Dashboard/Dashboard');
+const loadPlan = () => import('@/pages/Plan/Plan');
+const loadSettings = () => import('@/pages/Settings/Settings');
+const loadAccount = () => import('@/pages/Account/Account');
+const Dashboard = lazyRoute(loadDashboard);
+const Plan = lazyRoute(loadPlan);
+const Settings = lazyRoute(loadSettings);
+const Account = lazyRoute(loadAccount);
 const Admin = lazyRoute(() => import('@/pages/Admin/Admin'));
 const Privacy = lazyRoute(() => import('@/pages/Legal/Privacy'));
 const Terms = lazyRoute(() => import('@/pages/Legal/Terms'));
 const Imprint = lazyRoute(() => import('@/pages/Legal/Imprint'));
 const DeleteAccount = lazyRoute(() => import('@/pages/Delete/DeleteAccount'));
 const VerifyEmailChange = lazyRoute(() => import('@/pages/VerifyEmailChange/VerifyEmailChange'));
+
+// Pages a cold start lands on. The Android app opens /dashboard.
+const PRELOADABLE: Record<string, () => Promise<unknown>> = {
+  '/': loadLanding,
+  '/login': loadLogin,
+  '/register': loadRegister,
+  '/forgot-password': loadForgotPassword,
+  '/reset-password': loadResetPassword,
+  '/verify-email': loadVerifyEmail,
+  '/dashboard': loadDashboard,
+  '/plan': loadPlan,
+  '/settings': loadSettings,
+  '/account': loadAccount,
+};
+
+/**
+ * Start fetching the chunk for the page being opened, before /api/me answers.
+ *
+ * A lazy route is only requested once the router renders it, and the router
+ * renders only after the session check — so a cold start to /dashboard paid
+ * for the entry bundle, then /api/me, then the Dashboard chunk, one after the
+ * other. Fetching the chunk at boot overlaps it with the other two. The module
+ * map dedupes the import, so the lazy() that renders it later reuses this
+ * request. A failure is ignored here; the route's own import reports it.
+ */
+export function preloadRouteChunk(pathname: string) {
+  const load = PRELOADABLE[pathname.replace(/\/+$/, '') || '/'];
+  if (load) load().catch(() => {});
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuthStore();

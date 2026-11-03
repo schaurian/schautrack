@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
-import { startAuthentication } from '@simplewebauthn/browser';
 
 export default function Login() {
   const { t } = useTranslation('auth');
@@ -54,7 +53,13 @@ export default function Login() {
     setPasskeyLoading(true);
     setError('');
     try {
-      const options = await passkeyLoginBegin();
+      // Loaded on demand: the WebAuthn helper is only for this button, and the
+      // login page is part of the startup bundle. Fetched alongside the
+      // challenge so it adds no round trip.
+      const [options, { startAuthentication }] = await Promise.all([
+        passkeyLoginBegin(),
+        import('@simplewebauthn/browser'),
+      ]);
       const credential = await startAuthentication({ optionsJSON: options });
       await passkeyLoginFinish(credential);
       await fetchUser();
