@@ -26,10 +26,10 @@ describe.each(['America/Los_Angeles', 'Pacific/Auckland', 'UTC'])('PlanChart x-a
       />,
     );
     const labels = [...container.querySelectorAll('text')].map((n) => n.textContent);
-    expect(labels).toContain('Sep 1, 26');
-    expect(labels).toContain('Jan 1, 27');
-    expect(labels).not.toContain('Aug 31, 26');
-    expect(labels).not.toContain('Dec 31, 26');
+    expect(labels).toContain('Sep 1, 2026');
+    expect(labels).toContain('Jan 1, 2027');
+    expect(labels).not.toContain('Aug 31, 2026');
+    expect(labels).not.toContain('Dec 31, 2026');
   });
 });
 
