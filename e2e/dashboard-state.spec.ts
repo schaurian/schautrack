@@ -17,8 +17,9 @@ test.describe('Dashboard State', () => {
   test('entry list header shows date and user', async ({ page }) => {
     await login(page);
 
-    // The entries header span should show today's date and "You"
-    const header = page.locator('span').filter({ hasText: /\d{4}-\d{2}-\d{2}.*You/ });
+    // The entries header shows the selected day in the shared short style
+    // ("Tue, Nov 3") and the self label, never the raw ISO date.
+    const header = page.locator('span').filter({ hasText: /^[A-Z][a-z]{2}, [A-Z][a-z]{2} \d{1,2} — You$/ });
     await expect(header).toBeVisible({ timeout: 5000 });
   });
 

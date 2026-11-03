@@ -117,9 +117,12 @@ test.describe('Timeline', () => {
     await firstDot.click();
     await page.waitForTimeout(300);
 
-    // The Entries section header shows the selected date
+    // The Entries section header shows the selected date, formatted like the
+    // date pill (src/lib/format.ts DAY_STYLES.short) in the app's English.
     if (dotDate) {
-      const dateDisplay = page.locator('span').filter({ hasText: dotDate });
+      const [y, m, d] = dotDate.split('-').map(Number);
+      const shown = new Intl.DateTimeFormat('en', { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(y, m - 1, d));
+      const dateDisplay = page.locator('span').filter({ hasText: `${shown} — ` });
       await expect(dateDisplay).toBeVisible({ timeout: 5000 });
     }
 
