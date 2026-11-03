@@ -136,7 +136,7 @@ function UserList({
                 <span className="whitespace-nowrap">
                   {user.email_verified ? t('admin.verified') : t('admin.unverified')}
                   {' \u00B7 '}
-                  {new Date(user.created_at).toLocaleDateString()}
+                  {formatDate(user.created_at)}
                 </span>
                 {/* Below sm the last login always takes its own line, so the
                     separator would only dangle at the end of the first. */}
@@ -502,7 +502,7 @@ function InviteManager() {
                 )}
                 {invite.expires_at && !invite.used_by && (
                   <span className={`text-xs ml-2 ${new Date(invite.expires_at) < new Date() ? 'text-destructive' : 'text-muted-foreground/60'}`}>
-                    {t('admin.expiresOn', { date: new Date(invite.expires_at).toLocaleDateString() })}
+                    {t('admin.expiresOn', { date: formatDate(invite.expires_at) })}
                   </span>
                 )}
               </div>

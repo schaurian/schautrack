@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Wpisz numer kodu kreskowego",
     "lookUpButton": "Wyszukaj",
     "lookingUpText": "Wyszukiwanie {{barcode}}...",
-    "calPer100g": "{{value}} cal na 100g",
+    "calPer100g": "{{value}} kcal na 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · porcja: {{size}}",
     "addEntryButton": "Dodaj wpis",
     "scanAnotherButton": "Skanuj kolejny",
@@ -178,7 +179,7 @@
     },
     "progress": {
       "title": "Postęp",
-      "projectedLabel": "Przewidywane: {{date}}"
+      "projectedLabel": "Przy obecnym trendzie: {{date}}"
     },
     "toastBudgetApplied": "Cel kaloryczny zaktualizowany",
     "toastBudgetApplyFailed": "Nie udało się zastosować budżetu",
@@ -199,7 +200,7 @@
       "targetDateLabel": "Data docelowa",
       "completeDetailsHint": "Uzupełnij swoje dane powyżej, aby obliczyć budżet kaloryczny dla tego celu.",
       "budgetLabel": "Budżet: ",
-      "etaLabel": "Szacowany czas: ",
+      "etaLabel": "Data docelowa planu: ",
       "weeksLabel_one": " tydzień",
       "weeksLabel_few": " tygodnie",
       "weeksLabel_many": " tygodni",
@@ -253,6 +254,13 @@
       "fitness": "Dobra forma",
       "average": "Przeciętna",
       "obese": "Otyłość"
+    },
+    "disclaimer": "Ten plan to szacunek oparty na standardowych wzorach (Mifflin-St Jeor lub Katch-McArdle, gdy znany jest poziom tkanki tłuszczowej) i ogólnych zaleceniach dotyczących aktywności. Nie jest poradą medyczną — przed rozpoczęciem odchudzania lub przybierania na wadze skonsultuj się z lekarzem, zwłaszcza jeśli masz choroby współistniejące.",
+    "warnings": {
+      "aggressive_rate": "Twoje docelowe tempo przekracza 1% masy ciała na tydzień, co może być niebezpieczne lub trudne do utrzymania.",
+      "budget_clamped": "Zalecany budżet kaloryczny podniesiono do bezpiecznego minimum dla Twojego profilu.",
+      "target_obese": "Twoja waga docelowa mieści się w zakresie BMI oznaczającym otyłość.",
+      "target_underweight": "Twoja waga docelowa mieści się w zakresie BMI oznaczającym niedowagę."
     }
   },
   "savedFoods": {

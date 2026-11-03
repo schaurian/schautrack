@@ -2,7 +2,7 @@ import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'r
 import { useTranslation } from 'react-i18next';
 import type { SeriesPoint, CurvePoint, HealthyRange } from '@/types';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/format';
+import { DAY_STYLES, formatDate, formatNumber } from '@/lib/format';
 import { parseLocalDate, todayInTz } from '@/lib/date';
 import { niceTicks, clampBand } from '@/lib/chartScale';
 
@@ -66,10 +66,10 @@ const FAT_TICK_TARGET = 3;
 
 // The year is always present, not just when the range crosses a boundary: with
 // only three ticks a reader cannot tell a Nov→Feb span from a Feb→Nov one, and
-// a year that appears only sometimes is worse than one that always does.
-const fmtTickDate = (ts: number) =>
-  formatDate(ts, undefined, { month: 'short', day: 'numeric', year: '2-digit' });
-const fmtWeight = (w: number) => (Number.isInteger(w) ? String(w) : w.toFixed(1));
+// a year that appears only sometimes is worse than one that always does. Full
+// year (DAY_STYLES.long, as everywhere else): "Aug 11, 26" reads as a day.
+const fmtTickDate = (ts: number) => formatDate(ts, undefined, DAY_STYLES.long);
+const fmtWeight = (w: number) => formatNumber(w, undefined, { maximumFractionDigits: 1, useGrouping: false });
 
 /** Tick label font size, shared by the renderer and the fits-in-plot estimate below. */
 const TICK_FONT_PX = 10;
@@ -83,8 +83,8 @@ const MIN_TICK_GAP = 12;
  * is a safe average for the digits and lowercase these labels are made of.
  *
  * Worth estimating rather than assuming: label width varies ~2.5x across the
- * supported locales once the year is included — en renders "Feb 14, 25" (10
- * chars) where pt renders "14 de fev. de 25" (16). Three Portuguese labels
+ * supported locales once the year is included — en renders "Feb 14, 2025" (12
+ * chars) where pt renders "14 de fev. de 2025" (18). Three Portuguese labels
  * overflow a phone-width plot; three English ones fit with room to spare.
  */
 const estTickLabelW = (s: string) => s.length * TICK_FONT_PX * 0.55;
@@ -408,7 +408,7 @@ export default function PlanChart({
 
       {fatTicks.map(({ v, y: ty }) => (
         <text key={`bftick-${v}`} x={margin.left + plotW + 4} y={ty} textAnchor="start" dominantBaseline="middle" className="text-macro-protein" fill="currentColor" fontSize={10} opacity={0.75}>
-          {Number.isInteger(v) ? v : v.toFixed(1)}%
+          {formatNumber(v, undefined, { maximumFractionDigits: 1, useGrouping: false })}%
         </text>
       ))}
 

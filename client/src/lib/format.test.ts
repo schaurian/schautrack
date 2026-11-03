@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatNumber, formatDate, formatRelativeTime } from './format';
+import { describe, it, expect, vi } from 'vitest';
+import { formatNumber, formatDate, formatDecimal, formatDay, formatRelativeTime } from './format';
 
 describe('formatNumber', () => {
   it('groups by locale', () => {
@@ -63,5 +63,43 @@ describe('formatRelativeTime', () => {
   it('is locale-aware', () => {
     expect(formatRelativeTime(ago(3 * 86400), now, 'de')).toBe('vor 3 Tagen');
     expect(formatRelativeTime(ago(3 * 86400), now, 'fr')).toBe('il y a 3 jours');
+  });
+});
+
+describe('formatDecimal', () => {
+  it('uses the locale decimal separator at fixed precision', () => {
+    expect(formatDecimal(82.46, 1, 'en')).toBe('82.5');
+    expect(formatDecimal(82.46, 1, 'de')).toBe('82,5');
+    expect(formatDecimal(80, 1, 'de')).toBe('80,0');
+    expect(formatDecimal(1234.5, 1, 'de')).toBe('1234,5');
+  });
+});
+
+describe('formatDay', () => {
+  it('renders a bare day in the short and long styles per locale', () => {
+    expect(formatDay('2026-11-03', 'short', 'en')).toBe('Tue, Nov 3');
+    expect(formatDay('2026-11-03', 'short', 'de')).toBe('Di., 3. Nov.');
+    expect(formatDay('2027-01-12', 'long', 'en')).toBe('Jan 12, 2027');
+    expect(formatDay('2027-01-12', 'long', 'de')).toBe('12. Jan. 2027');
+  });
+
+  it('defaults to the long style', () => {
+    expect(formatDay('2027-01-12', undefined, 'en')).toBe('Jan 12, 2027');
+  });
+
+  it('keeps the calendar day in every time zone (no UTC-midnight shift)', () => {
+    // West of Greenwich a UTC-midnight parse lands on the previous day. Node
+    // re-reads TZ on assignment, so pin one that would expose the shift.
+    vi.stubEnv('TZ', 'America/Los_Angeles');
+    try {
+      expect(formatDay('2026-11-01', 'long', 'en')).toBe('Nov 1, 2026');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('passes through anything that is not a bare day', () => {
+    expect(formatDay('', 'long', 'en')).toBe('');
+    expect(formatDay('soon', 'long', 'en')).toBe('soon');
   });
 });

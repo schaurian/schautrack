@@ -6,9 +6,10 @@ import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { computeMacroStatus } from '@/lib/macros';
-import { formatDate } from '@/lib/format';
+import { formatDay } from '@/lib/format';
 import { followToday } from '@/lib/date';
 import { useDayRollover } from '@/hooks/useDayRollover';
+import { viewLabel } from './viewLabel';
 import { QueryError } from '@/components/ui/QueryError';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Sheet } from '@/components/ui/Sheet';
@@ -175,7 +176,7 @@ export default function Dashboard() {
           <span className="tabular-nums">
             {selectedDate === dashboard.todayStr
               ? t('dashboard.todayLabel')
-              : formatDate(`${selectedDate}T00:00:00`, undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+              : formatDay(selectedDate, 'short')}
           </span>
           <input
             ref={dateInputRef}
@@ -269,7 +270,7 @@ export default function Dashboard() {
 
       {showCat('nutrition') && (
         <section className="surface p-4">
-          <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: selectedDate, label: currentLabel })}</span>}>
+          <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: formatDay(selectedDate, 'short'), label: activeView ? viewLabel(activeView, t) : currentLabel })}</span>}>
             {t('dashboard.entriesSectionTitle')}
           </SectionLabel>
           <EntryList

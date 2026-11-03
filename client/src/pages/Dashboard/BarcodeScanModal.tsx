@@ -412,7 +412,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
                 {/* Computed values */}
                 <div className="flex flex-col items-center gap-1">
-                  <div className="text-2xl font-bold text-primary tabular-nums">{scaled.calories} cal</div>
+                  <div className="text-2xl font-bold text-primary tabular-nums">{t('barcodeScan.kcalValue', { value: scaled.calories })}</div>
                   {Object.keys(scaled.macros).length > 0 && (
                     <div className="flex gap-4 mt-1">
                       {enabledMacros.map((key) => {

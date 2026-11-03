@@ -129,3 +129,17 @@ describe('optional admin section descriptions stay falsy', () => {
     });
   }
 });
+
+describe('energy unit', () => {
+  // Entries, goals and the plan all say "kcal"; a bare "cal" (barcode results
+  // once did) reads as a different, 1000x smaller unit.
+  const leaves = (obj: unknown, path: string[] = []): [string, string][] =>
+    obj && typeof obj === 'object'
+      ? Object.entries(obj).flatMap(([k, v]) => leaves(v, [...path, k]))
+      : typeof obj === 'string' ? [[path.join('.'), obj]] : [];
+
+  it.each(LOCALES)('%s never labels energy as bare "cal"', (lng) => {
+    const offenders = leaves(catalogs[lng]).filter(([, v]) => /(^|[\s}])cal(?![\p{L}\p{N}])/u.test(v));
+    expect(offenders).toEqual([]);
+  });
+});

@@ -16,7 +16,9 @@
     "modeLimit": "Limit",
     "modeTarget": "Cel",
     "autoCalculate": "Automatycznie oblicz kalorie",
+    "autoCalcFormula": "B×4 + W×4 + T×9",
     "threshold": "Próg",
+    "thresholdHelp": "O ile możesz odbiec od celu, zanim zmieni kolor z żółtego na czerwony: przy 10% limit 2000 kcal staje się czerwony powyżej 2200 kcal.",
     "unitKcal": "kcal",
     "unitGram": "g"
   },

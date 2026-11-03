@@ -25,7 +25,8 @@
     "enterBarcodePlaceholder": "Introduza o número do código de barras",
     "lookUpButton": "Procurar",
     "lookingUpText": "A procurar {{barcode}}...",
-    "calPer100g": "{{value}} cal por 100g",
+    "calPer100g": "{{value}} kcal por 100g",
+    "kcalValue": "{{value}} kcal",
     "servingSizeSuffix": " · dose: {{size}}",
     "addEntryButton": "Adicionar Registo",
     "scanAnotherButton": "Ler Outro",
@@ -172,7 +173,7 @@
     },
     "progress": {
       "title": "Progresso",
-      "projectedLabel": "Data prevista: {{date}}"
+      "projectedLabel": "Na tendência atual: {{date}}"
     },
     "toastBudgetApplied": "Objetivo calórico atualizado",
     "toastBudgetApplyFailed": "Falha ao aplicar orçamento",
@@ -193,7 +194,7 @@
       "targetDateLabel": "Data-Alvo",
       "completeDetailsHint": "Complete os seus dados acima para calcular um orçamento calórico para este objetivo.",
       "budgetLabel": "Orçamento: ",
-      "etaLabel": "Previsão: ",
+      "etaLabel": "Data-alvo do plano: ",
       "weeksLabel_one": " semana",
       "weeksLabel_other": " semanas"
     },
@@ -245,6 +246,13 @@
       "fitness": "Em forma",
       "average": "Médio",
       "obese": "Obesidade"
+    },
+    "disclaimer": "Este plano é uma estimativa baseada em fórmulas padrão (Mifflin-St Jeor, ou Katch-McArdle quando existe um valor de gordura corporal) e em orientações gerais de atividade. Não é aconselhamento médico — consulte um profissional de saúde antes de iniciar qualquer programa de perda ou ganho de peso, especialmente se tiver problemas de saúde.",
+    "warnings": {
+      "aggressive_rate": "O seu ritmo-alvo é superior a 1% do peso corporal por semana, o que pode ser inseguro ou insustentável.",
+      "budget_clamped": "O seu orçamento calórico recomendado foi aumentado para o mínimo seguro para o seu perfil.",
+      "target_obese": "O seu peso-alvo está no intervalo de obesidade do IMC.",
+      "target_underweight": "O seu peso-alvo está no intervalo de baixo peso do IMC."
     }
   },
   "savedFoods": {

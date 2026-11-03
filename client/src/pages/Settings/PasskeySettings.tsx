@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listPasskeys, deletePasskey, renamePasskey, passkeyRegisterBegin, passkeyRegisterFinish, getAuthInfo, type Passkey, type AuthInfo } from '@/api/passkeys';
 import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/format';
 import { useToastStore } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -112,7 +113,7 @@ export default function PasskeySettings({ onUpdate }: Props) {
               </button>
             )}
             <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
-              {pk.lastUsedAt ? t('passkey.usedOn', { date: new Date(pk.lastUsedAt).toLocaleDateString() }) : t('passkey.neverUsed')}
+              {pk.lastUsedAt ? t('passkey.usedOn', { date: formatDate(pk.lastUsedAt) }) : t('passkey.neverUsed')}
             </span>
             <button
               className="text-xs text-destructive hover:text-destructive/80 cursor-pointer bg-transparent border-0 p-1 transition-colors"

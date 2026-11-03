@@ -16,7 +16,9 @@
     "modeLimit": "Limiet",
     "modeTarget": "Streefwaarde",
     "autoCalculate": "Calorieën automatisch berekenen",
+    "autoCalcFormula": "E×4 + K×4 + V×9",
     "threshold": "Drempel",
+    "thresholdHelp": "Hoeveel je van een doel mag afwijken voordat het rood in plaats van geel wordt: bij 10% wordt een limiet van 2000 kcal rood boven 2200 kcal.",
     "unitKcal": "kcal",
     "unitGram": "g"
   },

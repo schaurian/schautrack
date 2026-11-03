@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { getPlan } from '@/api/plan';
 import { cn } from '@/lib/utils';
+import { formatDecimal } from '@/lib/format';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import PlanChart from '../Plan/PlanChart';
 
@@ -63,10 +64,10 @@ export default function PlanCard({ weightUnit: contextUnit }: Props) {
       <div className="px-1 py-1 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-lg font-bold tabular-nums">
-            {data.currentWeight != null ? data.currentWeight.toFixed(1) : '—'}
+            {data.currentWeight != null ? formatDecimal(data.currentWeight) : '—'}
             <span className="text-sm text-muted-foreground font-normal"> {weightUnit}</span>
             <span className="text-muted-foreground font-normal mx-1.5">&rarr;</span>
-            {goal.target_weight.toFixed(1)}
+            {formatDecimal(goal.target_weight)}
             <span className="text-sm text-muted-foreground font-normal"> {weightUnit}</span>
           </div>
         </div>

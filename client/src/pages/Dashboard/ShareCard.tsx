@@ -7,6 +7,7 @@ import { updateLinkLabel } from '@/api/links';
 import { useToastStore } from '@/stores/toastStore';
 import DayDot from './DayDot';
 import { cn } from '@/lib/utils';
+import { viewLabel } from './viewLabel';
 
 interface Props {
   view: SharedView;
@@ -91,7 +92,7 @@ export default function ShareCard({ view, todayStr, onDotClick, onSelect }: Prop
           </button>
         ) : (
           <span className="text-sm font-medium text-foreground">
-            {view.label}
+            {viewLabel(view, t)}
           </span>
         )}
       </div>

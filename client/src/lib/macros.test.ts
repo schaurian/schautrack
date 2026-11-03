@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeCaloriesFromMacros, computeMacroStatus, getEnabledMacros } from './macros';
+import i18n, { i18nReady } from '@/i18n';
+import { MACRO_LABELS, computeCaloriesFromMacros, computeMacroStatus, getEnabledMacros } from './macros';
 
 describe('computeCaloriesFromMacros', () => {
   it('returns null when all macros are zero', () => {
@@ -98,5 +99,23 @@ describe('computeMacroStatus', () => {
         statusText: '5 over',
       });
     });
+  });
+});
+
+describe('MACRO_LABELS', () => {
+  // The table is built at import time; a label captured then would stay in the
+  // language that was active (English) after the user switches or a lazy
+  // catalog arrives.
+  it('follows the active language after a switch', async () => {
+    await i18nReady;
+    await i18n.changeLanguage('en');
+    expect(MACRO_LABELS.carbs.label).toBe('Carbs');
+    await i18n.changeLanguage('de');
+    try {
+      expect(MACRO_LABELS.carbs.label).toBe('Kohlenhydrate');
+      expect(MACRO_LABELS.fiber.label).toBe('Ballaststoffe');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

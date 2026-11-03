@@ -9,7 +9,10 @@
     "unexpectedError": "An unexpected error occurred."
   },
   "errors": {
-    "failedToSave": "Failed to save"
+    "failedToSave": "Failed to save",
+    "forbidden": "Access denied",
+    "requestFailed": "Request failed",
+    "unauthorized": "Not signed in"
   },
   "footer": {
     "androidApp": "Get the Android app",

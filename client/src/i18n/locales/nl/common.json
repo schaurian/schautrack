@@ -64,7 +64,10 @@
     "dismiss": "Sluiten"
   },
   "errors": {
-    "failedToSave": "Opslaan mislukt"
+    "failedToSave": "Opslaan mislukt",
+    "forbidden": "Toegang geweigerd",
+    "requestFailed": "Verzoek mislukt",
+    "unauthorized": "Niet ingelogd"
   },
   "notifications": {
     "linkRequestWantsToLink": "{{email}} wil koppelen met jou"

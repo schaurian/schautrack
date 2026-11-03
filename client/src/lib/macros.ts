@@ -3,12 +3,22 @@ import i18n from '@/i18n';
 export const MACRO_KEYS = ['protein', 'carbs', 'fat', 'fiber', 'sugar'] as const;
 export type MacroKey = (typeof MACRO_KEYS)[number];
 
-export const MACRO_LABELS: Record<MacroKey, { short: string; label: string }> = {
-  protein: { short: 'P', label: i18n.t('macros.protein', { ns: 'common' }) },
-  carbs: { short: 'C', label: i18n.t('macros.carbs', { ns: 'common' }) },
-  fat: { short: 'F', label: i18n.t('macros.fat', { ns: 'common' }) },
-  fiber: { short: 'Fi', label: i18n.t('macros.fiber', { ns: 'common' }) },
-  sugar: { short: 'S', label: i18n.t('macros.sugar', { ns: 'common' }) },
+// `label` is a getter, not a value: this module is evaluated once at import,
+// before a lazily-loaded non-English catalog has arrived and long before a
+// language switch, so a value captured here stays English forever.
+const macroLabel = (short: string, key: string) => ({
+  short,
+  get label() {
+    return i18n.t(key, { ns: 'common' });
+  },
+});
+
+export const MACRO_LABELS: Record<MacroKey, { short: string; readonly label: string }> = {
+  protein: macroLabel('P', 'macros.protein'),
+  carbs: macroLabel('C', 'macros.carbs'),
+  fat: macroLabel('F', 'macros.fat'),
+  fiber: macroLabel('Fi', 'macros.fiber'),
+  sugar: macroLabel('S', 'macros.sugar'),
 };
 
 export function computeCaloriesFromMacros(protein: number, carbs: number, fat: number): number | null {
