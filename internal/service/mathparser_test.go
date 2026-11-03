@@ -260,7 +260,7 @@ func TestParseAmountNormalizationEdges(t *testing.T) {
 		{"100x2", true, 200, "left operand ends in 00, still multiplication"},
 		{"1.0x2", true, 2, "0 after a decimal point is not a hex prefix"},
 		{"0 x 10", true, 0, "spaced form is an explicit multiplication by zero"},
-		{"1,0x2", true, 20, "comma is stripped first, so this is 10*2"},
+		{"1,0x2", false, 0, "1,0 is not a thousands group: rejected"},
 
 		// --- Whitespace stripping ----------------------------------------
 		// ALL whitespace goes, so a space inside a number closes over
@@ -284,14 +284,17 @@ func TestParseAmountNormalizationEdges(t *testing.T) {
 		// --- Comma stripping ----------------------------------------------
 		{"1,000", true, 1000, "comma as a thousands separator, intended"},
 		{"1,234 + 500", true, 1734, "thousands separator inside an expression"},
-		// A comma is ALWAYS a thousands separator here, never a decimal
-		// point. In an expression parser it cannot be both: "1,5+2,5" would
-		// be unresolvable against "1,234". ParseWeight, which parses a single
-		// scalar and has no such ambiguity, decides the opposite way — see
-		// TestParseAmountVsParseWeightSyntaxDivergence.
-		{"1,5", true, 15, "European decimal becomes 15, NOT 1.5"},
-		{"1,50", true, 150, "same, two decimal places"},
-		{"0,4", true, 4, "same, leading zero"},
+		// A comma is only ever a thousands separator here, never a decimal
+		// point: in an expression parser it cannot be both, because "1,5+2,5"
+		// would be unresolvable against "1,234". It used to be stripped
+		// wherever it appeared, so a European decimal became 10x or 100x the
+		// number ("1,5" -> 15) and was stored with a success response. Now a
+		// comma that is not a well-formed thousands group is an error.
+		// ParseWeight, a single scalar with no such ambiguity, reads the comma
+		// as a decimal point — see TestParseAmountVsParseWeightSyntaxDivergence.
+		{"1,5", false, 0, "European decimal: rejected, no longer 15"},
+		{"1,50", false, 0, "same, two decimal places (was 150)"},
+		{"0,4", false, 0, "same, leading zero (was 4)"},
 
 		// --- Sign forms -----------------------------------------------------
 		// parseFactor recurses on unary +/-, so signs stack.
@@ -434,7 +437,7 @@ func TestParseAmountVsParseWeightSyntaxDivergence(t *testing.T) {
 		weightValue float64
 		why         string
 	}{
-		{"1,5", true, 15, true, 1.5, "comma: thousands separator vs decimal point"},
+		{"1,5", false, 0, true, 1.5, "comma: only a thousands separator (so 1,5 is malformed) vs decimal point"},
 		{"1,000", true, 1000, true, 1.0, "the same string means 1000 kcal or 1.0 kg"},
 		{"1e1", false, 0, true, 10, "exponent syntax: grammar has none, ParseFloat does"},
 		{".5", true, 1, true, 0.5, "leading decimal point: both accept it; the amount then rounds to 1"},

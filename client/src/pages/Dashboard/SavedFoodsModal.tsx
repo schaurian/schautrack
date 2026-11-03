@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
 import { MACRO_LABELS, getEnabledMacros } from '@/lib/macros';
+import { entryFieldErrorText, parseInlineEdit, type FieldError } from '@/lib/entryValidation';
 
 const numOrNull = (v: string | undefined) => {
   const n = Number((v ?? '').trim());
@@ -242,20 +243,40 @@ function SavedFoodRow({
   food, enabledMacros, caloriesEnabled, onChange,
   draft = false, initialEditing = null, onDraftChange, onDraftSubmit, onDraftCancel, saving = false,
 }: RowProps) {
-  const { t } = useTranslation('dashboard');
+  const { t, i18n } = useTranslation('dashboard');
+  const lang = i18n.resolvedLanguage || i18n.language || 'en';
   const addToast = useToastStore((s) => s.addToast);
   const [editing, setEditing] = useState<EditField>(initialEditing);
   const [editValue, setEditValue] = useState('');
+  const [editError, setEditError] = useState<FieldError | null>(null);
+  const editErrorId = `saved-food-${food.id}-edit-error`;
   const [busy, setBusy] = useState(false);
 
   const beginEdit = (field: EditField, current: string | number | null) => {
     if (field === null) return;
     setEditing(field);
     setEditValue(current == null ? '' : String(current));
+    setEditError(null);
+  };
+
+  const handleEditChange = (v: string) => {
+    setEditValue(v);
+    setEditError(null);
   };
 
   const save = async (field: EditField, raw: string) => {
     if (field === null) return;
+    // Numbers are evaluated here, in the active language, and sent as
+    // integers. `Number(raw)` turned "abc" or German "12,5" into NaN, which
+    // JSON serialises as null — silently clearing the stored value.
+    if (field !== 'name' && field !== 'emoji') {
+      const parsed = parseInlineEdit(field === 'amount' ? 'calories' : 'macro', raw, lang);
+      if (!parsed.ok) {
+        setEditError(parsed);
+        return;
+      }
+      raw = parsed.value === null ? '' : String(parsed.value);
+    }
     if (draft) {
       // Nothing to update yet — hand the value up and stay on screen.
       onDraftChange?.(field, raw);
@@ -274,10 +295,9 @@ function SavedFoodRow({
     } else if (field === 'emoji') {
       payload.emoji = raw.trim() || null;
     } else if (field === 'amount') {
-      payload.amount = raw.trim() === '' ? null : Number(raw);
+      payload.amount = raw === '' ? null : Number(raw);
     } else {
-      const n = raw.trim() === '' ? null : Number(raw);
-      (payload as Record<string, unknown>)[`${field}_g`] = n;
+      (payload as Record<string, unknown>)[`${field}_g`] = raw === '' ? null : Number(raw);
     }
     try {
       await updateSavedFood(food.id, payload);
@@ -297,6 +317,7 @@ function SavedFoodRow({
     if (e.key === 'Escape') {
       e.stopPropagation();
       setEditing(null);
+      setEditError(null);
     }
   };
 
@@ -429,10 +450,12 @@ function SavedFoodRow({
                 label={t('entries.caloriesLabel')}
                 unit="kcal"
                 editValue={editValue}
-                onChange={setEditValue}
+                onChange={handleEditChange}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
                 inputMode="tel"
+                invalid={!!editError}
+                describedBy={editErrorId}
               />
             ) : (
               <MacroPill
@@ -454,9 +477,11 @@ function SavedFoodRow({
                 label={label}
                 unit="g"
                 editValue={editValue}
-                onChange={setEditValue}
+                onChange={handleEditChange}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
+                invalid={!!editError}
+                describedBy={editErrorId}
               />
             ) : (
               <MacroPill
@@ -470,6 +495,11 @@ function SavedFoodRow({
             );
           })}
         </div>
+      )}
+      {editError && (
+        <p id={editErrorId} className="px-3 pb-2.5 text-xs text-destructive">
+          {entryFieldErrorText(t, editError)}
+        </p>
       )}
     </div>
   );

@@ -224,7 +224,7 @@
       "input": "1,2.3.4",
       "ok": false,
       "value": 0,
-      "why": "comma stripped first, then the literal is still malformed"
+      "why": "malformed thousands group (and a malformed literal)"
     },
     {
       "input": "0x10",
@@ -312,9 +312,9 @@
     },
     {
       "input": "1,0x2",
-      "ok": true,
-      "value": 20,
-      "why": "comma is stripped first, so this is 10*2"
+      "ok": false,
+      "value": 0,
+      "why": "1,0 is not a thousands group, so this is rejected rather than read as 10*2"
     },
     {
       "input": "10 × 5",
@@ -372,21 +372,87 @@
     },
     {
       "input": "1,5",
-      "ok": true,
-      "value": 15,
-      "why": "European decimal becomes 15, NOT 1.5"
+      "ok": false,
+      "value": 0,
+      "why": "a comma that is not a thousands group is rejected; it used to be stripped, making 1,5 into 15"
     },
     {
       "input": "1,50",
-      "ok": true,
-      "value": 150,
-      "why": "same, two decimal places"
+      "ok": false,
+      "value": 0,
+      "why": "same, two decimal places (was 150)"
     },
     {
       "input": "0,4",
+      "ok": false,
+      "value": 0,
+      "why": "same, leading zero (was 4)"
+    },
+    {
+      "input": "12,5",
+      "ok": false,
+      "value": 0,
+      "why": "European decimal: an error, never 125"
+    },
+    {
+      "input": "1,234.5",
       "ok": true,
-      "value": 4,
-      "why": "same, leading zero"
+      "value": 1235,
+      "why": "thousands group with a decimal part"
+    },
+    {
+      "input": "1,000,000",
+      "ok": true,
+      "value": 1000000,
+      "why": "several thousands groups"
+    },
+    {
+      "input": "1,00",
+      "ok": false,
+      "value": 0,
+      "why": "a group must have exactly three digits"
+    },
+    {
+      "input": "1,0000",
+      "ok": false,
+      "value": 0,
+      "why": "same, too many digits"
+    },
+    {
+      "input": "1234,567",
+      "ok": false,
+      "value": 0,
+      "why": "at most three digits before the first comma"
+    },
+    {
+      "input": ",5",
+      "ok": false,
+      "value": 0,
+      "why": "leading comma"
+    },
+    {
+      "input": "5,",
+      "ok": false,
+      "value": 0,
+      "why": "trailing comma"
+    },
+    {
+      "input": "1.5,000",
+      "ok": false,
+      "value": 0,
+      "why": "a comma after the decimal point"
+    },
+    {
+      "input": "1,000 + 2,5",
+      "ok": false,
+      "value": 0,
+      "why": "one malformed number fails the whole expression"
+    },
+    {
+      "input": "1 , 000",
+      "ok": true,
+      "value": 1000,
+      "why": "whitespace is stripped before the group check"
     },
     {
       "input": "123",

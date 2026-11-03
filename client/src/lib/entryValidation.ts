@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { evaluateAmount, roundHalfAwayFromZero } from './mathParser';
 
 // The bounds POST /entries enforces on the value it receives — the amount
@@ -10,7 +11,19 @@ export const MAX_ENTRY_MACRO = 999;
 
 export type EntryField = 'calories' | 'macro';
 
-export type FieldError = { ok: false; error: 'invalid' | 'range'; min: number; max: number };
+/**
+ * `ambiguous`: in a decimal-comma language, "1.200" could be the thousands
+ * separator or a decimal point typed from a phone keypad, so it is refused
+ * with both readings (`whole`, `decimal`) rather than guessed.
+ */
+export type FieldError = {
+  ok: false;
+  error: 'invalid' | 'range' | 'ambiguous';
+  min: number;
+  max: number;
+  whole?: string;
+  decimal?: string;
+};
 
 /**
  * `value` is the evaluated per-serving amount, unrounded. `total` is what is
@@ -35,19 +48,34 @@ export function usesDecimalComma(lang: string): boolean {
 
 /**
  * Rewrites the input into the parser's dot-decimal grammar for the active
- * language. parseAmount treats every comma as a thousands separator, which is
- * right for "1,000" in English and silently wrong for "12,5" in German (it
- * became 125). In a decimal-comma language the comma is the decimal point.
- *
- * A dot is left alone in every language: it is what the phone keypad and most
- * people type for a decimal, so in German "1.000" reads as 1 — never as one
- * thousand. That case is the one the preview exists for: "1.000" shows "= 1".
+ * language. The parser only accepts a comma as a thousands separator ("1,000"),
+ * which is right in English; in a decimal-comma language "12,5" means twelve
+ * and a half, so there the comma becomes the decimal point.
  *
  * The form sends the evaluated number, never this string, so the server's
- * parser (which keeps the comma-as-thousands rule for the API) is not involved.
+ * parser (comma = thousands separator, for API callers) is not involved.
  */
 export function normalizeDecimal(raw: string, lang: string): string {
   return usesDecimalComma(lang) ? raw.replace(/,/g, '.') : raw;
+}
+
+// A number whose dots all sit before exactly three digits, with a 1-3 digit
+// lead that is not 0: "1.200", "12.500", "1.000.000". "0.500" and "1.5" are not
+// thousands-shaped, so they are plain decimals.
+const THOUSANDS_DOT_RE = /^[1-9][0-9]{0,2}(\.[0-9]{3})+$/;
+
+/**
+ * In a decimal-comma language, the first number in `raw` that could equally be
+ * a thousands-grouped integer ("1.200" = 1200) or a decimal typed with a dot
+ * (1.2). Null when there is none, or in a dot-decimal language, where "1.200"
+ * is unambiguous.
+ */
+export function ambiguousDotNumber(raw: string, lang: string): { whole: string; decimal: string } | null {
+  if (!usesDecimalComma(lang)) return null;
+  for (const run of raw.replace(/[\s\u0085]/g, '').match(/[0-9.,]+/g) ?? []) {
+    if (THOUSANDS_DOT_RE.test(run)) return { whole: run.replace(/\./g, ''), decimal: run.replace(/\./g, ',') };
+  }
+  return null;
 }
 
 const bounds = (field: EntryField) =>
@@ -76,7 +104,10 @@ export function validateEntryField(field: EntryField, raw: string | undefined, o
   const min = opts.min ?? def.min;
   const max = opts.max ?? def.max;
   if (!raw || raw.trim() === '') return { ok: true, value: null, total: null };
-  const evaluated = evaluateAmount(normalizeDecimal(raw, opts.lang ?? 'en'));
+  const lang = opts.lang ?? 'en';
+  const ambiguous = ambiguousDotNumber(raw, lang);
+  if (ambiguous) return { ok: false, error: 'ambiguous', min, max, ...ambiguous };
+  const evaluated = evaluateAmount(normalizeDecimal(raw, lang));
   if (!evaluated.ok) return { ok: false, error: 'invalid', min, max };
   const total = roundHalfAwayFromZero(evaluated.value * qty);
   if (total < min || total > max) return { ok: false, error: 'range', min, max };
@@ -84,16 +115,42 @@ export function validateEntryField(field: EntryField, raw: string | undefined, o
 }
 
 /**
- * The value to show as "= n" under a field, or null when there is nothing to
- * add: blank input, an expression that does not parse, or input that already
- * reads as exactly the number it is ("150", or "12,5" in German). Anything
- * the parser reinterpreted — an expression, "1,000" in English, "1.000" in
- * German — is previewed, formatted for the active language.
+ * The value to show as "= n" beside a field: what will actually be saved —
+ * value × qty, rounded — or null when that is exactly what was typed ("150"
+ * at qty 1), the input is blank, or it does not parse. So "37/3" shows "= 12",
+ * German "12,5" shows "= 13", and "150" at qty 2 shows "= 300".
  */
-export function expressionPreview(raw: string | undefined, lang = 'en'): string | null {
+export function expressionPreview(raw: string | undefined, lang = 'en', qty = 1): string | null {
   if (!raw || raw.trim() === '') return null;
+  if (ambiguousDotNumber(raw, lang)) return null;
   const evaluated = evaluateAmount(normalizeDecimal(raw, lang));
   if (!evaluated.ok) return null;
-  const formatted = new Intl.NumberFormat(lang, { maximumFractionDigits: 2, useGrouping: false }).format(evaluated.value);
-  return formatted === raw.trim() ? null : formatted;
+  const saved = String(roundHalfAwayFromZero(evaluated.value * qty));
+  return saved === raw.trim() ? null : saved;
+}
+
+/**
+ * An inline edit of a stored value (an entry's pill, a saved food's pill):
+ * blank clears the value (null), anything else must validate and is sent as
+ * the evaluated integer — never the raw string, which the server's parser
+ * reads with English separators, and never a NaN that JSON turns into null.
+ */
+export function parseInlineEdit(field: EntryField, raw: string, lang: string): { ok: true; value: number | null } | FieldError {
+  if (raw.trim() === '') return { ok: true, value: null };
+  const r = validateEntryField(field, raw, { lang });
+  return r.ok ? { ok: true, value: r.total } : r;
+}
+
+/** The message for a field error; `qty` > 1 names the quantity in range errors. */
+export function entryFieldErrorText(t: TFunction, err: FieldError & { computed?: boolean }, qty = 1): string {
+  if (err.computed) {
+    return qty > 1
+      ? t('dashboard:entries.fieldComputedRangeQty', { max: err.max, qty })
+      : t('dashboard:entries.fieldComputedRange', { max: err.max });
+  }
+  if (err.error === 'invalid') return t('dashboard:entries.fieldInvalid');
+  if (err.error === 'ambiguous') return t('dashboard:entries.fieldAmbiguous', { whole: err.whole, decimal: err.decimal });
+  return qty > 1
+    ? t('dashboard:entries.fieldRangeQty', { min: err.min, max: err.max, qty })
+    : t('dashboard:entries.fieldRange', { min: err.min, max: err.max });
 }

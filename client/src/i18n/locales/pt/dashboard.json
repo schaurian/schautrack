@@ -78,7 +78,9 @@
   "entries": {
     "logSectionTitle": "Registo",
     "addFood": "Adicionar alimento",
+    "fieldAmbiguous": "Escreve {{whole}}, ou {{decimal}} para um decimal",
     "fieldComputedRange": "As calorias destes macros excedem {{max}}",
+    "fieldComputedRangeQty": "Vezes {{qty}}, as calorias destes macros excedem {{max}}",
     "fieldInvalid": "Introduz um número ou uma conta como 2*150",
     "fieldRange": "Introduz um valor entre {{min}} e {{max}}",
     "fieldRangeQty": "Vezes {{qty}}, tem de ficar entre {{min}} e {{max}}",

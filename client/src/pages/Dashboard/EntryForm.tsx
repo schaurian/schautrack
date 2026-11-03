@@ -5,7 +5,7 @@ import type { AIUsage } from '@/types';
 import { createEntry } from '@/api/entries';
 import { createSavedFood } from '@/api/savedFoods';
 import { MACRO_LABELS, computeCaloriesFromMacros } from '@/lib/macros';
-import { MAX_ENTRY_CALORIES, expressionPreview, validateEntryField, type FieldError } from '@/lib/entryValidation';
+import { MAX_ENTRY_CALORIES, entryFieldErrorText, expressionPreview, validateEntryField, type FieldError } from '@/lib/entryValidation';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
@@ -173,12 +173,33 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   // A quantity change moves every total, so a range error shown for the old
   // quantity may no longer hold (or may now hold for a different reason).
   // Re-check only the fields already marked; new errors wait for a submit.
+  //
+  // Each field is re-checked against the bounds its own error carries, so an
+  // error set from a server rejection's tighter bounds is not judged by the
+  // looser client defaults and silently dropped.
+  const recheck = (key: string, err: FormError, q: number): FormError | null => {
+    if (err.computed) {
+      const { totals } = validateAll(q);
+      const c = computeCaloriesFromMacros(totals.protein ?? 0, totals.carbs ?? 0, totals.fat ?? 0);
+      return c !== null && c > err.max ? { ...err } : null;
+    }
+    const r = key === 'calories'
+      ? validateEntryField('calories', amount, { qty: q, lang, min: err.min, max: err.max })
+      : validateEntryField('macro', macros[key], { qty: q, lang, min: err.min, max: err.max });
+    return r.ok ? null : r;
+  };
+
   const handleQuantityChange = (next: number) => {
     setQuantity(next);
+    const q = Math.max(1, Math.trunc(next));
     setErrors((prev) => {
       if (Object.keys(prev).length === 0) return prev;
-      const { found } = validateAll(Math.max(1, Math.trunc(next)));
-      return Object.fromEntries(Object.keys(prev).filter((k) => found[k]).map((k) => [k, found[k]]));
+      const kept: FormErrors = {};
+      for (const [k, err] of Object.entries(prev)) {
+        const r = recheck(k, err, q);
+        if (r) kept[k] = r;
+      }
+      return kept;
     });
   };
 
@@ -210,13 +231,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     return Object.keys(found).length > 0 ? found : null;
   };
 
-  const errorText = (err: FormError) => {
-    if (err.computed) return t('entries.fieldComputedRange', { max: err.max });
-    if (err.error === 'invalid') return t('entries.fieldInvalid');
-    return qty > 1
-      ? t('entries.fieldRangeQty', { min: err.min, max: err.max, qty })
-      : t('entries.fieldRange', { min: err.min, max: err.max });
-  };
+  const errorText = (err: FormError) => entryFieldErrorText(t, err, qty);
 
   // The "= 300" preview and the inline error, both wired to the input via
   // aria-describedby so a screen reader reads them with the field. The
@@ -224,7 +239,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   // so it appearing and disappearing while typing moves nothing.
   const fieldProps = (field: string, inputId: string, raw: string | undefined) => {
     const err = errors[field];
-    const preview = err ? null : expressionPreview(raw, lang);
+    const preview = err ? null : expressionPreview(raw, lang, qty);
     const errorId = `${inputId}-error`;
     const previewId = `${inputId}-preview`;
     return {

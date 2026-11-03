@@ -6,6 +6,7 @@ import { saveEntryAsFood } from '@/api/savedFoods';
 import { ApiError } from '@/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
+import { entryFieldErrorText, parseInlineEdit, type FieldError } from '@/lib/entryValidation';
 import { cn } from '@/lib/utils';
 import { nextToastSeq, useToastStore } from '@/stores/toastStore';
 import { MacroPill, MacroPillEditing } from '@/components/ui/MacroPill';
@@ -113,9 +114,12 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   onUpdate: () => void;
   onSaveAsFood: () => void;
 }) {
-  const { t } = useTranslation('dashboard');
+  const { t, i18n } = useTranslation('dashboard');
+  const lang = i18n.resolvedLanguage || i18n.language || 'en';
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [editError, setEditError] = useState<FieldError | null>(null);
+  const editErrorId = `entry-${entry.id}-edit-error`;
   const [savingFood, setSavingFood] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
@@ -137,6 +141,12 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     if (!canEdit) return;
     setEditing(field);
     setEditValue(String(currentValue ?? ''));
+    setEditError(null);
+  };
+
+  const handleEditChange = (v: string) => {
+    setEditValue(v);
+    setEditError(null);
   };
 
   const handleSave = async () => {
@@ -145,10 +155,17 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     const data: Record<string, unknown> = {};
     if (editing === 'name') {
       data.name = editValue;
-    } else if (editing === 'amount') {
-      data.amount = !editValue || editValue === '0' ? null : editValue;
     } else {
-      data[`${editing}_g`] = !editValue || editValue === '0' ? null : editValue;
+      // Evaluated here, with the active language's separators, and sent as a
+      // number: the raw string reached the server's parser, which reads
+      // English separators, so German "12,5" kcal was stored as 125.
+      const parsed = parseInlineEdit(editing === 'amount' ? 'calories' : 'macro', editValue, lang);
+      if (!parsed.ok) {
+        setEditError(parsed);
+        return;
+      }
+      // 0 clears the value, as an empty field does.
+      data[editing === 'amount' ? 'amount' : `${editing}_g`] = parsed.value === 0 ? null : parsed.value;
     }
 
     try {
@@ -212,7 +229,10 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSave();
-    if (e.key === 'Escape') setEditing(null);
+    if (e.key === 'Escape') {
+      setEditing(null);
+      setEditError(null);
+    }
   };
 
   const hasMacros = caloriesEnabled || enabledMacros.length > 0;
@@ -284,10 +304,12 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
                 label={t('entries.caloriesLabel')}
                 unit="kcal"
                 editValue={editValue}
-                onChange={setEditValue}
+                onChange={handleEditChange}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
                 inputMode="tel"
+                invalid={!!editError}
+                describedBy={editErrorId}
               />
             ) : (
               <MacroPill
@@ -310,9 +332,11 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
                 label={label}
                 unit="g"
                 editValue={editValue}
-                onChange={setEditValue}
+                onChange={handleEditChange}
                 onSave={handleSave}
                 onKeyDown={handleKeyDown}
+                invalid={!!editError}
+                describedBy={editErrorId}
               />
             ) : (
               <MacroPill
@@ -327,6 +351,11 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             );
           })}
         </div>
+      )}
+      {editError && (
+        <p id={editErrorId} className="px-1 pb-2 text-xs text-destructive">
+          {entryFieldErrorText(t, editError)}
+        </p>
       )}
     </div>
   );

@@ -14,6 +14,7 @@ vi.mock('@/api/entries', () => ({ createEntry: vi.fn() }));
 vi.mock('@/api/savedFoods', () => ({ createSavedFood: vi.fn() }));
 
 import { createEntry } from '@/api/entries';
+import { createSavedFood } from '@/api/savedFoods';
 import { ApiError } from '@/api/client';
 
 function renderForm(overrides: Partial<React.ComponentProps<typeof EntryForm>> = {}) {
@@ -136,18 +137,66 @@ describe('EntryForm validation', () => {
     expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ amount: 25, fat_g: 25 }));
   });
 
-  it('reads "12,5" as twelve and a half in German', async () => {
+  it('reads "12,5" as twelve and a half in German and previews what is saved', async () => {
     await i18n.changeLanguage('de');
     vi.mocked(createEntry).mockResolvedValue({ ok: true });
     const user = userEvent.setup();
     renderForm();
     await user.type(field('entry-macro-fat'), '12,5');
-    await user.type(field('entry-calories'), '1.000');
-    expect(screen.queryByTestId('entry-macro-fat-preview')).toBeNull();
-    // The dot is a decimal point in German too; the preview is what shows it.
-    expect(screen.getByTestId('entry-calories-preview')).toHaveTextContent('= 1');
+    await user.type(field('entry-calories'), '250');
+    // Rounded on save, so the preview says so.
+    expect(screen.getByTestId('entry-macro-fat-preview')).toHaveTextContent('= 13');
+    expect(screen.queryByTestId('entry-calories-preview')).toBeNull();
     await user.click(track());
-    expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ amount: 1, fat_g: 13 }));
+    expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ amount: 250, fat_g: 13 }));
+  });
+
+  // "1.200" in German: 1200 with a thousands dot, or 1.2 typed from a keypad?
+  it('refuses a thousands-shaped dot number in German with both readings', async () => {
+    await i18n.changeLanguage('de');
+    const user = userEvent.setup();
+    renderForm();
+    await user.type(field('entry-calories'), '1.200');
+    expect(screen.queryByTestId('entry-calories-preview')).toBeNull();
+    await user.click(track());
+    const cal = field('entry-calories');
+    expect(cal).toHaveAttribute('aria-invalid', 'true');
+    expect(cal).toHaveAccessibleDescription('Schreib 1200 oder 1,200 für eine Dezimalzahl');
+    expect(createEntry).not.toHaveBeenCalled();
+  });
+
+  it('previews the saved value with the quantity applied', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.type(field('entry-macro-fat'), '12.5');
+    expect(screen.getByTestId('entry-macro-fat-preview')).toHaveTextContent('= 13');
+    await user.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    expect(screen.getByTestId('entry-macro-fat-preview')).toHaveTextContent('= 25');
+  });
+
+  // The "= n" overlay sits inside the input; the input's right padding is
+  // what keeps typed text from running under it.
+  it('pads the input for the preview only while one is shown', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const protein = field('entry-macro-protein');
+    await user.type(protein, '2*15');
+    expect(protein.style.paddingRight).toMatch(/^calc\(.*\d+ch.*\)$/);
+    await user.clear(protein);
+    await user.type(protein, '30');
+    expect(protein.style.paddingRight).toBe('');
+  });
+
+  it('saves a quick-add with the active language\'s decimal comma', async () => {
+    await i18n.changeLanguage('de');
+    vi.mocked(createSavedFood).mockResolvedValue({ ok: true } as never);
+    const user = userEvent.setup();
+    renderForm();
+    await user.type(screen.getByRole('textbox', { name: 'Name des Lebensmittels' }), 'Toast');
+    await user.type(field('entry-calories'), '80,5');
+    await user.type(field('entry-macro-fat'), '2,5');
+    await user.click(screen.getByRole('button', { name: 'Als Schnellzugriff speichern' }));
+    expect(createSavedFood).toHaveBeenCalledWith(expect.objectContaining({ name: 'Toast', amount: 81, fat_g: 3 }));
   });
 
   it('checks auto-calculated calories against the calorie limit', async () => {
@@ -197,6 +246,40 @@ describe('EntryForm validation', () => {
     await user.click(track());
     expect(await screen.findByTestId('entry-macro-protein')).toHaveAttribute('aria-invalid', 'true');
     expect(field('entry-macro-carbs')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('checks auto-calculated calories with the quantity applied', async () => {
+    vi.mocked(createEntry).mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    renderForm({ autoCalcCalories: true });
+    // 499 g each is 499*17 = 8483 kcal per serving: fine once. Twice, every
+    // macro is still within 999 g but the calories (16966) are not.
+    await user.type(field('entry-macro-protein'), '499');
+    await user.type(field('entry-macro-carbs'), '499');
+    await user.type(field('entry-macro-fat'), '499');
+    await user.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    await user.click(track());
+    const cal = field('entry-calories');
+    expect(cal).toHaveAccessibleDescription('Times 2, calories from these macros exceed 9999');
+    expect(createEntry).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Decrease quantity' }));
+    expect(cal).not.toHaveAttribute('aria-invalid');
+    await user.click(track());
+    expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ protein_g: 499, carbs_g: 499, fat_g: 499 }));
+  });
+
+  it('keeps an error from the server\'s tighter bounds across a quantity change', async () => {
+    vi.mocked(createEntry).mockRejectedValue(new ApiError(400, 'Macro values must be between 0 and 100'));
+    const user = userEvent.setup();
+    renderForm();
+    await user.type(field('entry-macro-protein'), '150');
+    await user.click(track());
+    const protein = await screen.findByTestId('entry-macro-protein');
+    expect(protein).toHaveAttribute('aria-invalid', 'true');
+    await user.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    expect(protein).toHaveAttribute('aria-invalid', 'true');
+    expect(protein).toHaveAccessibleDescription('Times 2, this must stay between 0 and 100');
   });
 
   it('falls back to a toast when no field is outside the range the server names', async () => {

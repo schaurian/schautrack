@@ -80,7 +80,9 @@
   "entries": {
     "logSectionTitle": "Dziennik",
     "addFood": "Dodaj posiłek",
+    "fieldAmbiguous": "Wpisz {{whole}} albo {{decimal}} dla ułamka dziesiętnego",
     "fieldComputedRange": "Kalorie z tych makr przekraczają {{max}}",
+    "fieldComputedRangeQty": "Razy {{qty}} kalorie z tych makr przekraczają {{max}}",
     "fieldInvalid": "Wpisz liczbę lub działanie, np. 2*150",
     "fieldRange": "Wpisz wartość od {{min}} do {{max}}",
     "fieldRangeQty": "Razy {{qty}} wartość musi mieścić się między {{min}} a {{max}}",
