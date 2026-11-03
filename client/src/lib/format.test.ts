@@ -31,7 +31,7 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(ago(30), now, 'en')).toBe('30 seconds ago');
     expect(formatRelativeTime(ago(5 * 60), now, 'en')).toBe('5 minutes ago');
     expect(formatRelativeTime(ago(3 * 3600), now, 'en')).toBe('3 hours ago');
-    expect(formatRelativeTime(ago(86400), now, 'en')).toBe('yesterday');
+    expect(formatRelativeTime(ago(86400), now, 'en')).toBe('1 day ago');
     expect(formatRelativeTime(ago(3 * 86400), now, 'en')).toBe('3 days ago');
     expect(formatRelativeTime(ago(60 * 86400), now, 'en')).toBe('2 months ago');
     expect(formatRelativeTime(ago(800 * 86400), now, 'en')).toBe('2 years ago');
@@ -39,6 +39,25 @@ describe('formatRelativeTime', () => {
 
   it('never shows a full unit as the smaller one (59.6s is a minute, not "60 seconds")', () => {
     expect(formatRelativeTime(ago(59.6), now, 'en')).toBe('1 minute ago');
+  });
+
+  // Elapsed time, not calendar words: numeric:'auto' turned 36h into
+  // "vorgestern" and 350 days into "last year", which reads oddly after
+  // "Last login".
+  it('counts elapsed time instead of naming calendar days, months or years', () => {
+    expect(formatRelativeTime(ago(36 * 3600), now, 'en')).toBe('2 days ago');
+    expect(formatRelativeTime(ago(36 * 3600), now, 'de')).toBe('vor 2 Tagen');
+    expect(formatRelativeTime(ago(40 * 86400), now, 'en')).toBe('1 month ago');
+    expect(formatRelativeTime(ago(40 * 86400), now, 'de')).toBe('vor 1 Monat');
+    expect(formatRelativeTime(ago(350 * 86400), now, 'en')).toBe('1 year ago');
+    expect(formatRelativeTime(ago(350 * 86400), now, 'de')).toBe('vor 1 Jahr');
+  });
+
+  it('shows a future time (clock skew) and the present as "now", never "in 5 minutes"', () => {
+    expect(formatRelativeTime(ago(-300), now, 'en')).toBe('now');
+    expect(formatRelativeTime(ago(-3 * 86400), now, 'en')).toBe('now');
+    expect(formatRelativeTime(ago(0.2), now, 'en')).toBe('now');
+    expect(formatRelativeTime(ago(-300), now, 'de')).toBe('jetzt');
   });
 
   it('is locale-aware', () => {

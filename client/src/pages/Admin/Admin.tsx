@@ -137,9 +137,11 @@ function UserList({
                   {user.email_verified ? t('admin.verified') : t('admin.unverified')}
                   {' \u00B7 '}
                   {new Date(user.created_at).toLocaleDateString()}
-                  {' \u00B7'}
                 </span>
-                <LastLogin value={user.last_login_at} />
+                {/* Below sm the last login always takes its own line, so the
+                    separator would only dangle at the end of the first. */}
+                <span aria-hidden="true" data-testid="admin-user-last-login-sep" className="hidden sm:inline">{'\u00B7'}</span>
+                <span className="basis-full sm:basis-auto"><LastLogin value={user.last_login_at} /></span>
               </div>
             </div>
             <Button size="sm" variant="destructive" onClick={() => onDelete(user.id)}>{t('admin.delete')}</Button>
