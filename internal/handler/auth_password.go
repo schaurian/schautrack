@@ -56,10 +56,9 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess := session.GetSession(r)
-	captchaAnswer := sess.GetString("captchaAnswer")
+	captchaAnswer := sess.GetString(resetCaptchaKey)
 	if !service.VerifyCaptcha(captchaAnswer, body.Captcha) {
-		c := service.GenerateCaptcha()
-		sess.Set("captchaAnswer", c.Text)
+		c := issueCaptcha(sess, resetCaptchaKey)
 		JSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid captcha.", "captchaSvg": c.Data, "captchaQuestion": c.Question})
 		return
 	}
@@ -92,7 +91,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// Always return success (don't reveal if email exists)
-	sess.Delete("captchaAnswer")
+	sess.Delete(resetCaptchaKey)
 	sess.Set("resetEmail", email)
 	sess.Set("resetCodeVerified", false)
 	OkJSON(w)

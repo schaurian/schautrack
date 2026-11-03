@@ -258,8 +258,7 @@ func verifyAndMarkBackupCode(r *http.Request, pool *pgxpool.Pool, userID int, co
 func replyWithCaptchaIfNeeded(w http.ResponseWriter, sess *session.Session, email, ip string) {
 	resp := map[string]any{"ok": false, "error": "Invalid credentials."}
 	if loginCaptchaRequired(sess, email, ip) {
-		c := service.GenerateCaptcha()
-		sess.Set("captchaAnswer", c.Text)
+		c := issueCaptcha(sess, loginCaptchaKey)
 		resp["captchaSvg"] = c.Data
 		resp["captchaQuestion"] = c.Question
 		resp["requireCaptcha"] = true
@@ -427,10 +426,12 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Captcha handles GET /api/auth/captcha
+// Captcha handles GET /api/auth/captcha: a fresh challenge for the
+// forgot-password form, its only consumer. Login, registration and the
+// verification resend issue their own challenges inline, each under its own
+// session key, so fetching this one cannot gate or satisfy any of them.
 func (h *AuthHandler) Captcha(w http.ResponseWriter, r *http.Request) {
-	c := service.GenerateCaptcha()
 	sess := session.GetSession(r)
-	sess.Set("captchaAnswer", c.Text)
+	c := issueCaptcha(sess, resetCaptchaKey)
 	JSON(w, http.StatusOK, map[string]any{"svg": c.Data, "question": c.Question})
 }
