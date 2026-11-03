@@ -106,7 +106,13 @@ export function validateEntryField(field: EntryField, raw: string | undefined, o
   if (!raw || raw.trim() === '') return { ok: true, value: null, total: null };
   const lang = opts.lang ?? 'en';
   const ambiguous = ambiguousDotNumber(raw, lang);
-  if (ambiguous) return { ok: false, error: 'ambiguous', min, max, ...ambiguous };
+  if (ambiguous) {
+    // Suggest the whole-number reading only when it would be accepted: German
+    // "10.000" kcal as 10000 is over the limit, so only "10,000" is offered.
+    const whole = roundHalfAwayFromZero(Number(ambiguous.whole) * qty);
+    const wholeFits = whole >= min && whole <= max;
+    return { ok: false, error: 'ambiguous', min, max, decimal: ambiguous.decimal, ...(wholeFits ? { whole: ambiguous.whole } : {}) };
+  }
   const evaluated = evaluateAmount(normalizeDecimal(raw, lang));
   if (!evaluated.ok) return { ok: false, error: 'invalid', min, max };
   const total = roundHalfAwayFromZero(evaluated.value * qty);
@@ -149,7 +155,11 @@ export function entryFieldErrorText(t: TFunction, err: FieldError & { computed?:
       : t('dashboard:entries.fieldComputedRange', { max: err.max });
   }
   if (err.error === 'invalid') return t('dashboard:entries.fieldInvalid');
-  if (err.error === 'ambiguous') return t('dashboard:entries.fieldAmbiguous', { whole: err.whole, decimal: err.decimal });
+  if (err.error === 'ambiguous') {
+    return err.whole !== undefined
+      ? t('dashboard:entries.fieldAmbiguous', { whole: err.whole, decimal: err.decimal })
+      : t('dashboard:entries.fieldAmbiguousDecimal', { decimal: err.decimal });
+  }
   return qty > 1
     ? t('dashboard:entries.fieldRangeQty', { min: err.min, max: err.max, qty })
     : t('dashboard:entries.fieldRange', { min: err.min, max: err.max });

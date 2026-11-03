@@ -835,7 +835,7 @@ func TestClassifyAmount(t *testing.T) {
 			// unparseable. Telling the two apart is the point of #303.
 			name: "literal <nil> typed by a user",
 			raw:  "<nil>",
-			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true, RejectMsg: InvalidNumberFormatMsg},
 			why:  "present but unparseable; absence is \"\" now, not this",
 		},
 		{
@@ -859,14 +859,23 @@ func TestClassifyAmount(t *testing.T) {
 		{
 			name: "over the cap",
 			raw:  "10000",
-			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true, RejectMsg: fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)},
 			why:  "above MaxEntryCalories, rejected rather than clamped",
 		},
 		{
 			name: "garbage",
 			raw:  "abc",
-			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true, RejectMsg: InvalidNumberFormatMsg},
 			why:  "present but unparseable",
+		},
+		{
+			// A comma that is not a thousands group is a format error. It
+			// used to be answered with the range message, which named a bound
+			// the caller had not exceeded.
+			name: "decimal comma",
+			raw:  "12,5",
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true, RejectMsg: InvalidNumberFormatMsg},
+			why:  "a format error, not a range error",
 		},
 		{
 			// fmt.Sprintf("%v", float64) renders anything >= 1e6 like this.
@@ -874,7 +883,7 @@ func TestClassifyAmount(t *testing.T) {
 			// comes from the grammar rejecting "e", not from a range check.
 			name: "scientific notation from a large JSON number",
 			raw:  "1e+06",
-			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true, RejectMsg: InvalidNumberFormatMsg},
 			why:  "rejected on syntax; the range check never runs",
 		},
 		{
@@ -883,7 +892,7 @@ func TestClassifyAmount(t *testing.T) {
 			// with a weight was written with amount = 0 and reported success.
 			name: "hex-looking input",
 			raw:  "0x10",
-			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true},
+			want: amountDecision{Value: 0, HasCalorieEntry: false, Reject: true, RejectMsg: InvalidNumberFormatMsg},
 			why:  "must 400, not be silently swallowed as zero",
 		},
 	}

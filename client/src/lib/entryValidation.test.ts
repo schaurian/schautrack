@@ -78,9 +78,20 @@ describe('validateEntryField', () => {
   // half the time, so it is refused with both readings.
   it('refuses a thousands-shaped dot number in a decimal-comma language', () => {
     expect(validateEntryField('calories', '1.200', { lang: 'de' })).toMatchObject({ ok: false, error: 'ambiguous', whole: '1200', decimal: '1,200' });
-    expect(validateEntryField('calories', '1.000.000', { lang: 'fr' })).toMatchObject({ ok: false, error: 'ambiguous', whole: '1000000' });
+    expect(validateEntryField('calories', '1.000.000', { lang: 'fr' })).toMatchObject({ ok: false, error: 'ambiguous', decimal: '1,000,000' });
     expect(validateEntryField('calories', '2*1.200', { lang: 'de' })).toMatchObject({ ok: false, error: 'ambiguous' });
     expect(validateEntryField('calories', '1.200', { lang: 'en' })).toMatchObject({ ok: true, total: 1 });
+  });
+
+  // "10.000" as 10000 kcal is over the limit, so that reading is not offered.
+  it('offers only the decimal reading when the whole-number one is out of range', () => {
+    const r = validateEntryField('calories', '10.000', { lang: 'de' });
+    expect(r).toMatchObject({ ok: false, error: 'ambiguous', decimal: '10,000' });
+    expect(r).not.toHaveProperty('whole');
+    // The bound applies after the quantity: 600 g fits once, not twice.
+    expect(validateEntryField('macro', '1.200', { lang: 'de' })).not.toHaveProperty('whole');
+    expect(validateEntryField('calories', '5.000', { lang: 'de', qty: 2 })).not.toHaveProperty('whole');
+    expect(validateEntryField('calories', '5.000', { lang: 'de', qty: 1 })).toMatchObject({ whole: '5000' });
   });
 
   it('rejects an English comma that is not a thousands group instead of dropping it', () => {
@@ -117,6 +128,7 @@ describe('entryFieldErrorText', () => {
     expect(entryFieldErrorText(t, { ...range, computed: true }, 1)).toContain('entries.fieldComputedRange ');
     expect(entryFieldErrorText(t, { ...range, computed: true }, 2)).toContain('entries.fieldComputedRangeQty {"max":999,"qty":2}');
     expect(entryFieldErrorText(t, { ...range, error: 'ambiguous', whole: '1200', decimal: '1,200' })).toContain('"whole":"1200"');
+    expect(entryFieldErrorText(t, { ...range, error: 'ambiguous', decimal: '10,000' })).toContain('entries.fieldAmbiguousDecimal {"decimal":"10,000"}');
   });
 });
 

@@ -12,6 +12,11 @@ import (
 type ParseAmountResult struct {
 	Ok    bool
 	Value int
+	// OutOfRange is set when the input parsed but its value is outside maxAbs
+	// (or the int32 range). !Ok && !OutOfRange means the input is not a
+	// number or expression at all ("abc", "12,5"), so callers can answer
+	// "invalid number format" rather than a range message that does not apply.
+	OutOfRange bool
 }
 
 var validExprRe = regexp.MustCompile(`^[0-9+\-*/().]+$`)
@@ -149,13 +154,13 @@ func ParseAmount(input string, maxAbs int) ParseAmountResult {
 	// exact for every magnitude that could pass — maxAbs is at most 9999.
 	rounded := math.Round(val)
 	if maxAbs > 0 && math.Abs(rounded) > float64(maxAbs) {
-		return ParseAmountResult{Ok: false, Value: 0}
+		return ParseAmountResult{Ok: false, Value: 0, OutOfRange: true}
 	}
 	// With no maxAbs the caller has opted out of the range check, so the
 	// conversion still has to be guarded — otherwise the same indefinite value
 	// escapes through the unbounded path.
 	if rounded > math.MaxInt32 || rounded < math.MinInt32 {
-		return ParseAmountResult{Ok: false, Value: 0}
+		return ParseAmountResult{Ok: false, Value: 0, OutOfRange: true}
 	}
 	return ParseAmountResult{Ok: true, Value: int(rounded)}
 }
