@@ -208,7 +208,7 @@ func parseSavedFoodPayload(body map[string]any, forCreate bool) (*savedFoodInput
 		if amount != nil && *amount != "" {
 			parsed := service.ParseAmount(*amount, MaxEntryCalories)
 			if !parsed.Ok {
-				return nil, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)
+				return nil, http.StatusBadRequest, amountRejectMsg(parsed)
 			}
 			n := parsed.Value
 			out.amount = &n

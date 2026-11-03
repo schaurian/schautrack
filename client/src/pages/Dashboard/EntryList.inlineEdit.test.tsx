@@ -95,4 +95,15 @@ describe('EntryList inline edit', () => {
     await user.type(screen.getByRole('textbox'), '{Enter}');
     expect(updateEntry).toHaveBeenCalledWith(7, { protein_g: null });
   });
+
+  it('drops the error when the edit is cancelled with Escape', async () => {
+    const user = userEvent.setup();
+    renderList();
+    const input = await editPill(user, /Protein/, 'abc');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByText('Enter a number or a calculation like 2*150')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Protein/ }));
+    expect(screen.getByRole('textbox')).not.toHaveAttribute('aria-invalid');
+  });
 });

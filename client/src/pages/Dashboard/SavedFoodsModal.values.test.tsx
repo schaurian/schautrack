@@ -100,4 +100,42 @@ describe('SavedFoodsModal value editing', () => {
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
     expect(createSavedFood).toHaveBeenCalledWith(expect.objectContaining({ name: 'Brot', amount: 81 }));
   });
+
+  // The draft field is saved on blur, which clicking "Hinzufügen" triggers.
+  // That save refused the value and returned before handing it up, so the
+  // food was created without it and the row (and its error) vanished.
+  it('refuses to add a new food while a draft field holds an invalid value (click, no Enter)', async () => {
+    await i18n.changeLanguage('de');
+    const user = userEvent.setup();
+    renderModal();
+    await user.click(await screen.findByRole('button', { name: '+ Neu' }));
+    await user.keyboard('Brot{Enter}');
+    await user.click((await screen.findAllByRole('button', { name: /Kalorien/ }))[0]);
+    const input = document.activeElement as HTMLInputElement;
+    await user.type(input, 'abc');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    expect(createSavedFood).not.toHaveBeenCalled();
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('Gib eine Zahl oder eine Rechnung wie 2*150 ein');
+    expect(input).toHaveFocus();
+
+    // Fixing the value lets the food through, with it.
+    await user.clear(input);
+    await user.type(input, '80,5');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    expect(createSavedFood).toHaveBeenCalledWith(expect.objectContaining({ name: 'Brot', amount: 81 }));
+  });
+
+  it('drops the error when the edit is cancelled with Escape', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    const input = await editPill(user, /Calories/, 'abc');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByText('Enter a number or a calculation like 2*150')).toBeNull();
+    // Re-opening the pill starts clean.
+    await user.click(await screen.findByRole('button', { name: /Calories/ }));
+    expect(document.activeElement).not.toHaveAttribute('aria-invalid');
+  });
 });

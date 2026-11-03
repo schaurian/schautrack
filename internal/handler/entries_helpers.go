@@ -37,6 +37,23 @@ type amountDecision struct {
 	HasCalorieEntry bool
 	// Reject means the field was present and unparseable: answer 400.
 	Reject bool
+	// RejectMsg is the 400's message: a range message only when the value
+	// parsed and is out of range, otherwise InvalidNumberFormatMsg.
+	RejectMsg string
+}
+
+// InvalidNumberFormatMsg answers an amount that is not a number or expression
+// at all ("abc", or "12,5" — a comma is only a thousands separator). It used
+// to share the range message, which told the caller to fix a bound they had
+// not exceeded.
+const InvalidNumberFormatMsg = "Invalid number format"
+
+// amountRejectMsg is the 400 message for a failed ParseAmount.
+func amountRejectMsg(res service.ParseAmountResult) string {
+	if res.OutOfRange {
+		return fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)
+	}
+	return InvalidNumberFormatMsg
 }
 
 // classifyAmount interprets the raw `amount` field of an entry request.
@@ -66,11 +83,15 @@ type amountDecision struct {
 //     is where it now lives.
 func classifyAmount(rawAmount string, maxAbs int) amountDecision {
 	res := service.ParseAmount(rawAmount, maxAbs)
-	return amountDecision{
+	d := amountDecision{
 		Value:           res.Value,
 		HasCalorieEntry: res.Ok && res.Value != 0,
 		Reject:          !res.Ok && rawAmount != "",
 	}
+	if d.Reject {
+		d.RejectMsg = amountRejectMsg(res)
+	}
+	return d
 }
 
 type dailyStat struct {
@@ -444,7 +465,7 @@ func buildEntryUpdates(body map[string]any, autoCalc bool) ([]string, []any, str
 		if raw != nil && *raw != "" && *raw != "0" {
 			result := service.ParseAmount(*raw, MaxEntryCalories)
 			if !result.Ok {
-				return nil, nil, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories)
+				return nil, nil, amountRejectMsg(result)
 			}
 			amount = result.Value
 		}
