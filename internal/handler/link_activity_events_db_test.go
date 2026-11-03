@@ -232,3 +232,138 @@ func TestSessionWeightWriteReachesOnlyWeightSharers(t *testing.T) {
 		t.Fatalf("friend shared only nutrition received %q after a weight write", got)
 	}
 }
+
+// TestRevokedShareStopsActivityEventsOnOtherReplicas pins that a revoke made
+// on one instance stops activity events sent from another, without waiting
+// out the other instance's link-cache TTL.
+//
+// Saved-food events used to look links up fresh on every send, so a revoke
+// was immediate everywhere; routing them through the broker's cache made it
+// immediate only on the instance that handled the revoke. The invalidation is
+// now published through the same LISTEN/NOTIFY channel as events, for every
+// category.
+func TestRevokedShareStopsActivityEventsOnOtherReplicas(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	pool, err := database.NewPool(ctx, url)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	defer pool.Close()
+	if err := database.InitSchemaWithRetry(ctx, pool, 1); err != nil {
+		t.Fatalf("migrations: %v", err)
+	}
+
+	const ownerEmail, friendEmail = "replica-owner@handler.test", "replica-friend@handler.test"
+	cleanup := func() {
+		pool.Exec(ctx, `DELETE FROM users WHERE email IN ($1, $2)`, ownerEmail, friendEmail)
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+	var ownerID, friendID, linkID int
+	for _, u := range []struct {
+		email string
+		id    *int
+	}{{ownerEmail, &ownerID}, {friendEmail, &friendID}} {
+		if err := pool.QueryRow(ctx,
+			`INSERT INTO users (email, password_hash, email_verified) VALUES ($1, 'x', true) RETURNING id`,
+			u.email).Scan(u.id); err != nil {
+			t.Fatalf("seed user: %v", err)
+		}
+	}
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO account_links (requester_id, target_id, status, requester_shares, target_shares)
+		VALUES ($1, $2, 'accepted', '{"nutrition": true, "savedfoods": true}'::jsonb, '{}'::jsonb) RETURNING id`,
+		ownerID, friendID).Scan(&linkID); err != nil {
+		t.Fatalf("seed link: %v", err)
+	}
+
+	// Two instances on one database. The friend's stream is on A; the revoke
+	// is handled by B.
+	listenCtx, stopListen := context.WithCancel(ctx)
+	defer stopListen()
+	replicaA, replicaB := sse.NewBroker(pool), sse.NewBroker(pool)
+	go replicaA.Listen(listenCtx, url)
+	go replicaB.Listen(listenCtx, url)
+	friend := replicaA.Subscribe(friendID)
+	defer replicaA.Unsubscribe(friendID, friend)
+
+	until := func(marker string) []string {
+		var got []string
+		for {
+			select {
+			case msg := <-friend:
+				if strings.Contains(string(msg), "event: "+marker) {
+					return got
+				}
+				got = append(got, string(msg))
+			case <-time.After(10 * time.Second):
+				t.Fatalf("marker %s never arrived", marker)
+				return nil
+			}
+		}
+	}
+	// Both listeners must be up: B's readiness is proven by A's subscriber
+	// hearing an event B published only once B itself has delivered one.
+	b := replicaB.Subscribe(ownerID)
+	defer replicaB.Unsubscribe(ownerID, b)
+	for _, probe := range []struct {
+		broker *sse.Broker
+		ch     chan []byte
+		user   int
+	}{{replicaA, friend, friendID}, {replicaB, b, ownerID}} {
+		ready := false
+		for deadline := time.Now().Add(10 * time.Second); !ready && time.Now().Before(deadline); {
+			probe.broker.SendEvent(probe.user, "ready", map[string]any{})
+			select {
+			case <-probe.ch:
+				ready = true
+			case <-time.After(200 * time.Millisecond):
+			}
+		}
+		if !ready {
+			t.Fatal("SSE listener never came up")
+		}
+	}
+	replicaA.SendEvent(friendID, "flushed", map[string]any{})
+	until("flushed")
+
+	// Warm A's cache with the shared state: both events reach the friend.
+	replicaA.BroadcastSavedFoodChange(ownerID)
+	replicaA.BroadcastEntryChange(ownerID)
+	replicaA.SendEvent(friendID, "warm", map[string]any{})
+	if got := until("warm"); len(got) != 2 {
+		t.Fatalf("while shared, friend got %d events, want 2: %q", len(got), got)
+	}
+
+	// Revoke both on B.
+	h := &LinksHandler{Pool: pool, Broker: replicaB}
+	req := httptest.NewRequest(http.MethodPost, "/links/"+strconv.Itoa(linkID)+"/shares",
+		strings.NewReader(`{"nutrition": false, "savedfoods": false}`))
+	req.Header.Set("Content-Type", "application/json")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", strconv.Itoa(linkID))
+	c := context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(middleware.WithTestUser(c, &model.User{ID: ownerID, Email: ownerEmail}))
+	rec := httptest.NewRecorder()
+	h.SetShares(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("SetShares = %d: %s", rec.Code, rec.Body.String())
+	}
+	// Published after the invalidation, so once A delivers it A's listener has
+	// processed the invalidation too.
+	replicaB.SendEvent(friendID, "synced", map[string]any{})
+	until("synced")
+
+	// Well inside A's 5s cache TTL.
+	replicaA.BroadcastSavedFoodChange(ownerID)
+	replicaA.BroadcastEntryChange(ownerID)
+	replicaA.SendEvent(friendID, "marker", map[string]any{})
+	if got := until("marker"); len(got) != 0 {
+		t.Fatalf("after the revoke on another replica, friend still got %q", got)
+	}
+}

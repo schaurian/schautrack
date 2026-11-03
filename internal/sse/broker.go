@@ -82,10 +82,17 @@ const notifyChannel = "schautrack_events"
 const pgNotifyMaxPayload = 8000
 
 // envelope is one event addressed to one user, as it travels through Postgres.
+//
+// An envelope with Invalidate set is not an event but a link-cache
+// invalidation for those users, so a share revoked on one instance stops
+// activity events from every instance, not just after the cache TTL elsewhere.
+// (An instance predating the field reads it as an event for user 0, which has
+// no subscribers.)
 type envelope struct {
-	UserID int             `json:"u"`
-	Event  string          `json:"e"`
-	Data   json.RawMessage `json:"d"`
+	UserID     int             `json:"u"`
+	Event      string          `json:"e"`
+	Data       json.RawMessage `json:"d"`
+	Invalidate []int           `json:"i,omitempty"`
 }
 
 // SendEvent delivers an event to every connection of one user — including the
@@ -182,13 +189,23 @@ func (b *Broker) listenOnce(ctx context.Context, dsn string) error {
 		if err != nil {
 			return err
 		}
-		var env envelope
-		if err := json.Unmarshal([]byte(n.Payload), &env); err != nil {
-			slog.Error("sse: dropping malformed event", "error", err)
-			continue
-		}
-		b.deliverLocal(env.UserID, env.Event, env.Data)
+		b.handleNotification(n.Payload)
 	}
+}
+
+// handleNotification applies one message heard on notifyChannel: a link-cache
+// invalidation, or an event for this instance's subscribers.
+func (b *Broker) handleNotification(payload string) {
+	var env envelope
+	if err := json.Unmarshal([]byte(payload), &env); err != nil {
+		slog.Error("sse: dropping malformed event", "error", err)
+		return
+	}
+	if len(env.Invalidate) > 0 {
+		b.invalidateLocal(env.Invalidate...)
+		return
+	}
+	b.deliverLocal(env.UserID, env.Event, env.Data)
 }
 
 // The activity broadcasts below reach the source user and only those linked
@@ -339,7 +356,7 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // broadcasts. It absorbs bursts of rapid mutations — which would otherwise each
 // issue an identical link lookup — while keeping staleness small even if an
 // explicit invalidation were ever missed. Link accept/remove and share changes
-// call InvalidateLinks, so they take effect immediately on this instance.
+// call InvalidateLinks, which reaches every instance through the listener.
 const linkCacheTTL = 5 * time.Second
 
 // getTargets returns the source user followed by every linked friend the
@@ -401,9 +418,30 @@ func (b *Broker) storeLinks(userID int, linked []linkTarget) {
 
 // InvalidateLinks drops any cached accepted-links set for the given users so the
 // next broadcast re-resolves it from the database. Callers in the link handlers
-// invoke this whenever a user's set of accepted links or their shares change,
-// which keeps real-time delivery correct without waiting for the TTL.
+// invoke this whenever a user's set of accepted links or their shares change.
+//
+// This instance forgets at once; every other instance forgets when its
+// listener hears the published invalidation, which arrives through the same
+// ordered channel as events — so a revoked share stops activity events
+// everywhere, not only after linkCacheTTL on the other replicas. If the
+// publish fails, the TTL still bounds the staleness.
 func (b *Broker) InvalidateLinks(userIDs ...int) {
+	b.invalidateLocal(userIDs...)
+	if b.pool == nil || len(userIDs) == 0 {
+		return
+	}
+	msg, err := json.Marshal(envelope{Invalidate: userIDs})
+	if err != nil || len(msg) > pgNotifyMaxPayload {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := b.pool.Exec(ctx, "SELECT pg_notify($1, $2)", notifyChannel, string(msg)); err != nil {
+		slog.Error("sse: could not publish link-cache invalidation", "error", err)
+	}
+}
+
+func (b *Broker) invalidateLocal(userIDs ...int) {
 	b.linkMu.Lock()
 	defer b.linkMu.Unlock()
 	for _, id := range userIDs {
