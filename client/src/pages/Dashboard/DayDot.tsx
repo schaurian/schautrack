@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { DailyStat } from '@/types';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDay } from '@/lib/format';
 import { MACRO_LABELS, type MacroKey } from '@/lib/macros';
 
 interface Props {
@@ -39,10 +39,11 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
   const statusLabel = reason?.direction === 'under'
     ? t('dayDot.status.missedTarget')
     : statusLabels[status] || t('dayDot.status.none');
-  // UTC on both sides: `date` is a calendar day, not an instant, so the
-  // viewer's offset must not shift it to the day before.
+  // The shared short day style (same as the date pill and entries header).
+  // The day number: UTC on both sides, since `date` is a calendar day, not an
+  // instant, and the viewer's offset must not shift it to the day before.
   const day = new Date(`${date}T00:00:00Z`);
-  const dateLabel = formatDate(day, undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const dateLabel = formatDay(date, 'short');
   const dayNumber = formatDate(day, undefined, { day: 'numeric', timeZone: 'UTC' });
 
   let reasonText = '';
