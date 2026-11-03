@@ -16,15 +16,22 @@ export default function Toaster() {
   // override to an assertive alert.
   //
   // The stack is offset to clear the FAB so an undo action never hides under the
-  // add button — the toast paints above it (z-200 vs z-60). Both offsets are the
+  // add button — the toast paints above it (z-400 vs z-60). Both offsets are the
   // FAB's own bottom plus its 3.5rem height plus a 0.75rem gap: 4.5rem up on
   // mobile (it clears the tab bar), 2rem up on desktop.
+  //
+  // z-[400] puts toasts above every overlay layer (add sheet z-200, Manage and
+  // scanner modals z-300): at z-200 the add sheet's backdrop, later in the
+  // DOM, sat over the toast and swallowed the click on Undo. pointer-events-auto
+  // because an open Radix modal sets pointer-events: none on <body>, which the
+  // toaster would otherwise inherit, so clicks fall through to the overlay.
+  // Covered by e2e/saved-food-undo.spec.ts.
   return (
     <div
       role="status"
       aria-live="polite"
       aria-atomic="false"
-      className="fixed right-4 z-[200] flex flex-col gap-2 max-w-sm bottom-[calc(8.75rem+env(safe-area-inset-bottom))] lg:bottom-[6.25rem]"
+      className="pointer-events-auto fixed right-4 z-[400] flex flex-col gap-2 max-w-sm bottom-[calc(8.75rem+env(safe-area-inset-bottom))] lg:bottom-[6.25rem]"
     >
       {toasts.map((toast) => (
         // A replaced toast (same replace key, e.g. a second entry deleted) gets
