@@ -66,7 +66,8 @@
       "over": "über Ziel",
       "overThreshold": "deutlich über Ziel",
       "zero": "keine Einträge",
-      "none": "keine Einträge"
+      "none": "keine Einträge",
+      "missedTarget": "Ziel verfehlt"
     },
     "reason": {
       "over": "{{metric}} {{pct}} % drüber",

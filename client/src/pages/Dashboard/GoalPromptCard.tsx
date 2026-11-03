@@ -37,7 +37,7 @@ export default function GoalPromptCard({ userId }: { userId: number }) {
     <section
       data-testid="goal-prompt"
       aria-labelledby="goal-prompt-title"
-      className="surface flex flex-wrap items-center gap-3 border-[#0ea5e9]/30 p-4"
+      className="surface flex flex-wrap items-center gap-3 border-primary/30 p-4"
     >
       <div className="min-w-0 flex-1 basis-56">
         <h2 id="goal-prompt-title" className="font-display text-[15px] font-bold">{t('goalPrompt.title')}</h2>

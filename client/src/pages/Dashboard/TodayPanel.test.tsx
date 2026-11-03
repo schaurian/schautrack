@@ -6,7 +6,7 @@ import TodayPanel from './TodayPanel';
 // The ring used to read "1720 / 2200" and stop there, and a macro bar past its
 // target was simply full — 134/110 looked the same as 110/110.
 
-function renderPanel(opts: { total: number; goal: number | null; protein: number; proteinMode?: string }) {
+function renderPanel(opts: { total: number; goal: number | null; protein: number; proteinMode?: string; showDeltas?: boolean }) {
   const proteinMode = opts.proteinMode ?? 'limit';
   return render(
     <TodayPanel
@@ -21,6 +21,7 @@ function renderPanel(opts: { total: number; goal: number | null; protein: number
       macroModes={{ calories: 'limit', protein: proteinMode }}
       selectedDate="2026-11-03"
       todayStr="2026-11-03"
+      showDeltas={opts.showDeltas ?? true}
     />,
   );
 }
@@ -62,5 +63,16 @@ describe('TodayPanel remaining/over feedback', () => {
   it('says "to go" for a target not yet reached', () => {
     renderPanel({ total: 1720, goal: 2200, protein: 80, proteinMode: 'target' });
     expect(screen.getByTestId('macro-delta-protein')).toHaveTextContent('30 to go');
+  });
+
+  it('shows no deltas, tick or hatching on a friend\'s view', () => {
+    // A friend's totals against the viewer's goals: stating "+300 over" there
+    // would present someone else's goal as theirs.
+    renderPanel({ total: 2500, goal: 2200, protein: 134, showDeltas: false });
+    expect(screen.queryByTestId('calorie-delta')).toBeNull();
+    expect(screen.queryByTestId('macro-delta-protein')).toBeNull();
+    expect(screen.queryByTestId('macro-goal-marker-protein')).toBeNull();
+    const fill = screen.getByRole('img', { name: /^Protein: 134 \/ 110 g$/ }).querySelector<HTMLElement>('[style*="background"]');
+    expect(fill?.style.backgroundImage).toBe('');
   });
 });

@@ -18,6 +18,12 @@ interface Props {
   macroModes: Record<string, string>;
   selectedDate: string;
   todayStr: string;
+  /**
+   * Remaining/over numbers, the goal tick and the overshoot hatching. Off on a
+   * friend's view: the goals here are the viewer's own while the totals are the
+   * friend's, and "+300 over" would state that mismatch as fact.
+   */
+  showDeltas: boolean;
 }
 
 const LABEL_COLORS: Record<string, string> = {
@@ -47,19 +53,20 @@ function useDeltaText() {
 // Past the goal the bar rescales so the goal sits at goal/total of the width:
 // a tick marks the goal and the overshoot beyond it is hatched, so 134/110
 // no longer looks the same as 110/110.
-function MacroBar({ macroKey, label, value, goal, mode, status }: {
+function MacroBar({ macroKey, label, value, goal, mode, status, showDelta }: {
   macroKey: string;
   label: string;
   value: number;
   goal: number | null;
   mode: string;
   status: MacroStatus;
+  showDelta: boolean;
 }) {
   const deltaText = useDeltaText();
   const hasGoal = goal != null && goal > 0;
   const pct = hasGoal ? ringProgress(value, goal) : 0;
   const color = ringColor(status.statusClass, macroKey);
-  const delta = goalDelta(value, goal, mode);
+  const delta = showDelta ? goalDelta(value, goal, mode) : null;
   const over = delta?.kind === 'over';
   const goalPct = over && goal ? (goal / value) * 100 : 100;
   const text = delta ? deltaText(delta) : '';
@@ -114,11 +121,11 @@ function MacroBar({ macroKey, label, value, goal, mode, status }: {
 
 export default function TodayPanel({
   dailyGoal, todayTotal, caloriesEnabled, calorieStatus,
-  enabledMacros, macroGoals, todayMacroTotals, macroStatuses, macroModes,
+  enabledMacros, macroGoals, todayMacroTotals, macroStatuses, macroModes, showDeltas,
 }: Props) {
   const { t } = useTranslation('dashboard');
   const deltaText = useDeltaText();
-  const calorieDelta = caloriesEnabled ? goalDelta(todayTotal, dailyGoal, macroModes?.calories || 'limit') : null;
+  const calorieDelta = caloriesEnabled && showDeltas ? goalDelta(todayTotal, dailyGoal, macroModes?.calories || 'limit') : null;
   if (!caloriesEnabled && enabledMacros.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-6">
@@ -165,6 +172,7 @@ export default function TodayPanel({
               value={todayMacroTotals[key] || 0}
               goal={macroGoals[key] ?? null}
               mode={macroModes?.[key] || 'limit'}
+              showDelta={showDeltas}
               status={macroStatuses[key] || { statusClass: '', statusText: '' }}
             />
           ))}

@@ -66,6 +66,7 @@
       "under": "{{metric}} {{pct}}% under target"
     },
     "status": {
+      "missedTarget": "missed target",
       "none": "no entries",
       "over": "over goal",
       "overThreshold": "well over goal",

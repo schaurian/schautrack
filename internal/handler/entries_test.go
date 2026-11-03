@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -299,8 +300,10 @@ func TestBuildDailyStatsReason(t *testing.T) {
 		if r == nil {
 			t.Fatal("reason = nil, want fat")
 		}
-		if r.Metric != "fat" || r.Total != 92 || r.Goal != 70 || r.Mode != "limit" {
-			t.Errorf("reason = %+v, want {fat 92 70 limit}", *r)
+		// 22/70 = 31.4% over. Only the percentage leaves the server.
+		want := dotReason{Metric: "fat", Mode: "limit", Pct: 31, Direction: "over"}
+		if *r != want {
+			t.Errorf("reason = %+v, want %+v", *r, want)
 		}
 	})
 
@@ -328,8 +331,56 @@ func TestBuildDailyStatsReason(t *testing.T) {
 			g(2200),
 			nil, nil, nil, nil, 10,
 		)
-		if r := stats[0].Reason; r == nil || r.Metric != "calories" || r.Total != 2240 || r.Goal != 2200 {
-			t.Errorf("reason = %+v, want calories 2240/2200", r)
+		// 40/2200 = 1.8% over, rounded to 2.
+		want := dotReason{Metric: "calories", Mode: "limit", Pct: 2, Direction: "over"}
+		if r := stats[0].Reason; r == nil || *r != want {
+			t.Errorf("reason = %+v, want %+v", r, want)
+		}
+	})
+
+	t.Run("missed target reports under", func(t *testing.T) {
+		// Protein target 110, ate 60: 45.5% short, red.
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 1500},
+			g(2200),
+			[]string{"protein"},
+			map[string]int{"protein": 110},
+			map[string]string{"protein": "target"},
+			map[string]map[string]int{day: {"protein": 60}},
+			10,
+		)
+		want := dotReason{Metric: "protein", Mode: "target", Pct: 45, Direction: "under"}
+		if r := stats[0].Reason; r == nil || *r != want {
+			t.Errorf("reason = %+v, want %+v", r, want)
+		}
+	})
+
+	t.Run("a tiny overshoot is never 0%", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2201},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		if r := stats[0].Reason; r == nil || r.Pct != 1 {
+			t.Errorf("reason = %+v, want pct 1", r)
+		}
+	})
+
+	t.Run("the JSON carries no totals or goals", func(t *testing.T) {
+		stats := buildDailyStats(
+			[]string{day},
+			map[string]int{day: 2240},
+			g(2200),
+			nil, nil, nil, nil, 10,
+		)
+		b, err := json.Marshal(stats[0].Reason)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(b); got != `{"metric":"calories","mode":"limit","pct":2,"direction":"over"}` {
+			t.Errorf("reason JSON = %s", got)
 		}
 	})
 

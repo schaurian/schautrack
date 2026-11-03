@@ -1,5 +1,5 @@
-// Remaining/over feedback for the Today ring and macro bars, and the numbers
-// behind a day dot's explanation. Colours stay with computeMacroStatus (which
+// Remaining/over feedback for the Today ring and macro bars, and when to nudge
+// a new account toward setting a goal. Colours stay with computeMacroStatus (which
 // applies the goal threshold %); this only says how far from the goal you are.
 
 export type GoalDelta =
@@ -17,24 +17,18 @@ export function goalDelta(total: number, goal: number | null, mode: string): Goa
   return { kind: 'left', amount: goal - total };
 }
 
-export interface DotReason {
-  metric: string;
-  total: number;
-  goal: number;
-  mode: string;
-}
-
-/** How far the metric that decided a dot's colour sits from its goal, in percent. */
-export function dotReasonDeviation(r: DotReason): { direction: 'over' | 'under'; pct: number } {
-  const diff = Math.abs(r.total - r.goal);
-  // A coloured dot always means a real miss; "0% over" would read as no reason.
-  const pct = r.goal > 0 ? Math.max(1, Math.round((diff / r.goal) * 100)) : 0;
-  return { direction: r.total > r.goal ? 'over' : 'under', pct };
-}
-
 /** Mirrors service.GetCalorieGoal: the macro calorie goal wins, else dailyGoal. */
 export function hasCalorieGoal(user: { dailyGoal: number | null; macroGoals?: Record<string, number> | null }): boolean {
   const macro = user.macroGoals?.calories;
   if (macro != null && macro > 0) return true;
   return user.dailyGoal != null && user.dailyGoal > 0;
+}
+
+/**
+ * The "Set a calorie goal" card: only on your own dashboard (a friend's view
+ * is read-only and their goal is not yours to set), only while calories are
+ * tracked, and only until a goal exists.
+ */
+export function shouldShowGoalPrompt(d: { canEdit: boolean; caloriesEnabled: boolean; dailyGoal: number | null }): boolean {
+  return d.canEdit && d.caloriesEnabled && !(d.dailyGoal != null && d.dailyGoal > 0);
 }

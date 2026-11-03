@@ -66,7 +66,8 @@
       "over": "por encima del objetivo",
       "overThreshold": "muy por encima del objetivo",
       "zero": "sin entradas",
-      "none": "sin entradas"
+      "none": "sin entradas",
+      "missedTarget": "objetivo no alcanzado"
     },
     "reason": {
       "over": "{{metric}} {{pct}} % por encima",

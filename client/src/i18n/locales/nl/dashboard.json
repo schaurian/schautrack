@@ -66,7 +66,8 @@
       "over": "boven doel",
       "overThreshold": "ruim boven doel",
       "zero": "geen items",
-      "none": "geen items"
+      "none": "geen items",
+      "missedTarget": "doel gemist"
     },
     "reason": {
       "over": "{{metric}} {{pct}}% te veel",

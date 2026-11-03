@@ -68,7 +68,8 @@
       "over": "powyżej celu",
       "overThreshold": "znacznie powyżej celu",
       "zero": "brak wpisów",
-      "none": "brak wpisów"
+      "none": "brak wpisów",
+      "missedTarget": "cel nieosiągnięty"
     },
     "reason": {
       "over": "{{metric}} {{pct}}% ponad",

@@ -3,7 +3,6 @@ import type { DailyStat } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import { MACRO_LABELS, type MacroKey } from '@/lib/macros';
-import { dotReasonDeviation } from '@/lib/goalFeedback';
 
 interface Props {
   date: string;
@@ -35,7 +34,11 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
     zero: t('dayDot.status.zero'),
     none: t('dayDot.status.none'),
   };
-  const statusLabel = statusLabels[status] || t('dayDot.status.none');
+  // A missed target colours the dot like an overshoot does, but calling it
+  // "over goal" next to "10% under target" contradicts itself.
+  const statusLabel = reason?.direction === 'under'
+    ? t('dayDot.status.missedTarget')
+    : statusLabels[status] || t('dayDot.status.none');
   // UTC on both sides: `date` is a calendar day, not an instant, so the
   // viewer's offset must not shift it to the day before.
   const day = new Date(`${date}T00:00:00Z`);
@@ -47,10 +50,9 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
     const metric = reason.metric === 'calories'
       ? t('entries.caloriesLabel')
       : MACRO_LABELS[reason.metric as MacroKey]?.label || reason.metric;
-    const { direction, pct } = dotReasonDeviation(reason);
-    reasonText = direction === 'over'
-      ? t('dayDot.reason.over', { metric, pct })
-      : t('dayDot.reason.under', { metric, pct });
+    reasonText = reason.direction === 'over'
+      ? t('dayDot.reason.over', { metric, pct: reason.pct })
+      : t('dayDot.reason.under', { metric, pct: reason.pct });
   }
 
   return (
