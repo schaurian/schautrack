@@ -157,6 +157,15 @@ describe('ring overshoot wording', () => {
   });
 });
 
+// The calendar day-dot explains an amber/red dot with the same word the ring
+// uses: German said "drüber" there too.
+describe('day-dot reason wording', () => {
+  it('de: over reason says "über", like the ring', () => {
+    const inst = makeI18n('de');
+    expect(inst.t('dayDot.reason.over', { ns: 'dashboard', metric: 'Protein', pct: 12 })).toBe('Protein 12 % über');
+  });
+});
+
 // German shipped the English "Todos" as the section title. The feature is
 // "Aufgaben" in German; no German string may show the English word.
 describe('German todo wording', () => {
