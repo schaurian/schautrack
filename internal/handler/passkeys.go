@@ -254,6 +254,7 @@ func (h *PasskeyHandler) LoginFinish(w http.ResponseWriter, r *http.Request) {
 	newSess, _ := h.SessionStore.Regenerate(r, sess)
 	session.SetSession(r, newSess)
 	newSess.SetUserID(record.UserID)
+	recordLogin(r.Context(), h.Pool, record.UserID)
 	newSess.Set("auth_method", "passkey")
 
 	OkJSON(w)

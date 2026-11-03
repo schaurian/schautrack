@@ -1,8 +1,14 @@
 import { api } from './client';
-import type { AdminData, InviteCode } from '@/types';
+import type { AdminData, AdminUserSort, InviteCode } from '@/types';
 
-export function getAdminData() {
-  return api<AdminData>('/api/admin');
+const SORT_QUERY: Record<AdminUserSort, string> = {
+  created: '',
+  last_login_desc: '?sort=last_login&order=desc',
+  last_login_asc: '?sort=last_login&order=asc',
+};
+
+export function getAdminData(sort: AdminUserSort = 'created') {
+  return api<AdminData>(`/api/admin${SORT_QUERY[sort]}`);
 }
 
 export function saveAdminSettings(data: Record<string, string>) {

@@ -195,13 +195,20 @@ export interface SettingsData {
   importFeedback: { type: string; message: string } | null;
 }
 
+export interface AdminUser {
+  id: number;
+  email: string;
+  email_verified: boolean;
+  created_at: string;
+  /** null = no login recorded since last-login tracking was introduced. */
+  last_login_at: string | null;
+}
+
+/** Server-side order of the admin user list (GET /api/admin?sort=&order=). */
+export type AdminUserSort = 'created' | 'last_login_desc' | 'last_login_asc';
+
 export interface AdminData {
-  users: {
-    id: number;
-    email: string;
-    email_verified: boolean;
-    created_at: string;
-  }[];
+  users: AdminUser[];
   settings: Record<string, { value: string; source: string }>;
 }
 
