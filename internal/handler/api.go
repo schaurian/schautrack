@@ -68,9 +68,11 @@ func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsC
 			macroGoals = map[string]any{}
 		}
 
-		tz := "UTC"
-		if user.Timezone != nil {
-			tz = *user.Timezone
+		// GetTimezone drops a stored name the server cannot load, so a bad
+		// value reads as the UTC actually in force (and a Settings save fixes it).
+		tz := user.GetTimezone()
+		if tz == "" {
+			tz = "UTC"
 		}
 
 		globalKey := settingsCache.GetEffectiveSetting(r.Context(), "ai_key", cfg.AIKey)
@@ -150,9 +152,11 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 			macroGoals = map[string]any{}
 		}
 
-		tz := "UTC"
-		if user.Timezone != nil {
-			tz = *user.Timezone
+		// GetTimezone drops a stored name the server cannot load, so a bad
+		// value reads as the UTC actually in force (and a Settings save fixes it).
+		tz := user.GetTimezone()
+		if tz == "" {
+			tz = "UTC"
 		}
 
 		hasAiKey := user.AIKey != nil && *user.AIKey != ""

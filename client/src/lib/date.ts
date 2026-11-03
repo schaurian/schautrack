@@ -42,3 +42,65 @@ export function followToday(selected: string, prevToday: string | undefined, nex
   if (prevToday && prevToday !== nextToday && selected === prevToday) return nextToday;
   return selected;
 }
+
+/**
+ * Today's calendar date in an IANA zone (the user's stored zone), as
+ * "YYYY-MM-DD". An unknown zone falls back to the browser's local date rather
+ * than throwing, like the server falls back to UTC.
+ */
+export function todayInTz(timeZone: string | undefined, now: Date = new Date()): string {
+  if (timeZone) {
+    try {
+      return now.toLocaleDateString('en-CA', { timeZone });
+    } catch {
+      // RangeError: unknown zone — fall through.
+    }
+  }
+  return localDateStr(now);
+}
+
+/** UTC offset of `timeZone` at instant `t`, in ms (wall clock minus UTC). */
+function tzOffsetMs(timeZone: string, t: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(t));
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const wallAsUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return wallAsUtc - Math.floor(t / 1000) * 1000;
+}
+
+/**
+ * The instant (epoch ms) at which the calendar date in `timeZone` next
+ * changes, i.e. the coming local midnight. DST-aware: the offset is taken at
+ * the target, not at `now`, so a 23- or 25-hour day lands on 00:00. In the
+ * few zones whose DST jump skips midnight itself, it returns the jump instant
+ * (the first moment of the new day). An unknown zone uses the browser's.
+ */
+export function nextMidnightInTz(timeZone: string | undefined, now: number = Date.now()): number {
+  if (!timeZone || !isValidZone(timeZone)) {
+    const local = new Date(now);
+    return new Date(local.getFullYear(), local.getMonth(), local.getDate() + 1).getTime();
+  }
+  const today = todayInTz(timeZone, new Date(now));
+  const [y, m, d] = today.split('-').map(Number);
+  const wallMidnight = Date.UTC(y, m - 1, d + 1);
+  const first = wallMidnight - tzOffsetMs(timeZone, now);
+  const refined = wallMidnight - tzOffsetMs(timeZone, first);
+  return todayInTz(timeZone, new Date(refined)) !== today ? refined : first;
+}
+
+function isValidZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}

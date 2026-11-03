@@ -77,4 +77,39 @@ test.describe('Day boundary', () => {
       await context.close();
     });
   }
+
+  test('a visible tab re-checks the day at the user\'s midnight, without any refetch trigger', async ({ browser }) => {
+    psql(`DELETE FROM calorie_entries WHERE user_id = ${user.id}`);
+    psql(`UPDATE users SET timezone = '${BEFORE_TZ}' WHERE id = ${user.id}`);
+    const before = dateIn(BEFORE_TZ);
+
+    const { context, page } = await loginUser(browser, user.email, user.password, { timezoneId: 'Pacific/Auckland' });
+    // Fake only the browser's clock, starting at the real now so the page and
+    // the server agree on the date at load time.
+    await page.clock.install({ time: new Date() });
+    await page.goto('/dashboard');
+    const pill = page.locator('header').filter({ has: page.locator('input[type="date"]') });
+    const dateInput = pill.locator('input[type="date"]');
+    await expect(dateInput).toHaveValue(before, { timeout: 15000 });
+    await expect(pill).toContainText('Today');
+
+    // The server's day moves on (see the file header) — but nothing tells the
+    // tab: no focus change, no SSE event.
+    psql(`UPDATE users SET timezone = '${AFTER_TZ}' WHERE id = ${user.id}`);
+    const after = dateIn(AFTER_TZ);
+
+    // Run the browser clock past the next midnight in the zone the dashboard
+    // was loaded with (UTC-12: midnight is 12:00 UTC), plus the re-check buffer.
+    const now = Date.now();
+    const nextNoonUtc = new Date(now);
+    nextNoonUtc.setUTCHours(12, 0, 0, 0);
+    if (nextNoonUtc.getTime() <= now) nextNoonUtc.setUTCDate(nextNoonUtc.getUTCDate() + 1);
+    await page.clock.fastForward(nextNoonUtc.getTime() - now + 6_000);
+
+    await expect(dateInput).toHaveValue(after, { timeout: 10000 });
+    await expect(pill).toContainText('Today');
+    const shots = process.env.DAY_BOUNDARY_SHOTS;
+    if (shots) await page.screenshot({ path: `${shots}/visible-tab-after-midnight.png` });
+    await context.close();
+  });
 });

@@ -243,6 +243,7 @@ export default function Plan() {
         showBodyFat
         healthyRange={data.healthyRange}
         weightUnit={weightUnit}
+        timeZone={user?.timezone}
       />
 
       {/* Progress */}

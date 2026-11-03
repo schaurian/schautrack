@@ -62,13 +62,15 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 	defer weights.Close()
 
-	filename := fmt.Sprintf("schautrack-export-%s.json", time.Now().Format("2006-01-02"))
+	filename := exportFilename(time.Now(), getUserTimezone(r, user))
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 
-	tz := "UTC"
-	if user.Timezone != nil {
-		tz = *user.Timezone
+	// GetTimezone drops a stored name the server cannot load, so a bad
+	// value reads as the UTC actually in force (and a Settings save fixes it).
+	tz := user.GetTimezone()
+	if tz == "" {
+		tz = "UTC"
 	}
 
 	var macrosEnabled, macroGoalsRaw any
@@ -176,6 +178,33 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprint(w, "]\n}")
+}
+
+// importTimezoneValid reports whether an import file's user.timezone, when
+// present and non-empty, is a zone time.LoadLocation accepts. A non-string
+// value is invalid too: it is ignored today, but a file that has one is not
+// one this server wrote.
+func importTimezoneValid(parsed map[string]any) bool {
+	userObj, ok := parsed["user"].(map[string]any)
+	if !ok {
+		return true
+	}
+	raw, present := userObj["timezone"]
+	if !present || raw == nil {
+		return true
+	}
+	tz, ok := raw.(string)
+	if !ok {
+		return false
+	}
+	return tz == "" || service.ValidTimezone(tz)
+}
+
+// exportFilename names an export after the user's calendar day. The server's
+// own date (UTC in the container) named an Auckland user's morning export after
+// yesterday and a Los Angeles user's evening export after tomorrow.
+func exportFilename(now time.Time, tz string) string {
+	return fmt.Sprintf("schautrack-export-%s.json", service.FormatDateInTz(now, tz))
 }
 
 // importEntry is a single calorie entry that survived import validation and is
@@ -539,6 +568,14 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 	// Validate and extract the importable payload before touching the
 	// database. The emptiness guard below must run before any DELETE so a
 	// garbage file can never wipe the user's existing data.
+	// A timezone the server cannot load would be stored as-is and then
+	// silently count every day in UTC. Refuse the file before the destructive
+	// part rather than restore the data under the wrong day boundaries.
+	if !importTimezoneValid(parsed) {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid timezone in import file.")
+		return
+	}
+
 	data := parseImportData(parsed)
 	toInsert := data.entries
 	weightToInsert := data.weights

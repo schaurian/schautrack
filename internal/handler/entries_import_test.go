@@ -483,6 +483,12 @@ func TestImport_RejectsBadInputBeforeAnyDBAccess(t *testing.T) {
 			"No valid entries found in import file."},
 		{"empty object deletes nothing", "import_file", `{}`,
 			"No valid entries found in import file."},
+		{"invalid timezone deletes nothing", "import_file",
+			`{"user":{"timezone":"Mars/Olympus_Mons"},"entries":[{"date":"2025-01-15","amount":100}]}`,
+			"Invalid timezone in import file."},
+		{"non-string timezone deletes nothing", "import_file",
+			`{"user":{"timezone":13},"entries":[{"date":"2025-01-15","amount":100}]}`,
+			"Invalid timezone in import file."},
 	}
 
 	for _, tt := range tests {
