@@ -12,22 +12,22 @@ export default function Terms() {
         <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <p>{t('terms.intro')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.service.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.service.heading')}</h2>
           <p>{t('terms.service.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.eligibility.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.eligibility.heading')}</h2>
           <p>{t('terms.eligibility.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.notMedicalAdvice.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.notMedicalAdvice.heading')}</h2>
           <p>{t('terms.notMedicalAdvice.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.yourAccount.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.yourAccount.heading')}</h2>
           <p>{t('terms.yourAccount.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.accountLinking.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.accountLinking.heading')}</h2>
           <p>{t('terms.accountLinking.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.thirdPartyData.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.thirdPartyData.heading')}</h2>
           <p>
             <Trans
               t={t}
@@ -53,22 +53,22 @@ export default function Terms() {
             />
           </p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.acceptableUse.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.acceptableUse.heading')}</h2>
           <p>{t('terms.acceptableUse.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.availability.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.availability.heading')}</h2>
           <p>{t('terms.availability.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.termination.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.termination.heading')}</h2>
           <p>{t('terms.termination.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.liability.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.liability.heading')}</h2>
           <p>{t('terms.liability.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.changes.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.changes.heading')}</h2>
           <p>{t('terms.changes.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('terms.governingLaw.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('terms.governingLaw.heading')}</h2>
           <p>{t('terms.governingLaw.body')}</p>
         </div>
       </Card>

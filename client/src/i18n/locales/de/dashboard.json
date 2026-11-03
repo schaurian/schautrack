@@ -59,7 +59,8 @@
     "todayLabel": "Heute",
     "entriesDateAndLabel": "{{date}} — {{label}}",
     "viewOwnDayAriaLabel": "Deinen Tag ansehen",
-    "viewFriendDayAriaLabel": "{{label}}s Tag ansehen"
+    "viewFriendDayAriaLabel": "{{label}}s Tag ansehen",
+    "changeDateAriaLabel": "Datum ändern, aktuell {{date}}"
   },
   "dayDot": {
     "status": {
@@ -115,7 +116,11 @@
     "toastUpdateFailed": "Eintrag konnte nicht aktualisiert werden",
     "toastDeleted": "Eintrag gelöscht",
     "toastRestoreFailed": "Wiederherstellung fehlgeschlagen",
-    "toastDeleteFailed": "Eintrag konnte nicht gelöscht werden"
+    "toastDeleteFailed": "Eintrag konnte nicht gelöscht werden",
+    "editFieldAriaLabel": "{{field}} für {{name}}",
+    "nameFieldLabel": "Name",
+    "savedAnnouncement": "{{field}} für {{name}} gespeichert",
+    "savedLabel": "Gespeichert"
   },
   "notes": {
     "sectionTitle": "Notizen",

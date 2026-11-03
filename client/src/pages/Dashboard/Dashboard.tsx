@@ -150,6 +150,10 @@ export default function Dashboard() {
   // pill on a desktop just focuses an input nobody can see. focus() is the
   // fallback for browsers without showPicker, and for the NotAllowedError it
   // throws outside a user gesture.
+  const dateLabel = selectedDate === dashboard.todayStr
+    ? t('dashboard.todayLabel')
+    : formatDay(selectedDate, 'short');
+
   const openDatePicker = () => {
     const el = dateInputRef.current;
     if (!el) return;
@@ -162,26 +166,37 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* No page title: the nav already names this page, and the pill below
+      <h1 className="sr-only">{t('nav.dashboard', { ns: 'common' })}</h1>
+      {/* No visible page title: the nav already names this page, and the pill below
           carries the only thing the heading added — which day you are looking
           at. It reads "Today" for today and the date otherwise. */}
       <header className="flex items-center justify-end px-1 pt-1">
-        {/* Ghost date pill: the real (transparent) input sits on top so keyboard
-            entry and the aria-label keep working, and onClick calls showPicker()
-            so the calendar opens on desktop too — see openDatePicker. */}
-        <div className="relative inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:border-white/20 hover:text-foreground">
-          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
-          </svg>
-          <span className="tabular-nums">
-            {selectedDate === dashboard.todayStr
-              ? t('dashboard.todayLabel')
-              : formatDay(selectedDate, 'short')}
-          </span>
+        {/* Ghost date pill. Pointer and keyboard take different routes to the
+            same native picker. A tap or click lands on the transparent date
+            input laid over the pill, which is what mobile browsers need to open
+            their calendar (and onClick calls showPicker() for desktop — see
+            openDatePicker). The keyboard gets the pill itself, a real button
+            with a visible focus ring and a name that says what it does; the
+            input is out of the tab order and hidden from assistive tech, where
+            it used to take focus with no outline and no visible change. The
+            input sits on top, so hover is styled from the wrapper (group). */}
+        <div className="group relative inline-flex">
+          <button
+            type="button"
+            onClick={openDatePicker}
+            aria-label={t('dashboard.changeDateAriaLabel', { date: dateLabel })}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] text-muted-foreground transition-colors group-hover:border-white/20 group-hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
+            </svg>
+            <span className="tabular-nums">{dateLabel}</span>
+          </button>
           <input
             ref={dateInputRef}
             type="date"
-            aria-label={t('entries.entryDateAriaLabel')}
+            tabIndex={-1}
+            aria-hidden="true"
             className="absolute inset-0 cursor-pointer opacity-0"
             value={selectedDate}
             onClick={openDatePicker}
@@ -270,7 +285,7 @@ export default function Dashboard() {
 
       {showCat('nutrition') && (
         <section className="surface p-4">
-          <SectionLabel right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: formatDay(selectedDate, 'short'), label: activeView ? viewLabel(activeView, t) : currentLabel })}</span>}>
+          <SectionLabel headingId="entries-heading" right={<span className="min-w-0 truncate text-xs text-muted-foreground">{t('dashboard.entriesDateAndLabel', { date: formatDay(selectedDate, 'short'), label: activeView ? viewLabel(activeView, t) : currentLabel })}</span>}>
             {t('dashboard.entriesSectionTitle')}
           </SectionLabel>
           <EntryList
@@ -280,6 +295,7 @@ export default function Dashboard() {
             enabledMacros={dashboard.enabledMacros}
             caloriesEnabled={dashboard.caloriesEnabled}
             autoCalcCalories={dashboard.autoCalcCalories}
+            headingId="entries-heading"
           />
         </section>
       )}

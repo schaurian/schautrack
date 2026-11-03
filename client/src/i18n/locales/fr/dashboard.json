@@ -59,7 +59,8 @@
     "todayLabel": "Aujourd'hui",
     "entriesDateAndLabel": "{{date}} — {{label}}",
     "viewOwnDayAriaLabel": "Voir votre journée",
-    "viewFriendDayAriaLabel": "Voir la journée de {{label}}"
+    "viewFriendDayAriaLabel": "Voir la journée de {{label}}",
+    "changeDateAriaLabel": "Changer la date, actuellement {{date}}"
   },
   "dayDot": {
     "status": {
@@ -115,7 +116,11 @@
     "toastUpdateFailed": "Échec de la mise à jour de l'entrée",
     "toastDeleted": "Entrée supprimée",
     "toastRestoreFailed": "Échec de la restauration",
-    "toastDeleteFailed": "Échec de la suppression de l'entrée"
+    "toastDeleteFailed": "Échec de la suppression de l'entrée",
+    "editFieldAriaLabel": "{{field}} pour {{name}}",
+    "nameFieldLabel": "Nom",
+    "savedAnnouncement": "{{field}} pour {{name}} enregistré",
+    "savedLabel": "Enregistré"
   },
   "notes": {
     "sectionTitle": "Notes",

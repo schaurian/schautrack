@@ -359,6 +359,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
               className={inputClass}
               type="text"
               aria-label={t('entries.foodNameAriaLabel')}
+              data-autofocus
               placeholder={t('entries.foodNamePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}

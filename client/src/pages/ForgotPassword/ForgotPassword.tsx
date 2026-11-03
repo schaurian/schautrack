@@ -47,7 +47,7 @@ export default function ForgotPassword() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-6 text-xl font-semibold">{t('forgotPassword.title')}</h2>
+        <h1 className="mb-6 text-xl font-semibold">{t('forgotPassword.title')}</h1>
         {error && <Alert type="error" message={error} className="mb-4" />}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input label={t('forgotPassword.emailLabel')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />

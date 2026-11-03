@@ -74,9 +74,9 @@ export default function AISettings({ user, onSave }: Props) {
       <h3 className="text-sm font-semibold mb-3">{t('ai.heading')}</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('ai.provider')}</label>
+          <label htmlFor="ai-provider" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('ai.provider')}</label>
           <Select value={provider || NONE} onValueChange={(v) => setProvider(v === NONE ? '' : v)}>
-            <SelectTrigger data-testid="ai-provider"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="ai-provider" data-testid="ai-provider"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE}>{t('ai.providerDefault')}</SelectItem>
               <SelectItem value="openai">OpenAI</SelectItem>
