@@ -64,21 +64,22 @@ test.describe('Mobile touch targets and FAB clearance', () => {
       const dots = page.getByTestId('share-card').first().locator('button[title]');
       expect(intersects(await box(dots.nth(0)), await box(dots.nth(1))), 'day-dot hit areas overlap').toBe(false);
 
-      // The day number belongs visibly to its own square: at most 4px under it,
-      // and the next row's square is clearly further away than that.
-      const geo = await page.getByTestId('share-card').first().locator('button[title]').evaluateAll((els) => {
-        const parts = (el: Element) => {
-          const [square, num] = el.querySelectorAll(':scope > span');
-          return { square: square.getBoundingClientRect(), num: num.getBoundingClientRect(), top: el.getBoundingClientRect().top };
-        };
-        const first = parts(els[0]);
-        const below = els.map(parts).find((p) => p.top > first.top + 1);
-        return { numGap: first.num.top - first.square.bottom, rowGap: below ? below.square.top - first.num.bottom : null };
+      // No day-of-month number: each dot button holds only its 22px square
+      // and carries no text (the date is in its title and label).
+      const contents = await dots.evaluateAll((els) => els.map((el) => ({ children: el.children.length, text: el.textContent ?? '' })));
+      expect(contents.length, 'day dots rendered').toBeGreaterThan(0);
+      for (const c of contents) {
+        expect(c.children, 'day dot children (square only, no day number)').toBe(1);
+        expect(c.text, 'day dot text (no day number)').toBe('');
+      }
+      // Compact as before the 44px hit areas: 8px under the last row of
+      // squares plus the card's 6px padding (it was 21px with the grid's own
+      // padding on top of the hit-area margin).
+      const tail = await page.getByTestId('share-card').first().evaluate((card) => {
+        const squares = [...card.querySelectorAll('button[title] > span')].map((s) => s.getBoundingClientRect().bottom);
+        return card.getBoundingClientRect().bottom - Math.max(...squares);
       });
-      expect(geo.numGap, 'day number gap under its square').toBeGreaterThanOrEqual(0);
-      expect(geo.numGap, 'day number gap under its square').toBeLessThanOrEqual(4);
-      expect(geo.rowGap, 'number to next row square').not.toBeNull();
-      expect(geo.rowGap as number, 'number to next row square').toBeGreaterThanOrEqual(geo.numGap + 6);
+      expect(tail, 'space under the last row of day squares').toBeLessThanOrEqual(15);
 
       // Delete is separated from save-as-quick-add by a dead zone, not flush.
       const save = await box(page.getByRole('button', { name: 'Save as quick-add' }).first());

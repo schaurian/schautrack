@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { DailyStat } from '@/types';
 import { cn } from '@/lib/utils';
-import { formatDate, formatDay } from '@/lib/format';
+import { formatDay } from '@/lib/format';
 import { MACRO_LABELS, type MacroKey } from '@/lib/macros';
 
 interface Props {
@@ -23,8 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 // A dot takes the worst status across calories and every macro, so it can be
 // red while the calorie ring is only amber. The tooltip and label name the
-// date and the metric that decided the colour; the day number under the dot
-// keeps the direction readable once 14 dots wrap into two rows on a phone.
+// date and the metric that decided the colour.
 export default function DayDot({ date, status, reason, isToday, isSelected, onClick }: Props) {
   const { t } = useTranslation('dashboard');
   const statusLabels: Record<string, string> = {
@@ -40,11 +39,7 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
     ? t('dayDot.status.missedTarget')
     : statusLabels[status] || t('dayDot.status.none');
   // The shared short day style (same as the date pill and entries header).
-  // The day number: UTC on both sides, since `date` is a calendar day, not an
-  // instant, and the viewer's offset must not shift it to the day before.
-  const day = new Date(`${date}T00:00:00Z`);
   const dateLabel = formatDay(date, 'short');
-  const dayNumber = formatDate(day, undefined, { day: 'numeric', timeZone: 'UTC' });
 
   let reasonText = '';
   if (reason) {
@@ -56,14 +51,13 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
       : t('dayDot.reason.under', { metric, pct: reason.pct });
   }
 
-  // The button is the 44x44 hit area. Inside it, stacked and centred: the 22px
-  // coloured square, then its day number 2px below. ShareCard lays the buttons
-  // out edge to edge, so neighbouring hit areas touch without overlapping, and
-  // each number sits inside its own dot's button rather than between rows.
+  // The button is the 44x44 hit area with the 22px coloured square centred in
+  // it. ShareCard lays the buttons out edge to edge, so neighbouring hit areas
+  // touch without overlapping.
   return (
     <button
       type="button"
-      className="group/dot flex size-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-transparent p-0"
+      className="group/dot flex size-11 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0"
       onClick={onClick}
       title={`${dateLabel} — ${statusLabel}${reasonText ? `: ${reasonText}` : ''}`}
       // The ISO date leads so the label stays unique and machine-findable.
@@ -79,9 +73,6 @@ export default function DayDot({ date, status, reason, isToday, isSelected, onCl
           !isToday && !isSelected && 'group-hover/dot:ring-1 group-hover/dot:ring-muted-foreground/40'
         )}
       />
-      <span aria-hidden="true" className={cn('text-[9px] leading-none tabular-nums', isToday ? 'font-bold text-primary' : 'text-muted-foreground')}>
-        {dayNumber}
-      </span>
     </button>
   );
 }

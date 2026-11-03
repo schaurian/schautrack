@@ -37,9 +37,13 @@ describe('DayDot', () => {
     expect(screen.getByRole('button')).toHaveAttribute('title', 'Wed, Oct 28 — missed target: Protein 10% under target');
   });
 
-  it('shows the day of month so wrapped rows read in order', () => {
+  // The day-of-month number under each square was removed on request; the
+  // date lives in the title and label only.
+  it('renders only the coloured square, no day number', () => {
     render(<DayDot date="2026-10-05" status="none" isToday isSelected={false} onClick={vi.fn()} />);
-    expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByRole('button')).toHaveAttribute('title', 'Mon, Oct 5 — no entries');
+    const dot = screen.getByRole('button');
+    expect(dot).toHaveTextContent(/^$/);
+    expect(dot.children).toHaveLength(1);
+    expect(dot).toHaveAttribute('title', 'Mon, Oct 5 — no entries');
   });
 });
