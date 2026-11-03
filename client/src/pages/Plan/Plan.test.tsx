@@ -6,7 +6,11 @@ import type { PlanResponse } from '@/types';
 import Plan from './Plan';
 
 vi.mock('@/hooks/useAuth', () => ({
-  useRequireAuth: () => ({ user: { id: 1, weightUnit: 'kg' }, isLoading: false }),
+  useRequireAuth: () => ({ user: { id: 1, weightUnit: 'kg', timezone: 'Pacific/Auckland' }, isLoading: false }),
+}));
+// A stub that exposes the props under test; the real chart has its own tests.
+vi.mock('./PlanChart', () => ({
+  default: (props: { timeZone?: string }) => <div data-testid="plan-chart" data-timezone={props.timeZone ?? ''} />,
 }));
 vi.mock('@/api/plan', () => ({
   getPlan: vi.fn(),
@@ -67,5 +71,20 @@ describe('Plan page in German', () => {
     renderPlan();
     expect(await screen.findByText('Beim aktuellen Trend: 7. Feb. 2027')).toBeInTheDocument();
     expect(screen.queryByText(/2027-02-07/)).not.toBeInTheDocument();
+  });
+});
+
+// Plan must hand PlanChart the user's stored zone: that zone decides which
+// calendar day the chart calls "today", and it is the zone the server dated the
+// series and the ETA from. Dropping the prop silently falls back to the
+// browser's zone.
+describe('Plan chart timezone', () => {
+  beforeEach(() => {
+    vi.mocked(getPlan).mockResolvedValue(PLAN);
+  });
+
+  it("passes the user's stored timezone to PlanChart", async () => {
+    renderPlan();
+    expect(await screen.findByTestId('plan-chart')).toHaveAttribute('data-timezone', 'Pacific/Auckland');
   });
 });

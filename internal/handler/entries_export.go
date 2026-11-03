@@ -200,6 +200,14 @@ func importTimezoneValid(parsed map[string]any) bool {
 	return tz == "" || service.ValidTimezone(tz)
 }
 
+// importTimezone returns the import file's user.timezone, trimmed, or "" when
+// it is absent, empty or not a string. Validity is checked up front by
+// importTimezoneValid; this only decides whether there is a zone to write.
+func importTimezone(userObj map[string]any) string {
+	tz, _ := userObj["timezone"].(string)
+	return strings.TrimSpace(tz)
+}
+
 // exportFilename names an export after the user's calendar day. The server's
 // own date (UTC in the container) named an Auckland user's morning export after
 // yesterday and a Los Angeles user's evening export after tomorrow.
@@ -441,7 +449,7 @@ func parseImportData(parsed map[string]any) importData {
 	// Check user settings
 	hasUserSettings := false
 	if userObj, ok := parsed["user"].(map[string]any); ok {
-		if userObj["macros_enabled"] != nil || userObj["macro_goals"] != nil || goalCandidate != nil || userObj["weight_unit"] != nil || userObj["timezone"] != nil {
+		if userObj["macros_enabled"] != nil || userObj["macro_goals"] != nil || goalCandidate != nil || userObj["weight_unit"] != nil || importTimezone(userObj) != "" {
 			hasUserSettings = true
 		}
 	}
@@ -650,7 +658,9 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if tz, ok := userObj["timezone"].(string); ok && len(tz) <= 50 {
+		// "" is "no timezone in this file", not a zone to store: writing it
+		// with timezone_manual pinned the account to UTC days for good.
+		if tz := importTimezone(userObj); tz != "" {
 			if _, err := tx.Exec(r.Context(), "UPDATE users SET timezone = $1, timezone_manual = TRUE WHERE id = $2", tz, user.ID); err != nil {
 				ErrorJSON(w, http.StatusInternalServerError, "Import failed.")
 				return

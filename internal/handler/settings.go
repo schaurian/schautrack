@@ -71,10 +71,10 @@ func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tz := strings.TrimSpace(body.Timezone)
-	if tz != "" {
-		if _, err := time.LoadLocation(tz); err != nil {
-			tz = ""
-		}
+	// ValidTimezone, not a bare LoadLocation: "Local" loads fine but means
+	// the server's own zone, not anything the user picked.
+	if tz != "" && !service.ValidTimezone(tz) {
+		tz = ""
 	}
 
 	// Empty/unsupported language means "Automatic" — store NULL so browser

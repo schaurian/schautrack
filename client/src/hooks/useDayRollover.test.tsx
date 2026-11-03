@@ -69,4 +69,39 @@ describe('useDayRollover', () => {
     vi.advanceTimersByTime(2 * 24 * 3600_000);
     expect(onRollover).not.toHaveBeenCalled();
   });
+
+  it('re-arms for the new zone when the stored timezone changes while mounted', () => {
+    // 23:59 in Auckland; it is still only 03:59 the same day in Berlin (CET).
+    vi.setSystemTime(new Date('2026-11-03T10:59:00Z'));
+    const onRollover = vi.fn();
+    const { rerender } = renderHook(({ tz }) => useDayRollover(tz, onRollover), {
+      initialProps: { tz: 'Pacific/Auckland' },
+    });
+    rerender({ tz: 'Europe/Berlin' });
+    // One timer only: the Auckland one was cleared, not left running beside it.
+    expect(vi.getTimerCount()).toBe(1);
+
+    // Auckland's midnight passes: nothing, the user is in Berlin now.
+    vi.advanceTimersByTime(60_000 + DAY_ROLLOVER_BUFFER_MS);
+    expect(onRollover).not.toHaveBeenCalled();
+
+    // Berlin's midnight is 2026-11-03T23:00Z, 12 h 1 min after the start.
+    vi.advanceTimersByTime(12 * 3600_000 - 1);
+    expect(onRollover).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onRollover).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls the latest callback passed in, not the one it was mounted with', () => {
+    vi.setSystemTime(new Date('2026-11-03T10:59:00Z'));
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = renderHook(({ cb }) => useDayRollover('Pacific/Auckland', cb), {
+      initialProps: { cb: first },
+    });
+    rerender({ cb: second });
+    vi.advanceTimersByTime(60_000 + DAY_ROLLOVER_BUFFER_MS);
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
 });
