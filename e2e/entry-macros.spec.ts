@@ -32,7 +32,7 @@ test.describe('Entry with Macros', () => {
     await page.locator('input[placeholder="Breakfast, snack..."]').waitFor({ state: 'visible', timeout: 10000 });
 
     // Check if macro inputs are visible (user needs macros enabled)
-    const proteinInput = page.locator('input[inputmode="numeric"][placeholder="0"]').first();
+    const proteinInput = page.locator('input[data-testid^="entry-macro-"]').first();
     const hasMacros = await proteinInput.isVisible({ timeout: 15000 }).catch(() => false);
 
     if (!hasMacros) {
@@ -43,10 +43,10 @@ test.describe('Entry with Macros', () => {
 
     // Fill in entry with macros
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Chicken breast');
-    await page.locator('input[inputmode="tel"][placeholder="0"]').first().fill('250');
+    await page.locator('[data-testid="entry-calories"]').first().fill('250');
 
     // Fill macro fields (protein, carbs, fat in order)
-    const macroInputs = page.locator('input[inputmode="numeric"][placeholder="0"]');
+    const macroInputs = page.locator('input[data-testid^="entry-macro-"]');
     const count = await macroInputs.count();
     if (count >= 1) await macroInputs.nth(0).fill('30');
     if (count >= 2) await macroInputs.nth(1).fill('5');

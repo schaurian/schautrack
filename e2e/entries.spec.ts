@@ -17,7 +17,7 @@ test.describe('Entry Tracking', () => {
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await nameInput.fill('Test meal');
-    await page.locator('input[inputmode="tel"]').first().fill('500');
+    await page.locator('[data-testid="entry-calories"]').first().fill('500');
     await page.getByRole('button', { name: 'Track' }).click();
 
     await expect(page.getByRole('button', { name: 'Test meal' })).toBeVisible({ timeout: 5000 });
@@ -37,7 +37,7 @@ test.describe('Entry Tracking', () => {
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await nameInput.fill('Math test meal');
-    await page.locator('input[inputmode="tel"]').first().fill('200+150');
+    await page.locator('[data-testid="entry-calories"]').first().fill('200+150');
     await page.getByRole('button', { name: 'Track' }).click();
 
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
@@ -56,7 +56,7 @@ test.describe('Entry Tracking', () => {
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await nameInput.fill('Total test');
-    await page.locator('input[inputmode="tel"]').first().fill('500');
+    await page.locator('[data-testid="entry-calories"]').first().fill('500');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('500').first()).toBeVisible({ timeout: 5000 });
@@ -77,7 +77,7 @@ test.describe('Entry Tracking', () => {
 
     await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Over Goal');
-    await page.locator('input[inputmode="tel"]').first().fill('2500');
+    await page.locator('[data-testid="entry-calories"]').first().fill('2500');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
@@ -99,7 +99,7 @@ test.describe('Entry Tracking', () => {
     await expect(nameInput).toBeVisible({ timeout: 10000 });
     await page.locator('form input[type="date"]').first().fill(yesterday);
     await nameInput.fill('Yesterday entry');
-    await page.locator('input[inputmode="tel"]').first().fill('111');
+    await page.locator('[data-testid="entry-calories"]').first().fill('111');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 

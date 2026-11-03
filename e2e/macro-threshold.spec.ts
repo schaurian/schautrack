@@ -35,7 +35,7 @@ test.describe.serial('Macro Threshold', () => {
     // Track 1150 kcal: over_threshold because 150*100 > 1000*10 (15000 > 10000)
     await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Big meal');
-    await page.locator('input[inputmode="tel"]').first().fill('1150');
+    await page.locator('[data-testid="entry-calories"]').first().fill('1150');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
@@ -75,7 +75,7 @@ test.describe.serial('Macro Threshold', () => {
     // Track 1050 kcal: over=50, 50*100=5000, 1000*10=10000 → 5000 < 10000 → "over" (warning), not "over_threshold"
     await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Moderate meal');
-    await page.locator('input[inputmode="tel"]').first().fill('1050');
+    await page.locator('[data-testid="entry-calories"]').first().fill('1050');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
@@ -119,7 +119,7 @@ test.describe.serial('Macro Threshold', () => {
     await expect(page.locator('input[placeholder="Breakfast, snack..."]')).toBeVisible({ timeout: 10000 });
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('High protein');
-    await page.locator('input[inputmode="tel"]').first().fill('500');
+    await page.locator('[data-testid="entry-calories"]').first().fill('500');
 
     // Protein is enabled above, so the macro input must be there
     const proteinInput = page.locator('#entry-macro-protein');

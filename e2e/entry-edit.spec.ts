@@ -49,11 +49,11 @@ test.describe('Entry Inline Edit', () => {
     await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill(name);
     // Fill protein (always editable, even with auto-calc)
-    const macroInputs = page.locator('input[inputmode="numeric"][placeholder="0"]');
+    const macroInputs = page.locator('input[data-testid^="entry-macro-"]');
     if (await macroInputs.first().isVisible({ timeout: 2000 }).catch(() => false)) {
       await macroInputs.first().fill('20');
     } else {
-      await page.locator('input[inputmode="tel"][placeholder="0"]').first().fill('200');
+      await page.locator('[data-testid="entry-calories"]').first().fill('200');
     }
     await page.locator('form button[type="submit"]').click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });

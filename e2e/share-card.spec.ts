@@ -46,7 +46,7 @@ test.describe('Share Card', () => {
     // Add an entry
     await openAddFood(page);
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Share card test');
-    await page.locator('input[inputmode="tel"]').first().fill('400');
+    await page.locator('[data-testid="entry-calories"]').first().fill('400');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
