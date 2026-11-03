@@ -7,17 +7,35 @@ export interface ToastAction {
 
 type ToastType = 'success' | 'error' | 'info';
 
-interface Toast {
+export interface Toast {
   id: number;
   type: ToastType;
   message: string;
   action?: ToastAction;
   duration: number;
+  /** Toasts sharing a replace key hold one slot: a newer one takes it over. */
+  replaceKey?: string;
+  /** Bumped each time the slot is taken over, so the Toaster can animate it. */
+  revision: number;
+}
+
+export interface ToastOptions {
+  /**
+   * One toast per key: a new toast with the same key replaces the visible one
+   * (content swapped, timer restarted) instead of stacking under it.
+   */
+  replaceKey?: string;
+  /**
+   * Click-time order from nextToastSeq(). A keyed toast whose seq is older than
+   * the one already shown for its key is dropped, so a slow response to an
+   * earlier click cannot take the slot from a later click's toast.
+   */
+  seq?: number;
 }
 
 interface ToastState {
   toasts: Toast[];
-  addToast: (type: ToastType, message: string, action?: ToastAction) => void;
+  addToast: (type: ToastType, message: string, action?: ToastAction, options?: ToastOptions) => void;
   removeToast: (id: number) => void;
   pauseToast: (id: number) => void;
   resumeToast: (id: number) => void;
@@ -32,12 +50,24 @@ const LONG_DURATION = 10000;
 // doesn't trigger re-renders.
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 
+// Toasts paused by hover/focus. Kept apart from `timers` so a replacement
+// (replaceKey) knows not to start a timer the pointer or focus is holding off.
+const paused = new Set<number>();
+
+// Highest seq shown so far per replace key.
+const shownSeq = new Map<string, number>();
+
 let nextId = 0;
+let seqCounter = 0;
+
+/** Take a sequence number at click time; pass it as ToastOptions.seq. */
+export const nextToastSeq = () => ++seqCounter;
 
 export const useToastStore = create<ToastState>((set, get) => {
   const schedule = (id: number, duration: number) => {
     const handle = setTimeout(() => {
       timers.delete(id);
+      paused.delete(id);
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
     }, duration);
     timers.set(id, handle);
@@ -53,13 +83,39 @@ export const useToastStore = create<ToastState>((set, get) => {
 
   return {
     toasts: [],
-    addToast: (type, message, action) => {
+    addToast: (type, message, action, options) => {
+      const replaceKey = options?.replaceKey;
+      const duration = type === 'error' || action ? LONG_DURATION : DEFAULT_DURATION;
+      // A keyed toast takes over the slot of the one already on screen. Deleting
+      // entries in a row shows only the latest delete and its Undo; the earlier
+      // writes are already committed and simply lose their Undo.
+      if (replaceKey !== undefined && options?.seq !== undefined) {
+        const shown = shownSeq.get(replaceKey);
+        if (shown !== undefined && options.seq < shown) return;
+        shownSeq.set(replaceKey, options.seq);
+      }
+      if (replaceKey !== undefined) {
+        const existing = get().toasts.find((t) => t.replaceKey === replaceKey);
+        if (existing) {
+          clear(existing.id);
+          set((state) => ({
+            toasts: state.toasts.map((t) =>
+              t.id === existing.id ? { ...t, type, message, action, duration, revision: t.revision + 1 } : t,
+            ),
+          }));
+          // Hovered or focused: stay paused; resumeToast starts the timer.
+          if (!paused.has(existing.id)) schedule(existing.id, duration);
+          return;
+        }
+      }
       // Repeated identical notices refresh the one on screen instead of
       // stacking. Autosave fires one per change, so editing three settings in a
       // row would otherwise leave three copies of "Saved" piled up. Toasts with
       // an action are exempt: each carries its own Undo for a different write.
-      if (!action) {
-        const existing = get().toasts.find((t) => t.type === type && t.message === message && !t.action);
+      if (!action && replaceKey === undefined) {
+        const existing = get().toasts.find(
+          (t) => t.type === type && t.message === message && !t.action && t.replaceKey === undefined,
+        );
         if (existing) {
           clear(existing.id);
           schedule(existing.id, existing.duration);
@@ -67,20 +123,22 @@ export const useToastStore = create<ToastState>((set, get) => {
         }
       }
       const id = nextId++;
-      const duration = type === 'error' || action ? LONG_DURATION : DEFAULT_DURATION;
-      set((state) => ({ toasts: [...state.toasts, { id, type, message, action, duration }] }));
+      set((state) => ({ toasts: [...state.toasts, { id, type, message, action, duration, replaceKey, revision: 0 }] }));
       schedule(id, duration);
     },
     removeToast: (id) => {
       clear(id);
+      paused.delete(id);
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
     },
     // Pause auto-dismiss while the toast is hovered or focused.
     pauseToast: (id) => {
       clear(id);
+      paused.add(id);
     },
     // Restart the auto-dismiss timer once the pointer/focus leaves.
     resumeToast: (id) => {
+      paused.delete(id);
       if (timers.has(id)) return;
       const toast = get().toasts.find((t) => t.id === id);
       if (toast) schedule(id, toast.duration);
