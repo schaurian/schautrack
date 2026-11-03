@@ -134,7 +134,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             addToast('error', err instanceof Error ? err.message : t('entries.toastRestoreFailed'));
           }
         },
-      });
+      }, { replaceKey: 'entry-delete' });
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : t('entries.toastDeleteFailed'));
     }

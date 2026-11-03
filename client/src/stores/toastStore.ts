@@ -13,11 +13,23 @@ interface Toast {
   message: string;
   action?: ToastAction;
   duration: number;
+  /** Toasts sharing a replace key hold one slot: a newer one takes it over. */
+  replaceKey?: string;
+  /** Bumped each time the slot is taken over, so the Toaster can animate it. */
+  revision: number;
+}
+
+export interface ToastOptions {
+  /**
+   * One toast per key: a new toast with the same key replaces the visible one
+   * (content swapped, timer restarted) instead of stacking under it.
+   */
+  replaceKey?: string;
 }
 
 interface ToastState {
   toasts: Toast[];
-  addToast: (type: ToastType, message: string, action?: ToastAction) => void;
+  addToast: (type: ToastType, message: string, action?: ToastAction, options?: ToastOptions) => void;
   removeToast: (id: number) => void;
   pauseToast: (id: number) => void;
   resumeToast: (id: number) => void;
@@ -53,13 +65,33 @@ export const useToastStore = create<ToastState>((set, get) => {
 
   return {
     toasts: [],
-    addToast: (type, message, action) => {
+    addToast: (type, message, action, options) => {
+      const replaceKey = options?.replaceKey;
+      const duration = type === 'error' || action ? LONG_DURATION : DEFAULT_DURATION;
+      // A keyed toast takes over the slot of the one already on screen. Deleting
+      // entries in a row shows only the latest delete and its Undo; the earlier
+      // writes are already committed and simply lose their Undo.
+      if (replaceKey !== undefined) {
+        const existing = get().toasts.find((t) => t.replaceKey === replaceKey);
+        if (existing) {
+          clear(existing.id);
+          set((state) => ({
+            toasts: state.toasts.map((t) =>
+              t.id === existing.id ? { ...t, type, message, action, duration, revision: t.revision + 1 } : t,
+            ),
+          }));
+          schedule(existing.id, duration);
+          return;
+        }
+      }
       // Repeated identical notices refresh the one on screen instead of
       // stacking. Autosave fires one per change, so editing three settings in a
       // row would otherwise leave three copies of "Saved" piled up. Toasts with
       // an action are exempt: each carries its own Undo for a different write.
-      if (!action) {
-        const existing = get().toasts.find((t) => t.type === type && t.message === message && !t.action);
+      if (!action && replaceKey === undefined) {
+        const existing = get().toasts.find(
+          (t) => t.type === type && t.message === message && !t.action && t.replaceKey === undefined,
+        );
         if (existing) {
           clear(existing.id);
           schedule(existing.id, existing.duration);
@@ -67,8 +99,7 @@ export const useToastStore = create<ToastState>((set, get) => {
         }
       }
       const id = nextId++;
-      const duration = type === 'error' || action ? LONG_DURATION : DEFAULT_DURATION;
-      set((state) => ({ toasts: [...state.toasts, { id, type, message, action, duration }] }));
+      set((state) => ({ toasts: [...state.toasts, { id, type, message, action, duration, replaceKey, revision: 0 }] }));
       schedule(id, duration);
     },
     removeToast: (id) => {

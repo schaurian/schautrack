@@ -22,8 +22,12 @@ export default function Toaster() {
       className="fixed right-4 z-[200] flex flex-col gap-2 max-w-sm bottom-[calc(8.75rem+env(safe-area-inset-bottom))] lg:bottom-[6.25rem]"
     >
       {toasts.map((toast) => (
+        // A replaced toast (same replace key, e.g. a second entry deleted) gets
+        // a new React key so it remounts: the live region announces it again
+        // and the replace animation plays from the start instead of the
+        // slide-in, signalling that another one went.
         <div
-          key={toast.id}
+          key={`${toast.id}:${toast.revision}`}
           role={toast.type === 'error' ? 'alert' : undefined}
           aria-live={toast.type === 'error' ? 'assertive' : undefined}
           onMouseEnter={() => pauseToast(toast.id)}
@@ -31,7 +35,8 @@ export default function Toaster() {
           onFocus={() => pauseToast(toast.id)}
           onBlur={() => resumeToast(toast.id)}
           className={cn(
-            'flex items-center gap-3 rounded-md border px-4 py-3 text-sm shadow-lg animate-in slide-in-from-right-5 fade-in',
+            'flex items-center gap-3 rounded-md border px-4 py-3 text-sm shadow-lg',
+            toast.revision > 0 ? 'animate-toast-replace' : 'animate-in slide-in-from-right-5 fade-in',
             toast.type === 'success' && 'bg-card border-success/30 text-green-400',
             toast.type === 'error' && 'bg-card border-destructive/30 text-red-400',
             toast.type === 'info' && 'bg-card border-[#0ea5e9]/30 text-[#0ea5e9]',
