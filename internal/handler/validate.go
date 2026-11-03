@@ -315,11 +315,11 @@ func optionalCount(body map[string]any, key string, max int) (int, bool) {
 		if s == "" {
 			return 0, true
 		}
-		n, err := strconv.ParseInt(s, 10, 64)
-		if err != nil || n < 0 || n > int64(max) {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 || n > max {
 			return 0, false
 		}
-		return int(n), true
+		return n, true
 	default:
 		return 0, false
 	}
