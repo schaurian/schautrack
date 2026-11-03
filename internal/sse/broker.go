@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -48,6 +49,9 @@ type Broker struct {
 	// loadLinks resolves a user's accepted links; nil means the database.
 	// A seam for tests that need to interleave a lookup with an invalidation.
 	loadLinks func(ctx context.Context, userID int) ([]linkTarget, error)
+	// afterCacheClear, when set, runs right after clearLinkCache — a seam for
+	// tests that check what the instance can still hear at that moment.
+	afterCacheClear func()
 }
 
 // linkStamp is the cache version a lookup started from. storeLinks only keeps
@@ -474,15 +478,45 @@ func (b *Broker) InvalidateLinks(userIDs ...int) {
 	if b.pool == nil || len(userIDs) == 0 {
 		return
 	}
-	msg, err := json.Marshal(envelope{Invalidate: userIDs})
-	if err != nil || len(msg) > pgNotifyMaxPayload {
-		return
+	// The reaper can hand over many ids at once; NOTIFY caps a payload at
+	// 8000 bytes, so publish as many messages as it takes.
+	for _, chunk := range invalidationChunks(userIDs) {
+		msg, err := json.Marshal(envelope{Invalidate: chunk})
+		if err != nil || len(msg) > pgNotifyMaxPayload {
+			slog.Error("sse: link-cache invalidation not published to other instances",
+				"ids", len(chunk), "bytes", len(msg), "error", err)
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_, err = b.pool.Exec(ctx, "SELECT pg_notify($1, $2)", notifyChannel, string(msg))
+		cancel()
+		if err != nil {
+			slog.Error("sse: could not publish link-cache invalidation", "error", err)
+		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if _, err := b.pool.Exec(ctx, "SELECT pg_notify($1, $2)", notifyChannel, string(msg)); err != nil {
-		slog.Error("sse: could not publish link-cache invalidation", "error", err)
+}
+
+// invalidationEnvelopeOverhead is a safe upper bound on an invalidation
+// envelope's bytes other than its ids: {"u":0,"e":"","d":null,"i":[]}.
+const invalidationEnvelopeOverhead = 64
+
+// invalidationChunks splits ids so each chunk's envelope fits a NOTIFY
+// payload. Each id costs its decimal digits (and sign) plus a comma.
+func invalidationChunks(ids []int) [][]int {
+	var chunks [][]int
+	start, size := 0, invalidationEnvelopeOverhead
+	for i, id := range ids {
+		n := len(strconv.Itoa(id)) + 1
+		if i > start && size+n > pgNotifyMaxPayload {
+			chunks = append(chunks, ids[start:i])
+			start, size = i, invalidationEnvelopeOverhead
+		}
+		size += n
 	}
+	if start < len(ids) {
+		chunks = append(chunks, ids[start:])
+	}
+	return chunks
 }
 
 func (b *Broker) invalidateLocal(userIDs ...int) {
@@ -503,10 +537,13 @@ func (b *Broker) invalidateLocal(userIDs ...int) {
 // over keeps it from growing with every user ever invalidated.
 func (b *Broker) clearLinkCache() {
 	b.linkMu.Lock()
-	defer b.linkMu.Unlock()
 	b.linkCache = make(map[int]linkCacheEntry)
 	b.linkGen = make(map[int]uint64)
 	b.linkEpoch++
+	b.linkMu.Unlock()
+	if b.afterCacheClear != nil {
+		b.afterCacheClear()
+	}
 }
 
 func (b *Broker) cleanupLoop() {

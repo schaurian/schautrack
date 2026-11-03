@@ -15,6 +15,7 @@ import (
 
 	"schautrack/internal/config"
 	"schautrack/internal/database"
+	"schautrack/internal/dbtest"
 	"schautrack/internal/middleware"
 	"schautrack/internal/model"
 	"schautrack/internal/session"
@@ -41,6 +42,18 @@ func newLifecycleEnv(t *testing.T) *lifecycleEnv {
 	if url == "" {
 		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
 	}
+	return newLifecycleEnvAt(t, url)
+}
+
+// newIsolatedLifecycleEnv runs against a database of the test's own, for code
+// that acts on every row it can see (the reaper).
+func newIsolatedLifecycleEnv(t *testing.T) *lifecycleEnv {
+	t.Helper()
+	return newLifecycleEnvAt(t, dbtest.FreshDatabase(t))
+}
+
+func newLifecycleEnvAt(t *testing.T, url string) *lifecycleEnv {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
 	pool, err := database.NewPool(ctx, url)
@@ -56,8 +69,10 @@ func newLifecycleEnv(t *testing.T) *lifecycleEnv {
 
 // linkedPair seeds two accounts with an accepted link on which each shares
 // nutrition with the other; the owner's verification state and age are set so
-// the reaper case can qualify.
-func (e *lifecycleEnv) linkedPair(prefix string, ownerVerified bool, ownerAge time.Duration) (ownerID, friendID, linkID int) {
+// the reaper case can qualify. ownerIsTarget puts the owner on the target_id
+// side of the link instead of requester_id — code that finds partners must
+// look at both columns.
+func (e *lifecycleEnv) linkedPair(prefix string, ownerVerified bool, ownerAge time.Duration, ownerIsTarget bool) (ownerID, friendID, linkID int) {
 	e.t.Helper()
 	owner, friend := prefix+"-owner@handler.test", prefix+"-friend@handler.test"
 	del := func() { e.pool.Exec(context.Background(), `DELETE FROM users WHERE email IN ($1, $2)`, owner, friend) }
@@ -74,10 +89,14 @@ func (e *lifecycleEnv) linkedPair(prefix string, ownerVerified bool, ownerAge ti
 		friend).Scan(&friendID); err != nil {
 		e.t.Fatalf("seed friend: %v", err)
 	}
+	requester, target := ownerID, friendID
+	if ownerIsTarget {
+		requester, target = friendID, ownerID
+	}
 	if err := e.pool.QueryRow(e.ctx, `
 		INSERT INTO account_links (requester_id, target_id, status, requester_shares, target_shares)
 		VALUES ($1, $2, 'accepted', '{"nutrition": true}'::jsonb, '{"nutrition": true}'::jsonb) RETURNING id`,
-		ownerID, friendID).Scan(&linkID); err != nil {
+		requester, target).Scan(&linkID); err != nil {
 		e.t.Fatalf("seed link: %v", err)
 	}
 	return ownerID, friendID, linkID
@@ -139,7 +158,7 @@ func (e *lifecycleEnv) expectWarm(b *sse.Broker, source, listener int, ch chan [
 	e.t.Helper()
 	b.BroadcastEntryChange(source)
 	b.SendEvent(listener, "warm", map[string]any{})
-	if got := e.until(ch, "warm"); len(got) != 1 {
+	if got := fromSource(e.until(ch, "warm"), source); len(got) != 1 {
 		e.t.Fatalf("while linked, %d got %d events, want 1: %q", listener, len(got), got)
 	}
 }
@@ -149,9 +168,22 @@ func (e *lifecycleEnv) expectSilent(b *sse.Broker, source, listener int, ch chan
 	e.t.Helper()
 	b.BroadcastEntryChange(source)
 	b.SendEvent(listener, "marker", map[string]any{})
-	if got := e.until(ch, "marker"); len(got) != 0 {
+	if got := fromSource(e.until(ch, "marker"), source); len(got) != 0 {
 		e.t.Fatalf("%s, yet %d still received %q", why, listener, got)
 	}
+}
+
+// fromSource keeps the frames caused by source's broadcasts. A stream also
+// carries its own user's events (a source always notifies itself), which say
+// nothing about the link.
+func fromSource(frames []string, source int) []string {
+	var out []string
+	for _, f := range frames {
+		if strings.Contains(f, `"sourceUserId":`+strconv.Itoa(source)+`}`) {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 func postAs(user *model.User, path, body string, params map[string]string) *http.Request {
@@ -170,7 +202,7 @@ func postAs(user *model.User, path, body string, params map[string]string) *http
 // id InvalidateLinks is given — that must be dropped.
 func TestLinkRemoveClearsTheOtherSidesCacheOnOtherReplicas(t *testing.T) {
 	e := newLifecycleEnv(t)
-	ownerID, friendID, linkID := e.linkedPair("remove-replica", true, 0)
+	ownerID, friendID, linkID := e.linkedPair("remove-replica", true, 0, false)
 	replicaA, replicaB := e.replica(), e.replica()
 	friendOnA := e.subscribe(replicaA, friendID)
 	e.subscribe(replicaB, ownerID) // proves B's listener is up
@@ -194,14 +226,22 @@ func TestLinkRemoveClearsTheOtherSidesCacheOnOtherReplicas(t *testing.T) {
 // TestAccountDeletionClearsPartnersCaches covers the three delete paths. The
 // deleted account's stream stays subscribed, standing in for a tab still open
 // on another device: a partner's stale cache would keep sending it events.
+// The reverse direction stands in for a request of the deleted account still
+// in flight: its own cached links must go too, or its last write would still
+// reach the partner.
+//
+// Every path runs with the deleted account on each side of the link, and the
+// reaper against a database of its own: it deletes every qualifying account
+// it can see, which on CI's shared server would include other packages' rows.
 func TestAccountDeletionClearsPartnersCaches(t *testing.T) {
 	cases := []struct {
 		name          string
 		ownerVerified bool
 		ownerAge      time.Duration
+		isolated      bool
 		del           func(e *lifecycleEnv, b *sse.Broker, ownerID int)
 	}{
-		{"own account deletion", true, 0, func(e *lifecycleEnv, b *sse.Broker, ownerID int) {
+		{"own account deletion", true, 0, false, func(e *lifecycleEnv, b *sse.Broker, ownerID int) {
 			h := &AuthHandler{Pool: e.pool, Cfg: &config.Config{}, Broker: b, SessionStore: session.NewStore(e.pool)}
 			rec := httptest.NewRecorder()
 			req := postAs(&model.User{ID: ownerID}, "/delete", `{}`, nil)
@@ -211,7 +251,7 @@ func TestAccountDeletionClearsPartnersCaches(t *testing.T) {
 				e.t.Fatalf("DeleteAccount = %d: %s", rec.Code, rec.Body.String())
 			}
 		}},
-		{"admin delete", true, 0, func(e *lifecycleEnv, b *sse.Broker, ownerID int) {
+		{"admin delete", true, 0, false, func(e *lifecycleEnv, b *sse.Broker, ownerID int) {
 			h := &AdminHandler{Pool: e.pool, Broker: b}
 			rec := httptest.NewRecorder()
 			h.DeleteUser(rec, postAs(&model.User{ID: -1}, "/admin/users/x/delete", `{}`,
@@ -220,7 +260,7 @@ func TestAccountDeletionClearsPartnersCaches(t *testing.T) {
 				e.t.Fatalf("DeleteUser = %d: %s", rec.Code, rec.Body.String())
 			}
 		}},
-		{"unverified reaper", false, 2 * time.Hour, func(e *lifecycleEnv, b *sse.Broker, ownerID int) {
+		{"unverified reaper", false, 2 * time.Hour, true, func(e *lifecycleEnv, b *sse.Broker, ownerID int) {
 			CleanExpiredTokens(e.pool, b)
 			var gone bool
 			if err := e.pool.QueryRow(e.ctx, `SELECT NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`, ownerID).Scan(&gone); err != nil || !gone {
@@ -229,15 +269,28 @@ func TestAccountDeletionClearsPartnersCaches(t *testing.T) {
 		}},
 	}
 	for i, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			e := newLifecycleEnv(t)
-			ownerID, friendID, _ := e.linkedPair("delete-"+strconv.Itoa(i), c.ownerVerified, c.ownerAge)
-			b := e.replica()
-			ownerStream := e.subscribe(b, ownerID)
+		for _, ownerIsTarget := range []bool{false, true} {
+			side := "deleted user is requester"
+			if ownerIsTarget {
+				side = "deleted user is target"
+			}
+			t.Run(c.name+"/"+side, func(t *testing.T) {
+				e := newLifecycleEnv(t)
+				if c.isolated {
+					e = newIsolatedLifecycleEnv(t)
+				}
+				prefix := "delete-" + strconv.Itoa(i) + "-" + strconv.FormatBool(ownerIsTarget)
+				ownerID, friendID, _ := e.linkedPair(prefix, c.ownerVerified, c.ownerAge, ownerIsTarget)
+				b := e.replica()
+				ownerStream := e.subscribe(b, ownerID)
+				friendStream := e.subscribe(b, friendID)
 
-			e.expectWarm(b, friendID, ownerID, ownerStream)
-			c.del(e, b, ownerID)
-			e.expectSilent(b, friendID, ownerID, ownerStream, "the account was deleted")
-		})
+				e.expectWarm(b, friendID, ownerID, ownerStream)
+				e.expectWarm(b, ownerID, friendID, friendStream)
+				c.del(e, b, ownerID)
+				e.expectSilent(b, friendID, ownerID, ownerStream, "the account was deleted")
+				e.expectSilent(b, ownerID, friendID, friendStream, "the deleted account's own cache should be gone")
+			})
+		}
 	}
 }
