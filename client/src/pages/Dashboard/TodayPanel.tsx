@@ -90,9 +90,12 @@ function MacroBar({ macroKey, label, value, goal, mode, status }: {
             style={{
               width: `${pct}%`,
               boxShadow: `0 0 8px ${color}`,
-              background: over
-                ? `linear-gradient(90deg, ${color} ${goalPct}%, transparent ${goalPct}%), repeating-linear-gradient(135deg, ${color} 0 3px, rgba(0,0,0,0.35) 3px 5px)`
-                : color,
+              // background-color stays the status colour (e2e reads it); the
+              // hatching is an image layer over the part past the goal.
+              backgroundColor: color,
+              backgroundImage: over
+                ? `linear-gradient(90deg, ${color} ${goalPct}%, transparent ${goalPct}%), repeating-linear-gradient(135deg, transparent 0 3px, rgba(0,0,0,0.4) 3px 5px)`
+                : undefined,
             }}
           />
         )}

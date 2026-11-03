@@ -135,7 +135,7 @@ test.describe.serial('Macro Threshold', () => {
     // target mode + total(200) >= goal(150) → macro-stat--success → green.
     const proteinBar = page.getByRole('img', { name: /^Protein:/ }).first();
     await expect(proteinBar).toBeVisible({ timeout: 10000 });
-    await expect(proteinBar).toHaveAttribute('aria-label', /^Protein: 200 \/ 150 g$/, { timeout: 10000 });
+    await expect(proteinBar).toHaveAttribute('aria-label', /^Protein: 200 \/ 150 g, \+50 over$/, { timeout: 10000 });
 
     const proteinFill = proteinBar.locator('div[style*="background"]');
     await expect(proteinFill).toBeVisible();

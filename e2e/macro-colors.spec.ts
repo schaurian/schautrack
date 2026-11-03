@@ -53,7 +53,7 @@ test.describe('Macro Status Colors', () => {
     // Wait for the protein bar to render with the value (120 of goal 100)
     const proteinBar = page.getByRole('img', { name: /^Protein:/ }).first();
     await expect(proteinBar).toBeVisible({ timeout: 10000 });
-    await expect(proteinBar).toHaveAttribute('aria-label', /^Protein: 120 \/ 100 g$/, { timeout: 8000 });
+    await expect(proteinBar).toHaveAttribute('aria-label', /^Protein: 120 \/ 100 g, \+20 over$/, { timeout: 8000 });
 
     // In target mode, protein=120 >= goal=100 → success → green bar fill
     const proteinFill = proteinBar.locator('div[style*="background"]');

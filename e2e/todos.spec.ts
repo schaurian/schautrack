@@ -185,9 +185,9 @@ test.describe.serial('Todos', () => {
     await specificDaysRadio.click();
 
     // Default is Mon–Fri selected; deselect Tue, Thu, Fri to leave Mon and Wed
-    await page.getByRole('button', { name: 'Tue' }).click();
-    await page.getByRole('button', { name: 'Thu' }).click();
-    await page.getByRole('button', { name: 'Fri' }).click();
+    await page.getByRole('button', { name: 'Tue', exact: true }).click();
+    await page.getByRole('button', { name: 'Thu', exact: true }).click();
+    await page.getByRole('button', { name: 'Fri', exact: true }).click();
     // Mon and Wed should now be selected
 
     await page.getByRole('button', { name: 'Add', exact: true }).click();
