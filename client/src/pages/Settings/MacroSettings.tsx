@@ -147,7 +147,7 @@ export default function MacroSettings({ user, onSave }: Props) {
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <span className="relative flex items-center">
-              <input className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-describedby="macro-threshold-help" />
+              <input aria-label={t('macro.threshold')} className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-describedby="macro-threshold-help" />
               <span className="absolute right-2.5 text-[10px] tracking-wide text-warning opacity-60 pointer-events-none">%</span>
             </span>
             {/* Spacer matching the segmented control's width above, so the

@@ -16,7 +16,7 @@ export function getDayEntries(userId: number, date: string) {
   });
 }
 
-export function createEntry(data: {
+export interface CreateEntryBody {
   amount?: number;
   entry_name?: string;
   entry_date?: string;
@@ -26,7 +26,11 @@ export function createEntry(data: {
   fat_g?: number;
   fiber_g?: number;
   sugar_g?: number;
-}) {
+  /** RFC 3339; omitted means now. Undo sends the deleted row's own time. */
+  created_at?: string;
+}
+
+export function createEntry(data: CreateEntryBody) {
   return api<{ ok: boolean }>('/entries', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -41,5 +45,7 @@ export function updateEntry(id: number, data: Record<string, unknown>) {
 }
 
 export function deleteEntry(id: number) {
-  return api<{ ok: boolean }>(`/entries/${id}/delete`, { method: 'POST' });
+  // restore is the deleted row as a createEntry body (logged time and every
+  // macro column included), for Undo.
+  return api<{ ok: boolean; restore?: CreateEntryBody }>(`/entries/${id}/delete`, { method: 'POST' });
 }

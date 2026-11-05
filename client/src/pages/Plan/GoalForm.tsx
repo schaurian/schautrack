@@ -54,9 +54,9 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
       <h3 className="text-sm font-semibold mb-3">{t('plan.goalForm.title')}</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5 max-w-xs">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.goalForm.targetWeightLabel')}</label>
+          <label htmlFor="goal-target-weight" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.goalForm.targetWeightLabel')}</label>
           <span className="relative flex items-center">
-            <input className={cn(inputClass, 'pr-10')} type="number" step="0.1" min="0" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} placeholder="0.0" />
+            <input id="goal-target-weight" className={cn(inputClass, 'pr-10')} type="number" step="0.1" min="0" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} placeholder="0.0" />
             <span className="absolute right-2.5 text-[10px] tracking-wide text-muted-foreground opacity-60 pointer-events-none">{weightUnit}</span>
           </span>
         </div>
@@ -75,13 +75,13 @@ export default function GoalForm({ goal, computed, warnings, weightUnit, metrics
 
         {paceMode === 'rate' ? (
           <div className="flex flex-col gap-1.5 max-w-xs">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.goalForm.rateUnitLabel', { unit: weightUnit })}</label>
-            <input className={inputClass} type="number" step="0.05" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={t('plan.goalForm.ratePlaceholder')} />
+            <label htmlFor="goal-rate" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.goalForm.rateUnitLabel', { unit: weightUnit })}</label>
+            <input id="goal-rate" className={inputClass} type="number" step="0.05" min="0" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={t('plan.goalForm.ratePlaceholder')} />
           </div>
         ) : (
           <div className="flex flex-col gap-1.5 max-w-xs">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.goalForm.targetDateLabel')}</label>
-            <input className={inputClass} type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+            <label htmlFor="goal-target-date" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('plan.goalForm.targetDateLabel')}</label>
+            <input id="goal-target-date" className={inputClass} type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
           </div>
         )}
 

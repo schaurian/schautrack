@@ -352,8 +352,9 @@ function SavedFoodRow({
   const handleDelete = async () => {
     const seq = nextToastSeq();
     setBusy(true);
-    // Snapshot so Undo can re-create the row. use_count/last_used_at are not
-    // preserved — acceptable trade-off vs. a soft-delete column on the table.
+    // Snapshot so Undo can re-create the row. use_count and last_used_at go
+    // back too: they decide the chip's rank, so without them a restored food
+    // dropped to the end of the row. Only the id is new (no soft delete).
     const snapshot = {
       name: food.name,
       emoji: food.emoji,
@@ -363,6 +364,8 @@ function SavedFoodRow({
       fat_g: food.macros.fat,
       fiber_g: food.macros.fiber,
       sugar_g: food.macros.sugar,
+      use_count: food.use_count,
+      last_used_at: food.last_used_at,
     };
     try {
       await deleteSavedFood(food.id);

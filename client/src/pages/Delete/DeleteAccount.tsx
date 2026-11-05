@@ -33,7 +33,7 @@ export default function DeleteAccount() {
   return (
     <div className="flex justify-center py-12">
       <Card className="w-full max-w-sm">
-        <h2 className="mb-2 text-xl font-semibold text-destructive">{t('deleteAccount.title')}</h2>
+        <h1 className="mb-2 text-xl font-semibold text-destructive">{t('deleteAccount.title')}</h1>
         <p className="mb-6 text-sm text-muted-foreground">
           {t('deleteAccount.description')}
         </p>

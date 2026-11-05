@@ -59,7 +59,8 @@
     "todayLabel": "Vandaag",
     "entriesDateAndLabel": "{{date}} — {{label}}",
     "viewOwnDayAriaLabel": "Bekijk je dag",
-    "viewFriendDayAriaLabel": "Bekijk de dag van {{label}}"
+    "viewFriendDayAriaLabel": "Bekijk de dag van {{label}}",
+    "changeDateAriaLabel": "Datum wijzigen, nu {{date}}"
   },
   "dayDot": {
     "status": {
@@ -115,7 +116,11 @@
     "toastUpdateFailed": "Bijwerken van item mislukt",
     "toastDeleted": "Item verwijderd",
     "toastRestoreFailed": "Herstellen mislukt",
-    "toastDeleteFailed": "Verwijderen van item mislukt"
+    "toastDeleteFailed": "Verwijderen van item mislukt",
+    "editFieldAriaLabel": "{{field}} voor {{name}}",
+    "nameFieldLabel": "Naam",
+    "savedAnnouncement": "{{field}} voor {{name}} opgeslagen",
+    "savedLabel": "Opgeslagen"
   },
   "notes": {
     "sectionTitle": "Notities",

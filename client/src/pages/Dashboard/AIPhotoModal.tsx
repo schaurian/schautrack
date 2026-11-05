@@ -225,6 +225,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                   onClick={() => handleModeSwitch('camera')}
+                  aria-pressed={mode === 'camera'}
                 >
                   {t('dashboard.cameraTab')}
                 </button>
@@ -237,6 +238,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros:
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                   onClick={() => handleModeSwitch('upload')}
+                  aria-pressed={mode === 'upload'}
                 >
                   {t('dashboard.uploadTab')}
                 </button>

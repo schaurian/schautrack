@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -248,6 +249,20 @@ func (h *SavedFoodsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// use_count and last_used_at decide where the chip ranks (savedFoodRank).
+	// Undo sends them back so a restored food returns to its old place rather
+	// than the bottom of the row; a plain create leaves them at 0 / NULL.
+	useCount, ok := optionalCount(body, "use_count", math.MaxInt32)
+	if !ok {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid use_count")
+		return
+	}
+	lastUsedAt, ok := optionalPastTimestamp(body, "last_used_at", time.Now())
+	if !ok {
+		ErrorJSON(w, http.StatusBadRequest, "Invalid last_used_at")
+		return
+	}
+
 	user := middleware.GetCurrentUser(r)
 
 	var count int
@@ -262,12 +277,12 @@ func (h *SavedFoodsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var id int
 	var createdAt, updatedAt time.Time
 	err := h.Pool.QueryRow(r.Context(), `
-		INSERT INTO saved_foods (user_id, name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO saved_foods (user_id, name, emoji, amount, protein_g, carbs_g, fat_g, fiber_g, sugar_g, use_count, last_used_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at, updated_at`,
 		user.ID, input.name, input.emoji, input.amount,
 		input.macros["protein"], input.macros["carbs"], input.macros["fat"],
-		input.macros["fiber"], input.macros["sugar"],
+		input.macros["fiber"], input.macros["sugar"], useCount, lastUsedAt,
 	).Scan(&id, &createdAt, &updatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -286,7 +301,7 @@ func (h *SavedFoodsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		"savedFood": toSavedFoodView(id, input.name, input.emoji, input.amount,
 			input.macros["protein"], input.macros["carbs"], input.macros["fat"],
 			input.macros["fiber"], input.macros["sugar"],
-			0, nil),
+			useCount, lastUsedAt),
 	})
 }
 

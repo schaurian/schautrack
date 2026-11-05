@@ -59,7 +59,8 @@
     "todayLabel": "Heute",
     "entriesDateAndLabel": "{{date}} — {{label}}",
     "viewOwnDayAriaLabel": "Deinen Tag ansehen",
-    "viewFriendDayAriaLabel": "{{label}}s Tag ansehen"
+    "viewFriendDayAriaLabel": "{{label}}s Tag ansehen",
+    "changeDateAriaLabel": "Datum ändern, aktuell {{date}}"
   },
   "dayDot": {
     "status": {
@@ -71,7 +72,7 @@
       "missedTarget": "Ziel verfehlt"
     },
     "reason": {
-      "over": "{{metric}} {{pct}} % drüber",
+      "over": "{{metric}} {{pct}} % über",
       "under": "{{metric}} {{pct}} % unter Ziel"
     }
   },
@@ -115,7 +116,11 @@
     "toastUpdateFailed": "Eintrag konnte nicht aktualisiert werden",
     "toastDeleted": "Eintrag gelöscht",
     "toastRestoreFailed": "Wiederherstellung fehlgeschlagen",
-    "toastDeleteFailed": "Eintrag konnte nicht gelöscht werden"
+    "toastDeleteFailed": "Eintrag konnte nicht gelöscht werden",
+    "editFieldAriaLabel": "{{field}} für {{name}}",
+    "nameFieldLabel": "Name",
+    "savedAnnouncement": "{{field}} für {{name}} gespeichert",
+    "savedLabel": "Gespeichert"
   },
   "notes": {
     "sectionTitle": "Notizen",
@@ -299,20 +304,20 @@
     "you": "Du"
   },
   "todos": {
-    "sectionTitle": "Todos",
+    "sectionTitle": "Aufgaben",
     "progressCount": "{{completed}}/{{total}}",
     "doneButton": "Fertig",
     "editButton": "Bearbeiten",
     "checkAriaLabel": "{{name}} abhaken",
     "uncheckAriaLabel": "Haken bei {{name}} entfernen",
-    "addTodoButton": "Todo hinzufügen",
-    "addTodoManagerButton": "Todo hinzufügen",
+    "addTodoButton": "Aufgabe hinzufügen",
+    "addTodoManagerButton": "Aufgabe hinzufügen",
     "addButton": "Hinzufügen",
     "cancelButton": "Abbrechen",
     "saveButton": "Speichern",
     "removeButton": "Entfernen",
     "clearButton": "Leeren",
-    "namePlaceholder": "Todo-Name",
+    "namePlaceholder": "Name der Aufgabe",
     "dailyOption": "Täglich",
     "specificDaysOption": "Bestimmte Tage",
     "missedYesterday": "Gestern",
@@ -324,9 +329,9 @@
     "minuteLabel": "Minute",
     "setTimeButton": "Zeit wählen",
     "timeOfDayAriaLabel": "Uhrzeit",
-    "toastCreateFailed": "Todo konnte nicht erstellt werden",
-    "toastUpdateFailed": "Todo konnte nicht aktualisiert werden",
-    "toastDeleteFailed": "Todo konnte nicht gelöscht werden",
+    "toastCreateFailed": "Aufgabe konnte nicht erstellt werden",
+    "toastUpdateFailed": "Aufgabe konnte nicht aktualisiert werden",
+    "toastDeleteFailed": "Aufgabe konnte nicht gelöscht werden",
     "days": {
       "mon": "Mo",
       "tue": "Di",
@@ -358,7 +363,7 @@
   },
   "today": {
     "left": "noch {{amount}}",
-    "over": "+{{amount}} drüber",
+    "over": "+{{amount}} über",
     "toGo": "noch {{amount}} bis Ziel"
   },
   "goalPrompt": {

@@ -12,7 +12,7 @@ export default function Privacy() {
         <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <p>{t('privacy.intro')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.controller.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.controller.heading')}</h2>
           <p>
             <Trans
               t={t}
@@ -21,7 +21,7 @@ export default function Privacy() {
             />
           </p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.dataWeCollect.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.dataWeCollect.heading')}</h2>
           <ul className="list-disc pl-6">
             <li>{t('privacy.dataWeCollect.items.email')}</li>
             <li>{t('privacy.dataWeCollect.items.entries')}</li>
@@ -31,11 +31,11 @@ export default function Privacy() {
             <li>{t('privacy.dataWeCollect.items.authMaterial')}</li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.healthData.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.healthData.heading')}</h2>
           <p>{t('privacy.healthData.body1')}</p>
           <p>{t('privacy.healthData.body2')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.legalBases.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.legalBases.heading')}</h2>
           <ul className="list-disc pl-6">
             <li>
               <Trans t={t} i18nKey="privacy.legalBases.items.accountService" components={{ strong: <strong /> }} />
@@ -48,18 +48,18 @@ export default function Privacy() {
             </li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.cookies.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.cookies.heading')}</h2>
           <p>
             <Trans t={t} i18nKey="privacy.cookies.body" components={{ code: <code /> }} />
           </p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.logsSecurity.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.logsSecurity.heading')}</h2>
           <p>{t('privacy.logsSecurity.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.accountLinking.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.accountLinking.heading')}</h2>
           <p>{t('privacy.accountLinking.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.subprocessors.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.subprocessors.heading')}</h2>
           <p>{t('privacy.subprocessors.intro')}</p>
           <ul className="list-disc pl-6">
             <li>
@@ -101,10 +101,10 @@ export default function Privacy() {
             </li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.internationalTransfers.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.internationalTransfers.heading')}</h2>
           <p>{t('privacy.internationalTransfers.body')}</p>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.retention.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.retention.heading')}</h2>
           <ul className="list-disc pl-6">
             <li>{t('privacy.retention.items.entries')}</li>
             <li>{t('privacy.retention.items.sessions')}</li>
@@ -113,14 +113,14 @@ export default function Privacy() {
             <li>{t('privacy.retention.items.accountDeletion')}</li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.dataWeDontCollect.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.dataWeDontCollect.heading')}</h2>
           <ul className="list-disc pl-6">
             <li>{t('privacy.dataWeDontCollect.items.noAnalytics')}</li>
             <li>{t('privacy.dataWeDontCollect.items.noThirdPartyCookies')}</li>
             <li>{t('privacy.dataWeDontCollect.items.noDataSold')}</li>
           </ul>
 
-          <h3 className="font-semibold text-foreground">{t('privacy.rights.heading')}</h3>
+          <h2 className="font-semibold text-foreground">{t('privacy.rights.heading')}</h2>
           <p>
             <Trans
               t={t}

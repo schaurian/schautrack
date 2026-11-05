@@ -61,7 +61,8 @@
     "todayLabel": "Dzisiaj",
     "entriesDateAndLabel": "{{date}} — {{label}}",
     "viewOwnDayAriaLabel": "Zobacz swój dzień",
-    "viewFriendDayAriaLabel": "Zobacz dzień: {{label}}"
+    "viewFriendDayAriaLabel": "Zobacz dzień: {{label}}",
+    "changeDateAriaLabel": "Zmień datę, obecnie {{date}}"
   },
   "dayDot": {
     "status": {
@@ -119,7 +120,11 @@
     "toastUpdateFailed": "Nie udało się zaktualizować wpisu",
     "toastDeleted": "Wpis usunięty",
     "toastRestoreFailed": "Przywracanie nie powiodło się",
-    "toastDeleteFailed": "Nie udało się usunąć wpisu"
+    "toastDeleteFailed": "Nie udało się usunąć wpisu",
+    "editFieldAriaLabel": "{{field}} dla {{name}}",
+    "nameFieldLabel": "Nazwa",
+    "savedAnnouncement": "Zapisano: {{field}} dla {{name}}",
+    "savedLabel": "Zapisano"
   },
   "notes": {
     "sectionTitle": "Notatki",
@@ -376,7 +381,7 @@
   },
   "today": {
     "left": "zostało {{amount}}",
-    "over": "+{{amount}} ponad",
+    "over": "+{{amount}} powyżej",
     "toGo": "brakuje {{amount}}"
   },
   "goalPrompt": {

@@ -46,6 +46,8 @@ export default function Admin() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Visually hidden: the nav names the page, but the document needs an h1. */}
+      <h1 className="sr-only">{t('nav.admin', { ns: 'common' })}</h1>
       <AdminSettingsForm
         settings={data.settings as unknown as Record<string, SettingMeta>}
         settingsOrder={(data as unknown as { settingsOrder?: string[] }).settingsOrder ?? Object.keys(data.settings)}

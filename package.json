@@ -12,6 +12,7 @@
     "test:contract": "sh scripts/api-contract-test.sh"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.59.1",
     "bcryptjs": "^3.0.3",
     "tsx": "^4.19.0"

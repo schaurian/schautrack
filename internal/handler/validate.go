@@ -3,7 +3,9 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -251,4 +253,74 @@ func multiplyMacro(v *int, qty int) (*int, bool) {
 		return nil, false
 	}
 	return &m, true
+}
+
+// futureTimestampAllowance is how far past the server's clock a client-supplied
+// timestamp may sit: enough for a phone whose clock runs a little fast, not
+// enough to pre-date an entry into tomorrow.
+const futureTimestampAllowance = 5 * time.Minute
+
+// optionalPastTimestamp reads an optional RFC 3339 timestamp field. Absent,
+// null and "" all mean "not given" (nil, true). A value that does not parse,
+// falls outside the calendar-year bounds, or lies more than
+// futureTimestampAllowance after now is rejected (nil, false).
+//
+// It is what lets Undo put a deleted row back with the moment it was logged
+// rather than the moment Undo was pressed. The row's day stays entry_date's
+// business: a timestamp only orders and labels entries within a day, it never
+// moves one to another.
+func optionalPastTimestamp(body map[string]any, key string, now time.Time) (*time.Time, bool) {
+	raw, present := body[key]
+	if !present || raw == nil {
+		return nil, true
+	}
+	s, isString := raw.(string)
+	if !isString {
+		return nil, false
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, true
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return nil, false
+	}
+	if y := t.Year(); y < minDateYear || y > maxDateYear {
+		return nil, false
+	}
+	if t.After(now.Add(futureTimestampAllowance)) {
+		return nil, false
+	}
+	return &t, true
+}
+
+// optionalCount reads an optional whole number in 0..max. Absent, null and ""
+// give (0, true). A JSON number decoded into `any` is a float64, so it is
+// checked for being integral directly: formatting it with %v (what
+// optionalString does) turns 1000000 into "1e+06", which no integer parser
+// accepts. A numeric string is accepted too. Anything fractional, negative,
+// above max or non-numeric is (0, false).
+func optionalCount(body map[string]any, key string, max int) (int, bool) {
+	switch v := body[key].(type) {
+	case nil:
+		return 0, true
+	case float64:
+		if v != math.Trunc(v) || v < 0 || v > float64(max) {
+			return 0, false
+		}
+		return int(v), true
+	case string:
+		s := strings.TrimSpace(v)
+		if s == "" {
+			return 0, true
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 || n > max {
+			return 0, false
+		}
+		return n, true
+	default:
+		return 0, false
+	}
 }
