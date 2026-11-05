@@ -2,6 +2,30 @@ apiVersion: v1
 entries:
   schautrack:
   - apiVersion: v2
+    appVersion: 2.9.1
+    created: "2026-11-05T14:03:05.766304668Z"
+    description: A simple nutrition tracking web application, with PostgreSQL provisioned
+      by CloudNativePG
+    digest: 46f0bf43c3d3cd7f35e6b1d484a0198e95a91d157ce6757ea87547ae9b97c2a9
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - nutrition
+    - calorie
+    - macro
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/schautrack-2.9.1.tgz
+    version: 2.9.1
+  - apiVersion: v2
     appVersion: 2.9.0
     created: "2026-11-03T20:34:49.260732422Z"
     description: A simple nutrition tracking web application, with PostgreSQL provisioned
@@ -1289,6 +1313,30 @@ entries:
     - https://helm.schautrack.com/schautrack-0.1.0.tgz
     version: 0.1.0
   - apiVersion: v2
+    appVersion: staging-1220
+    created: "2026-11-05T14:03:05.768070266Z"
+    description: A simple nutrition tracking web application, with PostgreSQL provisioned
+      by CloudNativePG
+    digest: 5fe2dae51d45767f79f22a4eae67ccf6d58e958ab83529b02db3ba33a731005c
+    home: https://github.com/schaurian/schautrack
+    keywords:
+    - nutrition
+    - calorie
+    - macro
+    - tracking
+    - health
+    - fitness
+    maintainers:
+    - name: schaurian
+      url: https://github.com/schaurian
+    name: schautrack
+    sources:
+    - https://github.com/schaurian/schautrack
+    type: application
+    urls:
+    - https://helm.schautrack.com/staging/schautrack-0.0.1220.tgz
+    version: 0.0.1220
+  - apiVersion: v2
     appVersion: staging-1209
     created: "2026-11-03T20:34:49.262310706Z"
     description: A simple nutrition tracking web application, with PostgreSQL provisioned
@@ -2233,4 +2281,4 @@ entries:
     urls:
     - https://helm.schautrack.com/staging/schautrack-0.0.128.tgz
     version: 0.0.128
-generated: "2026-11-03T20:34:49.258814555Z"
+generated: "2026-11-05T14:03:05.764354646Z"
