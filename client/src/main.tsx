@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import App from './App';
 import { i18nReady } from '@/i18n';
+import { preloadRouteChunk } from './router';
+import { installPreloadErrorReload } from '@/lib/lazyRoute';
+import { readSessionHint } from '@/lib/sessionHint';
 // Self-hosted Noto Sans (weights 400/500/600/700) and Space Grotesk (500/700) —
 // replaces the third-party Google Fonts request for GDPR compliance and
 // air-gapped/self-hosted support. Latin and Latin Extended only; see the header
@@ -22,6 +25,10 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Before anything is fetched: a stale tab's first failed chunk reloads it.
+installPreloadErrorReload();
+preloadRouteChunk(window.location.pathname, readSessionHint());
 
 // Do not paint the fallback English UI before a returning user's stored
 // language has been loaded. Subsequent changes are handled by the backend

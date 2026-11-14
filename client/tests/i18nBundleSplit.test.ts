@@ -19,10 +19,10 @@ import { build, type Rollup } from 'vite';
  * So this file runs the real production build (in memory — `write: false`, no
  * `dist/` is touched) and asserts on the emitted chunk graph:
  *
- *   - the entry chunk carries the English catalogs, because English is the
- *     fallback language and a fetched fallback would render raw key paths on
- *     a miss;
- *   - the entry chunk carries no other locale;
+ *   - the startup bundle (the entry chunk and its static imports) carries
+ *     the English catalogs, because English is the fallback language and a
+ *     fetched fallback would render raw key paths on a miss;
+ *   - the startup bundle carries no other locale;
  *   - every other locale/namespace pair is still reachable, as its own chunk.
  *
  * The build is the slow part here, so it runs once for the whole file.
@@ -36,6 +36,12 @@ const NAMESPACES = ['common', 'auth', 'dashboard', 'settings', 'landing'];
 
 let chunks: Rollup.OutputChunk[] = [];
 let entry: Rollup.OutputChunk;
+/**
+ * The entry chunk plus every chunk it imports statically. Vite emits those as
+ * modulepreload links, so they load at startup exactly like the entry itself;
+ * the bundler is free to move a statically imported catalog into one of them.
+ */
+let startup: Rollup.OutputChunk[] = [];
 
 beforeAll(async () => {
   const result = await build({
@@ -57,6 +63,17 @@ beforeAll(async () => {
   const entries = chunks.filter((c) => c.isEntry);
   expect(entries).toHaveLength(1);
   entry = entries[0];
+
+  const byName = new Map(chunks.map((c) => [c.fileName, c]));
+  const seen = new Set<string>();
+  const queue = [entry.fileName];
+  while (queue.length) {
+    const name = queue.pop() as string;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    queue.push(...(byName.get(name)?.imports ?? []));
+  }
+  startup = [...seen].map((n) => byName.get(n)).filter((c): c is Rollup.OutputChunk => c !== undefined);
 }, 180_000);
 
 /** Module ids of every catalog a chunk inlined, as `lng/ns` pairs. */
@@ -69,21 +86,21 @@ function catalogsIn(chunk: Rollup.OutputChunk): string[] {
 }
 
 describe('translation catalogs in the production bundle', () => {
-  it('keeps the English fallback in the entry chunk', () => {
-    const inEntry = catalogsIn(entry);
+  it('keeps the English fallback in the startup bundle', () => {
+    const inEntry = startup.flatMap((c) => catalogsIn(c));
     for (const ns of NAMESPACES) {
       expect(inEntry).toContain(`en/${ns}`);
     }
   });
 
-  it('keeps every other locale out of the entry chunk', () => {
-    const foreign = catalogsIn(entry).filter((id) => !id.startsWith('en/'));
+  it('keeps every other locale out of the startup bundle', () => {
+    const foreign = startup.flatMap((c) => catalogsIn(c)).filter((id) => !id.startsWith('en/'));
     expect(foreign).toEqual([]);
   });
 
   it('emits each deferred catalog as its own chunk', () => {
     const deferred = new Set(
-      chunks.filter((c) => !c.isEntry).flatMap((c) => catalogsIn(c))
+      chunks.filter((c) => !startup.includes(c)).flatMap((c) => catalogsIn(c))
     );
 
     for (const lng of LOCALES.filter((l) => l !== 'en')) {
@@ -93,12 +110,12 @@ describe('translation catalogs in the production bundle', () => {
     }
   });
 
-  it('ships no non-English translated string in the entry chunk', () => {
+  it('ships no non-English translated string in the startup bundle', () => {
     // Belt and braces: the module-id assertions above would miss a catalog
     // inlined by some future plugin that rewrites ids. These four strings are
     // "Loading..." in four of the deferred locales.
     for (const sample of ['Lädt...', 'Cargando...', 'Chargement...', 'Ładowanie...']) {
-      expect(entry.code).not.toContain(sample);
+      for (const chunk of startup) expect(chunk.code).not.toContain(sample);
     }
   });
 
