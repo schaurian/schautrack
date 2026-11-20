@@ -142,7 +142,7 @@ jobs:
         # fresh checkout and restores nothing cached here, so the ignore trades
         # a theoretical poisoned-test-cache for not rebuilding the Go and npm
         # worlds on every run.
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0  # zizmor: ignore[cache-poisoning]
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0  # zizmor: ignore[cache-poisoning]
         with:
           go-version-file: go.mod
 
@@ -284,7 +284,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
           # The action manages its own analysis cache; setup-go's build cache
@@ -319,7 +319,7 @@ jobs:
 
       - name: Setup Go
         # Test-gate cache only — see the cache-poisoning note in `test`.
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0  # zizmor: ignore[cache-poisoning]
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0  # zizmor: ignore[cache-poisoning]
         with:
           go-version-file: go.mod
 
