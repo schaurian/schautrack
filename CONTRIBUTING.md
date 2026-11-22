@@ -1,5 +1,8 @@
 # Contributing to Schautrack
 
+> **This repository is archived and no longer accepts contributions.** The
+> workflow below is kept for reference only.
+
 Thanks for your interest in contributing!
 
 ## Branch Workflow
