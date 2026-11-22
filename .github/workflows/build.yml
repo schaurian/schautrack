@@ -70,8 +70,7 @@ on:
 # Keying on the commit gives every pushed commit its own run, which can never be
 # evicted. The serialisation the old group was reaching for now lives on the
 # individual jobs that mutate shared state — see the `concurrency:` blocks on
-# create-tag (git tags), publish-helm (gh-pages) and notify-argocd (the deploy
-# nudge). test / compute-version / build-and-push / create-manifest are
+# create-tag (git tags) and publish-helm (gh-pages). test / compute-version / build-and-push / create-manifest are
 # deliberately NOT serialised; each of those explains why at the job.
 #
 # Pull requests keep one group per PR and DO cancel in progress: a superseded PR
@@ -83,8 +82,8 @@ concurrency:
 
 # Read-only GITHUB_TOKEN by default. Without this block every job inherits the
 # repository default grant, which is far more than a test job needs. The jobs
-# that actually write — create-tag / create-release / publish-helm /
-# notify-argocd push to the repo, build-and-push / create-manifest push
+# that actually write — create-tag / create-release / publish-helm
+# push to the repo, build-and-push / create-manifest push
 # packages — each carry their own explicit `permissions:` block, which
 # overrides this one; everything else only checks out code.
 permissions:
@@ -1034,94 +1033,3 @@ jobs:
         env:
           CHANNEL: ${{ steps.channel.outputs.channel }}
           APP_VERSION: ${{ needs.compute-version.outputs.version }}
-
-  notify-argocd:
-    runs-on: ${{ github.ref == 'refs/heads/staging' && 'arc-runner' || 'ubuntu-latest' }}
-    needs: [compute-version, publish-helm]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
-    # One deploy nudge per ref is enough. This job waits up to 15 minutes for
-    # GitHub Pages and then refreshes a single ArgoCD application; in a merge
-    # burst only the newest chart is worth deploying, and serialising per ref
-    # also stops several 15-minute waits from parking on the single self-hosted
-    # runner (issue #406). Dropping a superseded nudge is safe: every step here
-    # is already best-effort and ArgoCD polls the Helm repo every ~3 minutes.
-    concurrency:
-      group: build-argocd-${{ github.ref }}
-      cancel-in-progress: false
-    permissions:
-      contents: write # push an empty gh-pages commit when a Pages deployment fails
-    steps:
-      - name: Determine ArgoCD application
-        id: app
-        run: |
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
-            echo "name=schautrack-prod" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=schautrack-staging" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Wait for Helm chart on GitHub Pages
-        run: |
-          if [[ "$GITHUB_REF" == "refs/heads/staging" ]]; then
-            VERSION="0.0.${{ github.run_number }}"
-            URL="https://helm.schautrack.com/staging/index.yaml"
-          else
-            VERSION="$RELEASE_VERSION"
-            URL="https://helm.schautrack.com/index.yaml"
-          fi
-          # GitHub Pages rebuilds the custom-domain CDN asynchronously after the
-          # gh-pages push, and *queues* deployments when several pushes land
-          # close together, so propagation can take well over the old 450s.
-          # Wait generously, but DO NOT fail the release if it is slow: the
-          # image and Helm chart are already published, and ArgoCD polls the
-          # Helm repo on its own interval (~3m), so the deploy still happens.
-          # This step is only a best-effort accelerator for the refresh below.
-          MAX_ATTEMPTS=180   # 180 * 5s = 15m
-          for i in $(seq 1 $MAX_ATTEMPTS); do
-            if curl -sf "$URL?_=$(date +%s)" | grep -q "version: $VERSION"; then
-              echo "Chart version $VERSION is live on GitHub Pages"
-              exit 0
-            fi
-            # A Pages deployment can fail outright with "Deployment failed,
-            # try again later." (three times on 2026-07-03) and GitHub never
-            # retries it on its own. Deployments are cached per gh-pages
-            # commit SHA, so re-requesting a build of the SAME commit
-            # (POST /pages/builds) fails instantly with the cached result —
-            # verified 2026-07-03. Only a NEW commit gets a fresh deployment,
-            # so push an empty one, once, 5 minutes in.
-            if [[ $i -eq 60 ]]; then
-              echo "Chart still not visible — pushing an empty gh-pages commit to force a fresh Pages deployment"
-              {
-                git clone --quiet --depth 1 --branch gh-pages \
-                  "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
-                  "$RUNNER_TEMP/ghpages-kick" &&
-                git -C "$RUNNER_TEMP/ghpages-kick" \
-                  -c user.name="github-actions[bot]" \
-                  -c user.email="github-actions[bot]@users.noreply.github.com" \
-                  commit --allow-empty -m "chore: retrigger failed Pages deployment" &&
-                git -C "$RUNNER_TEMP/ghpages-kick" push --quiet origin HEAD:gh-pages
-              } || echo "gh-pages kick failed (non-fatal); continuing to wait"
-            fi
-            echo "Waiting for GitHub Pages to serve $VERSION... ($i/$MAX_ATTEMPTS)"
-            sleep 5
-          done
-          echo "::warning::Chart $VERSION not visible on GitHub Pages after $((MAX_ATTEMPTS * 5))s; not failing the release — ArgoCD will pick it up on its next poll."
-          exit 0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_VERSION: ${{ needs.compute-version.outputs.version }}
-
-      # Best-effort: nudge ArgoCD to sync immediately instead of waiting for its
-      # poll. A transient ArgoCD hiccup must not red an already-published release.
-      - name: Refresh ArgoCD application (best-effort)
-        continue-on-error: true
-        run: |
-          curl -sSf -X GET \
-            "${ARGOCD_SERVER}/api/v1/applications/${APP_NAME}?refresh=normal" \
-            -H "Authorization: Bearer ${ARGOCD_AUTH_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -o /dev/null -w "ArgoCD refresh: HTTP %{http_code}\n"
-        env:
-          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-          APP_NAME: ${{ steps.app.outputs.name }}
