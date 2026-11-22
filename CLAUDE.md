@@ -148,7 +148,7 @@ The CI automatically computes semantic versions based on commit message prefixes
 
 ### Branch Behavior
 - `main`: Auto-creates semver tag (vX.Y.Z), builds container with version + `latest` tags, creates GitHub Release, publishes Helm chart to stable channel
-- `staging`: Builds with `staging-{run_number}` tag, publishes Helm chart to staging channel
+- `staging`: no longer builds or publishes on push (the staging environment was shut down with the hosted instance on 2026-11-22)
 - Other branches/PRs: Builds with commit SHA only
 
 ### Jobs

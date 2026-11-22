@@ -234,9 +234,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Expired tokens get cleaned up (runs every 15 min)
 - [x] [A] Graceful shutdown (SIGTERM) completes without errors
 - [x] [A] Static assets served with correct cache headers (`immutable` for hashed assets)
-- [ ] Helm chart deploys successfully to staging
-- [ ] Staging accessible at staging.schautrack.com
-- [ ] Production deploy via ArgoCD after staging verified
+- [ ] Helm chart installs successfully on a Kubernetes cluster
 - [x] [A] Go unit tests pass (`go test ./...`)
 - [x] [A] TypeScript compiles cleanly (`npx tsc --noEmit` in `client/`)
 - [x] [A] Vite production build succeeds (`npx vite build` in `client/`)

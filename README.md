@@ -1,13 +1,18 @@
 # Schautrack
 
+> [!WARNING]
+> **This project is archived and no longer maintained.** The hosted instance at
+> schautrack.com was shut down on 2026-11-22. The code, the container images on
+> ghcr.io and the Helm chart at helm.schautrack.com stay available for
+> self-hosting, at your own risk: there will be no further releases, fixes or
+> security updates.
+
 [![Build Status](https://github.com/schaurian/schautrack/actions/workflows/build.yml/badge.svg)](https://github.com/schaurian/schautrack/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/schaurian/schautrack)](https://github.com/schaurian/schautrack/releases)
 [![License](https://img.shields.io/github/license/schaurian/schautrack)](LICENSE)
 [![Docker Pulls](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/schaurian/schautrack/pkgs/container/schautrack)
 
 Schautrack is a self-hostable, open-source nutrition tracker — log calories, macros, and weight, set goals, and share progress with friends.
-
-**Try it:** [schautrack.com](https://schautrack.com)
 
 ![Schautrack on desktop and mobile](docs/screenshots/hero.png)
 
@@ -127,7 +132,7 @@ Settings follow a strict priority hierarchy: **environment variables** > **admin
 | `PORT` | `3000` | Port to listen on |
 | `ADMIN_EMAIL` | *(empty)* | Email that gets access to `/admin` page |
 | `SUPPORT_EMAIL` | *(empty)* | Contact email shown on support/error pages |
-| `BASE_URL` | *(auto-detect)* | Base URL for SEO meta tags (e.g., `https://schautrack.com`). Auto-detects from request if not set. |
+| `BASE_URL` | *(auto-detect)* | Base URL for SEO meta tags (e.g., `https://schautrack.example.com`). Auto-detects from request if not set. |
 
 ### AI Features
 
@@ -200,7 +205,7 @@ WebAuthn-based passwordless login with biometric verification. Users can registe
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PASSKEYS_RP_ID` | *(empty)* | Relying Party ID — your domain (e.g., `schautrack.com`). **Enables passkeys when set.** |
+| `PASSKEYS_RP_ID` | *(empty)* | Relying Party ID — your domain (e.g., `schautrack.example.com`). **Enables passkeys when set.** |
 | `PASSKEYS_RP_NAME` | `Schautrack` | Display name shown in passkey dialogs |
 | `PASSKEYS_RP_ORIGINS` | `https://<RP_ID>` | Allowed origins (comma-separated, for multi-domain setups) |
 
@@ -263,7 +268,7 @@ data into a dashboard.
 Create a token under **Settings → Account → API tokens**. Tokens are scoped, can
 be given an expiry, and can be revoked at any time. The secret is shown once.
 
-The examples below use `schautrack.com`; on your own instance use your own host.
+The examples below use `schautrack.example.com`; replace it with your own instance's host.
 A running server puts *its* URL in the OpenAPI document's `servers` entry (from
 `BASE_URL`), so tools that read the served spec — Swagger UI's "Try it out"
 included — send your token to your instance and nowhere else. The
@@ -272,9 +277,9 @@ they are stable identifiers, not endpoints, and are the same on every instance
 on purpose so clients can branch on them.
 
 ```bash
-curl -H "Authorization: Bearer stk_…" https://schautrack.com/api/v1/me
+curl -H "Authorization: Bearer stk_…" https://schautrack.example.com/api/v1/me
 
-curl -X POST https://schautrack.com/api/v1/entries \
+curl -X POST https://schautrack.example.com/api/v1/entries \
   -H "Authorization: Bearer stk_…" \
   -H "Content-Type: application/json" \
   -d '{"calories": 450, "name": "Porridge", "protein_g": 12}'
@@ -288,7 +293,7 @@ once per logical operation and reuse on retry. The first request executes and it
 response is stored; retries replay it instead of logging the meal twice:
 
 ```bash
-curl -X POST https://schautrack.com/api/v1/entries \
+curl -X POST https://schautrack.example.com/api/v1/entries \
   -H "Authorization: Bearer stk_…" \
   -H "Idempotency-Key: breakfast-2026-08-05" \
   -H "Content-Type: application/json" \
